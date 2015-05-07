@@ -20,25 +20,35 @@ import org.openstreetmap.josm.Main;
 public class RemoteControlHttpServer extends Thread {
 
     /** The server socket */
-    private ServerSocket server;
+    private ServerSocket server = null;
 
-    private static volatile RemoteControlHttpServer instance;
+    /** The server instance for IPv4 */
+    private static volatile RemoteControlHttpServer instance4 = null;
+    /** The server instance for IPv6 */
+    private static volatile RemoteControlHttpServer instance6 = null;
 
     /**
      * Starts or restarts the HTTP server
      */
     public static void restartRemoteControlHttpServer() {
+        stopRemoteControlHttpServer();
         int port = Main.pref.getInteger("remote.control.port", 8111);
         try {
-            stopRemoteControlHttpServer();
-
-            instance = new RemoteControlHttpServer(port);
-            instance.start();
-        } catch (BindException ex) {
-            Main.warn(marktr("Cannot start remotecontrol server on port {0}: {1}"),
+            instance4 = new RemoteControlHttpServer(port, false);
+            instance4.start();
+        } catch (Exception ex) {
+            Main.warn(marktr("Cannot start IPv4 remotecontrol server on port {0}: {1}"),
                     Integer.toString(port), ex.getLocalizedMessage());
-        } catch (IOException ioe) {
-            Main.error(ioe);
+        }
+        try {
+            instance6 = new RemoteControlHttpServer(port, true);
+            instance6.start();
+        } catch (Exception ex) {
+            /* only show error when we also have no IPv4 */
+            if(instance4 == null) {
+                Main.warn(marktr("Cannot start IPv6 remotecontrol server on port {0}: {1}"),
+                    Integer.toString(port), ex.getLocalizedMessage());
+            }
         }
     }
 
@@ -47,10 +57,18 @@ public class RemoteControlHttpServer extends Thread {
      * @since 5861
      */
     public static void stopRemoteControlHttpServer() {
-        if (instance != null) {
+        if (instance4 != null) {
             try {
-                instance.stopServer();
-                instance = null;
+                instance4.stopServer();
+                instance4 = null;
+            } catch (IOException ioe) {
+                Main.error(ioe);
+            }
+        }
+        if (instance6 != null) {
+            try {
+                instance6.stopServer();
+                instance6 = null;
             } catch (IOException ioe) {
                 Main.error(ioe);
             }
@@ -60,15 +78,15 @@ public class RemoteControlHttpServer extends Thread {
     /**
      * Constructor
      * @param port The port this server will listen on
+     * @param ipv6 Whether IPv6 or IPv4 server should be started
      * @throws IOException when connection errors
+     * @since 8339
      */
-    public RemoteControlHttpServer(int port) throws IOException {
+    public RemoteControlHttpServer(int port, boolean ipv6) throws IOException {
         super("RemoteControl HTTP Server");
         this.setDaemon(true);
-        // Start the server socket with only 1 connection.
-        // Also make sure we only listen on the local interface so nobody from the outside can connect!
-        // NOTE: On a dual stack machine with old Windows OS this may not listen on both interfaces!
-        this.server = new ServerSocket(port, 1, RemoteControl.getInetAddress());
+        this.server = new ServerSocket(port, 1, ipv6 ?
+            RemoteControl.getInet6Address() : RemoteControl.getInet4Address());
     }
 
     /**
@@ -76,7 +94,7 @@ public class RemoteControlHttpServer extends Thread {
      */
     @Override
     public void run() {
-        Main.info(marktr("RemoteControl::Accepting connections on {0}:{1}"),
+        Main.info(marktr("RemoteControl::Accepting remote connections on {0}:{1}"),
                 server.getInetAddress(), Integer.toString(server.getLocalPort()));
         while (true) {
             try {
@@ -98,7 +116,8 @@ public class RemoteControlHttpServer extends Thread {
      * @throws IOException
      */
     public void stopServer() throws IOException {
+        Main.info(marktr("RemoteControl::Server {0}:{1} stopped."),
+        server.getInetAddress(), Integer.toString(server.getLocalPort()));
         server.close();
-        Main.info(marktr("RemoteControl::Server stopped."));
     }
 }
