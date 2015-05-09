@@ -350,18 +350,18 @@ public class RemoteControlHttpsServer extends Thread {
         if (instance4 != null) {
             try {
                 instance4.stopServer();
-                instance4 = null;
             } catch (IOException ioe) {
                 Main.error(ioe);
             }
+            instance4 = null;
         }
         if (instance6 != null) {
             try {
                 instance6.stopServer();
-                instance6 = null;
             } catch (IOException ioe) {
                 Main.error(ioe);
             }
+            instance6 = null;
         }
     }
 
@@ -440,7 +440,7 @@ public class RemoteControlHttpsServer extends Thread {
      * @throws IOException if any I/O error occurs
      */
     public void stopServer() throws IOException {
-        Main.info(marktr("RemoteControl::Server {0}:{1} stopped.\n"),
+        Main.info(marktr("RemoteControl::Server {0}:{1} stopped."),
         server.getInetAddress(), Integer.toString(server.getLocalPort()));
         server.close();
     }
