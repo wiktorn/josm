@@ -32,7 +32,9 @@ import org.openstreetmap.josm.tools.WindowGeometry;
  * Manager allowing to show/hide history dialogs.
  * @since 2019
  */
-public class HistoryBrowserDialogManager implements MapView.LayerChangeListener {
+public final class HistoryBrowserDialogManager implements MapView.LayerChangeListener {
+
+    private static final String WINDOW_GEOMETRY_PREF = HistoryBrowserDialogManager.class.getName() + ".geometry";
 
     private static HistoryBrowserDialogManager instance;
 
@@ -88,8 +90,6 @@ public class HistoryBrowserDialogManager implements MapView.LayerChangeListener 
         }
         return false;
     }
-
-    private final String WINDOW_GEOMETRY_PREF = getClass().getName() + ".geometry";
 
     protected void placeOnScreen(HistoryBrowserDialog dialog) {
         WindowGeometry geometry = new WindowGeometry(WINDOW_GEOMETRY_PREF, WindowGeometry.centerOnScreen(new Dimension(850, 500)));
@@ -225,7 +225,7 @@ public class HistoryBrowserDialogManager implements MapView.LayerChangeListener 
                 return true;
             else
                 // reload if the history object of the selected object is not in the cache yet
-                return (!p.isNew() && h.getByVersion(p.getUniqueId()) == null);
+                return !p.isNew() && h.getByVersion(p.getUniqueId()) == null;
         }
     };
 

@@ -72,7 +72,7 @@ public class Capabilities {
         if (! capabilities.containsKey(element)) return false;
         Map<String, String> e = capabilities.get(element);
         if (e == null) return false;
-        return (e.get(attribute) != null);
+        return e.get(attribute) != null;
     }
 
     /**
@@ -271,7 +271,7 @@ public class Capabilities {
          */
         public static Capabilities parse(InputSource inputSource) throws SAXException, IOException, ParserConfigurationException {
             CapabilitiesParser parser = new CapabilitiesParser();
-            Utils.newSafeSAXParser().parse(inputSource, parser);
+            Utils.parseSafeSAX(inputSource, parser);
             return parser.getCapabilities();
         }
     }

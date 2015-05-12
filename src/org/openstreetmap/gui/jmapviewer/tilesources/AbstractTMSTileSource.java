@@ -18,7 +18,7 @@ public abstract class AbstractTMSTileSource extends AbstractTileSource {
     public AbstractTMSTileSource(TileSourceInfo info) {
         this.name = info.getName();
         this.baseUrl = info.getUrl();
-        if(baseUrl.endsWith("/")) {
+        if(baseUrl != null && baseUrl.endsWith("/")) {
             baseUrl = baseUrl.substring(0,baseUrl.length()-1);
         }
         this.id = info.getUrl();
@@ -133,8 +133,12 @@ public abstract class AbstractTMSTileSource extends AbstractTileSource {
         if(noTileHeaders != null) {
             for (Entry<String, String> searchEntry: noTileHeaders.entrySet()) {
                 List<String> headerVals = headers.get(searchEntry.getKey());
-                if (headerVals != null && headerVals.contains(searchEntry.getValue())) {
-                    return true;
+                if (headerVals != null) {
+                    for (String headerValue: headerVals) {
+                        if (headerValue.matches(searchEntry.getValue())) {
+                            return true;
+                        }
+                    }
                 }
             }
         }

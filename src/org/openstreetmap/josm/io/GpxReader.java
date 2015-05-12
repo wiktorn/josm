@@ -541,7 +541,7 @@ public class GpxReader implements GpxConstants {
     public boolean parse(boolean tryToFinish) throws SAXException, IOException {
         Parser parser = new Parser();
         try {
-            Utils.newSafeSAXParser().parse(inputSource, parser);
+            Utils.parseSafeSAX(inputSource, parser);
             return true;
         } catch (SAXException e) {
             if (tryToFinish) {
@@ -550,7 +550,7 @@ public class GpxReader implements GpxConstants {
                     throw e;
                 String message = e.getMessage();
                 if (e instanceof SAXParseException) {
-                    SAXParseException spe = ((SAXParseException)e);
+                    SAXParseException spe = (SAXParseException)e;
                     message += " " + tr("(at line {0}, column {1})", spe.getLineNumber(), spe.getColumnNumber());
                 }
                 Main.warn(message);
