@@ -10,7 +10,6 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import org.openstreetmap.josm.Main;
@@ -114,10 +113,11 @@ public class RestartAction extends JosmAction {
                 // program main and program arguments (be careful a sun property. might not be supported by all JVM)
                 String[] mainCommand = System.getProperty("sun.java.command").split(" ");
                 // look for a .jar in all chunks to support paths with spaces (fix #9077)
-                String jarPath = mainCommand[0];
-                for (int i = 1; i < mainCommand.length && !jarPath.endsWith(".jar"); i++) {
-                    jarPath += " " + mainCommand[i];
+                StringBuilder sb = new StringBuilder(mainCommand[0]);
+                for (int i = 1; i < mainCommand.length && !mainCommand[i-1].endsWith(".jar"); i++) {
+                    sb.append(" ").append(mainCommand[i]);
                 }
+                String jarPath = sb.toString();
                 // program main is a jar
                 if (jarPath.endsWith(".jar")) {
                     // if it's a jar, add -jar mainJar
@@ -136,7 +136,7 @@ public class RestartAction extends JosmAction {
                     cmd.add(jnlp);
                 }
                 // finally add program arguments
-                cmd.addAll(Arrays.asList(Main.commandLineArgs));
+                cmd.addAll(Main.getCommandLineArgs());
             }
             Main.info("Restart "+cmd);
             if (Main.isDebugEnabled() && Main.pref.getBoolean("restart.debug.simulation")) {
