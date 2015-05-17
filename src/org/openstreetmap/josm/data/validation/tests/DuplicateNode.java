@@ -1,4 +1,4 @@
-// License: GPL. See LICENSE file for details.
+// License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.data.validation.tests;
 
 import static org.openstreetmap.josm.tools.I18n.marktr;
@@ -58,14 +58,14 @@ public class DuplicateNode extends Test {
                 LatLon coor = ((Node) o).getCoor();
                 if (coor == null)
                     return null;
-                if (precision==0)
+                if (Double.doubleToRawLongBits(precision) == 0)
                     return coor.getRoundedToOsmPrecision();
                 return roundCoord(coor);
             } else if (o instanceof List<?>) {
                 LatLon coor = ((List<Node>) o).get(0).getCoor();
                 if (coor == null)
                     return null;
-                if (precision==0)
+                if (Double.doubleToRawLongBits(precision) == 0)
                     return coor.getRoundedToOsmPrecision();
                 return roundCoord(coor);
             } else

@@ -1,4 +1,4 @@
-// License: GPL. See LICENSE file for details.
+// License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.gui.layer.geoimage;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
@@ -625,16 +625,14 @@ public class GeoImageLayer extends Layer implements PropertyChangeListener, Jump
         try {
             double speed = dirGps.getDouble(GpsDirectory.TAG_SPEED);
             String speedRef = dirGps.getString(GpsDirectory.TAG_SPEED_REF);
-            if (speedRef != null) {
-                if (speedRef.equalsIgnoreCase("M")) {
-                    // miles per hour
-                    speed *= 1.609344;
-                } else if (speedRef.equalsIgnoreCase("N")) {
-                    // knots == nautical miles per hour
-                    speed *= 1.852;
-                }
-                // default is K (km/h)
+            if ("M".equalsIgnoreCase(speedRef)) {
+                // miles per hour
+                speed *= 1.609344;
+            } else if ("N".equalsIgnoreCase(speedRef)) {
+                // knots == nautical miles per hour
+                speed *= 1.852;
             }
+            // default is K (km/h)
             e.setSpeed(speed);
         } catch (Exception ex) {
             Main.debug(ex.getMessage());
@@ -805,7 +803,7 @@ public class GeoImageLayer extends Layer implements PropertyChangeListener, Jump
                 }
 
                 if (toDelete.getFile().delete()) {
-                    Main.info("File "+toDelete.getFile().toString()+" deleted. ");
+                    Main.info("File "+toDelete.getFile()+" deleted. ");
                 } else {
                     JOptionPane.showMessageDialog(
                             Main.parent,

@@ -30,7 +30,7 @@ import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -226,7 +226,7 @@ public class MainApplication extends Main {
         }
 
         public static Map<Option, Collection<String>> fromStringMap(Map<String, Collection<String>> opts) {
-            Map<Option, Collection<String>> res = new HashMap<>();
+            Map<Option, Collection<String>> res = new EnumMap<>(Option.class);
             for (Map.Entry<String, Collection<String>> e : opts.entrySet()) {
                 Option o = Option.valueOf(e.getKey().toUpperCase().replace("-", "_"));
                 if (o != null) {
@@ -246,7 +246,7 @@ public class MainApplication extends Main {
 
         Getopt g = new Getopt("JOSM", args, "hv", los.toArray(new LongOpt[los.size()]));
 
-        Map<Option, Collection<String>> argMap = new HashMap<>();
+        Map<Option, Collection<String>> argMap = new EnumMap<>(Option.class);
 
         int c;
         while ((c = g.getopt()) != -1 ) {
@@ -348,7 +348,7 @@ public class MainApplication extends Main {
             Main.info(tr("Printing debugging messages to console"));
         }
 
-        Boolean skipLoadingPlugins = false;
+        boolean skipLoadingPlugins = false;
         if (args.containsKey(Option.SKIP_PLUGINS)) {
             skipLoadingPlugins = true;
             Main.info(tr("Plugin loading skipped"));
@@ -558,7 +558,10 @@ public class MainApplication extends Main {
                                 break; /* we're done */
                             }
                         }
-                    } catch (Exception e) {
+                    } catch (IOException | SecurityException e) {
+                        if (Main.isDebugEnabled()) {
+                            Main.debug("Exception while checking IPv6 connectivity: "+e);
+                        }
                     }
                     if(wasv6 && !hasv6) {
                         Main.info(tr("Detected no useable IPv6 network, prefering IPv4 over IPv6 after next restart."));

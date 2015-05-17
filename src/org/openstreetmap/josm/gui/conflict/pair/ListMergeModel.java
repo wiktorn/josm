@@ -12,7 +12,7 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Observable;
@@ -181,8 +181,11 @@ public abstract class ListMergeModel<T extends PrimitiveId> extends Observable {
         return getTheirEntries().size();
     }
 
+    /**
+     * Constructs a new {@code ListMergeModel}.
+     */
     public ListMergeModel() {
-        entries = new HashMap<>();
+        entries = new EnumMap<>(ListRole.class);
         for (ListRole role : ListRole.values()) {
             entries.put(role, new ArrayList<T>());
         }
@@ -356,10 +359,10 @@ public abstract class ListMergeModel<T extends PrimitiveId> extends Observable {
             items.add(tr("{0} more...", deletedIds.size() - MAX_DELETED_PRIMITIVE_IN_DIALOG));
         }
         StringBuilder sb = new StringBuilder();
-        sb.append("<html>");
-        sb.append(tr("The following objects could not be copied to the target object<br>because they are deleted in the target dataset:"));
-        sb.append(Utils.joinAsHtmlUnorderedList(items));
-        sb.append("</html>");
+        sb.append("<html>")
+          .append(tr("The following objects could not be copied to the target object<br>because they are deleted in the target dataset:"))
+          .append(Utils.joinAsHtmlUnorderedList(items))
+          .append("</html>");
         HelpAwareOptionPane.showOptionDialog(
                 Main.parent,
                 sb.toString(),
@@ -594,8 +597,7 @@ public abstract class ListMergeModel<T extends PrimitiveId> extends Observable {
         @Override
         public int getRowCount() {
             int count = Math.max(getMyEntries().size(), getMergedEntries().size());
-            count = Math.max(count, getTheirEntries().size());
-            return count;
+            return Math.max(count, getTheirEntries().size());
         }
 
         @Override

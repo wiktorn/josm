@@ -1,4 +1,4 @@
-// License: GPL. See LICENSE file for details.
+// License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.gui;
 
 import static org.openstreetmap.josm.gui.help.HelpUtil.ht;
@@ -485,7 +485,7 @@ public class MainMenu extends JMenuBar {
      * @return the created menu item
      */
     public static JMenuItem add(JMenu menu, JosmAction action, boolean isExpert, Integer index) {
-        if (action.getShortcut().getAutomatic())
+        if (action.getShortcut().isAutomatic())
             return null;
         final JMenuItem menuitem;
         if (index == null) {
@@ -539,7 +539,7 @@ public class MainMenu extends JMenuBar {
      * @return The created menu item
      */
     public static <E extends Enum<E>> JMenuItem add(JMenu menu, JosmAction action, Enum<E> group) {
-        if (action.getShortcut().getAutomatic())
+        if (action.getShortcut().isAutomatic())
             return null;
         int i = getInsertionIndexForGroup(menu, group.ordinal());
         JMenuItem menuitem = (JMenuItem) menu.add(new JMenuItem(action), i);

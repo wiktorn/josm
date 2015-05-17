@@ -10,6 +10,7 @@ import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.visitor.paint.MapPaintSettings;
 import org.openstreetmap.josm.data.osm.visitor.paint.StyledMapRenderer;
 import org.openstreetmap.josm.gui.mappaint.mapcss.Instruction.RelativeFloat;
+import org.openstreetmap.josm.tools.Utils;
 
 public abstract class ElemStyle implements StyleKeys {
 
@@ -39,7 +40,7 @@ public abstract class ElemStyle implements StyleKeys {
         majorZIndex = c.get(MAJOR_Z_INDEX, default_major_z_index, Float.class);
         zIndex = c.get(Z_INDEX, 0f, Float.class);
         objectZIndex = c.get(OBJECT_Z_INDEX, 0f, Float.class);
-        isModifier = c.get(MODIFIER, false, Boolean.class);
+        isModifier = c.get(MODIFIER, Boolean.FALSE, Boolean.class);
     }
 
     /**
@@ -207,10 +208,10 @@ public abstract class ElemStyle implements StyleKeys {
         if (!(o instanceof ElemStyle))
             return false;
         ElemStyle s = (ElemStyle) o;
-        return majorZIndex == s.majorZIndex &&
-                zIndex == s.zIndex &&
-                objectZIndex == s.objectZIndex &&
-                isModifier == s.isModifier;
+        return isModifier == s.isModifier &&
+                Utils.equalsEpsilon(majorZIndex, s.majorZIndex) &&
+                Utils.equalsEpsilon(zIndex, s.zIndex) &&
+                Utils.equalsEpsilon(objectZIndex, s.objectZIndex);
     }
 
     @Override

@@ -1,5 +1,4 @@
-// License: GPL. See LICENSE file for details.
-
+// License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.gui;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
@@ -177,7 +176,7 @@ public final class GettingStarted extends JPanel implements ProxyPreferenceListe
             String im = m.group(1);
             URL u = getClass().getResource(im);
             if (u != null) {
-                m.appendReplacement(sb, Matcher.quoteReplacement("src=\"" + u.toString() + "\""));
+                m.appendReplacement(sb, Matcher.quoteReplacement("src=\"" + u + "\""));
             }
         }
         m.appendTail(sb);

@@ -1,5 +1,4 @@
-// License: GPL. See LICENSE file for details.
-
+// License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.gui.layer;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
@@ -31,6 +30,7 @@ import org.openstreetmap.josm.data.projection.ProjectionChangeListener;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.tools.Destroyable;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Utils;
 
 /**
  * A layer encapsulates the gui component of one dataset and its representation.
@@ -269,7 +269,7 @@ public abstract class Layer implements Destroyable, MapViewPaintable, Projection
     public void setVisible(boolean visible) {
         boolean oldValue = isVisible();
         this.visible  = visible;
-        if (visible && opacity == 0) {
+        if (visible && Double.doubleToRawLongBits(opacity) == 0) {
             setOpacity(1);
         } else if (oldValue != isVisible()) {
             fireVisibleChanged(oldValue, isVisible());
@@ -281,7 +281,7 @@ public abstract class Layer implements Destroyable, MapViewPaintable, Projection
      * @return  true if this layer is visible. False, otherwise.
      */
     public boolean isVisible() {
-        return visible && opacity != 0;
+        return visible && Double.doubleToRawLongBits(opacity) != 0;
     }
 
     public double getOpacity() {
@@ -294,7 +294,7 @@ public abstract class Layer implements Destroyable, MapViewPaintable, Projection
         double oldOpacity = getOpacity();
         boolean oldVisible = isVisible();
         this.opacity = opacity;
-        if (oldOpacity != getOpacity()) {
+        if (!Utils.equalsEpsilon(oldOpacity, getOpacity())) {
             fireOpacityChanged(oldOpacity, getOpacity());
         }
         if (oldVisible != isVisible()) {

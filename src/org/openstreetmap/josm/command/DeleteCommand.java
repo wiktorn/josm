@@ -9,6 +9,7 @@ import java.awt.GridBagLayout;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -122,7 +123,7 @@ public class DeleteCommand extends Command {
         // Make copy and remove all references (to prevent inconsistent dataset (delete referenced) while command is executed)
         for (OsmPrimitive osm: toDelete) {
             if (osm.isDeleted())
-                throw new IllegalArgumentException(osm.toString() + " is already deleted");
+                throw new IllegalArgumentException(osm + " is already deleted");
             clonedPrimitives.put(osm, osm.save());
 
             if (osm instanceof Way) {
@@ -156,7 +157,7 @@ public class DeleteCommand extends Command {
     }
 
     private Set<OsmPrimitiveType> getTypesToDelete() {
-        Set<OsmPrimitiveType> typesToDelete = new HashSet<>();
+        Set<OsmPrimitiveType> typesToDelete = EnumSet.noneOf(OsmPrimitiveType.class);
         for (OsmPrimitive osm : toDelete) {
             typesToDelete.add(OsmPrimitiveType.from(osm));
         }

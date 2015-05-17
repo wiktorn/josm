@@ -1,4 +1,4 @@
-// License: GPL. See LICENSE file for details.
+// License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.gui.layer.gpx;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
@@ -47,8 +47,8 @@ public class DateFilterPanel extends JPanel {
 
         final Date startTime, endTime;
         Date[] bounds = layer.data.getMinMaxTimeForAllTracks();
-        startTime = (bounds==null) ? new GregorianCalendar(2000, 1, 1).getTime():bounds[0];
-        endTime = (bounds==null) ? new Date() : bounds[1];
+        startTime = (bounds.length == 0) ? new GregorianCalendar(2000, 1, 1).getTime():bounds[0];
+        endTime = (bounds.length == 0) ? new Date() : bounds[1];
 
         dateFrom.setDate(startTime);
         dateTo.setDate(endTime);

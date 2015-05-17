@@ -1,4 +1,4 @@
-// License: GPL. See LICENSE file for details.
+// License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.gui.dialogs;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
@@ -311,8 +311,8 @@ public class ToggleDialog extends JPanel implements ShowHideButtonListener, Help
         // toggling the selected value in order to enforce PropertyChangeEvents
         setIsShowing(true);
         windowMenuItem.setState(true);
-        toggleAction.putValue("selected", false);
-        toggleAction.putValue("selected", true);
+        toggleAction.putValue("selected", Boolean.FALSE);
+        toggleAction.putValue("selected", Boolean.TRUE);
     }
 
     /**

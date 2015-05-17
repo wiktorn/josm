@@ -10,6 +10,7 @@ import java.util.Objects;
 
 import org.openstreetmap.josm.data.osm.Storage;
 import org.openstreetmap.josm.tools.Pair;
+import org.openstreetmap.josm.tools.Utils;
 
 /**
  * Caches styles for a single primitive.
@@ -163,13 +164,13 @@ public final class StyleCache {
         while (bd.get(i) < lower) {
             ++i;
         }
-        if (bd.get(i) == lower) {
+        if (Utils.equalsEpsilon(bd.get(i), lower)) {
             if (upper > bd.get(i+1))
                 throw new RangeViolatedError();
             if (data.get(i) != null)
                 throw new AssertionError("the new range must be within a subrange that has no data");
 
-            if (bd.get(i+1) == upper) {
+            if (Utils.equalsEpsilon(bd.get(i+1), upper)) {
                 //  --|-------|--------|--
                 //   i-1      i       i+1
                 //            (--------]

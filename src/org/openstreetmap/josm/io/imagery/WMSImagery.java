@@ -80,14 +80,14 @@ public class WMSImagery {
             return null;
         }
         StringBuilder a = new StringBuilder(serviceUrl.getProtocol());
-        a.append("://");
-        a.append(serviceUrl.getHost());
+        a.append("://")
+         .append(serviceUrl.getHost());
         if (serviceUrl.getPort() != -1) {
-            a.append(":");
-            a.append(serviceUrl.getPort());
+            a.append(":")
+             .append(serviceUrl.getPort());
         }
-        a.append(serviceUrl.getPath());
-        a.append("?");
+        a.append(serviceUrl.getPath())
+         .append("?");
         if (serviceUrl.getQuery() != null) {
             a.append(serviceUrl.getQuery());
             if (!serviceUrl.getQuery().isEmpty() && !serviceUrl.getQuery().endsWith("&")) {
@@ -138,7 +138,7 @@ public class WMSImagery {
             return;
         }
 
-        Main.info("GET " + getCapabilitiesUrl.toString());
+        Main.info("GET " + getCapabilitiesUrl);
         URLConnection openConnection = Utils.openHttpConnection(getCapabilitiesUrl);
         StringBuilder ba = new StringBuilder();
 

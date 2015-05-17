@@ -1,4 +1,4 @@
-// License: GPL. See LICENSE file for details.
+// License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.data.validation.tests;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
@@ -51,7 +51,7 @@ public class OverlappingWays extends Test {
     protected static final int DUPLICATE_WAY_SEGMENT = 121;
 
     protected static final CollectionProperty IGNORED_KEYS = new CollectionProperty(
-            "overlapping-ways.ignored-keys", Arrays.asList("barrier", "building", "historic:building"));
+            "overlapping-ways.ignored-keys", Arrays.asList("barrier", "building", "historic:building", "man_made"));
 
     /** Constructor */
     public OverlappingWays() {

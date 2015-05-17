@@ -1,4 +1,4 @@
-// License: GPL. See LICENSE file for details.
+// License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.gui.preferences.advanced;
 
 import static org.openstreetmap.josm.tools.I18n.marktr;
@@ -52,7 +52,7 @@ public class PreferencesTable extends JTable {
         this.displayData = displayData;
         model = new AllSettingsTableModel();
         setModel(model);
-        putClientProperty("terminateEditOnFocusLost", true);
+        putClientProperty("terminateEditOnFocusLost", Boolean.TRUE);
         getColumnModel().getColumn(1).setCellRenderer(new SettingCellRenderer());
         getColumnModel().getColumn(1).setCellEditor(new SettingCellEditor());
 

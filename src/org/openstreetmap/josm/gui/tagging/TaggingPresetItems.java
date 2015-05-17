@@ -120,13 +120,13 @@ public final class TaggingPresetItems {
                 return "&nbsp;";
 
             final StringBuilder res = new StringBuilder("<b>");
-            res.append(getDisplayValue(true).replaceAll("<", "&lt;").replaceAll(">", "&gt;"));
-            res.append("</b>");
+            res.append(getDisplayValue(true).replaceAll("<", "&lt;").replaceAll(">", "&gt;"))
+               .append("</b>");
             if (getShortDescription(true) != null) {
                 // wrap in table to restrict the text width
-                res.append("<div style=\"width:300px; padding:0 0 5px 5px\">");
-                res.append(getShortDescription(true));
-                res.append("</div>");
+                res.append("<div style=\"width:300px; padding:0 0 5px 5px\">")
+                   .append(getShortDescription(true))
+                   .append("</div>");
             }
             return res.toString();
         }
@@ -554,11 +554,11 @@ public final class TaggingPresetItems {
             case NONE:
                 return null;
             case KEY:
-                return tags.containsKey(key) ? true : null;
+                return tags.containsKey(key) ? Boolean.TRUE : null;
             case KEY_REQUIRED:
                 return tags.containsKey(key);
             case KEY_VALUE:
-                return tags.containsKey(key) && getValues().contains(tags.get(key)) ? true : null;
+                return tags.containsKey(key) && getValues().contains(tags.get(key)) ? Boolean.TRUE : null;
             case KEY_VALUE_REQUIRED:
                 return tags.containsKey(key) && getValues().contains(tags.get(key));
             default:

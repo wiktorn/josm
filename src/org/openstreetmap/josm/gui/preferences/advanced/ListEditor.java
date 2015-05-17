@@ -1,4 +1,4 @@
-// License: GPL. See LICENSE file for details.
+// License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.gui.preferences.advanced;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
@@ -68,7 +68,7 @@ public class ListEditor extends ExtendedDialog {
         p.add(new JLabel(tr("Key: {0}", entry.getKey())), GBC.eol().insets(0,0,5,0));
         ListSettingTableModel listModel = new ListSettingTableModel();
         JTable table = new JTable(listModel);
-        table.putClientProperty("terminateEditOnFocusLost", true);
+        table.putClientProperty("terminateEditOnFocusLost", Boolean.TRUE);
         table.setTableHeader(null);
 
         DefaultCellEditor editor = new DefaultCellEditor(new JosmTextField());

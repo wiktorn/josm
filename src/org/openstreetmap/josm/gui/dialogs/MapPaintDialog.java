@@ -139,7 +139,7 @@ public class MapPaintDialog extends ToggleDialog {
         tblStyles = new StylesTable(model);
         tblStyles.setSelectionModel(selectionModel= new DefaultListSelectionModel());
         tblStyles.addMouseListener(new PopupMenuHandler());
-        tblStyles.putClientProperty("terminateEditOnFocusLost", true);
+        tblStyles.putClientProperty("terminateEditOnFocusLost", Boolean.TRUE);
         tblStyles.setBackground(UIManager.getColor("Panel.background"));
         tblStyles.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         tblStyles.setTableHeader(null);
@@ -605,8 +605,8 @@ public class MapPaintDialog extends ToggleDialog {
             if (s.getBackgroundColorOverride() != null) {
                 text.append(tableRow(tr("Background:"), Utils.toString(s.getBackgroundColorOverride())));
             }
-            text.append(tableRow(tr("Style is currently active?"), s.active ? tr("Yes") : tr("No")));
-            text.append("</table>");
+            text.append(tableRow(tr("Style is currently active?"), s.active ? tr("Yes") : tr("No")))
+                .append("</table>");
             p.add(new JScrollPane(new HtmlPanel(text.toString())), GBC.eol().fill(GBC.BOTH));
             return p;
         }
@@ -642,7 +642,7 @@ public class MapPaintDialog extends ToggleDialog {
             txtErrors.setEditable(false);
             p.add(new JScrollPane(txtErrors), GBC.std().fill());
             for (Throwable t : s.getErrors()) {
-                txtErrors.append(t.toString() + "\n");
+                txtErrors.append(t + "\n");
             }
         }
     }

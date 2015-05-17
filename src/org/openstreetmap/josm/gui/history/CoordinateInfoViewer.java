@@ -99,7 +99,7 @@ public class CoordinateInfoViewer extends JPanel {
     }
 
     /**
-     *
+     * Constructs a new {@code CoordinateInfoViewer}.
      * @param model the model. Must not be null.
      * @throws IllegalArgumentException if model is null
      */
@@ -172,6 +172,9 @@ public class CoordinateInfoViewer extends JPanel {
         private JLabel lblLon;
         private transient HistoryBrowserModel model;
         private PointInTimeType role;
+
+        protected LatLon coord;
+        protected LatLon oppositeCoord;
 
         protected HistoryOsmPrimitive getPrimitive() {
             if (model == null || role == null)
@@ -248,24 +251,27 @@ public class CoordinateInfoViewer extends JPanel {
             this.role = role;
         }
 
-        protected void refresh() {
+        protected final boolean prepareRefresh() {
             HistoryOsmPrimitive p = getPrimitive();
             HistoryOsmPrimitive  opposite = getOppositePrimitive();
-            if (!(p instanceof HistoryNode)) return;
-            if (!(opposite instanceof HistoryNode)) return;
+            if (!(p instanceof HistoryNode)) return false;
+            if (!(opposite instanceof HistoryNode)) return false;
             HistoryNode node = (HistoryNode)p;
             HistoryNode oppositeNode = (HistoryNode) opposite;
 
-            LatLon coord = node.getCoords();
-            LatLon oppositeCoord = oppositeNode.getCoords();
+            coord = node.getCoords();
+            oppositeCoord = oppositeNode.getCoords();
+            return true;
+        }
+
+        protected void refresh() {
+            if (!prepareRefresh()) return;
 
             // display the coordinates
-            //
             lblLat.setText(coord != null ? coord.latToString(CoordinateFormat.DECIMAL_DEGREES) : tr("(none)"));
             lblLon.setText(coord != null ? coord.lonToString(CoordinateFormat.DECIMAL_DEGREES) : tr("(none)"));
 
             // update background color to reflect differences in the coordinates
-            //
             if (coord == oppositeCoord ||
                     (coord != null && oppositeCoord != null && coord.lat() == oppositeCoord.lat())) {
                 lblLat.setBackground(Color.WHITE);
@@ -322,15 +328,7 @@ public class CoordinateInfoViewer extends JPanel {
 
         @Override
         protected void refresh() {
-            HistoryOsmPrimitive p = getPrimitive();
-            HistoryOsmPrimitive opposite = getOppositePrimitive();
-            if (!(p instanceof HistoryNode)) return;
-            if (!(opposite instanceof HistoryNode)) return;
-            HistoryNode node = (HistoryNode) p;
-            HistoryNode oppositeNode = (HistoryNode) opposite;
-
-            LatLon coord = node.getCoords();
-            LatLon oppositeCoord = oppositeNode.getCoords();
+            if (!prepareRefresh()) return;
 
             // update distance
             //

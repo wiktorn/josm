@@ -1,4 +1,4 @@
-// License: GPL. See LICENSE file for details.
+// License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.actions.mapmode;
 
 import static org.openstreetmap.josm.gui.help.HelpUtil.ht;
@@ -1004,7 +1004,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
             // Check for parallel segments and do nothing if they are
             // In practice this will probably only happen when a way has been duplicated
 
-            if (u == 0)
+            if (Double.doubleToRawLongBits(u) == 0)
                 return;
 
             // q is a number between 0 and 1
