@@ -351,7 +351,7 @@ public final class Geometry {
 
         // Solve the equations
         double det = a1 * b2 - a2 * b1;
-        if (Double.doubleToRawLongBits(det) == 0)
+        if (det == 0)
             return null; // Lines are parallel
 
         return new EastNorth(b1 * c2 / det + p1.getX(),  - a1 * c2 / det + p1.getY());
@@ -387,7 +387,7 @@ public final class Geometry {
         double ldy = p2.getY() - p1.getY();
 
         //segment zero length
-        if (Double.doubleToRawLongBits(ldx) == 0 && Double.doubleToRawLongBits(ldy) == 0)
+        if (ldx == 0 && ldy == 0)
             return p1;
 
         double pdx = point.getX() - p1.getX();
@@ -600,8 +600,7 @@ public final class Geometry {
             //test if the line is crossed and if so invert the inside flag.
             if ((newPoint.getEastNorth().getY() < point.getEastNorth().getY()) == (point.getEastNorth().getY() <= oldPoint.getEastNorth().getY())
                     && (point.getEastNorth().getX() - p1.getEastNorth().getX()) * (p2.getEastNorth().getY() - p1.getEastNorth().getY())
-                    < (p2.getEastNorth().getX() - p1.getEastNorth().getX()) * (point.getEastNorth().getY() - p1.getEastNorth().getY()))
-            {
+                    < (p2.getEastNorth().getX() - p1.getEastNorth().getX()) * (point.getEastNorth().getY() - p1.getEastNorth().getY())) {
                 inside = !inside;
             }
 
@@ -637,7 +636,7 @@ public final class Geometry {
         return Math.abs(area/2);
     }
 
-    protected static double calcX(Node p1){
+    protected static double calcX(Node p1) {
         double lat1, lon1, lat2, lon2;
         double dlon, dlat;
 
@@ -827,7 +826,7 @@ public final class Geometry {
             a[i] = pt1.east() - pt2.east();
             b[i] = pt1.north() - pt2.north();
             double d = Math.sqrt(a[i]*a[i] + b[i]*b[i]);
-            if (Double.doubleToRawLongBits(d) == 0) return null;
+            if(d == 0) return null;
             a[i] /= d;
             b[i] /= d;
             double xC = (pt1.east() + pt2.east()) / 2;

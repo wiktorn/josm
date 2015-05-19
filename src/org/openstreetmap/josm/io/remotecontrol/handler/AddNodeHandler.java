@@ -29,7 +29,7 @@ public class AddNodeHandler extends RequestHandler {
 
     private double lat;
     private double lon;
-    
+
     private Node node;
 
     @Override
@@ -42,15 +42,13 @@ public class AddNodeHandler extends RequestHandler {
     }
 
     @Override
-    public String[] getMandatoryParams()
-    {
-        return new String[] { "lat", "lon" };
+    public String[] getMandatoryParams() {
+        return new String[] {"lat", "lon"};
     }
-    
+
     @Override
-    public String[] getOptionalParams()
-    {
-        return new String[] { "addtags" };
+    public String[] getOptionalParams() {
+        return new String[] {"addtags"};
     }
 
     @Override
@@ -62,10 +60,10 @@ public class AddNodeHandler extends RequestHandler {
     public String[] getUsageExamples() {
         return new String[] {
             "/add_node?lat=11&lon=22",
-            "/add_node?lon=13.3&lat=53.2&addtags=natural=tree|name=%20%20%20==Great%20Oak==" 
+            "/add_node?lon=13.3&lat=53.2&addtags=natural=tree|name=%20%20%20==Great%20Oak=="
         };
     }
-    
+
     @Override
     public String getPermissionMessage() {
         return tr("Remote Control has been asked to create a new node.") +
@@ -121,7 +119,7 @@ public class AddNodeHandler extends RequestHandler {
             lat = Double.parseDouble(args.get("lat"));
             lon = Double.parseDouble(args.get("lon"));
         } catch (NumberFormatException e) {
-            throw new RequestHandlerBadRequestException("NumberFormatException ("+e.getMessage()+")");
+            throw new RequestHandlerBadRequestException("NumberFormatException ("+e.getMessage()+")", e);
         }
         if (!Main.main.hasEditLayer()) {
              throw new RequestHandlerBadRequestException(tr("There is no layer opened to add node"));

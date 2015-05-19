@@ -768,7 +768,7 @@ public class Preferences {
      * @return true, if something has changed (i.e. value is different than before)
      */
     public boolean put(final String key, String value) {
-        if(value != null && value.length() == 0) {
+        if(value != null && value.isEmpty()) {
             value = null;
         }
         return putSetting(key, value == null ? null : new StringSetting(value));
@@ -1727,8 +1727,7 @@ public class Preferences {
                 if (data != null) {
                     List<Map<String, String>> newlist = new ArrayList<Map<String, String>>();
                     boolean modified = false;
-                    for(Map<String, String> map : data)
-                    {
+                    for(Map<String, String> map : data) {
                          Map<String, String> newmap = new LinkedHashMap<String, String>();
                          for (Entry<String, String> entry : map.entrySet()) {
                              String val = entry.getValue();

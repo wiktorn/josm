@@ -260,8 +260,7 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
         left.add(remove, GBC.eol());
         left.add(in_selection, GBC.eop());
         left.add(caseSensitive, GBC.eol());
-        if(Main.pref.getBoolean("expert", false))
-        {
+        if(Main.pref.getBoolean("expert", false)) {
             left.add(allElements, GBC.eol());
             left.add(regexSearch, GBC.eol());
             left.add(addOnToolbar, GBC.eol());
@@ -624,7 +623,7 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
         }
 
         public static SearchSetting readFromString(String s) {
-            if (s.length() == 0)
+            if (s.isEmpty())
                 return null;
 
             SearchSetting result = new SearchSetting();
@@ -663,7 +662,7 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
         }
 
         public String writeToString() {
-            if (text == null || text.length() == 0)
+            if (text == null || text.isEmpty())
                 return "";
 
             StringBuilder result = new StringBuilder();

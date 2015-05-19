@@ -154,8 +154,7 @@ public class DefaultNameFormatter implements NameFormatter, HistoryNameFormatter
                 } else {
                     n = node.getName();
                 }
-                if(n == null)
-                {
+                if (n == null) {
                     String s;
                     if((s = node.get("addr:housename")) != null) {
                         /* I18n: name of house as parameter */
@@ -273,7 +272,7 @@ public class DefaultNameFormatter implements NameFormatter, HistoryNameFormatter
                     }
                 }
                 if(n == null && way.get("building") != null) n = tr("building");
-                if(n == null || n.length() == 0) {
+                if(n == null || n.isEmpty()) {
                     n = String.valueOf(way.getId());
                 }
 
@@ -431,8 +430,7 @@ public class DefaultNameFormatter implements NameFormatter, HistoryNameFormatter
             String building  = relation.get("building");
             if (OsmUtils.isTrue(building)) {
                 name = tr("building");
-            } else if(building != null)
-            {
+            } else if (building != null) {
                 name = tr(building); // translate tag!
             }
         }

@@ -934,8 +934,7 @@ public class ImageProvider {
                         }
                         return svg == null ? null : new ImageResource(svg);
                     case OTHER:
-                        while(size > 0)
-                        {
+                        while(size > 0) {
                             int l = is.read(buf, offs, size);
                             offs += l;
                             size -= l;
@@ -1179,7 +1178,7 @@ public class ImageProvider {
 
         // convert rotatedAngle to an integer value from 0 to 360
         Long originalAngle = Math.round(rotatedAngle % 360);
-        if (Double.doubleToRawLongBits(rotatedAngle) != 0 && originalAngle == 0) {
+        if (rotatedAngle != 0 && originalAngle == 0) {
             originalAngle = 360L;
         }
 
@@ -1196,7 +1195,7 @@ public class ImageProvider {
             if (imageResource == null) {
                 // convert originalAngle to a value from 0 to 90
                 double angle = originalAngle % 90;
-                if (originalAngle != 0 && Double.doubleToRawLongBits(angle) == 0) {
+                if (originalAngle != 0 && angle == 0) {
                     angle = 90.0;
                 }
 
