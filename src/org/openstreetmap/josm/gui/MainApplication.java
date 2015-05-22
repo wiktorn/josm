@@ -33,6 +33,7 @@ import java.util.Collection;
 import java.util.EnumMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -75,10 +76,13 @@ import org.openstreetmap.josm.tools.Utils;
  * @author imi
  */
 public class MainApplication extends Main {
+
     /**
-     * Allow subclassing (see JOSM.java)
+     * Constructs a new {@code MainApplication}.
      */
-    public MainApplication() {}
+    public MainApplication() {
+       // Allow subclassing (see JOSM.java)
+    }
 
     /**
      * Constructs a main frame, ready sized and operating. Does not display the frame.
@@ -198,14 +202,13 @@ public class MainApplication extends Main {
         /** --offline=&lt;osm_api|josm_website|all&gt; Disable access to the given resource(s), delimited by comma */
         OFFLINE(true),
         /** --skip-plugins */
-        SKIP_PLUGINS(false),
-        ;
+        SKIP_PLUGINS(false);
 
         private final String name;
         private final boolean requiresArg;
 
         private Option(boolean requiresArgument) {
-            this.name = name().toLowerCase().replace("_", "-");
+            this.name = name().toLowerCase(Locale.ENGLISH).replace("_", "-");
             this.requiresArg = requiresArgument;
         }
 
@@ -223,17 +226,6 @@ public class MainApplication extends Main {
          */
         public boolean requiresArgument() {
             return requiresArg;
-        }
-
-        public static Map<Option, Collection<String>> fromStringMap(Map<String, Collection<String>> opts) {
-            Map<Option, Collection<String>> res = new EnumMap<>(Option.class);
-            for (Map.Entry<String, Collection<String>> e : opts.entrySet()) {
-                Option o = Option.valueOf(e.getKey().toUpperCase().replace("-", "_"));
-                if (o != null) {
-                    res.put(o, e.getValue());
-                }
-            }
-            return res;
         }
     }
 
@@ -508,10 +500,10 @@ public class MainApplication extends Main {
         if (args.containsKey(Option.OFFLINE)) {
             for (String s : args.get(Option.OFFLINE).iterator().next().split(",")) {
                 try {
-                    Main.setOffline(OnlineResource.valueOf(s.toUpperCase()));
+                    Main.setOffline(OnlineResource.valueOf(s.toUpperCase(Locale.ENGLISH)));
                 } catch (IllegalArgumentException e) {
                     Main.error(tr("''{0}'' is not a valid value for argument ''{1}''. Possible values are {2}, possibly delimited by commas.",
-                            s.toUpperCase(), Option.OFFLINE.getName(), Arrays.toString(OnlineResource.values())));
+                            s.toUpperCase(Locale.ENGLISH), Option.OFFLINE.getName(), Arrays.toString(OnlineResource.values())));
                     System.exit(1);
                     return;
                 }

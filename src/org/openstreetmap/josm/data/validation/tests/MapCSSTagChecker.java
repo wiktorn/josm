@@ -20,6 +20,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -161,7 +162,7 @@ public class MapCSSTagChecker extends Test.TagTest {
         private static String evaluateObject(final Object obj, final OsmPrimitive p, final Selector matchingSelector) {
             final String s;
             if (obj instanceof Expression) {
-                s = (String) ((Expression) obj).evaluate(new Environment().withPrimitive(p));
+                s = (String) ((Expression) obj).evaluate(new Environment(p));
             } else if (obj instanceof String) {
                 s = (String) obj;
             } else {
@@ -252,7 +253,7 @@ public class MapCSSTagChecker extends Test.TagTest {
                 }
                 sb.append("throw")
                 .append(s.name().charAt(0))
-                .append(s.name().substring(1).toLowerCase());
+                .append(s.name().substring(1).toLowerCase(Locale.ENGLISH));
             }
             return sb.toString();
         }
@@ -275,7 +276,7 @@ public class MapCSSTagChecker extends Test.TagTest {
                             : null;
                     if (ai.key.startsWith("throw")) {
                         try {
-                            final Severity severity = Severity.valueOf(ai.key.substring("throw".length()).toUpperCase());
+                            final Severity severity = Severity.valueOf(ai.key.substring("throw".length()).toUpperCase(Locale.ENGLISH));
                             check.errors.put(ai, severity);
                         } catch (IllegalArgumentException e) {
                             Main.warn("Unsupported "+ai.key+" instruction. Allowed instructions are "+POSSIBLE_THROWS);
@@ -369,7 +370,7 @@ public class MapCSSTagChecker extends Test.TagTest {
         }
 
         Selector whichSelectorMatchesPrimitive(OsmPrimitive primitive) {
-            return whichSelectorMatchesEnvironment(new Environment().withPrimitive(primitive));
+            return whichSelectorMatchesEnvironment(new Environment(primitive));
         }
 
         Selector whichSelectorMatchesEnvironment(Environment env) {
@@ -473,7 +474,7 @@ public class MapCSSTagChecker extends Test.TagTest {
                 final Object val = errors.keySet().iterator().next().val;
                 return String.valueOf(
                         val instanceof Expression
-                                ? ((Expression) val).evaluate(new Environment().withPrimitive(p))
+                                ? ((Expression) val).evaluate(new Environment(p))
                                 : val
                 );
             }
@@ -520,7 +521,7 @@ public class MapCSSTagChecker extends Test.TagTest {
          * @return an instance of {@link TestError}, or returns null if the primitive does not give rise to an error.
          */
         TestError getErrorForPrimitive(OsmPrimitive p) {
-            final Environment env = new Environment().withPrimitive(p);
+            final Environment env = new Environment(p);
             return getErrorForPrimitive(p, whichSelectorMatchesEnvironment(env), env);
         }
 

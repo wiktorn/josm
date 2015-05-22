@@ -37,6 +37,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Locale;
 import java.util.Map;
 
 import javax.swing.UIManager;
@@ -128,7 +129,9 @@ public class MultiSplitLayout implements LayoutManager {
      * @return the value of the model property
      * @see #setModel
      */
-    public Node getModel() { return model; }
+    public Node getModel() {
+        return model;
+    }
 
     /**
      * Set the root of the tree of Split, Leaf, and Divider nodes
@@ -155,7 +158,9 @@ public class MultiSplitLayout implements LayoutManager {
      * @return the value of the dividerSize property
      * @see #setDividerSize
      */
-    public int getDividerSize() { return dividerSize; }
+    public int getDividerSize() {
+        return dividerSize;
+    }
 
     /**
      * Sets the width of Dividers in Split rows, and the height of
@@ -178,7 +183,9 @@ public class MultiSplitLayout implements LayoutManager {
      * @return the value of the floatingDividers property
      * @see #setFloatingDividers
      */
-    public boolean getFloatingDividers() { return floatingDividers; }
+    public boolean getFloatingDividers() {
+        return floatingDividers;
+    }
 
     /**
      * If true, Leaf node bounds match the corresponding component's
@@ -691,7 +698,9 @@ public class MultiSplitLayout implements LayoutManager {
         /**
          * @return the invalid Node.
          */
-        public Node getNode() { return node; }
+        public Node getNode() {
+            return node;
+        }
     }
 
     private void throwInvalidLayout(String msg, Node node) {
@@ -823,7 +832,9 @@ public class MultiSplitLayout implements LayoutManager {
          * @return the value of the parent property.
          * @see #parent_set
          */
-        public Split parent_get() { return parent; }
+        public Split parent_get() {
+            return parent;
+        }
 
         /**
          * Set the value of this Node's parent property.  The default
@@ -871,7 +882,9 @@ public class MultiSplitLayout implements LayoutManager {
          * @return the value of the weight property
          * @see #setWeight
          */
-        public double getWeight() { return weight; }
+        public double getWeight() {
+            return weight;
+        }
 
         /**
          * The weight property is a between 0.0 and 1.0 used to
@@ -949,7 +962,9 @@ public class MultiSplitLayout implements LayoutManager {
          * @return the value of the rowLayout property.
          * @see #setRowLayout
          */
-        public boolean isRowLayout() { return rowLayout; }
+        public boolean isRowLayout() {
+            return rowLayout;
+        }
 
         /**
          * Set the rowLayout property.  If true, all of this Split's
@@ -1035,13 +1050,14 @@ public class MultiSplitLayout implements LayoutManager {
         private String name = "";
 
         /**
-         * Create a Leaf node.  The default value of name is "".
+         * Create a Leaf node. The default value of name is "".
          */
-        public Leaf() { }
+        public Leaf() {
+            // Name can be set later with setName()
+        }
 
         /**
-         * Create a Leaf node with the specified name.  Name can not
-         * be null.
+         * Create a Leaf node with the specified name. Name can not be null.
          *
          * @param name value of the Leaf's name property
          * @throws IllegalArgumentException if name is null
@@ -1057,7 +1073,9 @@ public class MultiSplitLayout implements LayoutManager {
          * @return the value of the name property.
          * @see #setName
          */
-        public String getName() { return name; }
+        public String getName() {
+            return name;
+        }
 
         /**
          * Set the value of the name property.  Name may not be null.
@@ -1075,8 +1093,7 @@ public class MultiSplitLayout implements LayoutManager {
             StringBuilder sb = new StringBuilder("MultiSplitLayout.Leaf");
             sb.append(" \"")
               .append(getName())
-              .append('\"')
-              .append(" weight=")
+              .append("\" weight=")
               .append(getWeight())
               .append(' ')
               .append(getBounds());
@@ -1187,7 +1204,7 @@ public class MultiSplitLayout implements LayoutManager {
                 if ((token = st.nextToken()) != StreamTokenizer.TT_WORD) {
                     throwParseException(st, "invalid node type");
                 }
-                String nodeType = st.sval.toUpperCase();
+                String nodeType = st.sval.toUpperCase(Locale.ENGLISH);
                 if ("LEAF".equals(nodeType)) {
                     parseLeaf(st, parent);
                 } else if ("ROW".equals(nodeType) || "COLUMN".equals(nodeType)) {

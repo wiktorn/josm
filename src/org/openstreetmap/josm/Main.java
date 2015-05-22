@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -541,7 +542,7 @@ public abstract class Main {
      */
     public Main() {
         main = this;
-        isOpenjdk = System.getProperty("java.vm.name").toUpperCase().indexOf("OPENJDK") != -1;
+        isOpenjdk = System.getProperty("java.vm.name").toUpperCase(Locale.ENGLISH).indexOf("OPENJDK") != -1;
 
         if (initListener != null) {
             initListener.updateStatus(tr("Executing platform startup hook"));
@@ -1079,15 +1080,18 @@ public abstract class Main {
     }
 
     /**
-     * Closes JOSM and optionally terminates the Java Virtual Machine (JVM). If there are some unsaved data layers, asks first for user confirmation.
+     * Closes JOSM and optionally terminates the Java Virtual Machine (JVM).
+     * If there are some unsaved data layers, asks first for user confirmation.
      * @param exit If {@code true}, the JVM is terminated by running {@link System#exit} with a given return code.
      * @param exitCode The return code
      * @return {@code true} if JOSM has been closed, {@code false} if the user has cancelled the operation.
      * @since 3378
      */
     public static boolean exitJosm(boolean exit, int exitCode) {
-        JCSCacheManager.shutdown();
         if (Main.saveUnsavedModifications()) {
+            worker.shutdown();
+            ImageProvider.shutdown(false);
+            JCSCacheManager.shutdown();
             geometry.remember("gui.geometry");
             if (map != null) {
                 map.rememberToggleDialogWidth();
@@ -1100,6 +1104,9 @@ public abstract class Main {
                     Main.main.removeLayer(l);
                 }
             }
+            worker.shutdownNow();
+            ImageProvider.shutdown(true);
+
             if (exit) {
                 System.exit(exitCode);
             }
@@ -1187,13 +1194,13 @@ public abstract class Main {
         if (os == null) {
             warn("Your operating system has no name, so I'm guessing its some kind of *nix.");
             platform = new PlatformHookUnixoid();
-        } else if (os.toLowerCase().startsWith("windows")) {
+        } else if (os.toLowerCase(Locale.ENGLISH).startsWith("windows")) {
             platform = new PlatformHookWindows();
         } else if ("Linux".equals(os) || "Solaris".equals(os) ||
                 "SunOS".equals(os) || "AIX".equals(os) ||
                 "FreeBSD".equals(os) || "NetBSD".equals(os) || "OpenBSD".equals(os)) {
             platform = new PlatformHookUnixoid();
-        } else if (os.toLowerCase().startsWith("mac os x")) {
+        } else if (os.toLowerCase(Locale.ENGLISH).startsWith("mac os x")) {
             platform = new PlatformHookOsx();
         } else {
             warn("I don't know your operating system '"+os+"', so I'm guessing its some kind of *nix.");

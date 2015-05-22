@@ -75,9 +75,11 @@ import org.openstreetmap.josm.gui.widgets.AbstractFileChooser;
 import org.openstreetmap.josm.gui.widgets.JosmComboBox;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
 import org.openstreetmap.josm.io.GpxReader;
+import org.openstreetmap.josm.io.JpgImporter;
 import org.openstreetmap.josm.tools.ExifReader;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Utils;
 import org.openstreetmap.josm.tools.date.DateUtils;
 import org.openstreetmap.josm.tools.date.PrimaryDateParser;
 import org.xml.sax.SAXException;
@@ -143,9 +145,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
         public void actionPerformed(ActionEvent arg0) {
             FileFilter filter = new FileFilter(){
                 @Override public boolean accept(File f) {
-                    return f.isDirectory()
-                            || f .getName().toLowerCase().endsWith(".gpx")
-                            || f.getName().toLowerCase().endsWith(".gpx.gz");
+                    return f.isDirectory() || Utils.hasExtension(f, "gpx", "gpx.gz");
                 }
                 @Override public String getDescription() {
                     return tr("GPX Files (*.gpx *.gpx.gz)");
@@ -213,7 +213,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
         }
 
         private InputStream createInputStream(File sel) throws IOException, FileNotFoundException {
-            if (sel.getName().toLowerCase().endsWith(".gpx.gz")) {
+            if (Utils.hasExtension(sel, "gpx.gz")) {
                 return new GZIPInputStream(new FileInputStream(sel));
             } else {
                 return new FileInputStream(sel);
@@ -383,8 +383,8 @@ public class CorrelateGpxWithImages extends AbstractAction {
 
                 @Override
                 public void actionPerformed(ActionEvent ae) {
-                    AbstractFileChooser fc = DiskAccessAction.createAndOpenFileChooser(true, false, null, JpegFileFilter.getInstance(),
-                            JFileChooser.FILES_ONLY, "geoimage.lastdirectory");
+                    AbstractFileChooser fc = DiskAccessAction.createAndOpenFileChooser(true, false, null,
+                            JpgImporter.FILE_FILTER_WITH_FOLDERS, JFileChooser.FILES_ONLY, "geoimage.lastdirectory");
                     if (fc == null)
                         return;
                     File sel = fc.getSelectedFile();

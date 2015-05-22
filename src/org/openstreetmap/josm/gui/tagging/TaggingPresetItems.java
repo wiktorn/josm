@@ -140,7 +140,7 @@ public final class TaggingPresetItems {
         }
 
         /**
-         * Construxts a new {@code PresetListEntry}, uninitialized.
+         * Constructs a new {@code PresetListEntry}, uninitialized.
          */
         public PresetListEntry() {
         }
@@ -932,7 +932,9 @@ public final class TaggingPresetItems {
         }
 
         @Override
-        boolean requestFocusInWindow() {return check.requestFocusInWindow();}
+        boolean requestFocusInWindow() {
+            return check.requestFocusInWindow();
+        }
 
         @Override
         public MatchType getDefaultMatch() {
