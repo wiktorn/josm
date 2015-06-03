@@ -217,7 +217,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
                     String paramName = readTillChar('=', '=');
                     skip('=');
                     String paramValue = readTillChar(',',')');
-                    if (paramName.length() > 0 && paramValue.length() > 0) {
+                    if (!paramName.isEmpty() && !paramValue.isEmpty()) {
                         ActionParameter<?> actionParam = actionParams.get(paramName);
                         if (actionParam != null) {
                             result.getParameters().put(paramName, actionParam.readFromString(paramValue));
@@ -234,9 +234,9 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
                     String paramName = readTillChar('=', '=');
                     skip('=');
                     String paramValue = readTillChar(',','}');
-                    if ("icon".equals(paramName) && paramValue.length() > 0) {
+                    if ("icon".equals(paramName) && !paramValue.isEmpty()) {
                         result.setIcon(paramValue);
-                    } else if("name".equals(paramName) && paramValue.length() > 0) {
+                    } else if("name".equals(paramName) && !paramValue.isEmpty()) {
                         result.setName(paramValue);
                     }
                     skip(',');
@@ -288,14 +288,14 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
             if (action.getAction() instanceof AdaptableAction) {
                 boolean first = true;
                 String tmp = action.getName();
-                if(tmp.length() != 0) {
+                if (!tmp.isEmpty()) {
                     result.append(first ? "{" : ",");
                     result.append("name=");
                     escape(tmp);
                     first = false;
                 }
                 tmp = action.getIcon();
-                if(tmp.length() != 0) {
+                if (!tmp.isEmpty()) {
                     result.append(first ? "{" : ",");
                     result.append("icon=");
                     escape(tmp);
@@ -384,7 +384,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
             }
             ActionParameter<Object> param = getParam(paramIndex);
 
-            if (param != null && val.length() > 0) {
+            if (param != null && !val.isEmpty()) {
                 currentAction.getParameters().put(param.getName(), param.readFromString((String)aValue));
             }
         }
@@ -413,7 +413,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
                                 // get text definition of current action
                 String res = parser.saveAction(act);
                                 // remove the button from toolbar preferences
-                                t.remove( res );
+                                t.remove(res);
                                 Main.pref.putCollection("toolbar", t);
                                 Main.toolbar.refreshToolbarControl();
                             }
@@ -534,7 +534,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
 
         private class ActionTransferable implements Transferable {
 
-            private final DataFlavor[] flavors = new DataFlavor[] { ACTION_FLAVOR };
+            private final DataFlavor[] flavors = new DataFlavor[] {ACTION_FLAVOR};
 
             private final List<ActionDefinition> actions;
 
@@ -768,7 +768,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
                 private static final long serialVersionUID = 1L;
 
                 @Override
-                public int getSourceActions( JComponent c ){
+                public int getSourceActions(JComponent c) {
                     return TransferHandler.MOVE;
                 }
 

@@ -525,7 +525,7 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
                     createNewRectangle();
                 }
             } else if (mode == Mode.extrude) {
-                if( e.getClickCount() == 2 && e.getPoint().equals(initialMousePos) ) {
+                if (e.getClickCount() == 2 && e.getPoint().equals(initialMousePos)) {
                     // double click adds a new node
                     addNewNode(e);
                 } else if (e.getPoint().distance(initialMousePos) > initialMoveThreshold && newN1en != null && selectedSegment != null) {
@@ -644,7 +644,7 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
             Node n1New = new Node(Main.getProjection().eastNorth2latlon(newN1en));
             wnew.addNode(insertionPoint, n1New);
             wayWasModified = true;
-            insertionPoint ++;
+            insertionPoint++;
             cmds.add(new AddCommand(n1New));
             changedNodes.add(n1New);
         }
@@ -674,7 +674,7 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
             Node n2New = new Node(Main.getProjection().eastNorth2latlon(newN2en));
             wnew.addNode(insertionPoint, n2New);
             wayWasModified = true;
-            insertionPoint ++;
+            insertionPoint++;
             cmds.add(new AddCommand(n2New));
             changedNodes.add(n2New);
         }
@@ -856,7 +856,7 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
         EastNorth n1en = selectedSegment.getFirstNode().getEastNorth();
         EastNorth n2en = selectedSegment.getSecondNode().getEastNorth();
         if (n1en.distance(prevNode.getEastNorth())<1e-4 ||
-            n2en.distance(nextNode.getEastNorth())<1e-4 ) {
+            n2en.distance(nextNode.getEastNorth())<1e-4) {
             return false;
         }
 

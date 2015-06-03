@@ -424,7 +424,7 @@ public class GeoImageLayer extends Layer implements PropertyChangeListener, Jump
             GuiHelper.runInEDTAndWait(new Runnable() {
                 @Override
                 public void run() {
-                    for (int i = 0; i < data.size() ; i++) {
+                    for (int i = 0; i < data.size(); i++) {
                         if (selected.equals(data.get(i))) {
                             currentPhoto = i;
                             ImageViewerDialog.showImage(GeoImageLayer.this, data.get(i));
@@ -544,9 +544,9 @@ public class GeoImageLayer extends Layer implements PropertyChangeListener, Jump
 
                     double dir = e.getExifImgDir();
                     // Rotate 90 degrees CCW
-                    double headdir = ( dir < 90 ) ? dir + 270 : dir - 90;
-                    double leftdir = ( headdir < 90 ) ? headdir + 270 : headdir - 90;
-                    double rightdir = ( headdir > 270 ) ? headdir - 270 : headdir + 90;
+                    double headdir = (dir < 90) ? dir + 270 : dir - 90;
+                    double leftdir = (headdir < 90) ? headdir + 270 : headdir - 90;
+                    double rightdir = (headdir > 270) ? headdir - 270 : headdir + 90;
 
                     double ptx = p.x + Math.cos(Math.toRadians(headdir)) * arrowlength;
                     double pty = p.y + Math.sin(Math.toRadians(headdir)) * arrowlength;

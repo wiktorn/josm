@@ -208,7 +208,6 @@ public final class ExpressionFactory {
          * The name originates from <a href="http://wiki.openstreetmap.org/wiki/MapCSS/0.2/eval">MapCSS standard</a>.
          * @param args arguments
          * @return the first non-null object
-         * @see #coalesce(Object...)
          * @see Utils#firstNonNull(Object[])
          */
         @NullableArguments
@@ -578,8 +577,8 @@ public final class ExpressionFactory {
          * {@code e}, {@code east}, {@code se}, {@code southeast}, {@code s}, {@code south},
          * {@code sw}, {@code southwest}, {@code w}, {@code west}, {@code nw}, {@code northwest}.
          * @param cardinal the angle in cardinal directions.
-         * @see RotationAngle#parseCardinalRotation(String)
          * @return the angle in radians
+         * @see RotationAngle#parseCardinalRotation(String)
          */
         public static Double cardinal_to_radians(String cardinal) {
             try {

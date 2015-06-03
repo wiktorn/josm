@@ -524,7 +524,7 @@ public class DefaultNameFormatter implements NameFormatter, HistoryNameFormatter
               .append(key)
               .append("</strong>=");
             String value = tags.get(key);
-            while(value.length() != 0) {
+            while (!value.isEmpty()) {
                 sb.append(value.substring(0,Math.min(50, value.length())));
                 if (value.length() > 50) {
                     sb.append("<br>");
@@ -617,7 +617,7 @@ public class DefaultNameFormatter implements NameFormatter, HistoryNameFormatter
 
         int nodesNo = way.isClosed() ? way.getNumNodes() -1 : way.getNumNodes();
         String nodes = trn("{0} node", "{0} nodes", nodesNo, nodesNo);
-        if(sb.length() == 0 ) {
+        if (sb.length() == 0) {
             sb.append(way.getId());
         }
         /* note: length == 0 should no longer happen, but leave the bracket code

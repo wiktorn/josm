@@ -146,7 +146,7 @@ public class ReadRemotePluginInformationTask extends PleaseWaitRunnable {
         /* replace %<x> with empty string or x=plugins (separated with comma) */
         String pl = Utils.join(",", Main.pref.getCollection("plugins"));
         String printsite = site.replaceAll("%<(.*)>", "");
-        if (pl != null && pl.length() != 0) {
+        if (pl != null && !pl.isEmpty()) {
             site = site.replaceAll("%<(.*)>", "$1"+pl);
         } else {
             site = printsite;
@@ -316,7 +316,7 @@ public class ReadRemotePluginInformationTask extends PleaseWaitRunnable {
         // collect old cache files and remove if no longer in use
         List<File> siteCacheFiles = new LinkedList<>();
         for (String location : PluginInformation.getPluginLocations()) {
-            File [] f = new File(location).listFiles(
+            File[] f = new File(location).listFiles(
                     new FilenameFilter() {
                         @Override
                         public boolean accept(File dir, String name) {

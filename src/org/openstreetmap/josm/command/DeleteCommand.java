@@ -440,9 +440,8 @@ public class DeleteCommand extends Command {
         if (ws.way.getNodesCount() < 3)
             return delete(layer, Collections.singleton(ws.way), false);
 
-        if (ws.way.firstNode() == ws.way.lastNode()) {
-            // If the way is circular (first and last nodes are the same),
-            // the way shouldn't be splitted
+        if (ws.way.isClosed()) {
+            // If the way is circular (first and last nodes are the same), the way shouldn't be splitted
 
             List<Node> n = new ArrayList<>();
 
@@ -455,7 +454,8 @@ public class DeleteCommand extends Command {
             return new ChangeCommand(ws.way, wnew);
         }
 
-        List<Node> n1 = new ArrayList<>(), n2 = new ArrayList<>();
+        List<Node> n1 = new ArrayList<>();
+        List<Node> n2 = new ArrayList<>();
 
         n1.addAll(ws.way.getNodes().subList(0, ws.lowerIndex + 1));
         n2.addAll(ws.way.getNodes().subList(ws.lowerIndex + 1, ws.way.getNodesCount()));
@@ -514,5 +514,36 @@ public class DeleteCommand extends Command {
                 JOptionPane.YES_NO_OPTION,
                 JOptionPane.QUESTION_MESSAGE,
                 JOptionPane.YES_OPTION);
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = super.hashCode();
+        result = prime * result + ((clonedPrimitives == null) ? 0 : clonedPrimitives.hashCode());
+        result = prime * result + ((toDelete == null) ? 0 : toDelete.hashCode());
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (!super.equals(obj))
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        DeleteCommand other = (DeleteCommand) obj;
+        if (clonedPrimitives == null) {
+            if (other.clonedPrimitives != null)
+                return false;
+        } else if (!clonedPrimitives.equals(other.clonedPrimitives))
+            return false;
+        if (toDelete == null) {
+            if (other.toDelete != null)
+                return false;
+        } else if (!toDelete.equals(other.toDelete))
+            return false;
+        return true;
     }
 }

@@ -309,7 +309,7 @@ public final class PreferenceTabbedPane extends JTabbedPane implements MouseWhee
         final PluginPreference preference = getPluginPreference();
         final List<PluginInformation> toDownload = preference.getPluginsScheduledForUpdateOrDownload();
         final PluginDownloadTask task;
-        if (toDownload != null && ! toDownload.isEmpty()) {
+        if (toDownload != null && !toDownload.isEmpty()) {
             task = new PluginDownloadTask(this, toDownload, tr("Download plugins"));
         } else {
             task = null;
@@ -348,7 +348,7 @@ public final class PreferenceTabbedPane extends JTabbedPane implements MouseWhee
                 // display the message, if necessary
                 //
                 if (requiresRestart) {
-                    final ButtonSpec [] options = RestartAction.getButtonSpecs();
+                    final ButtonSpec[] options = RestartAction.getButtonSpecs();
                     if (0 == HelpAwareOptionPane.showOptionDialog(
                             Main.parent,
                             sb.toString(),
@@ -488,7 +488,7 @@ public final class PreferenceTabbedPane extends JTabbedPane implements MouseWhee
                 if (expert || !tps.isExpert()) {
                     // Get icon
                     String iconName = tps.getIconName();
-                    ImageIcon icon = iconName != null && iconName.length() > 0 ? ImageProvider.get("preferences", iconName) : null;
+                    ImageIcon icon = iconName != null && !iconName.isEmpty() ? ImageProvider.get("preferences", iconName) : null;
                     // See #6985 - Force icons to be 48x48 pixels
                     if (icon != null && (icon.getIconHeight() != 48 || icon.getIconWidth() != 48)) {
                         icon = new ImageIcon(icon.getImage().getScaledInstance(48, 48, Image.SCALE_DEFAULT));

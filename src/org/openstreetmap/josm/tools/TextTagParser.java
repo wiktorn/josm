@@ -84,7 +84,7 @@ public final class TextTagParser {
                 } else if (c == '\\') {
                     esc = true;
                 } else if (c == '\"' && !quotesStarted) { // opening "
-                    if (s.toString().trim().length()>0) { // we had   ||some text"||
+                    if (!s.toString().trim().isEmpty()) { // we had   ||some text"||
                         s.append(c); // just add ", not open
                     } else {
                         s.delete(0, s.length()); // forget that empty characthers and start reading "....
@@ -131,7 +131,7 @@ public final class TextTagParser {
             char c;
             while (pos < n) {
                 c = data.charAt(pos);
-                if (c == '\t' || c == '\n' || c == '\r' || c == ' ' ) {
+                if (c == '\t' || c == '\n' || c == '\r' || c == ' ') {
                     pos++;
                 } else {
                     break;
@@ -141,7 +141,7 @@ public final class TextTagParser {
     }
 
     protected static String unescape(String k) {
-        if(! (k.startsWith("\"") && k.endsWith("\"")) ) {
+        if (!(k.startsWith("\"") && k.endsWith("\""))) {
             if (k.contains("=")) {
                 // '=' not in quotes will be treated as an error!
                 return null;
@@ -219,7 +219,8 @@ public final class TextTagParser {
         // JSON-format
         String bufJson = buf.trim();
         // trim { }, if there are any
-        if (bufJson.startsWith("{") && bufJson.endsWith("}") ) bufJson = bufJson.substring(1,bufJson.length()-1);
+        if (bufJson.startsWith("{") && bufJson.endsWith("}"))
+            bufJson = bufJson.substring(1, bufJson.length()-1);
         tags = readTagsByRegexp(bufJson, "[\\s]*,[\\s]*",
                 "[\\s]*(\\\".*?[^\\\\]\\\")"+"[\\s]*:[\\s]*"+"(\\\".*?[^\\\\]\\\")[\\s]*", true);
         if (tags!=null) return tags;

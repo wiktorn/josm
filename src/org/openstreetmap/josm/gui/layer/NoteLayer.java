@@ -116,7 +116,7 @@ public class NoteLayer extends AbstractModifiableLayer implements MouseListener 
             for (NoteComment comment : noteData.getSelectedNote().getComments()) {
                 String commentText = comment.getText();
                 //closing a note creates an empty comment that we don't want to show
-                if (commentText != null && commentText.trim().length() > 0) {
+                if (commentText != null && !commentText.trim().isEmpty()) {
                     sb.append("<hr/>");
                     String userName = XmlWriter.encode(comment.getUser().getName());
                     if (userName == null || userName.trim().isEmpty()) {
@@ -231,7 +231,7 @@ public class NoteLayer extends AbstractModifiableLayer implements MouseListener 
             //move the note point to the center of the icon where users are most likely to click when selecting
             notePoint.setLocation(notePoint.getX(), notePoint.getY() - NotesDialog.ICON_SMALL_SIZE / 2);
             double dist = clickPoint.distanceSq(notePoint);
-            if (minDistance > dist && clickPoint.distance(notePoint) < snapDistance ) {
+            if (minDistance > dist && clickPoint.distance(notePoint) < snapDistance) {
                 minDistance = dist;
                 closestNote = note;
             }

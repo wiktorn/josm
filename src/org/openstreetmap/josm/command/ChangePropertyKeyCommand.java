@@ -81,7 +81,7 @@ public class ChangePropertyKeyCommand extends Command {
 
     @Override
     public String getDescriptionText() {
-        String text = tr( "Replace \"{0}\" by \"{1}\" for", key, newKey);
+        String text = tr("Replace \"{0}\" by \"{1}\" for", key, newKey);
         if (objects.size() == 1) {
             NameVisitor v = new NameVisitor();
             objects.iterator().next().accept(v);
@@ -122,5 +122,42 @@ public class ChangePropertyKeyCommand extends Command {
             });
         }
         return children;
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = super.hashCode();
+        result = prime * result + ((key == null) ? 0 : key.hashCode());
+        result = prime * result + ((newKey == null) ? 0 : newKey.hashCode());
+        result = prime * result + ((objects == null) ? 0 : objects.hashCode());
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (!super.equals(obj))
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        ChangePropertyKeyCommand other = (ChangePropertyKeyCommand) obj;
+        if (key == null) {
+            if (other.key != null)
+                return false;
+        } else if (!key.equals(other.key))
+            return false;
+        if (newKey == null) {
+            if (other.newKey != null)
+                return false;
+        } else if (!newKey.equals(other.newKey))
+            return false;
+        if (objects == null) {
+            if (other.objects != null)
+                return false;
+        } else if (!objects.equals(other.objects))
+            return false;
+        return true;
     }
 }

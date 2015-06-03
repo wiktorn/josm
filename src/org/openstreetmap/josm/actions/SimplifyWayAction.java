@@ -138,7 +138,7 @@ public class SimplifyWayAction extends JosmAction {
      */
     protected boolean isRequiredNode(Way way, Node node) {
         boolean isRequired =  Collections.frequency(way.getNodes(), node) > 1;
-        if (! isRequired) {
+        if (!isRequired) {
             List<OsmPrimitive> parents = new LinkedList<>();
             parents.addAll(node.getReferrers());
             parents.remove(way);
@@ -165,6 +165,7 @@ public class SimplifyWayAction extends JosmAction {
      * Simplifies a way with a given threshold.
      *
      * @param w the way to simplify
+     * @param threshold the max error threshold
      * @return The sequence of commands to run
      * @since 6411
      */
@@ -186,7 +187,7 @@ public class SimplifyWayAction extends JosmAction {
                 i++;
             }
             // ... and simplify them
-            buildSimplifiedNodeList(w.getNodes(), lower, Math.min(w.getNodesCount()-1, i), threshold,newNodes);
+            buildSimplifiedNodeList(w.getNodes(), lower, Math.min(w.getNodesCount()-1, i), threshold, newNodes);
             lower=i;
             i++;
         }
@@ -213,7 +214,7 @@ public class SimplifyWayAction extends JosmAction {
      * @param wnew the way to simplify
      * @param from the lower index
      * @param to the upper index
-     * @param threshold
+     * @param threshold the max error threshold
      */
     protected void buildSimplifiedNodeList(List<Node> wnew, int from, int to, double threshold, List<Node> simplifiedNodes) {
 

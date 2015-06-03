@@ -473,7 +473,7 @@ public abstract class AbstractPrimitive implements IPrimitive {
         Map<String, String> result = new HashMap<>();
         String[] keys = this.keys;
         if (keys != null) {
-            for (int i=0; i<keys.length ; i+=2) {
+            for (int i=0; i<keys.length; i+=2) {
                 result.put(keys[i], keys[i + 1]);
             }
         }
@@ -695,7 +695,7 @@ public abstract class AbstractPrimitive implements IPrimitive {
      * Replies a localized name for this primitive given by the value of the name tags
      * accessed from very specific (language variant) to more generic (default name).
      *
-     * @see LanguageInfo#getLanguageCodes()
+     * @see LanguageInfo#getLanguageCodes
      * @return the name of this primitive, <code>null</code> if no name exists
      */
     @Override
