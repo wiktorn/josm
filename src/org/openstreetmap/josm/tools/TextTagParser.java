@@ -29,10 +29,10 @@ import org.openstreetmap.josm.tools.LanguageInfo.LocaleType;
 public final class TextTagParser {
 
     // properties need JOSM restart to apply, modified rarely enough
-    protected static final int MAX_KEY_LENGTH = Main.pref.getInteger("tags.paste.max-key-length", 50);
-    protected static final int MAX_KEY_COUNT = Main.pref.getInteger("tags.paste.max-key-count", 30);
-    protected static final String KEY_PATTERN = Main.pref.get("tags.paste.tag-pattern", "[0-9a-zA-Z:_]*");
-    protected static final int MAX_VALUE_LENGTH = 255;
+    private static final int MAX_KEY_LENGTH = Main.pref.getInteger("tags.paste.max-key-length", 50);
+    private static final int MAX_KEY_COUNT = Main.pref.getInteger("tags.paste.max-key-count", 30);
+    private static final String KEY_PATTERN = Main.pref.get("tags.paste.tag-pattern", "[0-9a-zA-Z:_]*");
+    private static final int MAX_VALUE_LENGTH = 255;
 
     private TextTagParser() {
         // Hide default constructor for utils classes
@@ -194,16 +194,15 @@ public final class TextTagParser {
 
     /**
      * Apply different methods to extract tag-value pairs from arbitrary text
-     * @param buf
+     * @param buf buffer
      * @return null if no format is suitable
      */
-
     public static Map<String,String> readTagsFromText(String buf) {
         Map<String,String> tags;
 
         // Format
         // tag1\tval1\ntag2\tval2\n
-        tags = readTagsByRegexp(buf, "[\\r\\n]+", ".*([a-zA-Z0-9:_]+).*\\t(.*?)", false);
+        tags = readTagsByRegexp(buf, "[\\r\\n]+", ".*?([a-zA-Z0-9:_]+).*\\t(.*?)", false);
                 // try "tag\tvalue\n" format
         if (tags!=null) return tags;
 

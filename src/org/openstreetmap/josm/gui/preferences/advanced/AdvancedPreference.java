@@ -40,7 +40,7 @@ import org.openstreetmap.josm.actions.DiskAccessAction;
 import org.openstreetmap.josm.data.CustomConfigurator;
 import org.openstreetmap.josm.data.Preferences;
 import org.openstreetmap.josm.data.Preferences.Setting;
-import org.openstreetmap.josm.gui.actionsupport.LogShowDialog;
+import org.openstreetmap.josm.gui.dialogs.LogShowDialog;
 import org.openstreetmap.josm.gui.preferences.DefaultTabPreferenceSetting;
 import org.openstreetmap.josm.gui.preferences.PreferenceSetting;
 import org.openstreetmap.josm.gui.preferences.PreferenceSettingFactory;
@@ -66,6 +66,11 @@ public final class AdvancedPreference extends DefaultTabPreferenceSetting {
         }
     }
 
+    private List<PrefEntry> allData;
+    private List<PrefEntry> displayData = new ArrayList<>();
+    private JosmTextField txtFilter;
+    private PreferencesTable table;
+
     private AdvancedPreference() {
         super(/* ICON(preferences/) */ "advanced", tr("Advanced Preferences"), tr("Setting Preference entries directly. Use with caution!"));
     }
@@ -74,11 +79,6 @@ public final class AdvancedPreference extends DefaultTabPreferenceSetting {
     public boolean isExpert() {
         return true;
     }
-
-    protected List<PrefEntry> allData;
-    protected List<PrefEntry> displayData = new ArrayList<>();
-    protected JosmTextField txtFilter;
-    protected PreferencesTable table;
 
     @Override
     public void addGui(final PreferenceTabbedPane gui) {
