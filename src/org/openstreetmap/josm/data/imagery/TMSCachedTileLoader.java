@@ -79,7 +79,8 @@ public class TMSCachedTileLoader implements TileLoader, CachedTileLoader, TileCa
      * @param cacheDir          where cache file shall reside
      * @throws IOException      when cache initialization fails
      */
-    public TMSCachedTileLoader(TileLoaderListener listener, String name, int connectTimeout, int readTimeout, Map<String, String> headers, String cacheDir) throws IOException {
+    public TMSCachedTileLoader(TileLoaderListener listener, String name, int connectTimeout, int readTimeout,
+            Map<String, String> headers, String cacheDir) throws IOException {
         this.cache = JCSCacheManager.getCache(name,
                 200, // use fairly small memory cache, as cached objects are quite big, as they contain BufferedImages
                 MAX_OBJECTS_ON_DISK.get(),
@@ -103,7 +104,7 @@ public class TMSCachedTileLoader implements TileLoader, CachedTileLoader, TileCa
 
     @Override
     public Tile getTile(TileSource source, int x, int y, int z) {
-        return createTileLoaderJob(new Tile(source,x, y, z)).getTile();
+        return createTileLoaderJob(new Tile(source, x, y, z)).getTile();
     }
 
     @Override
@@ -133,9 +134,9 @@ public class TMSCachedTileLoader implements TileLoader, CachedTileLoader, TileCa
      * to loading = false / loaded = false
      */
     public void cancelOutstandingTasks() {
-        for(Runnable r: downloadExecutor.getQueue()) {
+        for (Runnable r: downloadExecutor.getQueue()) {
             if (downloadExecutor.remove(r) && r instanceof TMSCachedTileLoaderJob) {
-                ((TMSCachedTileLoaderJob)r).handleJobCancellation();
+                ((TMSCachedTileLoaderJob) r).handleJobCancellation();
             }
         }
     }

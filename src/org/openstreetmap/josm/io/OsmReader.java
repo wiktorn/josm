@@ -188,8 +188,8 @@ public class OsmReader extends AbstractReader {
             DataSource src = new DataSource(bounds, origin);
             ds.dataSources.add(src);
         } else {
-            throwException(tr(
-                    "Missing mandatory attributes on element ''bounds''. Got minlon=''{0}'',minlat=''{1}'',maxlon=''{3}'',maxlat=''{4}'', origin=''{5}''.",
+            throwException(tr("Missing mandatory attributes on element ''bounds''. " +
+                    "Got minlon=''{0}'',minlat=''{1}'',maxlon=''{3}'',maxlat=''{4}'', origin=''{5}''.",
                     minlon, minlat, maxlon, maxlat, origin
             ));
         }
@@ -311,12 +311,12 @@ public class OsmReader extends AbstractReader {
         long id = 0;
         String value = parser.getAttributeValue(null, "ref");
         if (value == null) {
-            throwException(tr("Missing attribute ''ref'' on member in relation {0}.",r.getUniqueId()));
+            throwException(tr("Missing attribute ''ref'' on member in relation {0}.", r.getUniqueId()));
         }
         try {
             id = Long.parseLong(value);
-        } catch(NumberFormatException e) {
-            throwException(tr("Illegal value for attribute ''ref'' on member in relation {0}. Got {1}", Long.toString(r.getUniqueId()),value), e);
+        } catch (NumberFormatException e) {
+            throwException(tr("Illegal value for attribute ''ref'' on member in relation {0}. Got {1}", Long.toString(r.getUniqueId()), value), e);
         }
         value = parser.getAttributeValue(null, "type");
         if (value == null) {
@@ -324,8 +324,9 @@ public class OsmReader extends AbstractReader {
         }
         try {
             type = OsmPrimitiveType.fromApiTypeName(value);
-        } catch(IllegalArgumentException e) {
-            throwException(tr("Illegal value for attribute ''type'' on member {0} in relation {1}. Got {2}.", Long.toString(id), Long.toString(r.getUniqueId()), value), e);
+        } catch (IllegalArgumentException e) {
+            throwException(tr("Illegal value for attribute ''type'' on member {0} in relation {1}. Got {2}.",
+                    Long.toString(id), Long.toString(r.getUniqueId()), value), e);
         }
         value = parser.getAttributeValue(null, "role");
         role = value;
@@ -419,7 +420,7 @@ public class OsmReader extends AbstractReader {
         try {
             long id = Long.parseLong(uid);
             return User.createOsmUser(id, name);
-        } catch(NumberFormatException e) {
+        } catch (NumberFormatException e) {
             throwException(MessageFormat.format("Illegal value for attribute ''uid''. Got ''{0}''.", uid), e);
         }
         return null;
@@ -453,7 +454,7 @@ public class OsmReader extends AbstractReader {
         if (versionString != null) {
             try {
                 version = Integer.parseInt(versionString);
-            } catch(NumberFormatException e) {
+            } catch (NumberFormatException e) {
                 throwException(tr("Illegal value for attribute ''version'' on OSM primitive with ID {0}. Got {1}.",
                         Long.toString(current.getUniqueId()), versionString), e);
             }
@@ -527,12 +528,12 @@ public class OsmReader extends AbstractReader {
     private long getLong(String name) throws XMLStreamException {
         String value = parser.getAttributeValue(null, name);
         if (value == null) {
-            throwException(tr("Missing required attribute ''{0}''.",name));
+            throwException(tr("Missing required attribute ''{0}''.", name));
         }
         try {
             return Long.parseLong(value);
-        } catch(NumberFormatException e) {
-            throwException(tr("Illegal long value for attribute ''{0}''. Got ''{1}''.",name, value), e);
+        } catch (NumberFormatException e) {
+            throwException(tr("Illegal long value for attribute ''{0}''. Got ''{1}''.", name, value), e);
         }
         return 0; // should not happen
     }
@@ -614,11 +615,11 @@ public class OsmReader extends AbstractReader {
                 }
             }
             return getDataSet();
-        } catch(IllegalDataException e) {
+        } catch (IllegalDataException e) {
             throw e;
-        } catch(OsmParsingException e) {
+        } catch (OsmParsingException e) {
             throw new IllegalDataException(e.getMessage(), e);
-        } catch(XMLStreamException e) {
+        } catch (XMLStreamException e) {
             String msg = e.getMessage();
             Pattern p = Pattern.compile("Message: (.+)");
             Matcher m = p.matcher(msg);
@@ -626,10 +627,11 @@ public class OsmReader extends AbstractReader {
                 msg = m.group(1);
             }
             if (e.getLocation() != null)
-                throw new IllegalDataException(tr("Line {0} column {1}: ", e.getLocation().getLineNumber(), e.getLocation().getColumnNumber()) + msg, e);
+                throw new IllegalDataException(tr("Line {0} column {1}: ",
+                        e.getLocation().getLineNumber(), e.getLocation().getColumnNumber()) + msg, e);
             else
                 throw new IllegalDataException(msg, e);
-        } catch(Exception e) {
+        } catch (Exception e) {
             throw new IllegalDataException(e);
         } finally {
             progressMonitor.finishTask();
@@ -644,7 +646,7 @@ public class OsmReader extends AbstractReader {
      * @param progressMonitor  the progress monitor. If null, {@link NullProgressMonitor#INSTANCE} is assumed
      *
      * @return the dataset with the parsed data
-     * @throws IllegalDataException if the an error was found while parsing the data from the source
+     * @throws IllegalDataException if an error was found while parsing the data from the source
      * @throws IllegalArgumentException if source is null
      */
     public static DataSet parseDataSet(InputStream source, ProgressMonitor progressMonitor) throws IllegalDataException {

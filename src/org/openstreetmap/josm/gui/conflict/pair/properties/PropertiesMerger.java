@@ -77,7 +77,7 @@ public class PropertiesMerger extends JPanel implements Observer, IConflictResol
         gc.anchor = GridBagConstraints.CENTER;
         gc.weightx = 0.0;
         gc.weighty = 0.0;
-        gc.insets = new Insets(10,0,10,0);
+        gc.insets = new Insets(10, 0, 10, 0);
         JLabel lblMyVersion = new JLabel(tr("My version"));
         lblMyVersion.setToolTipText(tr("Properties in my dataset, i.e. the local dataset"));
         add(lblMyVersion, gc);
@@ -85,7 +85,8 @@ public class PropertiesMerger extends JPanel implements Observer, IConflictResol
         gc.gridx = 3;
         gc.gridy = 0;
         JLabel lblMergedVersion = new JLabel(tr("Merged version"));
-        lblMergedVersion.setToolTipText(tr("Properties in the merged element. They will replace properties in my elements when merge decisions are applied."));
+        lblMergedVersion.setToolTipText(
+                tr("Properties in the merged element. They will replace properties in my elements when merge decisions are applied."));
         add(lblMergedVersion, gc);
 
         gc.gridx = 5;
@@ -106,7 +107,7 @@ public class PropertiesMerger extends JPanel implements Observer, IConflictResol
         gc.anchor = GridBagConstraints.LINE_START;
         gc.weightx = 0.0;
         gc.weighty = 0.0;
-        gc.insets = new Insets(0,5,0,5);
+        gc.insets = new Insets(0, 5, 0, 5);
         add(new JLabel(tr("Coordinates:")), gc);
 
         gc.gridx = 1;
@@ -180,7 +181,7 @@ public class PropertiesMerger extends JPanel implements Observer, IConflictResol
         gc.anchor = GridBagConstraints.LINE_START;
         gc.weightx = 0.0;
         gc.weighty = 0.0;
-        gc.insets = new Insets(0,5,0,5);
+        gc.insets = new Insets(0, 5, 0, 5);
         add(new JLabel(tr("Deleted State:")), gc);
 
         gc.gridx = 1;
@@ -256,7 +257,7 @@ public class PropertiesMerger extends JPanel implements Observer, IConflictResol
         gc.anchor = GridBagConstraints.LINE_START;
         gc.weightx = 0.0;
         gc.weighty = 0.0;
-        gc.insets = new Insets(0,5,0,5);
+        gc.insets = new Insets(0, 5, 0, 5);
         add(new JLabel(tr("Referenced by:")), gc);
 
         gc.gridx = 1;

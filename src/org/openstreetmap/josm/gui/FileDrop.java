@@ -33,7 +33,6 @@ import javax.swing.border.Border;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.OpenFileAction;
-import org.openstreetmap.josm.gui.FileDrop.TransferableObject;
 
 /**
  * This class makes it easy to drag and drop files from the operating
@@ -97,7 +96,7 @@ public class FileDrop {
                 true, // Recursive
                 new FileDrop.Listener() {
                     @Override
-                    public void filesDropped(File[] files){
+                    public void filesDropped(File[] files) {
                         // start asynchronous loading of files
                         OpenFileAction.OpenFileTask task = new OpenFileAction.OpenFileTask(Arrays.asList(files), null);
                         task.setRecordHistory(true);
@@ -127,141 +126,7 @@ public class FileDrop {
 
         if (supportsDnD()) {
             // Make a drop listener
-            dropListener = new DropTargetListener() {
-                @Override
-                public void dragEnter(DropTargetDragEvent evt) {
-                    Main.trace("FileDrop: dragEnter event.");
-
-                    // Is this an acceptable drag event?
-                    if (isDragOk(evt)) {
-                        // If it's a Swing component, set its border
-                        if (c instanceof JComponent) {
-                           JComponent jc = (JComponent) c;
-                            normalBorder = jc.getBorder();
-                            Main.trace("FileDrop: normal border saved.");
-                            jc.setBorder(dragBorder);
-                            Main.trace("FileDrop: drag border set.");
-                        }
-
-                        // Acknowledge that it's okay to enter
-                        evt.acceptDrag(DnDConstants.ACTION_COPY);
-                        Main.trace("FileDrop: event accepted.");
-                    } else {
-                        // Reject the drag event
-                        evt.rejectDrag();
-                        Main.trace("FileDrop: event rejected.");
-                    }
-                }
-
-                @Override
-                public void dragOver(DropTargetDragEvent evt) {
-                    // This is called continually as long as the mouse is over the drag target.
-                }
-
-                @Override
-                public void drop(DropTargetDropEvent evt) {
-                   Main.trace("FileDrop: drop event.");
-                    try {
-                        // Get whatever was dropped
-                        Transferable tr = evt.getTransferable();
-
-                        // Is it a file list?
-                        if (tr.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
-
-                            // Say we'll take it.
-                            evt.acceptDrop(DnDConstants.ACTION_COPY);
-                            Main.trace("FileDrop: file list accepted.");
-
-                            // Get a useful list
-                            List<?> fileList = (List<?>)tr.getTransferData(DataFlavor.javaFileListFlavor);
-
-                            // Convert list to array
-                            final File[] files = fileList.toArray(new File[fileList.size()]);
-
-                            // Alert listener to drop.
-                            if (listener != null) {
-                                listener.filesDropped(files);
-                            }
-
-                            // Mark that drop is completed.
-                            evt.getDropTargetContext().dropComplete(true);
-                            Main.trace("FileDrop: drop complete.");
-                        } else {
-                            // this section will check for a reader flavor.
-                            // Thanks, Nathan!
-                            // BEGIN 2007-09-12 Nathan Blomquist -- Linux (KDE/Gnome) support added.
-                            DataFlavor[] flavors = tr.getTransferDataFlavors();
-                            boolean handled = false;
-                            for (DataFlavor flavor : flavors) {
-                                if (flavor.isRepresentationClassReader()) {
-                                    // Say we'll take it.
-                                    evt.acceptDrop(DnDConstants.ACTION_COPY);
-                                    Main.trace("FileDrop: reader accepted.");
-
-                                    Reader reader = flavor.getReaderForText(tr);
-
-                                    BufferedReader br = new BufferedReader(reader);
-
-                                    if (listener != null) {
-                                        listener.filesDropped(createFileArray(br));
-                                    }
-
-                                    // Mark that drop is completed.
-                                    evt.getDropTargetContext().dropComplete(true);
-                                    Main.trace("FileDrop: drop complete.");
-                                    handled = true;
-                                    break;
-                                }
-                            }
-                            if (!handled) {
-                                Main.trace("FileDrop: not a file list or reader - abort.");
-                                evt.rejectDrop();
-                            }
-                            // END 2007-09-12 Nathan Blomquist -- Linux (KDE/Gnome) support added.
-                        }
-                    } catch (IOException | UnsupportedFlavorException e) {
-                        Main.warn("FileDrop: "+e.getClass().getSimpleName()+" - abort:");
-                        Main.error(e);
-                        try {
-                            evt.rejectDrop();
-                        } catch (InvalidDnDOperationException ex) {
-                            // Catch InvalidDnDOperationException to fix #11259
-                            Main.error(ex);
-                        }
-                    } finally {
-                        // If it's a Swing component, reset its border
-                        if (c instanceof JComponent) {
-                           JComponent jc = (JComponent) c;
-                            jc.setBorder(normalBorder);
-                            Main.debug("FileDrop: normal border restored.");
-                        }
-                    }
-                }
-
-                @Override
-                public void dragExit(DropTargetEvent evt) {
-                    Main.debug("FileDrop: dragExit event.");
-                    // If it's a Swing component, reset its border
-                    if (c instanceof JComponent) {
-                        JComponent jc = (JComponent) c;
-                        jc.setBorder(normalBorder);
-                        Main.debug("FileDrop: normal border restored.");
-                    }
-                }
-
-                @Override
-                public void dropActionChanged(DropTargetDragEvent evt) {
-                    Main.debug("FileDrop: dropActionChanged event.");
-                    // Is this an acceptable drag event?
-                    if (isDragOk(evt)) {
-                        evt.acceptDrag(DnDConstants.ACTION_COPY);
-                        Main.debug("FileDrop: event accepted.");
-                    } else {
-                        evt.rejectDrag();
-                        Main.debug("FileDrop: event rejected.");
-                    }
-                }
-            };
+            dropListener = new DropListener(listener, dragBorder, c);
 
             // Make the component (and possibly children) drop targets
             makeDropTarget(c, recursive);
@@ -276,7 +141,7 @@ public class FileDrop {
             try {
                 Class.forName("java.awt.dnd.DnDConstants");
                 support = true;
-            } catch(Exception e) {
+            } catch (Exception e) {
                 support = false;
             }
             supportsDnD = support;
@@ -285,7 +150,8 @@ public class FileDrop {
     }
 
     // BEGIN 2007-09-12 Nathan Blomquist -- Linux (KDE/Gnome) support added.
-    private static final String ZERO_CHAR_STRING = "" + (char)0;
+    private static final String ZERO_CHAR_STRING = "" + (char) 0;
+
     private static File[] createFileArray(BufferedReader bReader) {
         try {
             List<File> list = new ArrayList<>();
@@ -317,7 +183,7 @@ public class FileDrop {
         final DropTarget dt = new DropTarget();
         try {
             dt.addDropTargetListener(dropListener);
-        } catch(TooManyListenersException e) {
+        } catch (TooManyListenersException e) {
             Main.error(e);
             Main.warn("FileDrop: Drop will not work due to previous error. Do you have another listener attached?");
         }
@@ -364,7 +230,7 @@ public class FileDrop {
 
         // See if any of the flavors are a file list
         int i = 0;
-        while(!ok && i < flavors.length) {
+        while (!ok && i < flavors.length) {
             // BEGIN 2007-09-12 Nathan Blomquist -- Linux (KDE/Gnome) support added.
             // Is the flavor a file list?
             final DataFlavor curFlavor = flavors[i];
@@ -428,6 +294,152 @@ public class FileDrop {
 
     /* ********  I N N E R   I N T E R F A C E   L I S T E N E R  ******** */
 
+    private final class DropListener implements DropTargetListener {
+        private final Listener listener;
+        private final Border dragBorder;
+        private final Component c;
+
+        private DropListener(Listener listener, Border dragBorder, Component c) {
+            this.listener = listener;
+            this.dragBorder = dragBorder;
+            this.c = c;
+        }
+
+        @Override
+        public void dragEnter(DropTargetDragEvent evt) {
+            Main.trace("FileDrop: dragEnter event.");
+
+            // Is this an acceptable drag event?
+            if (isDragOk(evt)) {
+                // If it's a Swing component, set its border
+                if (c instanceof JComponent) {
+                   JComponent jc = (JComponent) c;
+                    normalBorder = jc.getBorder();
+                    Main.trace("FileDrop: normal border saved.");
+                    jc.setBorder(dragBorder);
+                    Main.trace("FileDrop: drag border set.");
+                }
+
+                // Acknowledge that it's okay to enter
+                evt.acceptDrag(DnDConstants.ACTION_COPY);
+                Main.trace("FileDrop: event accepted.");
+            } else {
+                // Reject the drag event
+                evt.rejectDrag();
+                Main.trace("FileDrop: event rejected.");
+            }
+        }
+
+        @Override
+        public void dragOver(DropTargetDragEvent evt) {
+            // This is called continually as long as the mouse is over the drag target.
+        }
+
+        @Override
+        public void drop(DropTargetDropEvent evt) {
+           Main.trace("FileDrop: drop event.");
+            try {
+                // Get whatever was dropped
+                Transferable tr = evt.getTransferable();
+
+                // Is it a file list?
+                if (tr.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
+
+                    // Say we'll take it.
+                    evt.acceptDrop(DnDConstants.ACTION_COPY);
+                    Main.trace("FileDrop: file list accepted.");
+
+                    // Get a useful list
+                    List<?> fileList = (List<?>) tr.getTransferData(DataFlavor.javaFileListFlavor);
+
+                    // Convert list to array
+                    final File[] files = fileList.toArray(new File[fileList.size()]);
+
+                    // Alert listener to drop.
+                    if (listener != null) {
+                        listener.filesDropped(files);
+                    }
+
+                    // Mark that drop is completed.
+                    evt.getDropTargetContext().dropComplete(true);
+                    Main.trace("FileDrop: drop complete.");
+                } else {
+                    // this section will check for a reader flavor.
+                    // Thanks, Nathan!
+                    // BEGIN 2007-09-12 Nathan Blomquist -- Linux (KDE/Gnome) support added.
+                    DataFlavor[] flavors = tr.getTransferDataFlavors();
+                    boolean handled = false;
+                    for (DataFlavor flavor : flavors) {
+                        if (flavor.isRepresentationClassReader()) {
+                            // Say we'll take it.
+                            evt.acceptDrop(DnDConstants.ACTION_COPY);
+                            Main.trace("FileDrop: reader accepted.");
+
+                            Reader reader = flavor.getReaderForText(tr);
+
+                            BufferedReader br = new BufferedReader(reader);
+
+                            if (listener != null) {
+                                listener.filesDropped(createFileArray(br));
+                            }
+
+                            // Mark that drop is completed.
+                            evt.getDropTargetContext().dropComplete(true);
+                            Main.trace("FileDrop: drop complete.");
+                            handled = true;
+                            break;
+                        }
+                    }
+                    if (!handled) {
+                        Main.trace("FileDrop: not a file list or reader - abort.");
+                        evt.rejectDrop();
+                    }
+                    // END 2007-09-12 Nathan Blomquist -- Linux (KDE/Gnome) support added.
+                }
+            } catch (IOException | UnsupportedFlavorException e) {
+                Main.warn("FileDrop: "+e.getClass().getSimpleName()+" - abort:");
+                Main.error(e);
+                try {
+                    evt.rejectDrop();
+                } catch (InvalidDnDOperationException ex) {
+                    // Catch InvalidDnDOperationException to fix #11259
+                    Main.error(ex);
+                }
+            } finally {
+                // If it's a Swing component, reset its border
+                if (c instanceof JComponent) {
+                   JComponent jc = (JComponent) c;
+                    jc.setBorder(normalBorder);
+                    Main.debug("FileDrop: normal border restored.");
+                }
+            }
+        }
+
+        @Override
+        public void dragExit(DropTargetEvent evt) {
+            Main.debug("FileDrop: dragExit event.");
+            // If it's a Swing component, reset its border
+            if (c instanceof JComponent) {
+                JComponent jc = (JComponent) c;
+                jc.setBorder(normalBorder);
+                Main.debug("FileDrop: normal border restored.");
+            }
+        }
+
+        @Override
+        public void dropActionChanged(DropTargetDragEvent evt) {
+            Main.debug("FileDrop: dropActionChanged event.");
+            // Is this an acceptable drag event?
+            if (isDragOk(evt)) {
+                evt.acceptDrag(DnDConstants.ACTION_COPY);
+                Main.debug("FileDrop: event accepted.");
+            } else {
+                evt.rejectDrag();
+                Main.debug("FileDrop: event rejected.");
+            }
+        }
+    }
+
     /**
      * Implement this inner interface to listen for when files are dropped. For example
      * your class declaration may begin like this:
@@ -441,14 +453,14 @@ public class FileDrop {
      *      ...
      * </code>
      */
-    public static interface Listener {
+    public interface Listener {
 
         /**
          * This method is called when files have been successfully dropped.
          *
          * @param files An array of <tt>File</tt>s that were dropped.
          */
-        public abstract void filesDropped(File[] files);
+        void filesDropped(File[] files);
     }
 
     /* ********  I N N E R   C L A S S  ******** */
@@ -474,7 +486,7 @@ public class FileDrop {
      *      final MyCoolClass myObj = new MyCoolClass();
      *
      *      TransferableObject.Fetcher fetcher = new TransferableObject.Fetcher()
-     *      {   public Object getObject(){ return myObj; }
+     *      {   public Object getObject() { return myObj; }
      *      }; // end fetcher
      *
      *      Transferable xfer = new TransferableObject( fetcher );
@@ -511,7 +523,7 @@ public class FileDrop {
          * <tt>application/x-net.iharder.dnd.TransferableObject</tt>.
          */
         public static final DataFlavor DATA_FLAVOR =
-            new DataFlavor(FileDrop.TransferableObject.class, MIME_TYPE);
+            new DataFlavor(TransferableObject.class, MIME_TYPE);
 
         private Fetcher fetcher;
         private Object data;
@@ -655,14 +667,14 @@ public class FileDrop {
          *
          * @author Robert Harder
          */
-        public static interface Fetcher {
+        public interface Fetcher {
             /**
              * Return the object being encapsulated in the
              * {@link TransferableObject}.
              *
              * @return The dropped object
              */
-            public abstract Object getObject();
+            Object getObject();
         }
     }
 }

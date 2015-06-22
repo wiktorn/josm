@@ -37,13 +37,14 @@ public class BookmarkList extends JList<BookmarkList.Bookmark> {
 
         /**
          * Constructs a new {@code Bookmark} with the given contents.
-         * @param list Bookmark contents as a list of 5 elements. First item is the name, then come bounds arguments (minlat, minlon, maxlat, maxlon)
+         * @param list Bookmark contents as a list of 5 elements.
+         * First item is the name, then come bounds arguments (minlat, minlon, maxlat, maxlon)
          * @throws NumberFormatException if the bounds arguments are not numbers
          * @throws IllegalArgumentException if list contain less than 5 elements
          */
-        public Bookmark(Collection<String> list) throws NumberFormatException, IllegalArgumentException {
+        public Bookmark(Collection<String> list) {
             List<String> array = new ArrayList<>(list);
-            if(array.size() < 5)
+            if (array.size() < 5)
                 throw new IllegalArgumentException(tr("Wrong number of arguments for bookmark"));
             name = array.get(0);
             area = new Bounds(Double.parseDouble(array.get(1)), Double.parseDouble(array.get(2)),
@@ -153,12 +154,12 @@ public class BookmarkList extends JList<BookmarkList.Bookmark> {
      * Loads the bookmarks from file.
      */
     public final void load() {
-        DefaultListModel<Bookmark> model = (DefaultListModel<Bookmark>)getModel();
+        DefaultListModel<Bookmark> model = (DefaultListModel<Bookmark>) getModel();
         model.removeAllElements();
         Collection<Collection<String>> args = Main.pref.getArray("bookmarks", null);
-        if(args != null) {
+        if (args != null) {
             List<Bookmark> bookmarks = new LinkedList<>();
-            for(Collection<String> entry : args) {
+            for (Collection<String> entry : args) {
                 try {
                     bookmarks.add(new Bookmark(entry));
                 } catch (Exception e) {
@@ -177,7 +178,7 @@ public class BookmarkList extends JList<BookmarkList.Bookmark> {
      */
     public final void save() {
         List<Collection<String>> coll = new LinkedList<>();
-        for (Object o : ((DefaultListModel<Bookmark>)getModel()).toArray()) {
+        for (Object o : ((DefaultListModel<Bookmark>) getModel()).toArray()) {
             String[] array = new String[5];
             Bookmark b = (Bookmark) o;
             array[0] = b.getName();
@@ -223,7 +224,8 @@ public class BookmarkList extends JList<BookmarkList.Bookmark> {
         }
 
         @Override
-        public Component getListCellRendererComponent(JList<? extends Bookmark> list, Bookmark value, int index, boolean isSelected, boolean cellHasFocus) {
+        public Component getListCellRendererComponent(JList<? extends Bookmark> list, Bookmark value, int index, boolean isSelected,
+                boolean cellHasFocus) {
             renderColor(isSelected);
             setText(value.getName());
             setToolTipText(buildToolTipText(value));

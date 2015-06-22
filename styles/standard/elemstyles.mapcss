@@ -2156,6 +2156,7 @@ area[amenity=pub],
 area[amenity=biergarten],
 area[amenity=nightclub],
 area[amenity=stripclub],
+area[amenity=casino],
 area[amenity=brothel],
 area[amenity=cafe],
 area[amenity=restaurant],
@@ -2182,6 +2183,11 @@ node[amenity=nightclub] {
 }
 node[amenity=stripclub] {
     icon-image: "leisure/nightclub.png";
+    set icon_z17;
+    text: auto;
+}
+node[amenity=casino] {
+    icon-image: "leisure/casino.svg";
     set icon_z17;
     text: auto;
 }
@@ -4001,8 +4007,11 @@ area[natural=water] {
     fill-color: water#0000ff;
 }
 way[natural=coastline] {
-    width: 1;
+    width: 2;
     color: water#0000ff;
+    right-casing-color: water#0000ff;
+    right-casing-width: 5;
+    right-casing-opacity: 0.30; 
 }
 area[natural=mud] {
     fill-color: mud#cba762;

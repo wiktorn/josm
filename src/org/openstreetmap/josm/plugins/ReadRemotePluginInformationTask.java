@@ -83,14 +83,14 @@ public class ReadRemotePluginInformationTask extends PleaseWaitRunnable {
      * @param displayErrMsg if {@code true}, a blocking error message is displayed in case of I/O exception.
      */
     public ReadRemotePluginInformationTask(ProgressMonitor monitor, Collection<String> sites, boolean displayErrMsg) {
-        super(tr("Download plugin list..."), monitor == null ? NullProgressMonitor.INSTANCE: monitor, false /* don't ignore exceptions */);
+        super(tr("Download plugin list..."), monitor == null ? NullProgressMonitor.INSTANCE : monitor, false /* don't ignore exceptions */);
         init(sites, displayErrMsg);
     }
 
     @Override
     protected void cancel() {
         canceled = true;
-        synchronized(this) {
+        synchronized (this) {
             if (connection != null) {
                 connection.disconnect();
             }
@@ -119,7 +119,7 @@ public class ReadRemotePluginInformationTask extends PleaseWaitRunnable {
                 sb.append(url.getPort()).append('-');
             }
             String path = url.getPath();
-            for (int i =0;i<path.length(); i++) {
+            for (int i = 0; i < path.length(); i++) {
                 char c = path.charAt(i);
                 if (Character.isLetterOrDigit(c)) {
                     sb.append(c);
@@ -129,7 +129,7 @@ public class ReadRemotePluginInformationTask extends PleaseWaitRunnable {
             }
             sb.append(".txt");
             name = sb.toString();
-        } catch(MalformedURLException e) {
+        } catch (MalformedURLException e) {
             name = "site-unknown.txt";
         }
         return new File(pluginDir, name);
@@ -157,7 +157,7 @@ public class ReadRemotePluginInformationTask extends PleaseWaitRunnable {
             monitor.indeterminateSubTask(tr("Downloading plugin list from ''{0}''", printsite));
 
             URL url = new URL(site);
-            synchronized(this) {
+            synchronized (this) {
                 connection = Utils.openHttpConnection(url);
                 connection.setRequestProperty("Cache-Control", "no-cache");
                 connection.setRequestProperty("Accept-Charset", "utf-8");
@@ -180,7 +180,7 @@ public class ReadRemotePluginInformationTask extends PleaseWaitRunnable {
             handleIOException(monitor, e, tr("Plugin list download error"), tr("JOSM failed to download plugin list:"), displayErrMsg);
             return null;
         } finally {
-            synchronized(this) {
+            synchronized (this) {
                 if (connection != null) {
                     connection.disconnect();
                 }
@@ -220,7 +220,8 @@ public class ReadRemotePluginInformationTask extends PleaseWaitRunnable {
         }
     }
 
-    private void displayErrorMessage(final ProgressMonitor monitor, final String msg, final String details, final String title, final String firstMessage) {
+    private void displayErrorMessage(final ProgressMonitor monitor, final String msg, final String details, final String title,
+            final String firstMessage) {
         GuiHelper.runInEDTAndWait(new Runnable() {
             @Override public void run() {
                 JPanel panel = new JPanel(new GridBagLayout());
@@ -254,14 +255,15 @@ public class ReadRemotePluginInformationTask extends PleaseWaitRunnable {
     protected void cachePluginList(String site, String list) {
         File pluginDir = Main.pref.getPluginsDirectory();
         if (!pluginDir.exists() && !pluginDir.mkdirs()) {
-            Main.warn(tr("Failed to create plugin directory ''{0}''. Cannot cache plugin list from plugin site ''{1}''.", pluginDir.toString(), site));
+            Main.warn(tr("Failed to create plugin directory ''{0}''. Cannot cache plugin list from plugin site ''{1}''.",
+                    pluginDir.toString(), site));
         }
         File cacheFile = createSiteCacheFile(pluginDir, site);
         getProgressMonitor().subTask(tr("Writing plugin list to local cache ''{0}''", cacheFile.toString()));
         try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(cacheFile), StandardCharsets.UTF_8))) {
             writer.write(list);
             writer.flush();
-        } catch(IOException e) {
+        } catch (IOException e) {
             // just failed to write the cache file. No big deal, but log the exception anyway
             Main.error(e);
         }
@@ -325,7 +327,7 @@ public class ReadRemotePluginInformationTask extends PleaseWaitRunnable {
                         }
                     }
             );
-            if(f != null && f.length > 0) {
+            if (f != null && f.length > 0) {
                 siteCacheFiles.addAll(Arrays.asList(f));
             }
         }

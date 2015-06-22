@@ -83,7 +83,7 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
             );
 
     public static ThreadFactory getNamedThreadFactory(final String name) {
-        return new ThreadFactory(){
+        return new ThreadFactory() {
             @Override
             public Thread newThread(Runnable r) {
                 Thread t = Executors.defaultThreadFactory().newThread(r);
@@ -93,7 +93,7 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
         };
     }
 
-    private static ConcurrentMap<String,Set<ICachedLoaderListener>> inProgress = new ConcurrentHashMap<>();
+    private static ConcurrentMap<String, Set<ICachedLoaderListener>> inProgress = new ConcurrentHashMap<>();
     private static ConcurrentMap<String, Boolean> useHead = new ConcurrentHashMap<>();
 
     protected long now; // when the job started
@@ -118,7 +118,7 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
      * @param connectTimeout when connecting to remote resource
      * @param downloadJobExecutor that will be executing the jobs
      */
-    public JCSCachedTileLoaderJob(ICacheAccess<K,V> cache,
+    public JCSCachedTileLoaderJob(ICacheAccess<K, V> cache,
             int connectTimeout, int readTimeout,
             Map<String, String> headers,
             ThreadPoolExecutor downloadJobExecutor) {
@@ -287,7 +287,8 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
             // that is too large)
             expires = Math.min(expires, attributes.getCreateTime() + EXPIRE_TIME_SERVER_LIMIT);
             if (now > expires) {
-                log.log(Level.FINE, "JCS - Object {0} has expired -> valid to {1}, now is: {2}", new Object[]{getUrl(), Long.toString(expires), Long.toString(now)});
+                log.log(Level.FINE, "JCS - Object {0} has expired -> valid to {1}, now is: {2}",
+                        new Object[]{getUrl(), Long.toString(expires), Long.toString(now)});
                 return false;
             }
         } else {
@@ -335,7 +336,7 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
             } else if (isObjectLoadable()) {
                 // we have an object in cache, but we haven't received 304 resposne code
                 // check if we should use HEAD request to verify
-                if((attributes.getEtag() != null && attributes.getEtag().equals(urlConn.getRequestProperty("ETag"))) ||
+                if ((attributes.getEtag() != null && attributes.getEtag().equals(urlConn.getRequestProperty("ETag"))) ||
                         attributes.getLastModification() == urlConn.getLastModified()) {
                     // we sent ETag or If-Modified-Since, but didn't get 304 response code
                     // for further requests - use HEAD
@@ -439,6 +440,9 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
                 }
             } catch (NumberFormatException e) {
                 // ignore malformed Cache-Control headers
+                if (Main.isTraceEnabled()) {
+                    Main.trace(e.getMessage());
+                }
             }
         }
 
@@ -453,7 +457,7 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
         urlConn.setRequestProperty("Accept", "text/html, image/png, image/jpeg, image/gif, */*");
         urlConn.setReadTimeout(readTimeout); // 30 seconds read timeout
         urlConn.setConnectTimeout(connectTimeout);
-        for(Map.Entry<String, String> e: headers.entrySet()) {
+        for (Map.Entry<String, String> e: headers.entrySet()) {
             urlConn.setRequestProperty(e.getKey(), e.getValue());
         }
         if (force) {
@@ -464,8 +468,8 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
 
     private boolean isCacheValidUsingHead() throws IOException {
         URLConnection urlConn = getUrl().openConnection();
-        if(urlConn instanceof HttpURLConnection) {
-            ((HttpURLConnection)urlConn).setRequestMethod("HEAD");
+        if (urlConn instanceof HttpURLConnection) {
+            ((HttpURLConnection) urlConn).setRequestMethod("HEAD");
             long lastModified = urlConn.getLastModified();
             return (attributes.getEtag() != null && attributes.getEtag().equals(urlConn.getRequestProperty("ETag"))) ||
                     (lastModified != 0 && lastModified <= attributes.getLastModification());
@@ -502,7 +506,7 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
      */
     public void cancelOutstandingTasks() {
         ThreadPoolExecutor downloadExecutor = getDownloadExecutor();
-        for(Runnable r: downloadExecutor.getQueue()) {
+        for (Runnable r: downloadExecutor.getQueue()) {
             if (downloadExecutor.remove(r)) {
                 if (r instanceof JCSCachedTileLoaderJob) {
                     ((JCSCachedTileLoaderJob<?, ?>) r).handleJobCancellation();

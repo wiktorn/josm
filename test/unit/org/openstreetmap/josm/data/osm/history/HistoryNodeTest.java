@@ -17,13 +17,13 @@ public class HistoryNodeTest {
     public void historyNode() {
         Date d = new Date();
         HistoryNode node = new HistoryNode(
-                1l,
-                2l,
+                1L,
+                2L,
                 true,
                 User.createOsmUser(3, "testuser"),
-                4l,
+                4L,
                 d,
-                new LatLon(0,0)
+                new LatLon(0, 0)
                 );
 
         assertEquals(1, node.getId());
@@ -45,7 +45,7 @@ public class HistoryNodeTest {
                 User.createOsmUser(3, "testuser"),
                 4,
                 d,
-                new LatLon(0,0)
+                new LatLon(0, 0)
                 );
 
         assertEquals(OsmPrimitiveType.NODE, node.getType());

@@ -57,7 +57,7 @@ public class CustomProjectionChoice extends AbstractProjectionChoice implements 
             build(initialText, listener);
         }
 
-        private final void build(String initialText, final ActionListener listener) {
+        private void build(String initialText, final ActionListener listener) {
             input = new JosmTextField(30);
             cbInput = new HistoryComboBox();
             cbInput.setPrototypeDisplayValue(new AutoCompletionListItem("xxxx"));
@@ -87,7 +87,7 @@ public class CustomProjectionChoice extends AbstractProjectionChoice implements 
                 @Override
                 public void validate() {
                     if (!isValid()) {
-                        feedbackInvalid(tr("Invalid projection configuration: {0}",error));
+                        feedbackInvalid(tr("Invalid projection configuration: {0}", error));
                     } else {
                         feedbackValid(tr("Projection configuration is valid."));
                     }
@@ -123,7 +123,7 @@ public class CustomProjectionChoice extends AbstractProjectionChoice implements 
                 }
             });
             btnCheck.setLayout(new BorderLayout());
-            btnCheck.setMargin(new Insets(-1,0,-1,0));
+            btnCheck.setMargin(new Insets(-1, 0, -1, 0));
 
             JButton btnInfo = new JButton(tr("Parameter information..."));
             btnInfo.addActionListener(new ActionListener() {

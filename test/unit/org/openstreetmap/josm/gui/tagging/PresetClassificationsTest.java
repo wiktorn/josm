@@ -22,7 +22,7 @@ import org.xml.sax.SAXException;
 
 public class PresetClassificationsTest {
 
-    final static TaggingPresetSelector.PresetClassifications classifications = new TaggingPresetSelector.PresetClassifications();
+    static final TaggingPresetSelector.PresetClassifications classifications = new TaggingPresetSelector.PresetClassifications();
 
     /**
      * Setup test.
@@ -62,8 +62,10 @@ public class PresetClassificationsTest {
     @Test
     public void testRelationsForTram() {
         final OsmPrimitive tram = OsmUtils.createPrimitive("way railway=tram");
-        assertTrue("railway=tram should match 'Railway Route' for relation creation", getMatchingPresetNames("route", tram).contains("Railway Route"));
-        assertTrue("railway=tram should match 'Public Transport Route' for relation creation", getMatchingPresetNames("route", tram).contains("Public Transport Route"));
+        assertTrue("railway=tram should match 'Railway Route' for relation creation", getMatchingPresetNames("route", tram)
+                .contains("Railway Route"));
+        assertTrue("railway=tram should match 'Public Transport Route' for relation creation", getMatchingPresetNames("route", tram)
+                .contains("Public Transport Route"));
         assertFalse("railway=tram should not match 'Bus route'", getMatchingPresetNames("route", tram).contains("Bus route"));
     }
 }

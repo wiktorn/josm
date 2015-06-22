@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Date;
 
 import org.junit.Test;
+import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.osm.OsmPrimitiveType;
 import org.openstreetmap.josm.data.osm.User;
 
@@ -70,8 +71,11 @@ public class HistoryWayTest {
         try {
             way.getNodeId(1);
             fail("expected expection of type " + IndexOutOfBoundsException.class.toString());
-        } catch(IndexOutOfBoundsException e) {
+        } catch (IndexOutOfBoundsException e) {
             // OK
+            if (Main.isTraceEnabled()) {
+                Main.trace(e.getMessage());
+            }
         }
 
         way.addNode(5);

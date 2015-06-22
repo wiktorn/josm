@@ -195,7 +195,7 @@ public class RelationListDialog extends ToggleDialog implements DataSetListener 
         Component focused = FocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
 
         //update highlights
-        if (highlightEnabled && focused==displaylist && Main.isDisplayingMapView()) {
+        if (highlightEnabled && focused == displaylist && Main.isDisplayingMapView()) {
             if (highlightHelper.highlightOnly(sel)) {
                 Main.map.mapView.repaint();
             }
@@ -235,7 +235,7 @@ public class RelationListDialog extends ToggleDialog implements DataSetListener 
             model.setRelations(null);
             return;
         }
-        OsmDataLayer l = (OsmDataLayer)layer;
+        OsmDataLayer l = (OsmDataLayer) layer;
         model.setRelations(l.data.getRelations());
         model.updateTitle();
         updateActionsRelationLists();
@@ -270,7 +270,9 @@ public class RelationListDialog extends ToggleDialog implements DataSetListener 
         } else {
             model.setSelectedRelations(relations);
             Integer i = model.getVisibleRelationIndex(relations.iterator().next());
-            if (i != null) { // Not all relations have to be in the list (for example when the relation list is hidden, it's not updated with new relations)
+            if (i != null) {
+                // Not all relations have to be in the list
+                // (for example when the relation list is hidden, it's not updated with new relations)
                 displaylist.scrollRectToVisible(displaylist.getCellBounds(i, i));
             }
         }
@@ -349,14 +351,14 @@ public class RelationListDialog extends ToggleDialog implements DataSetListener 
      */
     static class NewAction extends AbstractAction implements LayerChangeListener{
         public NewAction() {
-            putValue(SHORT_DESCRIPTION,tr("Create a new relation"));
+            putValue(SHORT_DESCRIPTION, tr("Create a new relation"));
             putValue(NAME, tr("New"));
             putValue(SMALL_ICON, ImageProvider.get("dialogs", "addrelation"));
             updateEnabledState();
         }
 
         public void run() {
-            RelationEditor.getEditor(Main.main.getEditLayer(),null, null).setVisible(true);
+            RelationEditor.getEditor(Main.main.getEditLayer(), null, null).setVisible(true);
         }
 
         @Override
@@ -415,7 +417,7 @@ public class RelationListDialog extends ToggleDialog implements DataSetListener 
             this.filteredRelations = null;
             if (relations == null) {
                 selectionModel.clearSelection();
-                fireContentsChanged(this,0,getSize());
+                fireContentsChanged(this, 0, getSize());
                 return;
             }
             for (Relation r: relations) {
@@ -443,7 +445,7 @@ public class RelationListDialog extends ToggleDialog implements DataSetListener 
                     continue;
                 }
 
-                Relation r = (Relation)p;
+                Relation r = (Relation) p;
                 if (relations.contains(r)) {
                     continue;
                 }
@@ -476,7 +478,7 @@ public class RelationListDialog extends ToggleDialog implements DataSetListener 
                 if (!(p instanceof Relation)) {
                     continue;
                 }
-                removedRelations.add((Relation)p);
+                removedRelations.add((Relation) p);
             }
             if (removedRelations.isEmpty())
                 return;
@@ -542,7 +544,7 @@ public class RelationListDialog extends ToggleDialog implements DataSetListener 
          */
         public List<Relation> getSelectedRelations() {
             List<Relation> ret = new ArrayList<>();
-            for (int i=0; i<getSize();i++) {
+            for (int i = 0; i < getSize(); i++) {
                 if (!selectionModel.isSelectedIndex(i)) {
                     continue;
                 }
@@ -566,14 +568,14 @@ public class RelationListDialog extends ToggleDialog implements DataSetListener 
             for (Relation r: sel) {
                 Integer i = getVisibleRelationIndex(r);
                 if (i != null) {
-                    selectionModel.addSelectionInterval(i,i);
+                    selectionModel.addSelectionInterval(i, i);
                 }
             }
         }
 
         private Integer getVisibleRelationIndex(Relation rel) {
             int i = getVisibleRelations().indexOf(rel);
-            if (i<0)
+            if (i < 0)
                 return null;
             return i;
         }
@@ -589,7 +591,7 @@ public class RelationListDialog extends ToggleDialog implements DataSetListener 
         }
     }
 
-    private final void setupPopupMenuHandler() {
+    private void setupPopupMenuHandler() {
 
         // -- select action
         popupMenuHandler.addAction(selectRelationAction);

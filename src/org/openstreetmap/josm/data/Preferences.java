@@ -193,14 +193,17 @@ public class Preferences {
         public AbstractSetting(T value) {
             this.value = value;
         }
+
         @Override
         public T getValue() {
             return value;
         }
+
         @Override
         public String toString() {
             return value != null ? value.toString() : "null";
         }
+
         @Override
         public int hashCode() {
             final int prime = 31;
@@ -208,6 +211,7 @@ public class Preferences {
             result = prime * result + ((value == null) ? 0 : value.hashCode());
             return result;
         }
+
         @Override
         public boolean equals(Object obj) {
             if (this == obj)
@@ -237,19 +241,28 @@ public class Preferences {
         public StringSetting(String value) {
             super(value);
         }
-        @Override public boolean equalVal(String otherVal) {
+
+        @Override
+        public boolean equalVal(String otherVal) {
             if (value == null) return otherVal == null;
             return value.equals(otherVal);
         }
-        @Override public StringSetting copy() {
+
+        @Override
+        public StringSetting copy() {
             return new StringSetting(value);
         }
-        @Override public void visit(SettingVisitor visitor) {
+
+        @Override
+        public void visit(SettingVisitor visitor) {
             visitor.visit(this);
         }
-        @Override public StringSetting getNullInstance() {
+
+        @Override
+        public StringSetting getNullInstance() {
             return new StringSetting(null);
         }
+
         @Override
         public boolean equals(Object other) {
             if (!(other instanceof StringSetting)) return false;
@@ -269,6 +282,7 @@ public class Preferences {
             super(value);
             consistencyTest();
         }
+
         /**
          * Convenience factory method.
          * @param value the value
@@ -277,9 +291,12 @@ public class Preferences {
         public static ListSetting create(Collection<String> value) {
             return new ListSetting(value == null ? null : Collections.unmodifiableList(new ArrayList<>(value)));
         }
-        @Override public boolean equalVal(List<String> otherVal) {
+
+        @Override
+        public boolean equalVal(List<String> otherVal) {
             return equalCollection(value, otherVal);
         }
+
         public static boolean equalCollection(Collection<String> a, Collection<String> b) {
             if (a == null) return b == null;
             if (b == null) return false;
@@ -289,23 +306,31 @@ public class Preferences {
             while (itA.hasNext()) {
                 String aStr = itA.next();
                 String bStr = itB.next();
-                if (!Objects.equals(aStr,bStr)) return false;
+                if (!Objects.equals(aStr, bStr)) return false;
             }
             return true;
         }
-        @Override public ListSetting copy() {
+
+        @Override
+        public ListSetting copy() {
             return ListSetting.create(value);
         }
+
         private void consistencyTest() {
             if (value != null && value.contains(null))
                 throw new RuntimeException("Error: Null as list element in preference setting");
         }
-        @Override public void visit(SettingVisitor visitor) {
+
+        @Override
+        public void visit(SettingVisitor visitor) {
             visitor.visit(this);
         }
-        @Override public ListSetting getNullInstance() {
+
+        @Override
+        public ListSetting getNullInstance() {
             return new ListSetting(null);
         }
+
         @Override
         public boolean equals(Object other) {
             if (!(other instanceof ListSetting)) return false;
@@ -469,14 +494,19 @@ public class Preferences {
 
     public interface SettingVisitor {
         void visit(StringSetting setting);
+
         void visit(ListSetting value);
+
         void visit(ListListSetting value);
+
         void visit(MapListSetting value);
     }
 
     public interface PreferenceChangeEvent {
         String getKey();
+
         Setting<?> getOldValue();
+
         Setting<?> getNewValue();
     }
 
@@ -513,7 +543,9 @@ public class Preferences {
 
     public interface ColorKey {
         String getColorName();
+
         String getSpecialName();
+
         Color getDefaultValue();
     }
 
@@ -706,8 +738,8 @@ public class Preferences {
     }
 
     public synchronized Map<String, String> getAllPrefix(final String prefix) {
-        final Map<String,String> all = new TreeMap<>();
-        for (final Entry<String,Setting<?>> e : settingsMap.entrySet()) {
+        final Map<String, String> all = new TreeMap<>();
+        for (final Entry<String, Setting<?>> e : settingsMap.entrySet()) {
             if (e.getKey().startsWith(prefix) && (e.getValue() instanceof StringSetting)) {
                 all.put(e.getKey(), ((StringSetting) e.getValue()).getValue());
             }
@@ -726,8 +758,8 @@ public class Preferences {
     }
 
     public synchronized Map<String, String> getAllColors() {
-        final Map<String,String> all = new TreeMap<>();
-        for (final Entry<String,Setting<?>> e : defaultsMap.entrySet()) {
+        final Map<String, String> all = new TreeMap<>();
+        for (final Entry<String, Setting<?>> e : defaultsMap.entrySet()) {
             if (e.getKey().startsWith("color.") && e.getValue() instanceof StringSetting) {
                 StringSetting d = (StringSetting) e.getValue();
                 if (d.getValue() != null) {
@@ -735,7 +767,7 @@ public class Preferences {
                 }
             }
         }
-        for (final Entry<String,Setting<?>> e : settingsMap.entrySet()) {
+        for (final Entry<String, Setting<?>> e : settingsMap.entrySet()) {
             if (e.getKey().startsWith("color.") && (e.getValue() instanceof StringSetting)) {
                 all.put(e.getKey().substring(6), ((StringSetting) e.getValue()).getValue());
             }
@@ -757,7 +789,7 @@ public class Preferences {
         String skey = key+"."+specName;
         Setting<?> prop = settingsMap.get(skey);
         if (prop instanceof StringSetting)
-            return Boolean.parseBoolean(((StringSetting)prop).getValue());
+            return Boolean.parseBoolean(((StringSetting) prop).getValue());
         else
             return generic;
     }
@@ -770,7 +802,7 @@ public class Preferences {
      * @return true, if something has changed (i.e. value is different than before)
      */
     public boolean put(final String key, String value) {
-        if(value != null && value.isEmpty()) {
+        if (value != null && value.isEmpty()) {
             value = null;
         }
         return putSetting(key, value == null ? null : new StringSetting(value));
@@ -869,11 +901,13 @@ public class Preferences {
         // get the preferences.
         File prefDir = getPreferencesDirectory();
         if (prefDir.exists()) {
-            if(!prefDir.isDirectory()) {
-                Main.warn(tr("Failed to initialize preferences. Preference directory ''{0}'' is not a directory.", prefDir.getAbsoluteFile()));
+            if (!prefDir.isDirectory()) {
+                Main.warn(tr("Failed to initialize preferences. Preference directory ''{0}'' is not a directory.",
+                        prefDir.getAbsoluteFile()));
                 JOptionPane.showMessageDialog(
                         Main.parent,
-                        tr("<html>Failed to initialize preferences.<br>Preference directory ''{0}'' is not a directory.</html>", prefDir.getAbsoluteFile()),
+                        tr("<html>Failed to initialize preferences.<br>Preference directory ''{0}'' is not a directory.</html>",
+                                prefDir.getAbsoluteFile()),
                         tr("Error"),
                         JOptionPane.ERROR_MESSAGE
                 );
@@ -881,10 +915,12 @@ public class Preferences {
             }
         } else {
             if (!prefDir.mkdirs()) {
-                Main.warn(tr("Failed to initialize preferences. Failed to create missing preference directory: {0}", prefDir.getAbsoluteFile()));
+                Main.warn(tr("Failed to initialize preferences. Failed to create missing preference directory: {0}",
+                        prefDir.getAbsoluteFile()));
                 JOptionPane.showMessageDialog(
                         Main.parent,
-                        tr("<html>Failed to initialize preferences.<br>Failed to create missing preference directory: {0}</html>",prefDir.getAbsoluteFile()),
+                        tr("<html>Failed to initialize preferences.<br>Failed to create missing preference directory: {0}</html>",
+                                prefDir.getAbsoluteFile()),
                         tr("Error"),
                         JOptionPane.ERROR_MESSAGE
                 );
@@ -903,11 +939,12 @@ public class Preferences {
                 resetToDefault();
                 save();
             }
-        } catch(IOException e) {
+        } catch (IOException e) {
             Main.error(e);
             JOptionPane.showMessageDialog(
                     Main.parent,
-                    tr("<html>Failed to initialize preferences.<br>Failed to reset preference file to default: {0}</html>",getPreferenceFile().getAbsoluteFile()),
+                    tr("<html>Failed to initialize preferences.<br>Failed to reset preference file to default: {0}</html>",
+                            getPreferenceFile().getAbsoluteFile()),
                     tr("Error"),
                     JOptionPane.ERROR_MESSAGE
             );
@@ -917,10 +954,12 @@ public class Preferences {
             load();
         } catch (Exception e) {
             Main.error(e);
-            File backupFile = new File(prefDir,"preferences.xml.bak");
+            File backupFile = new File(prefDir, "preferences.xml.bak");
             JOptionPane.showMessageDialog(
                     Main.parent,
-                    tr("<html>Preferences file had errors.<br> Making backup of old one to <br>{0}<br> and creating a new default preference file.</html>", backupFile.getAbsoluteFile()),
+                    tr("<html>Preferences file had errors.<br> Making backup of old one to <br>{0}<br> " +
+                            "and creating a new default preference file.</html>",
+                            backupFile.getAbsoluteFile()),
                     tr("Error"),
                     JOptionPane.ERROR_MESSAGE
             );
@@ -928,14 +967,14 @@ public class Preferences {
             try {
                 resetToDefault();
                 save();
-            } catch(IOException e1) {
+            } catch (IOException e1) {
                 Main.error(e1);
                 Main.warn(tr("Failed to initialize preferences. Failed to reset preference file to default: {0}", getPreferenceFile()));
             }
         }
     }
 
-    public final void resetToDefault(){
+    public final void resetToDefault() {
         settingsMap.clear();
     }
 
@@ -994,7 +1033,7 @@ public class Preferences {
      */
     public synchronized Color getColor(String colName, String specName, Color def) {
         String colKey = ColorProperty.getColorKey(colName);
-        if(!colKey.equals(colName)) {
+        if (!colKey.equals(colName)) {
             colornames.put(colKey, colName);
         }
         String colStr = specName != null ? get("color."+specName) : "";
@@ -1020,54 +1059,66 @@ public class Preferences {
 
     public synchronized int getInteger(String key, int def) {
         String v = get(key, Integer.toString(def));
-        if(v.isEmpty())
+        if (v.isEmpty())
             return def;
 
         try {
             return Integer.parseInt(v);
-        } catch(NumberFormatException e) {
+        } catch (NumberFormatException e) {
             // fall out
+            if (Main.isTraceEnabled()) {
+                Main.trace(e.getMessage());
+            }
         }
         return def;
     }
 
     public synchronized int getInteger(String key, String specName, int def) {
         String v = get(key+"."+specName);
-        if(v.isEmpty())
-            v = get(key,Integer.toString(def));
-        if(v.isEmpty())
+        if (v.isEmpty())
+            v = get(key, Integer.toString(def));
+        if (v.isEmpty())
             return def;
 
         try {
             return Integer.parseInt(v);
-        } catch(NumberFormatException e) {
+        } catch (NumberFormatException e) {
             // fall out
+            if (Main.isTraceEnabled()) {
+                Main.trace(e.getMessage());
+            }
         }
         return def;
     }
 
     public synchronized long getLong(String key, long def) {
         String v = get(key, Long.toString(def));
-        if(null == v)
+        if (null == v)
             return def;
 
         try {
             return Long.parseLong(v);
-        } catch(NumberFormatException e) {
+        } catch (NumberFormatException e) {
             // fall out
+            if (Main.isTraceEnabled()) {
+                Main.trace(e.getMessage());
+            }
         }
         return def;
     }
 
     public synchronized double getDouble(String key, double def) {
         String v = get(key, Double.toString(def));
-        if(null == v)
+        if (null == v)
             return def;
 
         try {
             return Double.parseDouble(v);
-        } catch(NumberFormatException e) {
+        } catch (NumberFormatException e) {
             // fall out
+            if (Main.isTraceEnabled()) {
+                Main.trace(e.getMessage());
+            }
         }
         return def;
     }
@@ -1132,7 +1183,7 @@ public class Preferences {
             if (saveOnPut) {
                 try {
                     save();
-                } catch (IOException e){
+                } catch (IOException e) {
                     Main.warn(tr("Failed to persist preferences to ''{0}''", getPreferenceFile().getAbsoluteFile()));
                 }
             }
@@ -1246,12 +1297,12 @@ public class Preferences {
      * same as above, but returns def if nothing was found
      */
     public <T> List<T> getListOfStructs(String key, Collection<T> def, Class<T> klass) {
-        Collection<Map<String,String>> prop =
+        Collection<Map<String, String>> prop =
             getListOfStructs(key, def == null ? null : serializeListOfStructs(def, klass));
         if (prop == null)
             return def == null ? null : new ArrayList<>(def);
         List<T> lst = new ArrayList<>();
-        for (Map<String,String> entries : prop) {
+        for (Map<String, String> entries : prop) {
             T struct = deserializeStruct(entries, klass);
             lst.add(struct);
         }
@@ -1275,10 +1326,10 @@ public class Preferences {
         return putListOfStructs(key, serializeListOfStructs(val, klass));
     }
 
-    private <T> Collection<Map<String,String>> serializeListOfStructs(Collection<T> l, Class<T> klass) {
+    private <T> Collection<Map<String, String>> serializeListOfStructs(Collection<T> l, Class<T> klass) {
         if (l == null)
             return null;
-        Collection<Map<String,String>> vals = new ArrayList<>();
+        Collection<Map<String, String>> vals = new ArrayList<>();
         for (T struct : l) {
             if (struct == null) {
                 continue;
@@ -1293,7 +1344,7 @@ public class Preferences {
         StringWriter stringWriter = new StringWriter();
         try (JsonWriter writer = Json.createWriter(stringWriter)) {
             JsonObjectBuilder object = Json.createObjectBuilder();
-            for(Object o: map.entrySet()) {
+            for (Object o: map.entrySet()) {
                 Entry e = (Entry) o;
                 object.add(e.getKey().toString(), e.getValue().toString());
             }
@@ -1315,7 +1366,7 @@ public class Preferences {
         return ret;
     }
 
-    public static <T> Map<String,String> serializeStruct(T struct, Class<T> klass) {
+    public static <T> Map<String, String> serializeStruct(T struct, Class<T> klass) {
         T structPrototype;
         try {
             structPrototype = klass.newInstance();
@@ -1323,7 +1374,7 @@ public class Preferences {
             throw new RuntimeException(ex);
         }
 
-        Map<String,String> hash = new LinkedHashMap<>();
+        Map<String, String> hash = new LinkedHashMap<>();
         for (Field f : klass.getDeclaredFields()) {
             if (f.getAnnotation(pref.class) == null) {
                 continue;
@@ -1349,14 +1400,14 @@ public class Preferences {
         return hash;
     }
 
-    public static <T> T deserializeStruct(Map<String,String> hash, Class<T> klass) {
+    public static <T> T deserializeStruct(Map<String, String> hash, Class<T> klass) {
         T struct = null;
         try {
             struct = klass.newInstance();
         } catch (InstantiationException | IllegalAccessException ex) {
             throw new RuntimeException(ex);
         }
-        for (Entry<String,String> key_value : hash.entrySet()) {
+        for (Entry<String, String> key_value : hash.entrySet()) {
             Object value = null;
             Field f;
             try {
@@ -1415,9 +1466,9 @@ public class Preferences {
      *
      */
     public void updateSystemProperties() {
-        if("true".equals(get("prefer.ipv6", "auto"))) {
+        if ("true".equals(get("prefer.ipv6", "auto"))) {
             // never set this to false, only true!
-            if(!"true".equals(Utils.updateSystemProperty("java.net.preferIPv6Addresses", "true"))) {
+            if (!"true".equals(Utils.updateSystemProperty("java.net.preferIPv6Addresses", "true"))) {
                 Main.info(tr("Try enabling IPv6 network, prefering IPv6 over IPv4 (only works on early startup)."));
             }
         }
@@ -1432,6 +1483,9 @@ public class Preferences {
             field.set(null, ResourceBundle.getBundle("sun.awt.resources.awt"));
         } catch (Exception e) {
             // Ignore all exceptions
+            if (Main.isTraceEnabled()) {
+                Main.trace(e.getMessage());
+            }
         }
         // Workaround to fix a Java "feature"
         // See http://stackoverflow.com/q/7615645/2257172 and #9875
@@ -1645,7 +1699,8 @@ public class Preferences {
     }
 
     protected void throwException(String msg) {
-        throw new RuntimeException(msg + tr(" (at line {0}, column {1})", parser.getLocation().getLineNumber(), parser.getLocation().getColumnNumber()));
+        throw new RuntimeException(msg + tr(" (at line {0}, column {1})",
+                parser.getLocation().getLineNumber(), parser.getLocation().getColumnNumber()));
     }
 
     private class SettingToXml implements SettingVisitor {
@@ -1710,7 +1765,8 @@ public class Preferences {
             for (Map<String, String> struct : setting.getValue()) {
                 b.append("    <map>\n");
                 for (Entry<String, String> e : struct.entrySet()) {
-                    b.append("      <tag key='").append(XmlWriter.encode(e.getKey())).append("' value='").append(XmlWriter.encode(e.getValue())).append("'/>\n");
+                    b.append("      <tag key='").append(XmlWriter.encode(e.getKey()))
+                     .append("' value='").append(XmlWriter.encode(e.getValue())).append("'/>\n");
                 }
                 b.append("    </map>\n");
             }
@@ -1741,13 +1797,13 @@ public class Preferences {
         // drop this block end of 2015
         // update old style JOSM server links to use zip now, see #10581
         // actually also cache and mirror entries should be cleared
-        if(getInteger("josm.version", Version.getInstance().getVersion()) < 8099) {
-            for(String key: new String[]{"mappaint.style.entries", "taggingpreset.entries"}) {
+        if (getInteger("josm.version", Version.getInstance().getVersion()) < 8099) {
+            for (String key: new String[]{"mappaint.style.entries", "taggingpreset.entries"}) {
                 Collection<Map<String, String>> data = getListOfStructs(key, (Collection<Map<String, String>>) null);
                 if (data != null) {
                     List<Map<String, String>> newlist = new ArrayList<Map<String, String>>();
                     boolean modified = false;
-                    for(Map<String, String> map : data) {
+                    for (Map<String, String> map : data) {
                          Map<String, String> newmap = new LinkedHashMap<String, String>();
                          for (Entry<String, String> entry : map.entrySet()) {
                              String val = entry.getValue();

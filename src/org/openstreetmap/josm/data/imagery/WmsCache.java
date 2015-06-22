@@ -97,7 +97,8 @@ public class WmsCache {
     private final int tileSize; // Should be always 500
     private int totalFileSize;
     private boolean totalFileSizeDirty; // Some file was missing - size needs to be recalculated
-    // No need for hashCode/equals on CacheEntry, object identity is enough. Comparing by values can lead to error - CacheEntry for wrong projection could be found
+    // No need for hashCode/equals on CacheEntry, object identity is enough.
+    // Comparing by values can lead to error - CacheEntry for wrong projection could be found
     private Map<CacheEntry, SoftReference<BufferedImage>> memoryCache = new HashMap<>();
     private Set<ProjectionBounds> areaToCache;
 
@@ -133,7 +134,7 @@ public class WmsCache {
         }
 
         for (Object propKey: layersIndex.keySet()) {
-            String s = (String)propKey;
+            String s = (String) propKey;
             if (url.equals(layersIndex.getProperty(s))) {
                 cacheDirName = s;
                 break;
@@ -184,7 +185,7 @@ public class WmsCache {
             Unmarshaller unmarshaller = context.createUnmarshaller();
             WmsCacheType cacheEntries;
             try (InputStream is = new FileInputStream(indexFile)) {
-                cacheEntries = (WmsCacheType)unmarshaller.unmarshal(is);
+                cacheEntries = (WmsCacheType) unmarshaller.unmarshal(is);
             }
             totalFileSize = cacheEntries.getTotalFileSize();
             if (cacheEntries.getTileSize() != tileSize) {
@@ -438,9 +439,9 @@ public class WmsCache {
 
             drawAtLeastOnce = true;
 
-            int xDiff = (int)((ce.east - east) * pixelPerDegree);
-            int yDiff = (int)((ce.north - north) * pixelPerDegree);
-            int size = (int)(pixelPerDegree / ce.pixelPerDegree  * tileSize);
+            int xDiff = (int) ((ce.east - east) * pixelPerDegree);
+            int yDiff = (int) ((ce.north - north) * pixelPerDegree);
+            int size = (int) (pixelPerDegree / ce.pixelPerDegree  * tileSize);
 
             int x = xDiff;
             int y = -size + tileSize - yDiff;
@@ -457,15 +458,16 @@ public class WmsCache {
             return null;
     }
 
-    private String generateFileName(ProjectionEntries projectionEntries, double pixelPerDegree, Projection projection, double east, double north, String mimeType) {
+    private String generateFileName(ProjectionEntries projectionEntries, double pixelPerDegree, Projection projection,
+            double east, double north, String mimeType) {
         LatLon ll1 = projection.eastNorth2latlon(new EastNorth(east, north));
         LatLon ll2 = projection.eastNorth2latlon(new EastNorth(east + 100 / pixelPerDegree, north));
         LatLon ll3 = projection.eastNorth2latlon(new EastNorth(east + tileSize / pixelPerDegree, north + tileSize / pixelPerDegree));
 
         double deltaLat = Math.abs(ll3.lat() - ll1.lat());
         double deltaLon = Math.abs(ll3.lon() - ll1.lon());
-        int precisionLat = Math.max(0, -(int)Math.ceil(Math.log10(deltaLat)) + 1);
-        int precisionLon = Math.max(0, -(int)Math.ceil(Math.log10(deltaLon)) + 1);
+        int precisionLat = Math.max(0, -(int) Math.ceil(Math.log10(deltaLat)) + 1);
+        int precisionLon = Math.max(0, -(int) Math.ceil(Math.log10(deltaLon)) + 1);
 
         String zoom = SystemOfMeasurement.METRIC.getDistText(ll1.greatCircleDistance(ll2));
         String extension = "dat";
@@ -489,7 +491,8 @@ public class WmsCache {
         int counter = 0;
         FILENAME_LOOP:
             while (true) {
-                String result = String.format("%s_%." + precisionLat + "f_%." + precisionLon +"f%s.%s", zoom, ll1.lat(), ll1.lon(), counter==0?"":"_" + counter, extension);
+                String result = String.format("%s_%." + precisionLat + "f_%." + precisionLon +"f%s.%s",
+                        zoom, ll1.lat(), ll1.lon(), counter == 0 ? "" : "_" + counter, extension);
                 for (CacheEntry entry: projectionEntries.entries) {
                     if (entry.filename.equals(result)) {
                         counter++;
@@ -510,8 +513,8 @@ public class WmsCache {
      * @param north northing
      * @throws IOException if any I/O error occurs
      */
-    public synchronized void saveToCache(BufferedImage img, InputStream imageData, Projection projection, double pixelPerDegree, double east, double north)
-            throws IOException {
+    public synchronized void saveToCache(BufferedImage img, InputStream imageData, Projection projection, double pixelPerDegree,
+            double east, double north) throws IOException {
         ProjectionEntries projectionEntries = getProjectionEntries(projection);
         CacheEntry entry = findEntry(projectionEntries, pixelPerDegree, east, north);
         File imageFile;
@@ -524,7 +527,7 @@ public class WmsCache {
                 mimeType = URLConnection.guessContentTypeFromStream(imageData);
             }
             entry = new CacheEntry(pixelPerDegree, east, north,
-                    tileSize,generateFileName(projectionEntries, pixelPerDegree, projection, east, north, mimeType));
+                    tileSize, generateFileName(projectionEntries, pixelPerDegree, projection, east, north, mimeType));
             entry.lastUsed = System.currentTimeMillis();
             entry.lastModified = entry.lastUsed;
             projectionEntries.entries.add(entry);

@@ -147,13 +147,14 @@ public class MapCSSTagChecker extends Test.TagTest {
      */
     abstract static class FixCommand {
         /**
-         * Creates the fixing {@link Command} for the given primitive. The {@code matchingSelector} is used to
-         * evaluate placeholders (cf. {@link org.openstreetmap.josm.data.validation.tests.MapCSSTagChecker.TagCheck#insertArguments(Selector, String, OsmPrimitive)}).
+         * Creates the fixing {@link Command} for the given primitive. The {@code matchingSelector} is used to evaluate placeholders
+         * (cf. {@link org.openstreetmap.josm.data.validation.tests.MapCSSTagChecker.TagCheck#insertArguments(Selector, String, OsmPrimitive)}).
          */
         abstract Command createCommand(final OsmPrimitive p, final Selector matchingSelector);
 
         private static void checkObject(final Object obj) {
-            CheckParameterUtil.ensureThat(obj instanceof Expression || obj instanceof String, "instance of Exception or String expected, but got " + obj);
+            CheckParameterUtil.ensureThat(obj instanceof Expression || obj instanceof String,
+                    "instance of Exception or String expected, but got " + obj);
         }
 
         /**
@@ -422,7 +423,7 @@ public class MapCSSTagChecker extends Test.TagTest {
          */
         static String insertArguments(Selector matchingSelector, String s, OsmPrimitive p) {
             if (s != null && matchingSelector instanceof Selector.ChildOrParentSelector) {
-                return insertArguments(((Selector.ChildOrParentSelector)matchingSelector).right, s, p);
+                return insertArguments(((Selector.ChildOrParentSelector) matchingSelector).right, s, p);
             } else if (s == null || !(matchingSelector instanceof GeneralSelector)) {
                 return s;
             }
@@ -581,7 +582,7 @@ public class MapCSSTagChecker extends Test.TagTest {
             Set<String> result = new HashSet<>();
             for (Selector s : rule.selectors) {
                 if (s instanceof AbstractSelector) {
-                    for (Condition c : ((AbstractSelector)s).getConditions()) {
+                    for (Condition c : ((AbstractSelector) s).getConditions()) {
                         if (c instanceof ClassCondition) {
                             result.add(((ClassCondition) c).id);
                         }

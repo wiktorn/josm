@@ -140,9 +140,10 @@ public class UploadSelectionAction extends JosmAction {
      * <code>primitives</code>
      */
     protected boolean hasPrimitivesToDelete(Collection<OsmPrimitive> primitives) {
-        for (OsmPrimitive p: primitives)
+        for (OsmPrimitive p: primitives) {
             if (p.isDeleted() && p.isModified() && !p.isNew())
                 return true;
+        }
         return false;
     }
 
@@ -189,7 +190,7 @@ public class UploadSelectionAction extends JosmAction {
     static class UploadHullBuilder implements Visitor {
         private Set<OsmPrimitive> hull;
 
-        public UploadHullBuilder(){
+        public UploadHullBuilder() {
             hull = new HashSet<>();
         }
 
@@ -320,15 +321,15 @@ public class UploadSelectionAction extends JosmAction {
                 Stack<OsmPrimitive> toCheck = new Stack<>();
                 toCheck.addAll(getPrimitivesToCheckForParents());
                 Set<OsmPrimitive> checked = new HashSet<>();
-                while(!toCheck.isEmpty()) {
+                while (!toCheck.isEmpty()) {
                     if (canceled) return;
                     OsmPrimitive current = toCheck.pop();
-                    synchronized(this) {
+                    synchronized (this) {
                         reader = new OsmServerBackreferenceReader(current);
                     }
                     getProgressMonitor().subTask(tr("Reading parents of ''{0}''", current.getDisplayName(DefaultNameFormatter.getInstance())));
                     DataSet ds = reader.parseOsm(getProgressMonitor().createSubTaskMonitor(1, false));
-                    synchronized(this) {
+                    synchronized (this) {
                         reader = null;
                     }
                     checked.add(current);
@@ -349,7 +350,7 @@ public class UploadSelectionAction extends JosmAction {
                         }
                     }
                 }
-            } catch(Exception e) {
+            } catch (Exception e) {
                 if (canceled)
                     // ignore exception
                     return;

@@ -35,7 +35,8 @@ public class TemplateEngineTest {
     @Test
     public void testVariable() throws ParseError {
         TemplateParser parser = new TemplateParser("abc{var}\\{ef\\$\\{g");
-        ReflectionAssert.assertReflectionEquals(CompoundTemplateEntry.fromArray(new StaticText("abc"), new Variable("var"), new StaticText("{ef${g")), parser.parse());
+        ReflectionAssert.assertReflectionEquals(CompoundTemplateEntry.fromArray(new StaticText("abc"),
+                new Variable("var"), new StaticText("{ef${g")), parser.parse());
     }
 
     @Test
@@ -91,10 +92,12 @@ public class TemplateEngineTest {
                     return null;
             }
         }
+
         @Override
         public boolean evaluateCondition(Match condition) {
             return true;
         }
+
         @Override
         public List<String> getTemplateKeys() {
             return Arrays.asList("name", "number");
@@ -243,13 +246,13 @@ public class TemplateEngineTest {
         Assert.assertEquals("grandparent_namename_parent2", sb.toString());
     }
 
-    @Test(expected=ParseError.class)
+    @Test(expected = ParseError.class)
     public void testErrorsNot() throws ParseError {
         TemplateParser parser = new TemplateParser("!{-parent() '{name}'}");
         parser.parse();
     }
 
-    @Test(expected=ParseError.class)
+    @Test(expected = ParseError.class)
     public void testErrorOr() throws ParseError {
         TemplateParser parser = new TemplateParser("!{parent() | type=type1 '{name}'}");
         parser.parse();

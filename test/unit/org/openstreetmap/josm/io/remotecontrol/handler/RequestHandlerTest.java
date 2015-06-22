@@ -1,14 +1,15 @@
+// License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.io.remotecontrol.handler;
 
-import org.junit.Test;
-import org.openstreetmap.josm.io.remotecontrol.PermissionPrefWithDefault;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.*;
+import org.junit.Test;
+import org.openstreetmap.josm.io.remotecontrol.PermissionPrefWithDefault;
 
 public class RequestHandlerTest {
 
@@ -41,7 +42,6 @@ public class RequestHandlerTest {
         return req.args;
     }
 
-
     @Test
     public void testRequestParameter1() {
         final Map<String, String> expected = new HashMap<>();
@@ -69,7 +69,8 @@ public class RequestHandlerTest {
      */
     @Test
     public void testRequestParameter4() {
-        assertThat(getRequestParameter("http://example.com/:@-._~!$&'()*+,=;:@-._~!$&'()*+,=:@-._~!$&'()*+,==?/?:@-._~!$'()*+,;=/?:@-._~!$'()*+,;==#/?:@-._~!$&'()*+,;="),
+        assertThat(getRequestParameter(
+                "http://example.com/:@-._~!$&'()*+,=;:@-._~!$&'()*+,=:@-._~!$&'()*+,==?/?:@-._~!$'()*+,;=/?:@-._~!$'()*+,;==#/?:@-._~!$&'()*+,;="),
                 is(Collections.singletonMap("/?:@-._~!$'()* ,;", "/?:@-._~!$'()* ,;==")));
     }
 
@@ -81,5 +82,4 @@ public class RequestHandlerTest {
         assertThat(getRequestParameter("http://example.com/?space=%20&tab=%09"),
                 is(expected));
     }
-
 }

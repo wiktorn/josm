@@ -28,7 +28,8 @@ public abstract class AbstractInfoAction extends JosmAction {
         super(installAdapters);
     }
 
-    public AbstractInfoAction(String name, String iconName, String tooltip, Shortcut shortcut, boolean register, String toolbarId, boolean installAdapters) {
+    public AbstractInfoAction(String name, String iconName, String tooltip, Shortcut shortcut, boolean register,
+            String toolbarId, boolean installAdapters) {
         super(name, iconName, tooltip, shortcut, register, toolbarId, installAdapters);
     }
 
@@ -45,7 +46,8 @@ public abstract class AbstractInfoAction extends JosmAction {
                 new ButtonSpec(
                         tr("Continue"),
                         ImageProvider.get("ok"),
-                        trn("Click to continue and to open {0} browser", "Click to continue and to open {0} browsers", numBrowsers, numBrowsers),
+                        trn("Click to continue and to open {0} browser", "Click to continue and to open {0} browsers",
+                                numBrowsers, numBrowsers),
                         null // no specific help topic
                 ),
                 new ButtonSpec(
@@ -79,7 +81,7 @@ public abstract class AbstractInfoAction extends JosmAction {
         // filter out new primitives which are not yet uploaded to the server
         //
         Iterator<OsmPrimitive> it = primitivesToShow.iterator();
-        while(it.hasNext()) {
+        while (it.hasNext()) {
             if (it.next().isNew()) {
                 it.remove();
             }

@@ -33,11 +33,11 @@ public class ReverseWayTagCorrector extends TagCorrector<Way> {
 
     private static final String SEPARATOR = "[:_]";
 
-    private static final Pattern getPatternFor(String s) {
+    private static Pattern getPatternFor(String s) {
         return getPatternFor(s, false);
     }
 
-    private static final Pattern getPatternFor(String s, boolean exactMatch) {
+    private static Pattern getPatternFor(String s, boolean exactMatch) {
         if (exactMatch) {
             return Pattern.compile("(^)(" + s + ")($)");
         } else {
@@ -235,7 +235,7 @@ public class ReverseWayTagCorrector extends TagCorrector<Way> {
             if (!(referrer instanceof Relation)) {
                 continue;
             }
-            Relation relation = (Relation)referrer;
+            Relation relation = (Relation) referrer;
             int position = 0;
             for (RelationMember member : relation.getMembers()) {
                 if (!member.getMember().hasEqualSemanticAttributes(oldway)

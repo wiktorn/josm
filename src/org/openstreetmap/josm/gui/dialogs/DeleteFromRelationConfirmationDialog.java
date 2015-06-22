@@ -109,11 +109,14 @@ public class DeleteFromRelationConfirmationDialog extends JDialog implements Tab
         if (numObjectsToDelete == 1 && numParentRelations == 1) {
             msg = tr("<html>Please confirm to remove <strong>1 object</strong> from <strong>1 relation</strong>.</html>");
         } else if (numObjectsToDelete == 1 && numParentRelations > 1) {
-            msg = tr("<html>Please confirm to remove <strong>1 object</strong> from <strong>{0} relations</strong>.</html>", numParentRelations);
+            msg = tr("<html>Please confirm to remove <strong>1 object</strong> from <strong>{0} relations</strong>.</html>",
+                    numParentRelations);
         } else if (numObjectsToDelete > 1 && numParentRelations == 1) {
-            msg = tr("<html>Please confirm to remove <strong>1 object</strong> from <strong>{0} relations</strong>.</html>", numParentRelations);
+            msg = tr("<html>Please confirm to remove <strong>1 object</strong> from <strong>{0} relations</strong>.</html>",
+                    numParentRelations);
         } else {
-            msg = tr("<html>Please confirm to remove <strong>{0} objects</strong> from <strong>{1} relations</strong>.</html>", numObjectsToDelete,numParentRelations);
+            msg = tr("<html>Please confirm to remove <strong>{0} objects</strong> from <strong>{1} relations</strong>.</html>",
+                    numObjectsToDelete, numParentRelations);
         }
         htmlPanel.getEditorPane().setText(msg);
         invalidate();
@@ -165,7 +168,7 @@ public class DeleteFromRelationConfirmationDialog extends JDialog implements Tab
                     getClass().getName()  + ".geometry",
                     WindowGeometry.centerInWindow(
                             Main.parent,
-                            new Dimension(400,200)
+                            new Dimension(400, 200)
                     )
             ).applySafe(this);
             setCanceled(false);
@@ -261,7 +264,7 @@ public class DeleteFromRelationConfirmationDialog extends JDialog implements Tab
             case 2: return ref.getPosition()+1;
             case 3: return ref.getRole();
             default:
-                assert false: "Illegal column index";
+                assert false : "Illegal column index";
             }
             return null;
         }

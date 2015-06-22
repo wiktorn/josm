@@ -186,7 +186,8 @@ public final class Relation extends OsmPrimitive implements IRelation {
     /**
      * Constructs an identical clone of the argument.
      * @param clone The relation to clone
-     * @param clearMetadata If {@code true}, clears the OSM id and other metadata as defined by {@link #clearOsmMetadata}. If {@code false}, does nothing
+     * @param clearMetadata If {@code true}, clears the OSM id and other metadata as defined by {@link #clearOsmMetadata}.
+     * If {@code false}, does nothing
      */
     public Relation(Relation clone, boolean clearMetadata) {
         super(clone.getUniqueId(), true);
@@ -230,7 +231,7 @@ public final class Relation extends OsmPrimitive implements IRelation {
         try {
             super.cloneFrom(osm);
             // It's not necessary to clone members as RelationMember class is immutable
-            setMembers(((Relation)osm).getMembers());
+            setMembers(((Relation) osm).getMembers());
         } finally {
             writeUnlock(locked);
         }
@@ -293,7 +294,7 @@ public final class Relation extends OsmPrimitive implements IRelation {
             return false;
         if (!super.hasEqualSemanticAttributes(other))
             return false;
-        Relation r = (Relation)other;
+        Relation r = (Relation) other;
         return Arrays.equals(members, r.members);
     }
 
@@ -458,7 +459,7 @@ public final class Relation extends OsmPrimitive implements IRelation {
         else {
             BBox result = null;
             for (RelationMember rm:members) {
-                BBox box = rm.isRelation()?rm.getRelation().calculateBBox(visitedRelations):rm.getMember().getBBox();
+                BBox box = rm.isRelation() ? rm.getRelation().calculateBBox(visitedRelations) : rm.getMember().getBBox();
                 if (box != null) {
                     if (result == null) {
                         result = box;
@@ -489,7 +490,9 @@ public final class Relation extends OsmPrimitive implements IRelation {
             RelationMember[] members = this.members;
             for (RelationMember rm: members) {
                 if (rm.getMember().getDataSet() != dataSet)
-                    throw new DataIntegrityProblemException(String.format("Relation member must be part of the same dataset as relation(%s, %s)", getPrimitiveId(), rm.getMember().getPrimitiveId()));
+                    throw new DataIntegrityProblemException(
+                            String.format("Relation member must be part of the same dataset as relation(%s, %s)",
+                                    getPrimitiveId(), rm.getMember().getPrimitiveId()));
             }
             if (Main.pref.getBoolean("debug.checkDeleteReferenced", true)) {
                 for (RelationMember rm: members) {

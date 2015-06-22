@@ -37,7 +37,8 @@ public class LineClip {
         if (clipBounds == null) {
             return false;
         }
-        return cohenSutherland(p1.x, p1.y, p2.x, p2.y, clipBounds.x , clipBounds.y, clipBounds.x + clipBounds.width, clipBounds.y + clipBounds.height);
+        return cohenSutherland(p1.x, p1.y, p2.x, p2.y, clipBounds.x , clipBounds.y,
+                clipBounds.x + clipBounds.width, clipBounds.y + clipBounds.height);
     }
 
     /**
@@ -75,14 +76,14 @@ public class LineClip {
                 done = true;
             } else {
                 long x = 0, y = 0;
-                outcodeOut = outcode0 != 0 ? outcode0: outcode1;
+                outcodeOut = outcode0 != 0 ? outcode0 : outcode1;
                 if ((outcodeOut & OUT_TOP) > 0) {
                     x = x1 + (x2 - x1) * (ymax - y1)/(y2 - y1);
                     y = ymax;
                 } else if ((outcodeOut & OUT_BOTTOM) > 0) {
                     x = x1 + (x2 - x1) * (ymin - y1)/(y2 - y1);
                     y = ymin;
-                } else if ((outcodeOut & OUT_RIGHT)> 0) {
+                } else if ((outcodeOut & OUT_RIGHT) > 0) {
                     y = y1 + (y2 - y1) * (xmax - x1)/(x2 - x1);
                     x = xmax;
                 } else if ((outcodeOut & OUT_LEFT) > 0) {
@@ -102,7 +103,7 @@ public class LineClip {
         }
         while (!done);
 
-        if(accept) {
+        if (accept) {
             p1 = new Point((int) x1, (int) y1);
             p2 = new Point((int) x2, (int) y2);
             return true;
