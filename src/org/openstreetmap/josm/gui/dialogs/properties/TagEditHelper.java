@@ -257,7 +257,7 @@ class TagEditHelper {
                 }
             };
 
-        private transient ListCellRenderer<AutoCompletionListItem> cellRenderer = new ListCellRenderer<AutoCompletionListItem>() {
+        private final transient ListCellRenderer<AutoCompletionListItem> cellRenderer = new ListCellRenderer<AutoCompletionListItem>() {
             private final DefaultListCellRenderer def = new DefaultListCellRenderer();
             @Override
             public Component getListCellRendererComponent(JList<? extends AutoCompletionListItem> list,
@@ -415,7 +415,8 @@ class TagEditHelper {
 
     public static final BooleanProperty PROPERTY_FIX_TAG_LOCALE = new BooleanProperty("properties.fix-tag-combobox-locale", false);
     public static final BooleanProperty PROPERTY_REMEMBER_TAGS = new BooleanProperty("properties.remember-recently-added-tags", true);
-    public static final IntegerProperty PROPERTY_RECENT_TAGS_NUMBER = new IntegerProperty("properties.recently-added-tags", DEFAULT_LRU_TAGS_NUMBER);
+    public static final IntegerProperty PROPERTY_RECENT_TAGS_NUMBER = new IntegerProperty("properties.recently-added-tags",
+            DEFAULT_LRU_TAGS_NUMBER);
 
     abstract class AbstractTagsDialog extends ExtendedDialog {
         protected AutoCompletingComboBox keys;
@@ -504,7 +505,9 @@ class TagEditHelper {
 
                    List<AutoCompletionListItem> valueList = autocomplete.getValues(getAutocompletionKeys(key));
                    Collections.sort(valueList, comparator);
-
+                   if (Main.isDebugEnabled()) {
+                       Main.debug("Focus gained by {0}, e={1}", values, e);
+                   }
                    values.setPossibleACItems(valueList);
                    values.getEditor().selectAll();
                    objKey = key;
@@ -515,7 +518,7 @@ class TagEditHelper {
         }
 
         protected JPopupMenu popupMenu = new JPopupMenu() {
-            private JCheckBoxMenuItem fixTagLanguageCb = new JCheckBoxMenuItem(
+            private final JCheckBoxMenuItem fixTagLanguageCb = new JCheckBoxMenuItem(
                 new AbstractAction(tr("Use English language for tag by default")) {
                 @Override
                 public void actionPerformed(ActionEvent e) {
@@ -694,7 +697,9 @@ class TagEditHelper {
                 // Create action for reusing the tag, with keyboard shortcut Ctrl+(1-5)
                 String actionShortcutKey = "properties:recent:"+count;
                 String actionShortcutShiftKey = "properties:recent:shift:"+count;
+                // CHECKSTYLE.OFF: LineLength
                 Shortcut sc = Shortcut.registerShortcut(actionShortcutKey, tr("Choose recent tag {0}", count), KeyEvent.VK_0+count, Shortcut.CTRL);
+                // CHECKSTYLE.ON: LineLength
                 final JosmAction action = new JosmAction(actionShortcutKey, null, tr("Use this tag again"), sc, false) {
                     @Override
                     public void actionPerformed(ActionEvent e) {
