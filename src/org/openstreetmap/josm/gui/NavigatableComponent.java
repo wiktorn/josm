@@ -182,7 +182,6 @@ public class NavigatableComponent extends JComponent implements Helpful {
     }
 
     private double scale = Main.getProjection().getDefaultZoomInPPD();
-
     /**
      * Center n/e coordinate of the desired screen center.
      */
@@ -235,18 +234,6 @@ public class NavigatableComponent extends JComponent implements Helpful {
      */
     public static String getDistText(final double dist, final NumberFormat format, final double threshold) {
         return SystemOfMeasurement.getSystemOfMeasurement().getDistText(dist, format, threshold);
-    }
-
-    /**
-     * Returns the text describing the given distance in the current system of measurement.
-     * @param dist The distance in metres
-     * @param format A {@link NumberFormat} to format the area value
-     * @param threshold Values lower than this {@code threshold} are displayed as {@code "< [threshold]"}
-     * @return the text describing the given distance in the current system of measurement.
-     * @since 7135
-     */
-    public static String getDistText(final double dist, final NumberFormat format, final double threshold) {
-        return getSystemOfMeasurement().getDistText(dist, format, threshold);
     }
 
     /**

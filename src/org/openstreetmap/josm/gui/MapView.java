@@ -714,17 +714,6 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
             return;
         }
 
-        // if the position was remembered, we need to adjust center once before repainting
-        if (oldLoc != null && oldSize != null) {
-            Point l1  = getLocationOnScreen();
-            final EastNorth newCenter = new EastNorth(
-                    center.getX()+ (l1.x-oldLoc.x - (oldSize.width-getWidth())/2.0)*getScale(),
-                    center.getY()+ (oldLoc.y-l1.y + (oldSize.height-getHeight())/2.0)*getScale()
-                    );
-            oldLoc = null; oldSize = null;
-            zoomTo(newCenter);
-        }
-
         List<Layer> visibleLayers = getVisibleLayersInZOrder();
 
         int nonChangedLayersCount = 0;
@@ -1070,11 +1059,6 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
                 Main.registerActionShortcut(mode, mode.getShortcut()); //fix #6876
             } else {
                 Main.unregisterShortcut(mode.getShortcut());
-                GuiHelper.runInEDTAndWait(new Runnable() {
-                    @Override public void run() {
-                        b.setEnabled(false);
-                    }
-                });
             }
             GuiHelper.runInEDTAndWait(new Runnable() {
                 @Override public void run() {
