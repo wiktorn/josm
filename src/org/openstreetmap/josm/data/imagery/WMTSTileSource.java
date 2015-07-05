@@ -72,7 +72,7 @@ public class WMTSTileSource extends TMSTileSource implements TemplatedTileSource
         PATTERN_HEADER,
     };
 
-    private class TileMatrix {
+    private static class TileMatrix {
         String identifier;
         double scaleDenominator;
         EastNorth topLeftCorner;
@@ -80,7 +80,7 @@ public class WMTSTileSource extends TMSTileSource implements TemplatedTileSource
         int tileHeight;
     }
 
-    private class TileMatrixSet {
+    private static class TileMatrixSet {
         SortedSet<TileMatrix> tileMatrix = new TreeSet<>(new Comparator<TileMatrix>() {
             @Override
             public int compare(TileMatrix o1, TileMatrix o2) {
@@ -92,7 +92,7 @@ public class WMTSTileSource extends TMSTileSource implements TemplatedTileSource
         String identifier;
     }
 
-    private class Layer {
+    private static class Layer {
         String format;
         String name;
         Map<String, TileMatrixSet> tileMatrixSetByCRS = new ConcurrentHashMap<>();
@@ -109,7 +109,7 @@ public class WMTSTileSource extends TMSTileSource implements TemplatedTileSource
             this.typeString = urlString;
         }
 
-        private final String getTypeString() {
+        private String getTypeString() {
             return typeString;
         }
 
@@ -123,7 +123,7 @@ public class WMTSTileSource extends TMSTileSource implements TemplatedTileSource
         }
     }
 
-    private class SelectLayerDialog extends ExtendedDialog {
+    private static final class SelectLayerDialog extends ExtendedDialog {
         private Layer[] layers;
         private JList<String> list;
 
@@ -132,7 +132,7 @@ public class WMTSTileSource extends TMSTileSource implements TemplatedTileSource
             this.layers = layers.toArray(new Layer[]{});
             this.list = new JList<>(getLayerNames(layers));
             this.list.setPreferredSize(new Dimension(400, 400));
-            this.list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION) ;
+            this.list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
             JPanel panel = new JPanel(new GridBagLayout());
             panel.add(this.list, GBC.eol().fill());
             setContent(panel);
@@ -140,7 +140,7 @@ public class WMTSTileSource extends TMSTileSource implements TemplatedTileSource
 
         private String[] getLayerNames(Collection<Layer> layers) {
             Collection<String> ret = new ArrayList<>();
-            for(Layer layer: layers) {
+            for (Layer layer: layers) {
                 ret.add(layer.name);
             }
             return ret.toArray(new String[]{});
@@ -161,11 +161,12 @@ public class WMTSTileSource extends TMSTileSource implements TemplatedTileSource
     private TileMatrixSet currentTileMatrixSet;
     private double crsScale;
     private TransferMode transferMode;
+    private String style = "";
 
     /**
      * Creates a tile source based on imagery info
      * @param info imagery info
-     * @throws IOException
+     * @throws IOException if any I/O error occurs
      */
     public WMTSTileSource(ImageryInfo info) throws IOException {
         super(info);
@@ -188,8 +189,6 @@ public class WMTSTileSource extends TMSTileSource implements TemplatedTileSource
         initProjection();
     }
 
-
-
     private String handleTemplate(String url) {
         Pattern pattern = Pattern.compile(PATTERN_HEADER);
         StringBuffer output = new StringBuffer();
@@ -207,7 +206,6 @@ public class WMTSTileSource extends TMSTileSource implements TemplatedTileSource
         builderFactory.setValidating(false);
         builderFactory.setNamespaceAware(false);
         DocumentBuilder builder = null;
-        byte[] data = {};
         InputStream in = new CachedFile(baseUrl).
                 setHttpHeaders(headers).
                 setMaxAge(7 * CachedFile.DAYS).
@@ -215,21 +213,22 @@ public class WMTSTileSource extends TMSTileSource implements TemplatedTileSource
                 getInputStream();
         try {
             builder = builderFactory.newDocumentBuilder();
-            data = Utils.readBytesFromStream(in);
+            byte[] data = Utils.readBytesFromStream(in);
             if (data == null || data.length == 0) {
                 throw new IllegalArgumentException("Could not read data from: " + baseUrl);
             }
             Document document = builder.parse(new ByteArrayInputStream(data));
-            Node getTileOperation = getByXpath(document, "/Capabilities/OperationsMetadata/Operation[@name=\"GetTile\"]/DCP/HTTP/Get").item(0);
+            Node getTileOperation = getByXpath(document,
+                    "/Capabilities/OperationsMetadata/Operation[@name=\"GetTile\"]/DCP/HTTP/Get").item(0);
             this.baseUrl = getStringByXpath(getTileOperation, "@href");
-            this.transferMode = TransferMode.fromString(getStringByXpath(getTileOperation, "Constraint[@name=\"GetEncoding\"]/AllowedValues/Value"));
+            this.transferMode = TransferMode.fromString(getStringByXpath(getTileOperation,
+                    "Constraint[@name=\"GetEncoding\"]/AllowedValues/Value"));
             NodeList layersNodeList = getByXpath(document, "/Capabilities/Contents/Layer");
             Map<String, TileMatrixSet> matrixSetById = parseMatrices(getByXpath(document, "/Capabilities/Contents/TileMatrixSet"));
             return parseLayer(layersNodeList, matrixSetById);
 
         } catch (Exception e) {
             Main.error(e);
-            //Main.error(new String(data, "UTF-8"));
         }
         return null;
     }
@@ -240,7 +239,7 @@ public class WMTSTileSource extends TMSTileSource implements TemplatedTileSource
         return ret.toExternalForm();
     }
 
-    private final Collection<Layer> parseLayer(NodeList nodeList, Map<String, TileMatrixSet> matrixSetById) throws XPathExpressionException {
+    private Collection<Layer> parseLayer(NodeList nodeList, Map<String, TileMatrixSet> matrixSetById) throws XPathExpressionException {
         Collection<Layer> ret = new ArrayList<>();
         for (int layerId = 0; layerId < nodeList.getLength(); layerId++) {
             Node layerNode = nodeList.item(layerId);
@@ -260,7 +259,7 @@ public class WMTSTileSource extends TMSTileSource implements TemplatedTileSource
 
     }
 
-    private final Map<String, TileMatrixSet> parseMatrices(NodeList nodeList) throws DOMException, XPathExpressionException {
+    private Map<String, TileMatrixSet> parseMatrices(NodeList nodeList) throws DOMException, XPathExpressionException {
         Map<String, TileMatrixSet> ret = new ConcurrentHashMap<>();
         for (int matrixSetId = 0; matrixSetId < nodeList.getLength(); matrixSetId++) {
             Node matrixSetNode = nodeList.item(matrixSetId);
@@ -290,11 +289,12 @@ public class WMTSTileSource extends TMSTileSource implements TemplatedTileSource
     }
 
     private static String crsToCode(String crsIdentifier) {
-        if(crsIdentifier.startsWith("urn:ogc:def:crs:")) {
+        if (crsIdentifier.startsWith("urn:ogc:def:crs:")) {
             return crsIdentifier.replaceFirst("urn:ogc:def:crs:([^:]*):[^:]*:(.*)$", "$1:$2");
         }
         return crsIdentifier;
     }
+
     private static String getStringByXpath(Node document, String xpathQuery) throws XPathExpressionException {
         return (String) getByXpath(document, xpathQuery, XPathConstants.STRING);
     }
@@ -302,7 +302,6 @@ public class WMTSTileSource extends TMSTileSource implements TemplatedTileSource
     private static NodeList getByXpath(Node document, String xpathQuery) throws XPathExpressionException {
         return (NodeList) getByXpath(document, xpathQuery, XPathConstants.NODESET);
     }
-
 
     private static Object getByXpath(Node document, String xpathQuery, QName returnType) throws XPathExpressionException {
         XPath xpath = XPathFactory.newInstance().newXPath();
@@ -323,12 +322,12 @@ public class WMTSTileSource extends TMSTileSource implements TemplatedTileSource
      */
     public void initProjection(Projection proj) {
         this.currentTileMatrixSet = currentLayer.tileMatrixSetByCRS.get(proj.toCode());
-        if(this.currentTileMatrixSet == null) {
+        if (this.currentTileMatrixSet == null) {
             Main.warn("Unsupported CRS selected");
             // take first, maybe it will work (if user sets custom projections, codes will not match)
             this.currentTileMatrixSet = currentLayer.tileMatrixSetByCRS.values().iterator().next();
         }
-        this.crsScale = getTileSize() * 0.28e-03 / proj.getMetersPerUnit() ;
+        this.crsScale = getTileSize() * 0.28e-03 / proj.getMetersPerUnit();
     }
 
     @Override
@@ -373,12 +372,13 @@ public class WMTSTileSource extends TMSTileSource implements TemplatedTileSource
                 .replaceAll("\\{TileMatrixSet\\}", this.currentTileMatrixSet.identifier)
                 .replaceAll("\\{TileMatrix\\}", tileMatrix.identifier)
                 .replaceAll("\\{TileRow\\}", Integer.toString(tiley))
-                .replaceAll("\\{TileCol\\}", Integer.toString(tilex));
+                .replaceAll("\\{TileCol\\}", Integer.toString(tilex))
+                .replaceAll("\\{Style\\}", this.style);
     }
 
     /**
      *
-     * @param zoom
+     * @param zoom zoom level
      * @return TileMatrix that's working on this zoom level
      */
     private TileMatrix getTileMatrix(int zoom) {
@@ -420,7 +420,6 @@ public class WMTSTileSource extends TMSTileSource implements TemplatedTileSource
     public double latToTileY(double lat, int zoom) {
         throw new UnsupportedOperationException("Not implemented");
     }
-
 
     @Override
     public ICoordinate tileXYToLatLon(Tile tile) {
@@ -510,7 +509,7 @@ public class WMTSTileSource extends TMSTileSource implements TemplatedTileSource
     @Override
     public Coordinate XYToLatLon(int x, int y, int zoom) {
         TileMatrix matrix = getTileMatrix(zoom);
-        if (matrix == null ){
+        if (matrix == null) {
             return new Coordinate(0, 0);
         }
         double scale = matrix.scaleDenominator * this.crsScale;
