@@ -601,11 +601,12 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
      * @param pos       The new position of the layer
      */
     public void moveLayer(Layer layer, int pos) {
-        layerLock.writeLock().lock();
-        layerLock.readLock().lock();
         EnumSet<LayerListenerType> listenersToFire;
         Layer oldActiveLayer = activeLayer;
         OsmDataLayer oldEditLayer = editLayer;
+
+        layerLock.writeLock().lock();
+        layerLock.readLock().lock();
         try {
             try {
                 int curLayerPos = layers.indexOf(layer);
