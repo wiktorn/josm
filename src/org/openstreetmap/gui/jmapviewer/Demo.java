@@ -38,13 +38,13 @@ public class Demo extends JFrame implements JMapViewerEventListener  {
 
     private static final long serialVersionUID = 1L;
 
-    private JMapViewerTree treeMap = null;
+    private final JMapViewerTree treeMap;
 
-    private JLabel zoomLabel = null;
-    private JLabel zoomValue = null;
+    private final JLabel zoomLabel;
+    private final JLabel zoomValue;
 
-    private JLabel mperpLabelName = null;
-    private JLabel mperpLabelValue = null;
+    private final JLabel mperpLabelName;
+    private final JLabel mperpLabelValue;
 
     /**
      * Constructs the {@code Demo}.
@@ -83,7 +83,7 @@ public class Demo extends JFrame implements JMapViewerEventListener  {
         helpPanel.add(helpLabel);
         JButton button = new JButton("setDisplayToFitMapMarkers");
         button.addActionListener(new ActionListener() {
-
+            @Override
             public void actionPerformed(ActionEvent e) {
                 map().setDisplayToFitMapMarkers();
             }
@@ -95,6 +95,7 @@ public class Demo extends JFrame implements JMapViewerEventListener  {
                 new MapQuestOsmTileSource(),
                 new MapQuestOpenAerialTileSource() });
         tileSourceSelector.addItemListener(new ItemListener() {
+            @Override
             public void itemStateChanged(ItemEvent e) {
                 map().setTileSource((TileSource) e.getItem());
             }
@@ -102,6 +103,7 @@ public class Demo extends JFrame implements JMapViewerEventListener  {
         JComboBox<TileLoader> tileLoaderSelector;
         tileLoaderSelector = new JComboBox<>(new TileLoader[] {new OsmTileLoader(map())});
         tileLoaderSelector.addItemListener(new ItemListener() {
+            @Override
             public void itemStateChanged(ItemEvent e) {
                 map().setTileLoader((TileLoader) e.getItem());
             }
@@ -112,6 +114,7 @@ public class Demo extends JFrame implements JMapViewerEventListener  {
         final JCheckBox showMapMarker = new JCheckBox("Map markers visible");
         showMapMarker.setSelected(map().getMapMarkersVisible());
         showMapMarker.addActionListener(new ActionListener() {
+            @Override
             public void actionPerformed(ActionEvent e) {
                 map().setMapMarkerVisible(showMapMarker.isSelected());
             }
@@ -120,6 +123,7 @@ public class Demo extends JFrame implements JMapViewerEventListener  {
         ///
         final JCheckBox showTreeLayers = new JCheckBox("Tree Layers visible");
         showTreeLayers.addActionListener(new ActionListener() {
+            @Override
             public void actionPerformed(ActionEvent e) {
                 treeMap.setTreeVisible(showTreeLayers.isSelected());
             }
@@ -128,6 +132,7 @@ public class Demo extends JFrame implements JMapViewerEventListener  {
         ///
         final JCheckBox showToolTip = new JCheckBox("ToolTip visible");
         showToolTip.addActionListener(new ActionListener() {
+            @Override
             public void actionPerformed(ActionEvent e) {
                 map().setToolTipText(null);
             }
@@ -137,6 +142,7 @@ public class Demo extends JFrame implements JMapViewerEventListener  {
         final JCheckBox showTileGrid = new JCheckBox("Tile grid visible");
         showTileGrid.setSelected(map().isTileGridVisible());
         showTileGrid.addActionListener(new ActionListener() {
+            @Override
             public void actionPerformed(ActionEvent e) {
                 map().setTileGridVisible(showTileGrid.isSelected());
             }
@@ -145,6 +151,7 @@ public class Demo extends JFrame implements JMapViewerEventListener  {
         final JCheckBox showZoomControls = new JCheckBox("Show zoom controls");
         showZoomControls.setSelected(map().getZoomControlsVisible());
         showZoomControls.addActionListener(new ActionListener() {
+            @Override
             public void actionPerformed(ActionEvent e) {
                 map().setZoomContolsVisible(showZoomControls.isSelected());
             }
@@ -152,6 +159,7 @@ public class Demo extends JFrame implements JMapViewerEventListener  {
         panelBottom.add(showZoomControls);
         final JCheckBox scrollWrapEnabled = new JCheckBox("Scrollwrap enabled");
         scrollWrapEnabled.addActionListener(new ActionListener() {
+            @Override
             public void actionPerformed(ActionEvent e) {
                 map().setScrollWrapEnabled(scrollWrapEnabled.isSelected());
             }
@@ -193,7 +201,7 @@ public class Demo extends JFrame implements JMapViewerEventListener  {
         map().addMapMarker(new MapMarkerCircle(germanyWestLayer, "North of Suisse", new Coordinate(48, 7), .5));
         Layer spain = treeMap.addLayer("Spain");
         map().addMapMarker(new MapMarkerCircle(spain, "La Garena", new Coordinate(40.4838, -3.39), .002));
-        spain.setVisible(false);
+        spain.setVisible(Boolean.FALSE);
 
         Layer wales = treeMap.addLayer("UK");
         map().addMapRectangle(new MapRectangleImpl(wales, "Wales", c(53.35, -4.57), c(51.64, -2.63)));

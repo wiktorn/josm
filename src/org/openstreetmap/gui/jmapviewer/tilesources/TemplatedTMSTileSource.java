@@ -33,7 +33,7 @@ public class TemplatedTMSTileSource extends TMSTileSource implements TemplatedTi
 
     private Random rand = null;
     private String[] randomParts = null;
-    private Map<String, String> headers = new HashMap<>();
+    private final Map<String, String> headers = new HashMap<>();
 
     private static final String COOKIE_HEADER   = "Cookie";
     private static final String PATTERN_ZOOM    = "\\{(?:(\\d+)-)?z(?:oom)?([+-]\\d+)?\\}";
@@ -79,6 +79,7 @@ public class TemplatedTMSTileSource extends TMSTileSource implements TemplatedTi
         baseUrl = output.toString();
     }
 
+    @Override
     public Map<String, String> getHeaders() {
         return headers;
     }

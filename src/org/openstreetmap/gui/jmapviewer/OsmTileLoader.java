@@ -23,13 +23,14 @@ public class OsmTileLoader implements TileLoader {
 
     private final class OsmTileJob implements TileJob {
         private final Tile tile;
-        InputStream input = null;
-        boolean force = false;
+        private InputStream input = null;
+        private boolean force = false;
 
         private OsmTileJob(Tile tile) {
             this.tile = tile;
         }
 
+        @Override
         public void run() {
             synchronized (tile) {
                 if ((tile.isLoaded() && !tile.hasError()) || tile.isLoading())
@@ -74,6 +75,7 @@ public class OsmTileLoader implements TileLoader {
             }
         }
 
+        @Override
         public Tile getTile() {
             return tile;
         }
@@ -105,6 +107,7 @@ public class OsmTileLoader implements TileLoader {
         this.listener = listener;
     }
 
+    @Override
     public TileJob createTileLoaderJob(final Tile tile) {
         return new OsmTileJob(tile);
     }
