@@ -92,6 +92,8 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
 
     protected transient AttributionSupport attribution = new AttributionSupport();
 
+    protected EventListenerList evtListenerList = new EventListenerList();
+
     /**
      * Creates a standard {@link JMapViewer} instance that can be controlled via
      * mouse: hold right mouse button for moving, double click left mouse button
@@ -138,6 +140,7 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
         zoomSlider.setBounds(10, 10, 30, 150);
         zoomSlider.setOpaque(false);
         zoomSlider.addChangeListener(new ChangeListener() {
+            @Override
             public void stateChanged(ChangeEvent e) {
                 setZoom(zoomSlider.getValue());
             }
@@ -156,6 +159,7 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
         zoomInButton.setBounds(4, 155, size, size);
         zoomInButton.addActionListener(new ActionListener() {
 
+            @Override
             public void actionPerformed(ActionEvent e) {
                 zoomIn();
             }
@@ -173,6 +177,7 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
         zoomOutButton.setBounds(8 + size, 155, size, size);
         zoomOutButton.addActionListener(new ActionListener() {
 
+            @Override
             public void actionPerformed(ActionEvent e) {
                 zoomOut();
             }
@@ -244,6 +249,9 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
 
     /**
      * Sets the displayed map pane and zoom level so that all chosen map elements are visible.
+     * @param markers whether to consider markers
+     * @param rectangles whether to consider rectangles
+     * @param polygons whether to consider polygons
      */
     public void setDisplayToFitMapElements(boolean markers, boolean rectangles, boolean polygons) {
         int nbElemToCheck = 0;
@@ -256,10 +264,10 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
         if (nbElemToCheck == 0)
             return;
 
-        int x_min = Integer.MAX_VALUE;
-        int y_min = Integer.MAX_VALUE;
-        int x_max = Integer.MIN_VALUE;
-        int y_max = Integer.MIN_VALUE;
+        int xMin = Integer.MAX_VALUE;
+        int yMin = Integer.MAX_VALUE;
+        int xMax = Integer.MIN_VALUE;
+        int yMax = Integer.MIN_VALUE;
         int mapZoomMax = tileController.getTileSource().getMaxZoom();
 
         if (markers && mapMarkerList != null) {
@@ -267,10 +275,10 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
                 for (MapMarker marker : mapMarkerList) {
                     if (marker.isVisible()) {
                         Point p = tileSource.latLonToXY(marker.getCoordinate(), mapZoomMax);
-                        x_max = Math.max(x_max, p.x);
-                        y_max = Math.max(y_max, p.y);
-                        x_min = Math.min(x_min, p.x);
-                        y_min = Math.min(y_min, p.y);
+                        xMax = Math.max(xMax, p.x);
+                        yMax = Math.max(yMax, p.y);
+                        xMin = Math.min(xMin, p.x);
+                        yMin = Math.min(yMin, p.y);
                     }
                 }
             }
@@ -282,10 +290,10 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
                     if (rectangle.isVisible()) {
                         Point bottomRight = tileSource.latLonToXY(rectangle.getBottomRight(), mapZoomMax);
                         Point topLeft = tileSource.latLonToXY(rectangle.getTopLeft(), mapZoomMax);
-                        x_max = Math.max(x_max, bottomRight.x);
-                        y_max = Math.max(y_max, topLeft.y);
-                        x_min = Math.min(x_min, topLeft.x);
-                        y_min = Math.min(y_min, bottomRight.y);
+                        xMax = Math.max(xMax, bottomRight.x);
+                        yMax = Math.max(yMax, topLeft.y);
+                        xMin = Math.min(xMin, topLeft.x);
+                        yMin = Math.min(yMin, bottomRight.y);
                     }
                 }
             }
@@ -297,10 +305,10 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
                     if (polygon.isVisible()) {
                         for (ICoordinate c : polygon.getPoints()) {
                             Point p = tileSource.latLonToXY(c, mapZoomMax);
-                            x_max = Math.max(x_max, p.x);
-                            y_max = Math.max(y_max, p.y);
-                            x_min = Math.min(x_min, p.x);
-                            y_min = Math.min(y_min, p.y);
+                            xMax = Math.max(xMax, p.x);
+                            yMax = Math.max(yMax, p.y);
+                            xMin = Math.min(xMin, p.x);
+                            yMin = Math.min(yMin, p.y);
                         }
                     }
                 }
@@ -310,15 +318,15 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
         int height = Math.max(0, getHeight());
         int width = Math.max(0, getWidth());
         int newZoom = mapZoomMax;
-        int x = x_max - x_min;
-        int y = y_max - y_min;
+        int x = xMax - xMin;
+        int y = yMax - yMin;
         while (x > width || y > height) {
             newZoom--;
             x >>= 1;
             y >>= 1;
         }
-        x = x_min + (x_max - x_min) / 2;
-        y = y_min + (y_max - y_min) / 2;
+        x = xMin + (xMax - xMin) / 2;
+        y = yMin + (yMax - yMin) / 2;
         int z = 1 << (mapZoomMax - newZoom);
         x /= z;
         y /= z;
@@ -367,7 +375,7 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
      * @return latitude / longitude
      */
     public ICoordinate getPosition() {
-        return tileSource.XYToLatLon(center, zoom);
+        return tileSource.xyToLatLon(center, zoom);
     }
 
     /**
@@ -394,7 +402,7 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
     public ICoordinate getPosition(int mapPointX, int mapPointY) {
         int x = center.x + mapPointX - getWidth() / 2;
         int y = center.y + mapPointY - getHeight() / 2;
-        return tileSource.XYToLatLon(x, y, zoom);
+        return tileSource.xyToLatLon(x, y, zoom);
     }
 
     /**
@@ -410,11 +418,21 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
         Point p = tileSource.latLonToXY(lat, lon, zoom);
         p.translate(-(center.x - getWidth() / 2), -(center.y - getHeight() /2));
 
-        if (checkOutside) {
-            if (p.x < 0 || p.y < 0 || p.x > getWidth() || p.y > getHeight())
-                return null;
+        if (checkOutside && (p.x < 0 || p.y < 0 || p.x > getWidth() || p.y > getHeight())) {
+            return null;
         }
         return p;
+    }
+
+    /**
+     * Calculates the position on the map of a given coordinate
+     *
+     * @param lat latitude
+     * @param lon longitude
+     * @return point on the map or <code>null</code> if the point is not visible
+     */
+    public Point getMapPosition(double lat, double lon) {
+        return getMapPosition(lat, lon, true);
     }
 
     /**
@@ -429,9 +447,8 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
     public Integer getLatOffset(double lat, double lon, double offset, boolean checkOutside) {
         Point p = tileSource.latLonToXY(lat, lon, zoom);
         int y = p.y - center.y - getHeight() / 2;
-        if (checkOutside) {
-            if (y < 0 || y > getHeight())
-                return null;
+        if (checkOutside && (y < 0 || y > getHeight())) {
+            return null;
         }
         return y;
     }
@@ -449,9 +466,8 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
     public Integer getLatOffset(double lat, double offset, boolean checkOutside) {
         int y = tileSource.latToY(lat + offset, zoom);
         y -= center.y - getHeight() / 2;
-        if (checkOutside) {
-            if (y < 0 || y > getHeight())
-                return null;
+        if (checkOutside && (y < 0 || y > getHeight())) {
+            return null;
         }
         return y;
     }
@@ -459,18 +475,8 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
     /**
      * Calculates the position on the map of a given coordinate
      *
-     * @param lat latitude
-     * @param lon longitude
-     * @return point on the map or <code>null</code> if the point is not visible
-     */
-    public Point getMapPosition(double lat, double lon) {
-        return getMapPosition(lat, lon, true);
-    }
-
-    /**
-     * Calculates the position on the map of a given coordinate
-     *
      * @param marker MapMarker object that define the x,y coordinate
+     * @param p coordinate
      * @return Integer the radius in pixels
      */
     public Integer getRadius(MapMarker marker, Point p) {
@@ -541,8 +547,8 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
         int tilesize = tileSource.getTileSize();
         int tilex = center.x / tilesize;
         int tiley = center.y / tilesize;
-        int off_x = (center.x % tilesize);
-        int off_y = (center.y % tilesize);
+        int off_x = center.x % tilesize;
+        int off_y = center.y % tilesize;
 
         int w2 = getWidth() / 2;
         int h2 = getHeight() / 2;
@@ -593,7 +599,7 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
                         Tile tile;
                         if (scrollWrapEnabled) {
                             // in case tilex is out of bounds, grab the tile to use for wrapping
-                            int tilexWrap = (((tilex % gridLength) + gridLength) % gridLength);
+                            int tilexWrap = ((tilex % gridLength) + gridLength) % gridLength;
                             tile = tileController.getTile(tilexWrap, tiley, zoom);
                         } else {
                             tile = tileController.getTile(tilex, tiley, zoom);
@@ -663,6 +669,8 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
 
     /**
      * Paint a single marker.
+     * @param g Graphics used for painting
+     * @param marker marker to paint
      */
     protected void paintMarker(Graphics g, MapMarker marker) {
         Point p = getMapPosition(marker.getLat(), marker.getLon(), marker.getMarkerStyle() == MapMarker.STYLE.FIXED);
@@ -696,6 +704,8 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
 
     /**
      * Paint a single rectangle.
+     * @param g Graphics used for painting
+     * @param rectangle rectangle to paint
      */
     protected void paintRectangle(Graphics g, MapRectangle rectangle) {
         Coordinate topLeft = rectangle.getTopLeft();
@@ -726,7 +736,6 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
                         pBottomRight.x = xBottomRightWrap;
                         rectangle.paint(g, pTopLeft, pBottomRight);
                     }
-
                 }
             }
         }
@@ -734,6 +743,8 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
 
     /**
      * Paint a single polygon.
+     * @param g Graphics used for painting
+     * @param polygon polygon to paint
      */
     protected void paintPolygon(Graphics g, MapPolygon polygon) {
         List<? extends ICoordinate> coords = polygon.getPoints();
@@ -999,6 +1010,7 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
         repaint();
     }
 
+    @Override
     public void tileLoadingFinished(Tile tile, boolean success) {
         tile.setLoaded(success);
         repaint();
@@ -1080,6 +1092,7 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
 
     /**
      * Return tile information caching class
+     * @return tile cache
      * @see TileController#getTileCache()
      */
     public TileCache getTileCache() {
@@ -1093,8 +1106,6 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
     public AttributionSupport getAttribution() {
         return attribution;
     }
-
-    protected EventListenerList evtListenerList = new EventListenerList();
 
     /**
      * @param listener listener to set
@@ -1115,7 +1126,7 @@ public class JMapViewer extends JPanel implements TileLoaderListener {
      *
      * @param evt event to dispatch
      */
-    void fireJMVEvent(JMVCommandEvent evt) {
+    private void fireJMVEvent(JMVCommandEvent evt) {
         Object[] listeners = evtListenerList.getListenerList();
         for (int i = 0; i < listeners.length; i += 2) {
             if (listeners[i] == JMapViewerEventListener.class) {
