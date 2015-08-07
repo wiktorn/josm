@@ -200,65 +200,41 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
      * @param newLayer The new active layer.
      */
     protected void fireActiveLayerChanged(Layer oldLayer, Layer newLayer) {
-        checkLayerLockNotHeld();
         for (LayerChangeListener l : layerChangeListeners) {
             l.activeLayerChange(oldLayer, newLayer);
         }
     }
 
     protected void fireLayerAdded(Layer newLayer) {
-        checkLayerLockNotHeld();
         for (MapView.LayerChangeListener l : MapView.layerChangeListeners) {
             l.layerAdded(newLayer);
         }
     }
 
     protected void fireLayerRemoved(Layer layer) {
-        checkLayerLockNotHeld();
         for (MapView.LayerChangeListener l : MapView.layerChangeListeners) {
             l.layerRemoved(layer);
         }
     }
 
     protected void fireEditLayerChanged(OsmDataLayer oldLayer, OsmDataLayer newLayer) {
-        checkLayerLockNotHeld();
         for (EditLayerChangeListener l : editLayerChangeListeners) {
             l.editLayerChanged(oldLayer, newLayer);
         }
     }
 
     /**
-     * This is a simple invariant check that tests if the {@link #layersChangingMutex} is held and the {@link #layersMutex} not. This should be the case whenever a layer listener is invoked.
-     */
-    private void checkLayerLockNotHeld() {
-        if (Thread.holdsLock(layersMutex)) {
-            Main.warn("layersMutex is held while a listener was called.");
-        }
-        if (!Thread.holdsLock(layersChangingMutex)) {
-            Main.warn("layersChangingMutex is not held while a listener was called.");
-        }
-    }
-
-
-    /**
-     * A list of all layers currently loaded. Locked by {@link #layersMutex}.
+     * A list of all layers currently loaded. Locked by {@link #layerLock}.
      */
     private final transient List<Layer> layers = new ArrayList<>();
 
     /**
-     *  This is a mutex that locks changes to {@link #layers}, {@link #editLayer} and {@link #activeLayer}.
-     *  <p>
-     *  This mutex should never be held when calling "out" (to other classes, listeners, ...)
+     * This lock manages concurrent access to {@link #layers},
+     * {@link #editLayer} and {@link #activeLayer}.
+     * <p>
+     * The read lock is always held while those fields are read or while layer change listeners are fired.
      */
-    private final transient Object layersMutex = new Object();
-
-    /**
-     * This is a mutex that only locks all methods that change the layers. It is locked in a way that there may be no more changes to layers
-     * in other threads while the listeners of the current change are called. Reads are possible in all threads during this phase. This is
-     * necessary because many listeners use {@link GuiHelper#runInEDTAndWait(Runnable)}
-     */
-    private final transient Object layersChangingMutex = new Object();
-
+    //private final ReentrantReadWriteLock layerLock = new ReentrantReadWriteLock();
 
     /**
      * The play head marker: there is only one of these so it isn't in any specific layer
@@ -266,12 +242,12 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
     public transient PlayHeadMarker playHeadMarker = null;
 
     /**
-     *  The layer from the layers list that is currently active. Locked by {@link #layersMutex}.
+     * The layer from the layers list that is currently active. Locked by {@link #layerLock}.
      */
     private transient Layer activeLayer;
 
     /**
-     *  The edit layer is the current active data layer. Locked by {@link #layersMutex}.
+     * The edit layer is the current active data layer. Locked by {@link #layerLock}.
      */
     private transient OsmDataLayer editLayer;
 
@@ -286,10 +262,6 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
      * Access must be synchronized.
      */
     private final transient Set<MapViewPaintable> temporaryLayers = new LinkedHashSet<>();
-
-    /**
-     * This is a mutex that locks changes to {@link #temporaryLayers}
-     */
 
     private transient BufferedImage nonChangedLayersBuffer;
     private transient BufferedImage offscreenBuffer;
@@ -388,7 +360,7 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
      * @param layer the GPX layer
      */
     protected void addGpxLayer(GpxLayer layer) {
-        synchronized (layersMutex) {
+        synchronized (layers) {
             if (layers.isEmpty()) {
                 layers.add(layer);
                 return;
@@ -413,58 +385,56 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
      * @param layer The layer to add
      */
     public void addLayer(Layer layer) {
-        synchronized (layersChangingMutex) {
-            synchronized (layersMutex) {
+        boolean isOsmDataLayer = layer instanceof OsmDataLayer;
+        EnumSet<LayerListenerType> listenersToFire = EnumSet.noneOf(LayerListenerType.class);
+        Layer oldActiveLayer = activeLayer;
+        OsmDataLayer oldEditLayer = editLayer;
 
-                boolean isOsmDataLayer = layer instanceof OsmDataLayer;
-                EnumSet<LayerListenerType> listenersToFire = EnumSet.noneOf(LayerListenerType.class);
-                Layer oldActiveLayer = activeLayer;
-                OsmDataLayer oldEditLayer = editLayer;
-
-                if (layer instanceof MarkerLayer && playHeadMarker == null) {
-                    playHeadMarker = PlayHeadMarker.create();
-                }
-
-                if (layer instanceof GpxLayer) {
-                    addGpxLayer((GpxLayer) layer);
-                } else if (layers.isEmpty()) {
-                    layers.add(layer);
-                } else if (layer.isBackgroundLayer()) {
-                    int i = 0;
-                    for (; i < layers.size(); i++) {
-                        if (layers.get(i).isBackgroundLayer()) {
-                            break;
-                        }
-                    }
-                    layers.add(i, layer);
-                } else {
-                    layers.add(0, layer);
-                }
-
-                if (isOsmDataLayer || oldActiveLayer == null) {
-                    // autoselect the new layer
-                    listenersToFire.addAll(setActiveLayer(layer, true));
-                }
-
-                fireLayerAdded(layer);
-                if (isOsmDataLayer) {
-                    ((OsmDataLayer) layer).addLayerStateChangeListener(this);
-                }
-
-                onActiveEditLayerChanged(oldActiveLayer, oldEditLayer, listenersToFire);
-                layer.addPropertyChangeListener(this);
-                Main.addProjectionChangeListener(layer);
-                AudioPlayer.reset();
-                if (!listenersToFire.isEmpty()) {
-                    repaint();
-                }
+        synchronized (layers) {
+            if (layer instanceof MarkerLayer && playHeadMarker == null) {
+                playHeadMarker = PlayHeadMarker.create();
             }
+
+            if (layer instanceof GpxLayer) {
+                addGpxLayer((GpxLayer) layer);
+            } else if (layers.isEmpty()) {
+                layers.add(layer);
+            } else if (layer.isBackgroundLayer()) {
+                int i = 0;
+                for (; i < layers.size(); i++) {
+                    if (layers.get(i).isBackgroundLayer()) {
+                        break;
+                    }
+                }
+                layers.add(i, layer);
+            } else {
+                layers.add(0, layer);
+            }
+
+            if (isOsmDataLayer || oldActiveLayer == null) {
+                // autoselect the new layer
+                listenersToFire.addAll(setActiveLayer(layer, true));
+            }
+
+            if (isOsmDataLayer) {
+                ((OsmDataLayer) layer).addLayerStateChangeListener(this);
+            }
+
+            layer.addPropertyChangeListener(this);
+            Main.addProjectionChangeListener(layer);
+            AudioPlayer.reset();
+        }
+        fireLayerAdded(layer);
+        onActiveEditLayerChanged(oldActiveLayer, oldEditLayer, listenersToFire);
+
+        if (!listenersToFire.isEmpty()) {
+            repaint();
         }
     }
 
     @Override
     protected DataSet getCurrentDataSet() {
-        synchronized (layersMutex) {
+        synchronized (layers) {
             if (editLayer != null)
                 return editLayer.data;
             else
@@ -478,7 +448,7 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
      * @return true if the active data layer (edit layer) is drawable, false otherwise
      */
     public boolean isActiveLayerDrawable() {
-        synchronized (layersMutex) {
+        synchronized (layers) {
             return editLayer != null;
         }
     }
@@ -489,7 +459,7 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
      * @return true if the active data layer (edit layer) is visible, false otherwise
      */
     public boolean isActiveLayerVisible() {
-        synchronized (layersMutex) {
+        synchronized (layers) {
             return isActiveLayerDrawable() && editLayer.isVisible();
         }
     }
@@ -527,39 +497,35 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
      * @param layer The layer to remove
      */
     public void removeLayer(Layer layer) {
-        synchronized (layersChangingMutex) {
-            //Runnable fireEditLayerChanged;
-            //Runnable fireSetActiveLayer;
-            synchronized (layersMutex) {
+        EnumSet<LayerListenerType> listenersToFire = EnumSet.noneOf(LayerListenerType.class);
+        Layer oldActiveLayer = activeLayer;
+        OsmDataLayer oldEditLayer = editLayer;
 
-                EnumSet<LayerListenerType> listenersToFire = EnumSet.noneOf(LayerListenerType.class);
-                Layer oldActiveLayer = activeLayer;
-                OsmDataLayer oldEditLayer = editLayer;
+        synchronized (layers) {
+            List<Layer> layersList = new ArrayList<>(layers);
 
-                List<Layer> layersList = new ArrayList<>(layers);
+            if (!layersList.remove(layer))
+                return;
 
-                if (!layersList.remove(layer))
-                    return;
+            listenersToFire = setEditLayer(layersList);
 
-                listenersToFire = setEditLayer(layersList);
-
-                if (layer == activeLayer) {
-                    listenersToFire.addAll(setActiveLayer(determineNextActiveLayer(layersList), false));
-                }
-
-                if (layer instanceof OsmDataLayer) {
-                    ((OsmDataLayer) layer).removeLayerPropertyChangeListener(this);
-                }
-
-                layers.remove(layer);
-                Main.removeProjectionChangeListener(layer);
-                onActiveEditLayerChanged(oldActiveLayer, oldEditLayer, listenersToFire);
+            if (layer == activeLayer) {
+                listenersToFire.addAll(setActiveLayer(determineNextActiveLayer(layersList), false));
             }
-            fireLayerRemoved(layer);
+
+            if (layer instanceof OsmDataLayer) {
+                ((OsmDataLayer) layer).removeLayerPropertyChangeListener(this);
+            }
+
+            layers.remove(layer);
+            Main.removeProjectionChangeListener(layer);
             layer.removePropertyChangeListener(this);
             layer.destroy();
             AudioPlayer.reset();
         }
+        onActiveEditLayerChanged(oldActiveLayer, oldEditLayer, listenersToFire);
+        fireLayerRemoved(layer);
+
         repaint();
     }
 
@@ -594,30 +560,27 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
      * @param pos       The new position of the layer
      */
     public void moveLayer(Layer layer, int pos) {
-        synchronized (layersChangingMutex) {
-            //Runnable fireEditLayerChanged;
-            synchronized (layersMutex) {
+        EnumSet<LayerListenerType> listenersToFire;
+        Layer oldActiveLayer = activeLayer;
+        OsmDataLayer oldEditLayer = editLayer;
 
-                EnumSet<LayerListenerType> listenersToFire;
-                Layer oldActiveLayer = activeLayer;
-                OsmDataLayer oldEditLayer = editLayer;
-
-                int curLayerPos = layers.indexOf(layer);
-                if (curLayerPos == -1)
-                    throw new IllegalArgumentException(tr("Layer not in list."));
-                if (pos == curLayerPos)
-                    return; // already in place.
-                layers.remove(curLayerPos);
-                if (pos >= layers.size()) {
-                    layers.add(layer);
-                } else {
-                    layers.add(pos, layer);
-                }
-                listenersToFire = setEditLayer(layers);
-                onActiveEditLayerChanged(oldActiveLayer, oldEditLayer, listenersToFire);
+        synchronized (layers) {
+            int curLayerPos = layers.indexOf(layer);
+            if (curLayerPos == -1)
+                throw new IllegalArgumentException(tr("Layer not in list."));
+            if (pos == curLayerPos)
+                return; // already in place.
+            layers.remove(curLayerPos);
+            if (pos >= layers.size()) {
+                layers.add(layer);
+            } else {
+                layers.add(pos, layer);
             }
+            listenersToFire = setEditLayer(layers);
             AudioPlayer.reset();
         }
+        onActiveEditLayerChanged(oldActiveLayer, oldEditLayer, listenersToFire);
+
         repaint();
     }
 
@@ -629,13 +592,12 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
      */
     public int getLayerPos(Layer layer) {
         int curLayerPos;
-        synchronized (layersMutex) {
+        synchronized (layers) {
             curLayerPos = layers.indexOf(layer);
         }
         if (curLayerPos == -1)
             throw new IllegalArgumentException(tr("Layer not in list."));
         return curLayerPos;
-
     }
 
     /**
@@ -648,8 +610,8 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
      * first, layer with the highest Z-Order last.
      */
     public List<Layer> getVisibleLayersInZOrder() {
-        List<Layer> ret = new ArrayList<>();
-        synchronized (layersMutex) {
+        synchronized (layers) {
+            List<Layer> ret = new ArrayList<>();
             // This is set while we delay the addition of the active layer.
             boolean activeLayerDelayed = false;
             for (ListIterator<Layer> iterator = layers.listIterator(layers.size()); iterator.hasPrevious();) {
@@ -672,8 +634,8 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
             if (activeLayerDelayed) {
                 ret.add(activeLayer);
             }
+            return ret;
         }
-        return ret;
     }
 
     private void paintLayer(Layer layer, Graphics2D g, Bounds box) {
@@ -861,14 +823,16 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
      * @return An unmodifiable collection of all layers
      */
     public Collection<Layer> getAllLayers() {
-        return getAllLayersAsList();
+        synchronized (layers) {
+            return Collections.unmodifiableCollection(new ArrayList<>(layers));
+        }
     }
 
     /**
      * @return An unmodifiable ordered list of all layers
      */
     public List<Layer> getAllLayersAsList() {
-        synchronized (layersMutex) {
+        synchronized (layers) {
             return Collections.unmodifiableList(new ArrayList<>(layers));
         }
     }
@@ -894,8 +858,8 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
      * @return the number of layers managed by this map view
      */
     public int getNumLayers() {
-        synchronized (layersMutex) {
-        return layers.size();
+        synchronized (layers) {
+            return layers.size();
         }
     }
 
@@ -911,7 +875,7 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
     /**
      * Sets the active edit layer.
      * <p>
-     * You must own {@link #layersMutex} when calling this method.
+     * You must own a write {@link #layerLock} when calling this method.
      * @param layersList A list to select that layer from.
      * @return A list of change listeners that should be fired using {@link #onActiveEditLayerChanged(Layer, OsmDataLayer, EnumSet)}
      */
@@ -959,14 +923,17 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
      * @throws IllegalArgumentException if layer is not in the lis of layers
      */
     public void setActiveLayer(Layer layer) {
-        synchronized (layersChangingMutex) {
-            EnumSet<LayerListenerType> listenersToFire;
+        EnumSet<LayerListenerType> listenersToFire;
+        Layer oldActiveLayer;
+        OsmDataLayer oldEditLayer;
 
-            Layer oldActiveLayer = activeLayer;
-            OsmDataLayer oldEditLayer = editLayer;
+        synchronized (layers) {
+            oldActiveLayer = activeLayer;
+            oldEditLayer = editLayer;
             listenersToFire = setActiveLayer(layer, true);
-            onActiveEditLayerChanged(oldActiveLayer, oldEditLayer, listenersToFire);
         }
+        onActiveEditLayerChanged(oldActiveLayer, oldEditLayer, listenersToFire);
+
         repaint();
     }
 
@@ -998,7 +965,7 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
      * @return the currently active layer (may be null)
      */
     public Layer getActiveLayer() {
-        synchronized (layersMutex) {
+        synchronized (layers) {
             return activeLayer;
         }
     }
@@ -1014,18 +981,13 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
      * @param oldEdit The old edit layer.
      * @param listenersToFire A mask of listeners to fire using {@link LayerListenerType}s
      */
-    private void onActiveEditLayerChanged(final Layer oldActive, final OsmDataLayer oldEdit, final EnumSet<LayerListenerType> listenersToFire) {
-        new Runnable() {
-            @Override
-            public void run() {
-                if (listenersToFire.contains(LayerListenerType.EDIT_LAYER_CHANGE)) {
-                    onEditLayerChanged(oldEdit);
-                }
-                if (listenersToFire.contains(LayerListenerType.ACTIVE_LAYER_CHANGE)) {
-                    onActiveLayerChanged(oldActive);
-                }
-            }
-        }.run();
+    private void onActiveEditLayerChanged(final Layer oldActive, final OsmDataLayer oldEdit, EnumSet<LayerListenerType> listenersToFire) {
+        if (listenersToFire.contains(LayerListenerType.EDIT_LAYER_CHANGE)) {
+            onEditLayerChanged(oldEdit);
+        }
+        if (listenersToFire.contains(LayerListenerType.ACTIVE_LAYER_CHANGE)) {
+            onActiveLayerChanged(oldActive);
+        }
     }
 
     private void onActiveLayerChanged(final Layer old) {
@@ -1059,7 +1021,9 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
      * @return the current edit layer. May be null.
      */
     public OsmDataLayer getEditLayer() {
-        return editLayer;
+        synchronized (layers) {
+            return editLayer;
+        }
     }
 
     /**
@@ -1069,7 +1033,7 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
      * @return true if the list of layers managed by this map view contain layer
      */
     public boolean hasLayer(Layer layer) {
-        synchronized (layersMutex) {
+        synchronized (layers) {
             return layers.contains(layer);
         }
     }
@@ -1135,7 +1099,7 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
      */
     protected void refreshTitle() {
         if (Main.parent != null) {
-            synchronized (layersMutex) {
+            synchronized (layers) {
                 boolean dirty = editLayer != null &&
                         (editLayer.requiresSaveToFile() || (editLayer.requiresUploadToServer() && !editLayer.isUploadDiscouraged()));
                 ((JFrame) Main.parent).setTitle((dirty ? "* " : "") + tr("Java OpenStreetMap Editor"));
@@ -1165,16 +1129,13 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
         if (mapMover != null) {
             mapMover.destroy();
         }
-        synchronized (layersChangingMutex) {
-            synchronized (layersMutex) {
-
-                activeLayer = null;
-                changedLayer = null;
-                editLayer = null;
-                layers.clear();
-            }
+        synchronized (layers) {
+            activeLayer = null;
+            changedLayer = null;
+            editLayer = null;
+            layers.clear();
+            nonChangedLayers.clear();
         }
-        nonChangedLayers.clear();
         synchronized (temporaryLayers) {
             temporaryLayers.clear();
         }
