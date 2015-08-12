@@ -31,10 +31,14 @@ public class MemoryTileCache implements TileCache {
      */
     protected final CacheLinkedListElement lruTiles;
 
+    public MemoryTileCache() {
+        this(200);
+    }
     /**
      * Constructs a new {@code MemoryTileCache}.
      */
-    public MemoryTileCache() {
+    public MemoryTileCache(int cacheSize) {
+        this.cacheSize = cacheSize;
         hash = new HashMap<>(cacheSize);
         lruTiles = new CacheLinkedListElement();
     }
