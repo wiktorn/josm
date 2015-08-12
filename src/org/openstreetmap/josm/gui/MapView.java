@@ -416,17 +416,15 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
                 listenersToFire.addAll(setActiveLayer(layer, true));
             }
 
+            fireLayerAdded(layer);
             if (isOsmDataLayer) {
                 ((OsmDataLayer) layer).addLayerStateChangeListener(this);
             }
-
+            onActiveEditLayerChanged(oldActiveLayer, oldEditLayer, listenersToFire);
             layer.addPropertyChangeListener(this);
             Main.addProjectionChangeListener(layer);
             AudioPlayer.reset();
         }
-        fireLayerAdded(layer);
-        onActiveEditLayerChanged(oldActiveLayer, oldEditLayer, listenersToFire);
-
         if (!listenersToFire.isEmpty()) {
             repaint();
         }
@@ -519,13 +517,13 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
 
             layers.remove(layer);
             Main.removeProjectionChangeListener(layer);
+
+            onActiveEditLayerChanged(oldActiveLayer, oldEditLayer, listenersToFire);
+            fireLayerRemoved(layer);
             layer.removePropertyChangeListener(this);
             layer.destroy();
             AudioPlayer.reset();
         }
-        onActiveEditLayerChanged(oldActiveLayer, oldEditLayer, listenersToFire);
-        fireLayerRemoved(layer);
-
         repaint();
     }
 
@@ -577,10 +575,9 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
                 layers.add(pos, layer);
             }
             listenersToFire = setEditLayer(layers);
+            onActiveEditLayerChanged(oldActiveLayer, oldEditLayer, listenersToFire);
             AudioPlayer.reset();
         }
-        onActiveEditLayerChanged(oldActiveLayer, oldEditLayer, listenersToFire);
-
         repaint();
     }
 
@@ -924,16 +921,13 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
      */
     public void setActiveLayer(Layer layer) {
         EnumSet<LayerListenerType> listenersToFire;
-        Layer oldActiveLayer;
-        OsmDataLayer oldEditLayer;
 
         synchronized (layers) {
-            oldActiveLayer = activeLayer;
-            oldEditLayer = editLayer;
+            Layer oldActiveLayer = activeLayer;
+            OsmDataLayer oldEditLayer = editLayer;
             listenersToFire = setActiveLayer(layer, true);
+            onActiveEditLayerChanged(oldActiveLayer, oldEditLayer, listenersToFire);
         }
-        onActiveEditLayerChanged(oldActiveLayer, oldEditLayer, listenersToFire);
-
         repaint();
     }
 
