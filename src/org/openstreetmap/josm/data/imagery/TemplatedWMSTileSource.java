@@ -96,7 +96,7 @@ public class TemplatedWMSTileSource extends TMSTileSource implements TemplatedTi
         tileXMax = new int[getMaxZoom() + 1];
         tileYMax = new int[getMaxZoom() + 1];
         degreesPerTile = new double[getMaxZoom() +1];
-        for (int zoom = getMinZoom(); zoom <= getMaxZoom(); zoom++) {
+        for (int zoom = 1; zoom <= getMaxZoom(); zoom++) {
             TileXY maxTileIndex = latLonToTileXY(bottomRight.toCoordinate(), zoom);
             tileXMax[zoom] = maxTileIndex.getXIndex();
             tileYMax[zoom] = maxTileIndex.getYIndex();
@@ -107,7 +107,6 @@ public class TemplatedWMSTileSource extends TMSTileSource implements TemplatedTi
                     );
 
         }
-
     }
 
     @Override
