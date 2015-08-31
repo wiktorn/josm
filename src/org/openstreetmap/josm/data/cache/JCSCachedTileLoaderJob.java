@@ -172,7 +172,6 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
         }
 
         if (first || force) {
-            ensureCacheElement();
             // submit all jobs to separate thread, so calling thread is not blocked with IO when loading from disk
             downloadJobExecutor.execute(this);
         }
@@ -222,6 +221,7 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
         final String oldName = currentThread.getName();
         currentThread.setName("JCS Downloading: " + getUrl());
         try {
+            ensureCacheElement();
             // try to fetch from cache
             if (!force && cacheElement != null && isCacheElementValid() && isObjectLoadable()) {
                 // we got something in cache, and it's valid, so lets return it
