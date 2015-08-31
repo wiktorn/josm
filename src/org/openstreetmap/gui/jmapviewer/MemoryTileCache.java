@@ -22,7 +22,7 @@ public class MemoryTileCache implements TileCache {
     /**
      * Default cache size
      */
-    protected int cacheSize = 200;
+    protected int cacheSize;
 
     protected final Map<String, CacheEntry> hash;
 
@@ -31,11 +31,16 @@ public class MemoryTileCache implements TileCache {
      */
     protected final CacheLinkedListElement lruTiles;
 
+    /**
+     * Constructs a new {@code MemoryTileCache}.
+     */
     public MemoryTileCache() {
         this(200);
     }
+
     /**
      * Constructs a new {@code MemoryTileCache}.
+     * @param cacheSize size of the cache
      */
     public MemoryTileCache(int cacheSize) {
         this.cacheSize = cacheSize;

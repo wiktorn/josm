@@ -222,7 +222,6 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
         currentThread.setName("JCS Downloading: " + getUrlNoException());
         ensureCacheElement();
         try {
-            ensureCacheElement();
             // try to fetch from cache
             if (!force && cacheElement != null && isCacheElementValid() && isObjectLoadable()) {
                 // we got something in cache, and it's valid, so lets return it
