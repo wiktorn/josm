@@ -207,9 +207,6 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
             success = false;
             tile.setImage(null);
         }
-        if (sharpenLevel != 0 && success) {
-            tile.setImage(sharpenImage(tile.getImage()));
-        }
         tile.setLoaded(success);
         needRedraw = true;
         if (Main.map != null) {
@@ -245,6 +242,12 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
     protected void redraw() {
         needRedraw = true;
         Main.map.repaint();
+    }
+
+    @Override
+    public void setGamma(double gamma) {
+        super.setGamma(gamma);
+        redraw();
     }
 
     /**

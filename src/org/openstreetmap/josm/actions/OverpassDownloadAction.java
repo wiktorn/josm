@@ -20,7 +20,6 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.downloadtasks.DownloadOsmTask;
@@ -35,6 +34,7 @@ import org.openstreetmap.josm.gui.download.DownloadDialog;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.HistoryComboBox;
+import org.openstreetmap.josm.gui.widgets.JosmTextArea;
 import org.openstreetmap.josm.io.BoundingBoxDownloader;
 import org.openstreetmap.josm.io.OsmTransferException;
 import org.openstreetmap.josm.tools.GBC;
@@ -52,7 +52,9 @@ public class OverpassDownloadAction extends JosmAction {
      */
     public OverpassDownloadAction() {
         super(tr("Download from Overpass API ..."), "download-overpass", tr("Download map data from Overpass API server."),
+                // CHECKSTYLE.OFF: LineLength
                 Shortcut.registerShortcut("file:download-overpass", tr("File: {0}", tr("Download from Overpass API ...")), KeyEvent.VK_DOWN, Shortcut.ALT_SHIFT),
+                // CHECKSTYLE.ON: LineLength
                 true, "overpassdownload/download", true);
         putValue("help", ht("/Action/OverpassDownload"));
     }
@@ -77,7 +79,7 @@ public class OverpassDownloadAction extends JosmAction {
 
         protected HistoryComboBox overpassServer;
         protected HistoryComboBox overpassWizard;
-        protected JTextArea overpassQuery;
+        protected JosmTextArea overpassQuery;
         private static OverpassDownloadDialog instance;
         static final StringProperty OVERPASS_SERVER = new StringProperty("download.overpass.server", "http://overpass-api.de/api/");
         static final CollectionProperty OVERPASS_SERVER_HISTORY = new CollectionProperty("download.overpass.servers",
@@ -131,7 +133,7 @@ public class OverpassDownloadAction extends JosmAction {
             pnl.add(buildQuery, GBC.std().insets(5, 5, 5, 5));
             pnl.add(overpassWizard, GBC.eol().fill(GBC.HORIZONTAL));
 
-            overpassQuery = new JTextArea("[timeout:15];", 8, 80);
+            overpassQuery = new JosmTextArea("[timeout:15];", 8, 80);
             overpassQuery.setFont(GuiHelper.getMonospacedFont(overpassQuery));
             JScrollPane scrollPane = new JScrollPane(overpassQuery);
             pnl.add(new JLabel(tr("Overpass query: ")), GBC.std().insets(5, 5, 5, 5));
@@ -195,7 +197,8 @@ public class OverpassDownloadAction extends JosmAction {
             else {
                 String realQuery = completeOverpassQuery(overpassQuery);
                 try {
-                    return "interpreter?data=" + URLEncoder.encode(realQuery, "UTF-8") + "&bbox=" + lon1 + "," + lat1 + "," + lon2 + "," + lat2;
+                    return "interpreter?data=" + URLEncoder.encode(realQuery, "UTF-8")
+                            + "&bbox=" + lon1 + "," + lat1 + "," + lon2 + "," + lat2;
                 } catch (UnsupportedEncodingException e) {
                     throw new IllegalStateException();
                 }
