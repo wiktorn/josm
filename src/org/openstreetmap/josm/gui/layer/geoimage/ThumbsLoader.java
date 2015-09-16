@@ -8,11 +8,18 @@ import java.awt.Rectangle;
 import java.awt.Toolkit;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.imageio.ImageIO;
+
+import org.apache.commons.jcs.access.behavior.ICacheAccess;
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.io.CacheFiles;
+import org.openstreetmap.josm.data.cache.BufferedImageCacheEntry;
+import org.openstreetmap.josm.data.cache.JCSCacheManager;
 import org.openstreetmap.josm.tools.ExifReader;
 
 public class ThumbsLoader implements Runnable {
@@ -22,16 +29,18 @@ public class ThumbsLoader implements Runnable {
     private List<ImageEntry> data;
     private GeoImageLayer layer;
     private MediaTracker tracker;
-    private CacheFiles cache;
+    private ICacheAccess<String , BufferedImageCacheEntry> cache;
     private boolean cacheOff = Main.pref.getBoolean("geoimage.noThumbnailCache", false);
 
     public ThumbsLoader(GeoImageLayer layer) {
         this.layer = layer;
         this.data = new ArrayList<>(layer.data);
         if (!cacheOff) {
-            cache = new CacheFiles("geoimage-thumbnails", false);
-            cache.setExpire(CacheFiles.EXPIRE_NEVER, false);
-            cache.setMaxSize(120, false);
+            try {
+                cache = JCSCacheManager.getCache("geoimage-thumbnails", 0, 120, Main.pref.getCacheDirectory().getPath() + File.separator + "geoimage-thumbnails");
+            } catch (IOException e) {
+                Main.warn(e);
+            }
         }
     }
 
@@ -61,10 +70,14 @@ public class ThumbsLoader implements Runnable {
         final String cacheIdent = entry.getFile()+":"+maxSize;
 
         if (!cacheOff) {
-            BufferedImage cached = cache.getImg(cacheIdent);
-            if (cached != null) {
-                Main.debug(" from cache");
-                return cached;
+            try {
+                BufferedImageCacheEntry cacheEntry = cache.get(cacheIdent);
+                if (cacheEntry != null && cacheEntry.getImage() != null) {
+                    Main.debug(" from cache");
+                    return cacheEntry.getImage();
+                }
+            } catch (IOException e) {
+                Main.warn(e);
             }
         }
 
@@ -118,7 +131,13 @@ public class ThumbsLoader implements Runnable {
         }
 
         if (!cacheOff) {
-            cache.saveImg(cacheIdent, scaledBI);
+            try {
+                ByteArrayOutputStream output = new ByteArrayOutputStream();
+                ImageIO.write(scaledBI,"png", output);
+                cache.put(cacheIdent, new BufferedImageCacheEntry(output.toByteArray()));
+            } catch (IOException e) {
+                Main.warn(e);
+            }
         }
 
         return scaledBI;
