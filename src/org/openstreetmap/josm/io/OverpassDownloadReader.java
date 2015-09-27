@@ -1,7 +1,12 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.io;
 
+import static org.openstreetmap.josm.tools.I18n.tr;
+
 import java.io.InputStream;
+
+import javax.xml.stream.XMLStreamConstants;
+import javax.xml.stream.XMLStreamException;
 
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.DataSource;
@@ -96,6 +101,29 @@ public class OverpassDownloadReader extends BoundingBoxDownloader {
             }
             throw ex;
         }
+    }
+
+    @Override
+    protected String getTaskName() {
+        return tr("Contacting Server...");
+    }
+
+    @Override
+    protected DataSet parseDataSet(InputStream source, ProgressMonitor progressMonitor) throws IllegalDataException {
+        return new OsmReader() {
+            @Override
+            protected void parseUnknown(boolean printWarning) throws XMLStreamException {
+                if ("remark".equals(parser.getLocalName())) {
+                    if (parser.getEventType() == XMLStreamConstants.START_ELEMENT) {
+                        final String text = parser.getElementText();
+                        if (text.contains("runtime error")) {
+                            throw new XMLStreamException(text);
+                        }
+                    }
+                }
+                super.parseUnknown(printWarning);
+            }
+        }.doParseDataSet(source, progressMonitor);
     }
 
     @Override
