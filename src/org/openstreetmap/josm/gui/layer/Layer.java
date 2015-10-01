@@ -506,4 +506,11 @@ public abstract class Layer implements Destroyable, MapViewPaintable, Projection
     public File createAndOpenSaveFileChooser() {
         return SaveActionBase.createAndOpenSaveFileChooser(tr("Save Layer"), "lay");
     }
+
+    /**
+     * @return bytes that the tile will use. Needed for resource management
+     */
+    protected long estimateMemoryUsage() {
+        return 0;
+    }
 }
