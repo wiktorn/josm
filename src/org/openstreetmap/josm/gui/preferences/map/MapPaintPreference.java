@@ -20,6 +20,7 @@ import javax.swing.JPanel;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
+import org.openstreetmap.josm.gui.mappaint.mapcss.MapCSSStyleSource;
 import org.openstreetmap.josm.gui.preferences.PreferenceSetting;
 import org.openstreetmap.josm.gui.preferences.PreferenceSettingFactory;
 import org.openstreetmap.josm.gui.preferences.PreferenceTabbedPane;
@@ -86,7 +87,7 @@ public class MapPaintPreference implements SubPreferenceSetting {
 
         private static final String iconpref = "mappaint.icon.sources";
 
-        public MapPaintSourceEditor() {
+        MapPaintSourceEditor() {
             super(SourceType.MAP_PAINT_STYLE, Main.getJOSMWebsite()+"/styles", styleSourceProviders, true);
         }
 
@@ -159,6 +160,26 @@ public class MapPaintPreference implements SubPreferenceSetting {
             }
         }
 
+        @Override
+        protected String getTitleForSourceEntry(SourceEntry entry) {
+            final String title = getTitleFromSourceEntry(entry);
+            return title != null ? title : super.getTitleForSourceEntry(entry);
+        }
+    }
+
+    public static String getTitleFromSourceEntry(SourceEntry entry) {
+        try {
+            final MapCSSStyleSource css = new MapCSSStyleSource(entry);
+            css.loadStyleSource();
+            if (css.title != null && !css.title.isEmpty()) {
+                return css.title;
+            }
+        } catch (RuntimeException ignore) {
+            if (Main.isTraceEnabled()) {
+                Main.trace(ignore.getMessage());
+            }
+        }
+        return null;
     }
 
     @Override

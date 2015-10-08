@@ -47,7 +47,7 @@ public class UploadNotesTask {
          * @param title message for the user
          * @param monitor progress monitor
          */
-        public UploadTask(String title, ProgressMonitor monitor) {
+        UploadTask(String title, ProgressMonitor monitor) {
             super(title, monitor, false);
         }
 
@@ -81,6 +81,10 @@ public class UploadNotesTask {
 
         private void processNoteComment(ProgressMonitor monitor, OsmApi api, Note note, NoteComment comment) {
             try {
+                if (updatedNotes.containsKey(note)) {
+                    // if note has been created earlier in this task, obtain its real id and not use the placeholder id
+                    note = updatedNotes.get(note);
+                }
                 Note newNote;
                 switch (comment.getNoteAction()) {
                 case opened:

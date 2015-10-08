@@ -389,7 +389,7 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
     }
 
     private class AutoZoomAction extends AbstractAction implements LayerAction {
-        public AutoZoomAction() {
+        AutoZoomAction() {
             super(tr("Auto Zoom"));
         }
 
@@ -412,7 +412,7 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
     }
 
     private class AutoLoadTilesAction extends AbstractAction implements LayerAction {
-        public AutoLoadTilesAction() {
+        AutoLoadTilesAction() {
             super(tr("Auto load tiles"));
         }
 
@@ -434,7 +434,7 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
     }
 
     private class LoadAllTilesAction extends AbstractAction {
-        public LoadAllTilesAction() {
+        LoadAllTilesAction() {
             super(tr("Load All Tiles"));
         }
 
@@ -446,7 +446,7 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
     }
 
     private class LoadErroneusTilesAction extends AbstractAction {
-        public LoadErroneusTilesAction() {
+        LoadErroneusTilesAction() {
             super(tr("Load All Error Tiles"));
         }
 
@@ -458,7 +458,7 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
     }
 
     private class ZoomToNativeLevelAction extends AbstractAction {
-        public ZoomToNativeLevelAction() {
+        ZoomToNativeLevelAction() {
             super(tr("Zoom to native resolution"));
         }
 
@@ -471,7 +471,7 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
     }
 
     private class ZoomToBestAction extends AbstractAction {
-        public ZoomToBestAction() {
+        ZoomToBestAction() {
             super(tr("Change resolution"));
         }
 
@@ -499,7 +499,7 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
     private class BooleanButtonModel extends DefaultButtonModel {
         private Field field;
 
-        public BooleanButtonModel(Field field) {
+        BooleanButtonModel(Field field) {
             this.field = field;
         }
 
@@ -1268,7 +1268,7 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
                 for (int y = y0; y <= y1; y++) {
                     Tile t;
                     if (create) {
-                        t = getOrCreateTile(x, y , zoom);
+                        t = getOrCreateTile(x, y, zoom);
                     } else {
                         t = getTile(x, y, zoom);
                     }
@@ -1361,7 +1361,7 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
         private final int minZoom, maxZoom;
         private final TileSet[] tileSets;
         private final TileSetInfo[] tileSetInfos;
-        public DeepTileSet(EastNorth topLeft, EastNorth botRight, int minZoom, int maxZoom) {
+        DeepTileSet(EastNorth topLeft, EastNorth botRight, int minZoom, int maxZoom) {
             this.topLeft = topLeft;
             this.botRight = botRight;
             this.minZoom = minZoom;
