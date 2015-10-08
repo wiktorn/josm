@@ -95,7 +95,7 @@ public class Tile {
          * Wraps callable so it is evaluated only once
          * @param callable to cache
          */
-        public CachedCallable(Callable<V> callable) {
+        CachedCallable(Callable<V> callable) {
             this.callable = callable;
         }
 
@@ -414,7 +414,6 @@ public class Tile {
      * indicate that loading process for this tile has started
      */
     public void initLoading() {
-        loaded = false;
         error = false;
         loading = true;
     }

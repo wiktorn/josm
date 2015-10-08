@@ -10,6 +10,7 @@ import java.text.Normalizer;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -27,6 +28,10 @@ import org.openstreetmap.josm.data.osm.OsmUtils;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.Way;
+import org.openstreetmap.josm.gui.mappaint.Environment;
+import org.openstreetmap.josm.gui.mappaint.mapcss.Selector;
+import org.openstreetmap.josm.gui.mappaint.mapcss.parsergen.MapCSSParser;
+import org.openstreetmap.josm.gui.mappaint.mapcss.parsergen.ParseException;
 import org.openstreetmap.josm.tools.Geometry;
 import org.openstreetmap.josm.tools.Predicate;
 import org.openstreetmap.josm.tools.Utils;
@@ -1401,11 +1406,54 @@ public class SearchCompiler {
         }
     }
 
-    public static Match compile(String searchStr, boolean caseSensitive, boolean regexSearch) throws ParseError {
-        return new SearchCompiler(caseSensitive, regexSearch,
+    /**
+     * Compiles the search expression.
+     * @param searchStr the search expression
+     * @return a {@link Match} object for the expression
+     * @throws ParseError if an error has been encountered while compiling
+     * @see #compile(org.openstreetmap.josm.actions.search.SearchAction.SearchSetting)
+     */
+    public static Match compile(String searchStr) throws ParseError {
+        return new SearchCompiler(false, false,
                 new PushbackTokenizer(
                         new PushbackReader(new StringReader(searchStr))))
-        .parse();
+                .parse();
+    }
+
+    /**
+     * Compiles the search expression.
+     * @param setting the settings to use
+     * @return a {@link Match} object for the expression
+     * @throws ParseError if an error has been encountered while compiling
+     * @see #compile(String)
+     */
+    public static Match compile(SearchAction.SearchSetting setting) throws ParseError {
+        if (setting.mapCSSSearch) {
+            return compileMapCSS(setting.text);
+        }
+        return new SearchCompiler(setting.caseSensitive, setting.regexSearch,
+                new PushbackTokenizer(
+                        new PushbackReader(new StringReader(setting.text))))
+                .parse();
+    }
+
+    static Match compileMapCSS(String mapCSS) throws ParseError {
+        try {
+            final List<Selector> selectors = new MapCSSParser(new StringReader(mapCSS)).selectors();
+            return new Match() {
+                @Override
+                public boolean match(OsmPrimitive osm) {
+                    for (Selector selector : selectors) {
+                        if (selector.matches(new Environment(osm))) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+            };
+        } catch (ParseException e) {
+            throw new ParseError(tr("Failed to parse MapCSS selector"), e);
+        }
     }
 
     /**

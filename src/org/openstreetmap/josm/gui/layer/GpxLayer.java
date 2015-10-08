@@ -184,6 +184,7 @@ public class GpxLayer extends Layer {
         return new Action[] {
                 LayerListDialog.getInstance().createShowHideLayerAction(),
                 LayerListDialog.getInstance().createDeleteLayerAction(),
+                LayerListDialog.getInstance().createMergeLayerAction(this),
                 SeparatorLayerAction.INSTANCE,
                 new LayerSaveAction(this),
                 new LayerSaveAsAction(this),
@@ -192,7 +193,7 @@ public class GpxLayer extends Layer {
                 new ImportImagesAction(this),
                 new ImportAudioAction(this),
                 new MarkersFromNamedPointsAction(this),
-                new ConvertToDataLayerAction(this),
+                new ConvertToDataLayerAction.FromGpxLayer(this),
                 new DownloadAlongTrackAction(data),
                 new DownloadWmsAlongTrackAction(data),
                 SeparatorLayerAction.INSTANCE,

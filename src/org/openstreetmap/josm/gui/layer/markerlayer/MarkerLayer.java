@@ -47,6 +47,7 @@ import org.openstreetmap.josm.gui.layer.JumpToMarkerActions.JumpToMarkerLayer;
 import org.openstreetmap.josm.gui.layer.JumpToMarkerActions.JumpToNextMarker;
 import org.openstreetmap.josm.gui.layer.JumpToMarkerActions.JumpToPreviousMarker;
 import org.openstreetmap.josm.gui.layer.Layer;
+import org.openstreetmap.josm.gui.layer.gpx.ConvertToDataLayerAction;
 import org.openstreetmap.josm.tools.AudioPlayer;
 import org.openstreetmap.josm.tools.ImageProvider;
 
@@ -127,9 +128,9 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
             if (offset == null) {
                 offset = time - firstTime;
             }
-            Marker m = Marker.createMarker(wpt, indata.storageFile, this, time, offset);
-            if (m != null) {
-                data.add(m);
+            final Collection<Marker> markers = Marker.createMarkers(wpt, indata.storageFile, this, time, offset);
+            if (markers != null) {
+                data.addAll(markers);
             }
         }
     }
@@ -251,6 +252,7 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
         components.add(LayerListDialog.getInstance().createShowHideLayerAction());
         components.add(new ShowHideMarkerText(this));
         components.add(LayerListDialog.getInstance().createDeleteLayerAction());
+        components.add(LayerListDialog.getInstance().createMergeLayerAction(this));
         components.add(SeparatorLayerAction.INSTANCE);
         components.add(new CustomizeColor(this));
         components.add(SeparatorLayerAction.INSTANCE);
@@ -260,6 +262,7 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
         }
         components.add(new JumpToNextMarker(this));
         components.add(new JumpToPreviousMarker(this));
+        components.add(new ConvertToDataLayerAction.FromMarkerLayer(this));
         components.add(new RenameLayerAction(getAssociatedFile(), this));
         components.add(SeparatorLayerAction.INSTANCE);
         components.add(new LayerListPopup.InfoAction(this));
