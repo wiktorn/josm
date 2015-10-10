@@ -820,8 +820,8 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
         private Set<OsmPrimitive> members = new HashSet<>();
         private List<Integer> position = new ArrayList<>();
         private Iterable<OsmPrimitive> selection;
-        private String positionString = null;
-        private String roleString = null;
+        private String positionString;
+        private String roleString;
 
         MemberInfo(Iterable<OsmPrimitive> selection) {
             this.selection = selection;
@@ -1167,7 +1167,7 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
                 Map<String, Integer> values = (Map<String, Integer>) tagData.getValueAt(row, 1);
                 if (values.size() == 1) {
                     url = TAGINFO_URL_PROP.get() + "tags/" + key /* do not URL encode key, otherwise addr:street does not work */
-                            + "=" + Utils.encodeUrl(values.keySet().iterator().next());
+                            + '=' + Utils.encodeUrl(values.keySet().iterator().next());
                 } else {
                     url = TAGINFO_URL_PROP.get() + "keys/" + key; /* do not URL encode key, otherwise addr:street does not work */
                 }

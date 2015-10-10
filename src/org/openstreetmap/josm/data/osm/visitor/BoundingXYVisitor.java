@@ -22,7 +22,7 @@ import org.openstreetmap.josm.data.osm.Way;
  */
 public class BoundingXYVisitor extends AbstractVisitor {
 
-    private ProjectionBounds bounds = null;
+    private ProjectionBounds bounds;
 
     @Override
     public void visit(Node n) {
@@ -180,7 +180,7 @@ public class BoundingXYVisitor extends AbstractVisitor {
 
     @Override
     public String toString() {
-        return "BoundingXYVisitor["+bounds+"]";
+        return "BoundingXYVisitor["+bounds+']';
     }
 
     public void computeBoundingBox(Collection<? extends OsmPrimitive> primitives) {

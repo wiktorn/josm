@@ -10,17 +10,18 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Point2D;
 import java.nio.charset.StandardCharsets;
 import java.text.NumberFormat;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.Stack;
 import java.util.TreeMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.zip.CRC32;
@@ -188,8 +189,8 @@ public class NavigatableComponent extends JComponent implements Helpful {
     protected EastNorth center = calculateDefaultCenter();
 
     private final transient Object paintRequestLock = new Object();
-    private Rectangle paintRect = null;
-    private Polygon paintPoly = null;
+    private Rectangle paintRect;
+    private Polygon paintPoly;
 
     protected transient ViewportData initialViewport;
 
@@ -648,8 +649,8 @@ public class NavigatableComponent extends JComponent implements Helpful {
         }
     }
 
-    private Stack<ZoomData> zoomUndoBuffer = new Stack<>();
-    private Stack<ZoomData> zoomRedoBuffer = new Stack<>();
+    private Deque<ZoomData> zoomUndoBuffer = new ArrayDeque<>();
+    private Deque<ZoomData> zoomRedoBuffer = new ArrayDeque<>();
     private Date zoomTimestamp = new Date();
 
     private void pushZoomUndo(EastNorth center, double scale) {
@@ -1437,8 +1438,8 @@ public class NavigatableComponent extends JComponent implements Helpful {
      * @return A unique ID, as long as viewport dimensions are the same
      */
     public int getViewID() {
-        String x = center.east() + "_" + center.north() + "_" + scale + "_" +
-                getWidth() + "_" + getHeight() + "_" + getProjection().toString();
+        String x = center.east() + '_' + center.north() + '_' + scale + '_' +
+                getWidth() + '_' + getHeight() + '_' + getProjection().toString();
         CRC32 id = new CRC32();
         id.update(x.getBytes(StandardCharsets.UTF_8));
         return (int) id.getValue();

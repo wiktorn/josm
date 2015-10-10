@@ -102,7 +102,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         private final double offset;
         private int idx;
 
-        private Point prev = null;
+        private Point prev;
         /* 'prev0' is a point that has distance 'offset' from 'prev' and the
          * line from 'prev' to 'prev0' is perpendicular to the way segment from
          * 'prev' to the next point.
@@ -1458,7 +1458,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         highlightStep = Main.pref.getInteger("mappaint.highlight.step", 4);
     }
 
-    private Path2D.Double getPath(Way w) {
+    private static Path2D.Double getPath(Way w) {
         Path2D.Double path = new Path2D.Double();
         boolean initial = true;
         for (Node n : w.getNodes()) {
@@ -1728,7 +1728,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
                 timeFinished = System.currentTimeMillis();
                 System.err.println("; phase 2 (draw): " + Utils.getDurationString(timeFinished - timePhase1) +
                     "; total: " + Utils.getDurationString(timeFinished - timeStart) +
-                    " (scale: " + circum + " zoom level: " + Selector.GeneralSelector.scale2level(circum) + ")");
+                    " (scale: " + circum + " zoom level: " + Selector.GeneralSelector.scale2level(circum) + ')');
             }
 
             drawVirtualNodes(data, bbox);

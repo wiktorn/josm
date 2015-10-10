@@ -84,7 +84,7 @@ public class MapCSSStyleSource extends StyleSource {
     public final MapCSSRuleIndex canvasRules = new MapCSSRuleIndex();       // rules to apply canvas properties
 
     private Color backgroundColorOverride;
-    private String css = null;
+    private String css;
     private ZipFile zipFile;
 
     /**
@@ -105,7 +105,7 @@ public class MapCSSStyleSource extends StyleSource {
         for (Field f : declaredFields) {
             try {
                 SUPPORTED_KEYS.add((String) f.get(null));
-                if (!f.getName().toLowerCase(Locale.ENGLISH).replace("_", "-").equals(f.get(null))) {
+                if (!f.getName().toLowerCase(Locale.ENGLISH).replace('_', '-').equals(f.get(null))) {
                     throw new RuntimeException(f.getName());
                 }
             } catch (IllegalArgumentException | IllegalAccessException ex) {

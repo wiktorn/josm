@@ -35,10 +35,10 @@ public class WayConnectionType {
     /** True, if the element is part of a closed loop of ways. */
     public boolean isLoop;
 
-    public boolean isOnewayLoopForwardPart = false;
-    public boolean isOnewayLoopBackwardPart = false;
-    public boolean isOnewayHead = false;
-    public boolean isOnewayTail = false;
+    public boolean isOnewayLoopForwardPart;
+    public boolean isOnewayLoopBackwardPart;
+    public boolean isOnewayHead;
+    public boolean isOnewayTail;
 
     public WayConnectionType(boolean linkPrev, boolean linkNext, Direction direction) {
         this.linkPrev = linkPrev;
@@ -69,7 +69,7 @@ public class WayConnectionType {
     public String toString() {
         return "[P "+linkPrev+" ;N "+linkNext+" ;D "+direction+" ;L "+isLoop+
                 " ;FP " + isOnewayLoopForwardPart+";BP " + isOnewayLoopBackwardPart+
-                ";OH " + isOnewayHead+";OT " + isOnewayTail+"]";
+                ";OH " + isOnewayHead+";OT " + isOnewayTail+']';
     }
 
     public String getToolTip() {

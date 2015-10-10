@@ -163,20 +163,20 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
     /** (original) language of the translated name entry */
     private String langName;
     /** whether this is a entry activated by default or not */
-    private boolean defaultEntry = false;
+    private boolean defaultEntry;
     /** The data part of HTTP cookies header in case the service requires cookies to work */
-    private String cookies = null;
+    private String cookies;
     /** Whether this service requires a explicit EULA acceptance before it can be activated */
-    private String eulaAcceptanceRequired = null;
+    private String eulaAcceptanceRequired;
     /** type of the imagery servics - WMS, TMS, ... */
     private ImageryType imageryType = ImageryType.WMS;
-    private double pixelPerDegree = 0.0;
+    private double pixelPerDegree;
     /** maximum zoom level for TMS imagery */
-    private int defaultMaxZoom = 0;
+    private int defaultMaxZoom;
     /** minimum zoom level for TMS imagery */
-    private int defaultMinZoom = 0;
+    private int defaultMinZoom;
     /** display bounds of imagery, displayed in prefs and used for automatic imagery selection */
-    private ImageryBounds bounds = null;
+    private ImageryBounds bounds;
     /** projections supported by WMS servers */
     private List<String> serverProjections;
     /** description of the imagery entry, should contain notes what type of data it is */
@@ -295,12 +295,12 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
 
         @Override
         public String toString() {
-            String s = "ImageryPreferenceEntry [name=" + name;
+            StringBuilder s = new StringBuilder("ImageryPreferenceEntry [name=").append(name);
             if (id != null) {
-                s += " id=" + id;
+                s.append(" id=").append(id);
             }
-            s += "]";
-            return s;
+            s.append(']');
+            return s.toString();
         }
     }
 
@@ -860,7 +860,7 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
      */
     public String getExtendedUrl() {
         return imageryType.getTypeString() + (defaultMaxZoom != 0
-            ? "["+(defaultMinZoom != 0 ? defaultMinZoom+"," : "")+defaultMaxZoom+"]" : "") + ":" + url;
+            ? "["+(defaultMinZoom != 0 ? defaultMinZoom+',' : "")+defaultMaxZoom+"]" : "") + ':' + url;
     }
 
     public String getToolbarName() {
@@ -874,7 +874,7 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
     public String getMenuName() {
         String res = name;
         if (pixelPerDegree != 0) {
-            res += " ("+pixelPerDegree+")";
+            res += " ("+pixelPerDegree+')';
         }
         return res;
     }

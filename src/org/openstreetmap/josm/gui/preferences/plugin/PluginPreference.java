@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
@@ -154,7 +155,7 @@ public final class PluginPreference extends DefaultTabPreferenceSetting {
      * is set to true if this preference pane has been selected
      * by the user
      */
-    private boolean pluginPreferencesActivated = false;
+    private boolean pluginPreferencesActivated;
 
     protected JPanel buildSearchFieldPanel() {
         JPanel pnl  = new JPanel(new GridBagLayout());
@@ -270,7 +271,7 @@ public final class PluginPreference extends DefaultTabPreferenceSetting {
      *
      * @return the list of plugins waiting for update or download
      */
-    public List<PluginInformation> getPluginsScheduledForUpdateOrDownload() {
+    public Set<PluginInformation> getPluginsScheduledForUpdateOrDownload() {
         return model != null ? model.getPluginsScheduledForUpdateOrDownload() : null;
     }
 

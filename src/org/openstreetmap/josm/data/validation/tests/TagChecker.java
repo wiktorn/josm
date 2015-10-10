@@ -96,10 +96,10 @@ public class TagChecker extends TagTest {
     public static final String PREF_CHECK_COMPLEX_BEFORE_UPLOAD = PREF_CHECK_COMPLEX + "BeforeUpload";
     public static final String PREF_CHECK_FIXMES_BEFORE_UPLOAD = PREF_CHECK_FIXMES + "BeforeUpload";
 
-    protected boolean checkKeys = false;
-    protected boolean checkValues = false;
-    protected boolean checkComplex = false;
-    protected boolean checkFixmes = false;
+    protected boolean checkKeys;
+    protected boolean checkValues;
+    protected boolean checkComplex;
+    protected boolean checkFixmes;
 
     protected JCheckBox prefCheckKeys;
     protected JCheckBox prefCheckValues;
@@ -129,8 +129,6 @@ public class TagChecker extends TagTest {
     /** 1250 and up is used by tagcheck */
 
     protected EditableList sourcesList;
-
-    protected static final Entities entities = new Entities();
 
     private static final List<String> DEFAULT_SOURCES = Arrays.asList(/*DATA_FILE, */IGNORE_FILE, SPELL_FILE);
 
@@ -163,7 +161,7 @@ public class TagChecker extends TagTest {
         ignoreDataKeyPair.clear();
         harmonizedKeys.clear();
 
-        String errorSources = "";
+        StringBuilder errorSources = new StringBuilder();
         for (String source : Main.pref.getCollection(PREF_SOURCES, DEFAULT_SOURCES)) {
             try (
                 InputStream s = new CachedFile(source).getInputStream();
@@ -240,11 +238,11 @@ public class TagChecker extends TagTest {
                     }
                 }
             } catch (IOException e) {
-                errorSources += source + "\n";
+                errorSources.append(source).append('\n');
             }
         }
 
-        if (!errorSources.isEmpty())
+        if (errorSources.length() > 0)
             throw new IOException(tr("Could not access data file(s):\n{0}", errorSources));
     }
 
@@ -370,7 +368,7 @@ public class TagChecker extends TagTest {
                         tr(s, key), MessageFormat.format(s, key), INVALID_SPACE, p));
                 withErrors.put(p, "SPACE");
             }
-            if (checkValues && value != null && !value.equals(entities.unescape(value)) && !withErrors.contains(p, "HTML")) {
+            if (checkValues && value != null && !value.equals(Entities.unescape(value)) && !withErrors.contains(p, "HTML")) {
                 errors.add(new TestError(this, Severity.OTHER, tr("Property values contain HTML entity"),
                         tr(s, key), MessageFormat.format(s, key), INVALID_HTML, p));
                 withErrors.put(p, "HTML");
@@ -619,7 +617,7 @@ public class TagChecker extends TagTest {
                     } else if (key.startsWith(" ") || key.endsWith(" ")) {
                         commands.add(new ChangePropertyKeyCommand(p, key, Tag.removeWhiteSpaces(key)));
                     } else {
-                        String evalue = entities.unescape(value);
+                        String evalue = Entities.unescape(value);
                         if (!evalue.equals(value)) {
                             commands.add(new ChangePropertyCommand(p, key, evalue));
                         }
@@ -666,9 +664,9 @@ public class TagChecker extends TagTest {
             public Object tag;
             public Object value;
             public boolean noMatch;
-            public boolean tagAll = false;
-            public boolean valueAll = false;
-            public boolean valueBool = false;
+            public boolean tagAll;
+            public boolean valueAll;
+            public boolean valueBool;
 
             private Pattern getPattern(String str) throws PatternSyntaxException {
                 if (str.endsWith("/i"))
