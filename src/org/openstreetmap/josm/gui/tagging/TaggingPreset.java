@@ -76,7 +76,7 @@ public class TaggingPreset extends AbstractAction implements MapView.LayerChange
     public static final int DIALOG_ANSWER_NEW_RELATION = 2;
     public static final int DIALOG_ANSWER_CANCEL = 3;
 
-    public TaggingPresetMenu group = null;
+    public TaggingPresetMenu group;
     public String name;
     public String iconName;
     public String name_context;
@@ -129,14 +129,14 @@ public class TaggingPreset extends AbstractAction implements MapView.LayerChange
      * Returns the translated name of this preset, prefixed with the group names it belongs to.
      */
     public String getName() {
-        return group != null ? group.getName() + "/" + getLocaleName() : getLocaleName();
+        return group != null ? group.getName() + '/' + getLocaleName() : getLocaleName();
     }
 
     /**
      * Returns the non translated name of this preset, prefixed with the (non translated) group names it belongs to.
      */
     public String getRawName() {
-        return group != null ? group.getRawName() + "/" + name : name;
+        return group != null ? group.getRawName() + '/' + name : name;
     }
 
     /**
@@ -211,7 +211,7 @@ public class TaggingPreset extends AbstractAction implements MapView.LayerChange
     }
 
     private static class PresetPanel extends JPanel {
-        private boolean hasElements = false;
+        private boolean hasElements;
 
         PresetPanel() {
             super(new GridBagLayout());
@@ -413,7 +413,7 @@ public class TaggingPreset extends AbstractAction implements MapView.LayerChange
     /**
      * True whenever the original selection given into createSelection was empty
      */
-    private boolean originalSelectionEmpty = false;
+    private boolean originalSelectionEmpty;
 
     /**
      * Removes all unsuitable OsmPrimitives from the given list

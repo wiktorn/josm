@@ -51,11 +51,11 @@ public final class MessageNotifier {
 
     private static final Runnable WORKER = new Worker();
 
-    private static volatile ScheduledFuture<?> task = null;
+    private static volatile ScheduledFuture<?> task;
 
     private static class Worker implements Runnable {
 
-        private int lastUnreadCount = 0;
+        private int lastUnreadCount;
 
         @Override
         public void run() {
@@ -70,7 +70,7 @@ public final class MessageNotifier {
                             JPanel panel = new JPanel(new GridBagLayout());
                             panel.add(new JLabel(trn("You have {0} unread message.", "You have {0} unread messages.", unread, unread)),
                                     GBC.eol());
-                            panel.add(new UrlLabel(Main.getBaseUserUrl() + "/" + userInfo.getDisplayName() + "/inbox",
+                            panel.add(new UrlLabel(Main.getBaseUserUrl() + '/' + userInfo.getDisplayName() + "/inbox",
                                     tr("Click here to see your inbox.")), GBC.eol());
                             panel.setOpaque(false);
                             new Notification().setContent(panel)
@@ -96,7 +96,7 @@ public final class MessageNotifier {
             Main.info(tr("{0} not available (offline mode)", tr("Message notifier")));
         } else if (!isRunning() && interval > 0 && isUserEnoughIdentified()) {
             task = EXECUTOR.scheduleAtFixedRate(WORKER, 0, interval * 60, TimeUnit.SECONDS);
-            Main.info("Message notifier active (checks every "+interval+" minute"+(interval > 1 ? "s" : "")+")");
+            Main.info("Message notifier active (checks every "+interval+" minute"+(interval > 1 ? "s" : "")+')');
         }
     }
 

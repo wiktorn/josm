@@ -331,7 +331,7 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
 
         private String getSizeString(int size) {
             StringBuilder ret = new StringBuilder();
-            return ret.append(size).append("x").append(size).toString();
+            return ret.append(size).append('x').append(size).toString();
         }
 
         private JTextField createTextField(String text) {
@@ -362,17 +362,17 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
                         {"Tile name", clickedTile.getKey()},
                         {"Tile url", url},
                         {"Tile size", getSizeString(clickedTile.getTileSource().getTileSize()) },
-                        {"Tile display size", new StringBuilder().append(displaySize.width).append("x").append(displaySize.height).toString()},
+                        {"Tile display size", new StringBuilder().append(displaySize.width).append('x').append(displaySize.height).toString()},
                 };
 
                 for (String[] entry: content) {
-                    panel.add(new JLabel(tr(entry[0]) + ":"), GBC.std());
+                    panel.add(new JLabel(tr(entry[0]) + ':'), GBC.std());
                     panel.add(GBC.glue(5, 0), GBC.std());
                     panel.add(createTextField(entry[1]), GBC.eol().fill(GBC.HORIZONTAL));
                 }
 
                 for (Entry<String, String> e: clickedTile.getMetadata().entrySet()) {
-                    panel.add(new JLabel(tr("Metadata ") + tr(e.getKey()) + ":"), GBC.std());
+                    panel.add(new JLabel(tr("Metadata ") + tr(e.getKey()) + ':'), GBC.std());
                     panel.add(GBC.glue(5, 0), GBC.std());
                     String value = e.getValue();
                     if ("lastModification".equals(e.getKey()) || "expirationTime".equals(e.getKey())) {
@@ -485,7 +485,7 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
      * Simple class to keep clickedTile within hookUpMapView
      */
     private static final class TileHolder {
-        private Tile t = null;
+        private Tile t;
 
         public Tile getTile() {
             return t;
@@ -796,7 +796,7 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
     public boolean zoomIncreaseAllowed() {
         boolean zia = currentZoomLevel < this.getMaxZoomLvl();
         if (Main.isDebugEnabled()) {
-            Main.debug("zoomIncreaseAllowed(): " + zia + " " + currentZoomLevel + " vs. " + this.getMaxZoomLvl());
+            Main.debug("zoomIncreaseAllowed(): " + zia + ' ' + currentZoomLevel + " vs. " + this.getMaxZoomLvl());
         }
         return zia;
     }
@@ -1086,10 +1086,10 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
             StringBuilder ret = new StringBuilder();
             for (String s: text.split(" ")) {
                 if (g.getFontMetrics().stringWidth(line.toString() + s) > tileSource.getTileSize()) {
-                    ret.append(line).append("\n");
+                    ret.append(line).append('\n');
                     line.setLength(0);
                 }
-                line.append(s).append(" ");
+                line.append(s).append(' ');
             }
             ret.append(line);
             textToDraw = ret.toString();
@@ -1331,9 +1331,9 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
     }
 
     private static class TileSetInfo {
-        public boolean hasVisibleTiles = false;
-        public boolean hasOverzoomedTiles = false;
-        public boolean hasLoadingTiles = false;
+        public boolean hasVisibleTiles;
+        public boolean hasOverzoomedTiles;
+        public boolean hasLoadingTiles;
     }
 
     private static TileSetInfo getTileSetInfo(TileSet ts) {
@@ -1561,7 +1561,7 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
      */
     private Tile getTileForPixelpos(int px, int py) {
         if (Main.isDebugEnabled()) {
-            Main.debug("getTileForPixelpos("+px+", "+py+")");
+            Main.debug("getTileForPixelpos("+px+", "+py+')');
         }
         MapView mv = Main.map.mapView;
         Point clicked = new Point(px, py);

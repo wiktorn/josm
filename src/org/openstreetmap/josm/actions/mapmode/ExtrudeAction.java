@@ -68,12 +68,12 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
     /**
      * If {@code true}, when extruding create new node(s) even if segments are parallel.
      */
-    private boolean alwaysCreateNodes = false;
+    private boolean alwaysCreateNodes;
     private boolean nodeDragWithoutCtrl;
 
-    private long mouseDownTime = 0;
-    private transient WaySegment selectedSegment = null;
-    private transient Node selectedNode = null;
+    private long mouseDownTime;
+    private transient WaySegment selectedSegment;
+    private transient Node selectedNode;
     private Color mainColor;
     private transient Stroke mainStroke;
 
@@ -166,7 +166,7 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
 
         @Override
         public String toString() {
-            return "ReferenceSegment[en=" + en + ", p1=" + p1 + ", p2=" + p2 + ", perp=" + perpendicular + "]";
+            return "ReferenceSegment[en=" + en + ", p1=" + p1 + ", p2=" + p2 + ", perp=" + perpendicular + ']';
         }
     }
 
@@ -179,7 +179,7 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
     /** Dual alignment reference segments */
     private transient ReferenceSegment dualAlignSegment1, dualAlignSegment2;
     /** {@code true}, if new segment was collapsed */
-    private boolean dualAlignSegmentCollapsed = false;
+    private boolean dualAlignSegmentCollapsed;
     // Dual alignment UI stuff
     private final DualAlignChangeAction dualAlignChangeAction;
     private final JCheckBoxMenuItem dualAlignCheckboxMenuItem;
@@ -1109,7 +1109,7 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
     /**
      * Returns true if from1-to1 and from2-to2 vertors directions are opposite
      */
-    private boolean isOppositeDirection(EastNorth from1, EastNorth to1, EastNorth from2, EastNorth to2) {
+    private static boolean isOppositeDirection(EastNorth from1, EastNorth to1, EastNorth from2, EastNorth to2) {
         return (from1.getX()-to1.getX())*(from2.getX()-to2.getX())
               +(from1.getY()-to1.getY())*(from2.getY()-to2.getY()) < 0;
     }

@@ -42,8 +42,8 @@ public class ImportAudioAction extends AbstractAction {
     private final transient GpxLayer layer;
 
     private static class Markers {
-        public boolean timedMarkersOmitted = false;
-        public boolean untimedMarkersOmitted = false;
+        public boolean timedMarkersOmitted;
+        public boolean untimedMarkersOmitted;
     }
 
     /**
@@ -95,19 +95,17 @@ public class ImportAudioAction extends AbstractAction {
                     }
                 });
             }
-            String names = null;
+            StringBuilder names = new StringBuilder();
             for (File file : sel) {
-                if (names == null) {
-                    names = " (";
+                if (names.length() == 0) {
+                    names.append(" (");
                 } else {
-                    names += ", ";
+                    names.append(", ");
                 }
-                names += file.getName();
+                names.append(file.getName());
             }
-            if (names != null) {
-                names += ")";
-            } else {
-                names = "";
+            if (names.length() > 0) {
+                names.append(')');
             }
             MarkerLayer ml = new MarkerLayer(new GpxData(),
                     tr("Audio markers from {0}", layer.getName()) + names, layer.getAssociatedFile(), layer);

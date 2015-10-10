@@ -48,6 +48,11 @@ public class SlippyMapControler extends MouseAdapter implements MouseMotionListe
 
     private static final int MAC_MOUSE_BUTTON3_MASK = MouseEvent.CTRL_DOWN_MASK | MouseEvent.BUTTON1_DOWN_MASK;
 
+    private static final String[] N = {
+            ",", ".", "up", "right", "down", "left"};
+    private static final int[] K = {
+            KeyEvent.VK_COMMA, KeyEvent.VK_PERIOD, KeyEvent.VK_UP, KeyEvent.VK_RIGHT, KeyEvent.VK_DOWN, KeyEvent.VK_LEFT};
+
     // start and end point of selection rectangle
     private Point iStartSelectionPoint;
     private Point iEndSelectionPoint;
@@ -64,13 +69,10 @@ public class SlippyMapControler extends MouseAdapter implements MouseMotionListe
         iSlippyMapChooser.addMouseListener(this);
         iSlippyMapChooser.addMouseMotionListener(this);
 
-        String[] n = {",", ".", "up", "right", "down", "left"};
-        int[] k = {KeyEvent.VK_COMMA, KeyEvent.VK_PERIOD, KeyEvent.VK_UP, KeyEvent.VK_RIGHT, KeyEvent.VK_DOWN, KeyEvent.VK_LEFT};
-
         if (contentPane != null) {
-            for (int i = 0; i < n.length; ++i) {
+            for (int i = 0; i < N.length; ++i) {
                 contentPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(k[i], KeyEvent.CTRL_DOWN_MASK), "MapMover.Zoomer." + n[i]);
+                        KeyStroke.getKeyStroke(K[i], KeyEvent.CTRL_DOWN_MASK), "MapMover.Zoomer." + N[i]);
             }
         }
         isSelecting = false;
@@ -202,16 +204,16 @@ public class SlippyMapControler extends MouseAdapter implements MouseMotionListe
         private double speedY = 1;
 
         /** The horizontal direction of movement, -1:left, 0:stop, 1:right */
-        private int directionX = 0;
+        private int directionX;
 
         /** The vertical direction of movement, -1:up, 0:stop, 1:down */
-        private int directionY = 0;
+        private int directionY;
 
         /**
          * Indicated if <code>moveTask</code> is currently enabled (periodically
          * executed via timer) or disabled
          */
-        protected boolean scheduled = false;
+        protected boolean scheduled;
 
         protected void setDirectionX(int directionX) {
             this.directionX = directionX;

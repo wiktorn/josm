@@ -818,9 +818,9 @@ public class MultiSplitLayout implements LayoutManager {
      * Base class for the nodes that model a MultiSplitLayout.
      */
     public abstract static class Node {
-        private Split parent = null;
+        private Split parent;
         private Rectangle bounds = new Rectangle();
-        private double weight = 0.0;
+        private double weight;
 
         /**
          * Returns the Split parent of this Node, or null.
@@ -1157,7 +1157,7 @@ public class MultiSplitLayout implements LayoutManager {
                 throwParseException(st, "invalid name");
             }
         } else {
-            throwParseException(st, "unrecognized attribute \"" + name + "\"");
+            throwParseException(st, "unrecognized attribute \"" + name + '\"');
         }
     }
 
@@ -1212,7 +1212,7 @@ public class MultiSplitLayout implements LayoutManager {
                     addSplitChild(parent, split);
                     parseSplit(st, split);
                 } else {
-                    throwParseException(st, "unrecognized node type '" + nodeType + "'");
+                    throwParseException(st, "unrecognized node type '" + nodeType + '\'');
                 }
             }
         }

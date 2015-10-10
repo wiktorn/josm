@@ -80,7 +80,7 @@ public class OsmApi extends OsmConnection {
     // The collection of instantiated OSM APIs
     private static Map<String, OsmApi> instances = new HashMap<>();
 
-    private URL url = null;
+    private URL url;
 
     /**
      * Replies the {@link OsmApi} for a given server URL
@@ -119,13 +119,13 @@ public class OsmApi extends OsmConnection {
     private Changeset changeset;
 
     /** API version used for server communications */
-    private String version = null;
+    private String version;
 
     /** API capabilities */
-    private Capabilities capabilities = null;
+    private Capabilities capabilities;
 
     /** true if successfully initialized */
-    private boolean initialized = false;
+    private boolean initialized;
 
     /**
      * Constructs a new {@code OsmApi} for a specific server URL.
@@ -377,7 +377,7 @@ public class OsmApi extends OsmConnection {
             ensureValidChangeset();
             initialize(monitor);
             // normal mode (0.6 and up) returns new object version.
-            ret = sendRequest("PUT", OsmPrimitiveType.from(osm).getAPIName()+"/" + osm.getId(), toXml(osm, true), monitor);
+            ret = sendRequest("PUT", OsmPrimitiveType.from(osm).getAPIName()+'/' + osm.getId(), toXml(osm, true), monitor);
             osm.setOsmId(osm.getId(), Integer.parseInt(ret.trim()));
             osm.setChangesetId(getChangeset().getId());
             osm.setVisible(true);
@@ -622,7 +622,7 @@ public class OsmApi extends OsmConnection {
         while (true) { // the retry loop
             try {
                 url = new URL(new URL(getBaseUrl()), urlSuffix);
-                Main.info(requestMethod + " " + url + "... ");
+                Main.info(requestMethod + ' ' + url + "... ");
                 Main.debug(requestBody);
                 // fix #5369, see http://www.tikalk.com/java/forums/httpurlconnection-disable-keep-alive
                 activeConnection = Utils.openHttpConnection(url, false);

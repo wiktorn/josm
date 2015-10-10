@@ -37,7 +37,7 @@ public final class GettingStarted extends JPanel implements ProxyPreferenceListe
 
     private final LinkGeneral lg;
     private String content = "";
-    private boolean contentInitialized = false;
+    private boolean contentInitialized;
 
     private static final String STYLE = "<style type=\"text/css\">\n"
             + "body {font-family: sans-serif; font-weight: bold; }\n"
@@ -176,7 +176,7 @@ public final class GettingStarted extends JPanel implements ProxyPreferenceListe
             String im = m.group(1);
             URL u = getClass().getResource(im);
             if (u != null) {
-                m.appendReplacement(sb, Matcher.quoteReplacement("src=\"" + u + "\""));
+                m.appendReplacement(sb, Matcher.quoteReplacement("src=\"" + u + '\"'));
             }
         }
         m.appendTail(sb);

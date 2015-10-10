@@ -6,13 +6,14 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Stack;
 
 import javax.xml.parsers.ParserConfigurationException;
 
@@ -63,17 +64,17 @@ public class GpxReader implements GpxConstants {
 
         private GpxLink currentLink;
         private Extensions currentExtensions;
-        private Stack<State> states;
-        private final Stack<String> elements = new Stack<>();
+        private Deque<State> states;
+        private final Deque<String> elements = new ArrayDeque<>();
 
-        private StringBuffer accumulator = new StringBuffer();
+        private StringBuilder accumulator = new StringBuilder();
 
-        private boolean nokiaSportsTrackerBug = false;
+        private boolean nokiaSportsTrackerBug;
 
         @Override
         public void startDocument() {
-            accumulator = new StringBuffer();
-            states = new Stack<>();
+            accumulator = new StringBuilder();
+            states = new ArrayDeque<>();
             data = new GpxData();
         }
 
@@ -177,7 +178,7 @@ public class GpxReader implements GpxConstants {
                     currentLink = new GpxLink(atts.getValue("href"));
                     break;
                 case "email":
-                    data.put(META_AUTHOR_EMAIL, atts.getValue("id") + "@" + atts.getValue("domain"));
+                    data.put(META_AUTHOR_EMAIL, atts.getValue("id") + '@' + atts.getValue("domain"));
                 }
                 break;
             case trk:
@@ -475,7 +476,7 @@ public class GpxReader implements GpxConstants {
 
         @Override
         public void endDocument() throws SAXException  {
-            if (!states.empty())
+            if (!states.isEmpty())
                 throw new SAXException(tr("Parse error: invalid document structure for GPX document."));
             Extensions metaExt = (Extensions) data.get(META_EXTENSIONS);
             if (metaExt != null && "true".equals(metaExt.get("from-server"))) {
@@ -548,7 +549,7 @@ public class GpxReader implements GpxConstants {
                 String message = e.getMessage();
                 if (e instanceof SAXParseException) {
                     SAXParseException spe = (SAXParseException) e;
-                    message += " " + tr("(at line {0}, column {1})", spe.getLineNumber(), spe.getColumnNumber());
+                    message += ' ' + tr("(at line {0}, column {1})", spe.getLineNumber(), spe.getColumnNumber());
                 }
                 Main.warn(message);
                 return false;

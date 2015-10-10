@@ -35,7 +35,7 @@ import org.openstreetmap.josm.tools.Utils;
  */
 public abstract class OsmServerReader extends OsmConnection {
     private OsmApi api = OsmApi.getOsmApi();
-    private boolean doAuthenticate = false;
+    private boolean doAuthenticate;
     protected boolean gpxParsedProperly;
 
     /**
@@ -151,7 +151,7 @@ public abstract class OsmServerReader extends OsmConnection {
 
             try {
                 if (reason != null && !reason.isEmpty()) {
-                    Main.info("GET " + url + " (" + reason + ")");
+                    Main.info("GET " + url + " (" + reason + ')');
                 } else {
                     Main.info("GET " + url);
                 }

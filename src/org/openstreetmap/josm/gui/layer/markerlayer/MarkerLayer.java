@@ -68,10 +68,10 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
      * A list of markers.
      */
     public final List<Marker> data;
-    private boolean mousePressed = false;
-    public GpxLayer fromLayer = null;
+    private boolean mousePressed;
+    public GpxLayer fromLayer;
     private Marker currentMarker;
-    public AudioMarker syncAudioMarker = null;
+    public AudioMarker syncAudioMarker;
 
     /**
      * Constructs a new {@code MarkerLayer}.
@@ -218,11 +218,13 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
         }
     }
 
-    @Override public String getToolTipText() {
-        return data.size()+" "+trn("marker", "markers", data.size());
+    @Override
+    public String getToolTipText() {
+        return data.size()+' '+trn("marker", "markers", data.size());
     }
 
-    @Override public void mergeFrom(Layer from) {
+    @Override
+    public void mergeFrom(Layer from) {
         MarkerLayer layer = (MarkerLayer) from;
         data.addAll(layer.data);
         Collections.sort(data, new Comparator<Marker>() {

@@ -68,8 +68,8 @@ public class CachedFile {
     protected String httpAccept;
     protected CachingStrategy cachingStrategy;
 
-    protected File cacheFile = null;
-    protected boolean initialized = false;
+    protected File cacheFile;
+    protected boolean initialized;
 
     public static final long DEFAULT_MAXTIME = -1L;
     public static final long DAYS = 24*60*60; // factor to get caching time in days
@@ -288,7 +288,7 @@ public class CachedFile {
             Enumeration<? extends ZipEntry> entries = zipFile.entries();
             while (entries.hasMoreElements()) {
                 ZipEntry entry = entries.nextElement();
-                if (entry.getName().endsWith("." + extension)) {
+                if (entry.getName().endsWith('.' + extension)) {
                     /* choose any file with correct extension. When more than
                         one file, prefer the one which matches namepart */
                     if (resentry == null || entry.getName().indexOf(namepart) >= 0) {
@@ -414,7 +414,7 @@ public class CachedFile {
             HttpURLConnection con = connectFollowingRedirect(url, httpAccept, ifModifiedSince, httpHeaders);
             if (ifModifiedSince != null && con.getResponseCode() == HttpURLConnection.HTTP_NOT_MODIFIED) {
                 if (Main.isDebugEnabled()) {
-                    Main.debug("304 Not Modified ("+urlStr+")");
+                    Main.debug("304 Not Modified ("+urlStr+')');
                 }
                 if (localFile == null)
                     throw new AssertionError();

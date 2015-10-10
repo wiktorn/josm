@@ -9,13 +9,14 @@ import java.io.Reader;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Stack;
 
 import javax.xml.XMLConstants;
 import javax.xml.parsers.ParserConfigurationException;
@@ -63,7 +64,7 @@ public class XmlObjectParser implements Iterable<Object> {
     }
 
     private class Parser extends DefaultHandler {
-        private Stack<Object> current = new Stack<>();
+        private Deque<Object> current = new ArrayDeque<>();
         private StringBuilder characters = new StringBuilder(64);
 
         private Locator locator;
@@ -132,7 +133,7 @@ public class XmlObjectParser implements Iterable<Object> {
             CheckParameterUtil.ensureParameterNotNull(entry, "entry");
             if ("class".equals(fieldName) || "default".equals(fieldName) || "throw".equals(fieldName) ||
                     "new".equals(fieldName) || "null".equals(fieldName)) {
-                fieldName += "_";
+                fieldName += '_';
             }
             try {
                 Object c = current.peek();
@@ -231,7 +232,7 @@ public class XmlObjectParser implements Iterable<Object> {
      * The queue of already parsed items from the parsing thread.
      */
     private List<Object> queue = new LinkedList<>();
-    private Iterator<Object> queueIterator = null;
+    private Iterator<Object> queueIterator;
 
     /**
      * Constructs a new {@code XmlObjectParser}.
