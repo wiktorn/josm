@@ -231,7 +231,6 @@ public class UploadStrategySelectionPanel extends JPanel implements PropertyChan
         pnlMultiChangesetPolicyPanel.setVisible(
                 maxChunkSize > 0 && numUploadedObjects > maxChunkSize
         );
-        pnlMultiChangesetPolicyPanel.setVisible(true);
     }
 
     public void setNumUploadedObjects(int numUploadedObjects) {
