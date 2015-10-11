@@ -165,16 +165,9 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
         setBackgroundLayer(true);
         this.setVisible(true);
         MapView.addZoomChangeListener(this);
-        long memoryBytesRequired = 50 * 1024 * 1024; // assumed minimum JOSM memory footprint
-        if (Main.map != null && Main.map.mapView != null) {
-            for (Layer layer: Main.map.mapView.getAllLayers()) {
-                memoryBytesRequired += layer.estimateMemoryUsage();
-            }
-            if (memoryBytesRequired >  Runtime.getRuntime().maxMemory()) {
-                throw new IllegalArgumentException(tr("To add another layer you need to allocate at least {0,number,#}MB memory to JOSM using -Xmx{0,number,#}M "
-                        + "option (see http://forum.openstreetmap.org/viewtopic.php?id=25677).\n"
-                        + "Currently you have {1,number,#}MB memory allocated for JOSM", memoryBytesRequired / 1024 / 1024, Runtime.getRuntime().maxMemory() / 1024 / 1024));
-            }
+        this.tileSource = getTileSource(info);
+        if (this.tileSource == null) {
+            throw new IllegalArgumentException(tr("Failed to create tile source"));
         }
     }
 
@@ -518,11 +511,7 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
      */
     @Override
     public void hookUpMapView() {
-        this.tileSource = getTileSource(info);
-        if (this.tileSource == null) {
-            throw new IllegalArgumentException(tr("Failed to create tile source"));
-        }
-
+        super.hookUpMapView();
         projectionChanged(null, Main.getProjection()); // check if projection is supported
         initTileSource(this.tileSource);
 
@@ -678,13 +667,12 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
     }
 
     protected int estimateTileCacheSize() {
-        int height = Main.map.mapView.getHeight();
-        int width = Main.map.mapView.getWidth();
-        if (tileSource == null) {
-            // fallback to old default
-            return 200;
+        int height = (int) Toolkit.getDefaultToolkit().getScreenSize().getHeight();
+        int width = (int) Toolkit.getDefaultToolkit().getScreenSize().getWidth();
+        int tileSize = 256; // default tile size
+        if (tileSource != null) {
+            tileSize = tileSource.getTileSize();
         }
-        int tileSize = tileSource.getTileSize();
         // as we can see part of the tile at the top and at the bottom, use Math.ceil(...) + 1 to accommodate for that
         int visibileTiles = (int) (Math.ceil( (double)height / tileSize + 1) * Math.ceil((double)width / tileSize + 1));
         // add 10% for tiles from different zoom levels

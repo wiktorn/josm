@@ -74,7 +74,6 @@ public class CachedAttributionBingAerialTileSource extends BingAerialTileSource 
                     try {
                         String xml = attributionLoader.updateIfRequiredString();
                         List<Attribution> ret = parseAttributionText(new InputSource(new StringReader((xml))));
-                        Thread.sleep(60*1000L);
                         if (attributionDownloadedTask != null) {
                             GuiHelper.runInEDT(attributionDownloadedTask);
                             attributionDownloadedTask = null;
