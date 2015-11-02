@@ -7,6 +7,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.text.MessageFormat;
@@ -35,6 +37,14 @@ import org.openstreetmap.josm.gui.widgets.AbstractFileChooser;
  * @author Immanuel.Scholz
  */
 public final class I18n {
+
+    /**
+     * This annotates strings which do not permit a clean i18n. This is mostly due to strings
+     * containing two nouns which can occur in singular or plural form.
+     */
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface QuirkyPluralString {
+    }
 
     private I18n() {
         // Hide default constructor for utils classes
@@ -426,7 +436,7 @@ public final class I18n {
         // fully supported only with Java 8 and later (needs CLDR)
         languages.put("km", PluralMode.MODE_NONE);
         languages.put("lt", PluralMode.MODE_LT);
-        //languages.put("nb", PluralMode.MODE_NOTONE);
+        languages.put("nb", PluralMode.MODE_NOTONE);
         languages.put("nl", PluralMode.MODE_NOTONE);
         languages.put("pl", PluralMode.MODE_PL);
         languages.put("pt", PluralMode.MODE_NOTONE);

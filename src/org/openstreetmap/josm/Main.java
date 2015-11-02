@@ -98,7 +98,7 @@ import org.openstreetmap.josm.gui.preferences.map.MapPaintPreference;
 import org.openstreetmap.josm.gui.preferences.projection.ProjectionPreference;
 import org.openstreetmap.josm.gui.progress.PleaseWaitProgressMonitor;
 import org.openstreetmap.josm.gui.progress.ProgressMonitorExecutor;
-import org.openstreetmap.josm.gui.tagging.TaggingPresets;
+import org.openstreetmap.josm.gui.tagging.presets.TaggingPresets;
 import org.openstreetmap.josm.gui.util.RedirectInputMap;
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel;
 import org.openstreetmap.josm.io.FileWatcher;
@@ -261,6 +261,14 @@ public abstract class Main {
      */
     public static final Collection<String> getLastErrorAndWarnings() {
         return Collections.unmodifiableList(ERRORS_AND_WARNINGS);
+    }
+
+    /**
+     * Clears the list of last error and warning messages.
+     * @since 8959
+     */
+    public static void clearLastErrorAndWarnings() {
+        ERRORS_AND_WARNINGS.clear();
     }
 
     /**
@@ -1264,7 +1272,7 @@ public abstract class Main {
         public void componentShown(ComponentEvent e) {
         }
 
-        private void handleComponentEvent(ComponentEvent e) {
+        private static void handleComponentEvent(ComponentEvent e) {
             Component c = e.getComponent();
             if (c instanceof JFrame && c.isVisible()) {
                 if (Main.windowState == JFrame.NORMAL) {

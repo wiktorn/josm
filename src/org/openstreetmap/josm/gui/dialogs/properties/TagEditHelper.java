@@ -68,10 +68,10 @@ import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.data.preferences.IntegerProperty;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
-import org.openstreetmap.josm.gui.tagging.TaggingPreset;
 import org.openstreetmap.josm.gui.tagging.ac.AutoCompletingComboBox;
 import org.openstreetmap.josm.gui.tagging.ac.AutoCompletionListItem;
 import org.openstreetmap.josm.gui.tagging.ac.AutoCompletionManager;
+import org.openstreetmap.josm.gui.tagging.presets.TaggingPreset;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.PopupMenuLauncher;
 import org.openstreetmap.josm.io.XmlWriter;
@@ -225,7 +225,7 @@ class TagEditHelper {
      * @param togglePref  The preference to save the checkbox state to
      * @return {@code true} if the user accepts to overwrite key, {@code false} otherwise
      */
-    private boolean warnOverwriteKey(String action, String togglePref) {
+    private static boolean warnOverwriteKey(String action, String togglePref) {
         ExtendedDialog ed = new ExtendedDialog(
                 Main.parent,
                 tr("Overwrite key"),

@@ -36,8 +36,8 @@ import org.openstreetmap.josm.data.osm.history.HistoryNode;
 import org.openstreetmap.josm.data.osm.history.HistoryOsmPrimitive;
 import org.openstreetmap.josm.data.osm.history.HistoryRelation;
 import org.openstreetmap.josm.data.osm.history.HistoryWay;
-import org.openstreetmap.josm.gui.tagging.TaggingPreset;
-import org.openstreetmap.josm.gui.tagging.TaggingPresetNameTemplateList;
+import org.openstreetmap.josm.gui.tagging.presets.TaggingPreset;
+import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetNameTemplateList;
 import org.openstreetmap.josm.tools.AlphanumComparator;
 import org.openstreetmap.josm.tools.I18n;
 import org.openstreetmap.josm.tools.Utils;
@@ -93,7 +93,7 @@ public class DefaultNameFormatter implements NameFormatter, HistoryNameFormatter
     /** The default list of tags which are used as naming tags in relations.
      * A ? prefix indicates a boolean value, for which the key (instead of the value) is used.
      */
-    public static final String[] DEFAULT_NAMING_TAGS_FOR_RELATIONS = {"name", "ref", "restriction", "landuse", "natural",
+    protected static final String[] DEFAULT_NAMING_TAGS_FOR_RELATIONS = {"name", "ref", "restriction", "landuse", "natural",
         "public_transport", ":LocationCode", "note", "?building"};
 
     /** the current list of tags used as naming tags in relations */
@@ -421,7 +421,7 @@ public class DefaultNameFormatter implements NameFormatter, HistoryNameFormatter
         return relationComparator;
     }
 
-    private String getRelationTypeName(IRelation relation) {
+    private static String getRelationTypeName(IRelation relation) {
         String name = trc("Relation type", relation.get("type"));
         if (name == null) {
             name = (relation.get("public_transport") != null) ? tr("public transport") : null;
@@ -454,7 +454,7 @@ public class DefaultNameFormatter implements NameFormatter, HistoryNameFormatter
         return name;
     }
 
-    private String getNameTagValue(IRelation relation, String nameTag) {
+    private static String getNameTagValue(IRelation relation, String nameTag) {
         if ("name".equals(nameTag)) {
             if (Main.pref.getBoolean("osm-primitives.localize-name", true))
                 return relation.getLocalName();
@@ -508,7 +508,7 @@ public class DefaultNameFormatter implements NameFormatter, HistoryNameFormatter
         return buildDefaultToolTip(primitive.getId(), primitive.getKeys());
     }
 
-    private String buildDefaultToolTip(long id, Map<String, String> tags) {
+    private static String buildDefaultToolTip(long id, Map<String, String> tags) {
         StringBuilder sb = new StringBuilder();
         sb.append("<html><strong>id</strong>=")
           .append(id)

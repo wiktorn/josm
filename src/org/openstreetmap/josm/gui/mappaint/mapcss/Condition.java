@@ -7,6 +7,7 @@ import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -53,6 +54,10 @@ public abstract class Condition {
 
         default: throw new AssertionError();
         }
+    }
+
+    public static Condition createRegexpKeyRegexpValueCondition(String k, String v, Op op) {
+        return new RegexpKeyValueRegexpCondition(k, v, op);
     }
 
     public static Condition createKeyCondition(String k, boolean not, KeyMatchType matchType, Context context) {
@@ -113,7 +118,7 @@ public abstract class Condition {
          /** The value needs to contain the reference string. */
         CONTAINS;
 
-        public static final Set<Op> NEGATED_OPS = EnumSet.of(NEQ, NREGEX);
+        protected static final Set<Op> NEGATED_OPS = EnumSet.of(NEQ, NREGEX);
 
         /**
          * Evaluates a value against a reference string.
@@ -277,7 +282,7 @@ public abstract class Condition {
     public static class KeyValueRegexpCondition extends KeyValueCondition {
 
         public final Pattern pattern;
-        public static final Set<Op> SUPPORTED_OPS = EnumSet.of(Op.REGEX, Op.NREGEX);
+        protected static final Set<Op> SUPPORTED_OPS = EnumSet.of(Op.REGEX, Op.NREGEX);
 
         public KeyValueRegexpCondition(String k, String v, Op op, boolean considerValAsKey) {
             super(k, v, op, considerValAsKey);
@@ -286,16 +291,40 @@ public abstract class Condition {
             this.pattern = Pattern.compile(v);
         }
 
+        protected boolean matches(Environment env) {
+            final String value = env.osm.get(k);
+            return value != null && pattern.matcher(value).find();
+        }
+
         @Override
         public boolean applies(Environment env) {
-            final String value = env.osm.get(k);
             if (Op.REGEX.equals(op)) {
-                return value != null && pattern.matcher(value).find();
+                return matches(env);
             } else if (Op.NREGEX.equals(op)) {
-                return value == null || !pattern.matcher(value).find();
+                return !matches(env);
             } else {
                 throw new IllegalStateException();
             }
+        }
+    }
+
+    public static class RegexpKeyValueRegexpCondition extends KeyValueRegexpCondition {
+
+        public final Pattern keyPattern;
+
+        public RegexpKeyValueRegexpCondition(String k, String v, Op op) {
+            super(k, v, op, false);
+            this.keyPattern = Pattern.compile(k);
+        }
+
+        @Override
+        protected boolean matches(Environment env) {
+            for (Map.Entry<String, String> kv: env.osm.getKeys().entrySet()) {
+                if (keyPattern.matcher(kv.getKey()).find() && pattern.matcher(kv.getValue()).find()) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 
@@ -490,6 +519,8 @@ public abstract class Condition {
 
         /**
          * {@code closed} tests whether the way is closed or the relation is a closed multipolygon
+         * @param e MapCSS environment
+         * @return {@code true} if the way is closed or the relation is a closed multipolygon
          */
         static boolean closed(Environment e) {
             if (e.osm instanceof Way && ((Way) e.osm).isClosed())
@@ -501,7 +532,9 @@ public abstract class Condition {
 
         /**
          * {@code :modified} tests whether the object has been modified.
-         * @see OsmPrimitive#isModified() ()
+         * @param e MapCSS environment
+         * @return {@code true} if the object has been modified
+         * @see OsmPrimitive#isModified()
          */
         static boolean modified(Environment e) {
             return e.osm.isModified() || e.osm.isNewOrUndeleted();
@@ -509,6 +542,8 @@ public abstract class Condition {
 
         /**
          * {@code ;new} tests whether the object is new.
+         * @param e MapCSS environment
+         * @return {@code true} if the object is new
          * @see OsmPrimitive#isNew()
          */
         static boolean _new(Environment e) {
@@ -517,14 +552,18 @@ public abstract class Condition {
 
         /**
          * {@code :connection} tests whether the object is a connection node.
+         * @param e MapCSS environment
+         * @return {@code true} if the object is a connection node
          * @see Node#isConnectionNode()
          */
         static boolean connection(Environment e) {
-            return e.osm instanceof Node && ((Node) e.osm).isConnectionNode();
+            return e.osm instanceof Node && e.osm.getDataSet() != null && ((Node) e.osm).isConnectionNode();
         }
 
         /**
          * {@code :tagged} tests whether the object is tagged.
+         * @param e MapCSS environment
+         * @return {@code true} if the object is tagged
          * @see OsmPrimitive#isTagged()
          */
         static boolean tagged(Environment e) {
@@ -533,6 +572,8 @@ public abstract class Condition {
 
         /**
          * {@code :same-tags} tests whether the object has the same tags as its child/parent.
+         * @param e MapCSS environment
+         * @return {@code true} if the object has the same tags as its child/parent
          * @see OsmPrimitive#hasSameInterestingTags(OsmPrimitive)
          */
         static boolean sameTags(Environment e) {
@@ -541,6 +582,8 @@ public abstract class Condition {
 
         /**
          * {@code :area-style} tests whether the object has an area style. This is useful for validators.
+         * @param e MapCSS environment
+         * @return {@code true} if the object has an area style
          * @see ElemStyles#hasAreaElemStyle(OsmPrimitive, boolean)
          */
         static boolean areaStyle(Environment e) {
@@ -550,6 +593,8 @@ public abstract class Condition {
 
         /**
          * {@code unconnected}: tests whether the object is a unconnected node.
+         * @param e MapCSS environment
+         * @return {@code true} if the object is a unconnected node
          */
         static boolean unconnected(Environment e) {
             return e.osm instanceof Node && OsmPrimitive.getFilteredList(e.osm.getReferrers(), Way.class).isEmpty();
@@ -557,6 +602,8 @@ public abstract class Condition {
 
         /**
          * {@code righthandtraffic} checks if there is right-hand traffic at the current location.
+         * @param e MapCSS environment
+         * @return {@code true} if there is right-hand traffic at the current location
          * @see ExpressionFactory.Functions#is_right_hand_traffic(Environment)
          */
         static boolean righthandtraffic(Environment e) {
@@ -565,6 +612,8 @@ public abstract class Condition {
 
         /**
          * {@code unclosed-multipolygon} tests whether the object is an unclosed multipolygon.
+         * @param e MapCSS environment
+         * @return {@code true} if the object is an unclosed multipolygon
          */
         static boolean unclosed_multipolygon(Environment e) {
             return e.osm instanceof Relation && ((Relation) e.osm).isMultipolygon() &&
@@ -576,6 +625,8 @@ public abstract class Condition {
 
         /**
          * {@code in-downloaded-area} tests whether the object is within source area ("downloaded area").
+         * @param e MapCSS environment
+         * @return {@code true} if the object is within source area ("downloaded area")
          * @see InDataSourceArea
          */
         static boolean inDownloadedArea(Environment e) {

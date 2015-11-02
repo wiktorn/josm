@@ -560,7 +560,7 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
      * Inserts node into nearby segment.
      * @param e current mouse point
      */
-    private void addNewNode(MouseEvent e) {
+    private static void addNewNode(MouseEvent e) {
         // Should maybe do the same as in DrawAction and fetch all nearby segments?
         WaySegment ws = Main.map.mapView.getNearestWaySegment(e.getPoint(), OsmPrimitive.isSelectablePredicate);
         if (ws != null) {
@@ -1107,7 +1107,8 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
     }
 
     /**
-     * Returns true if from1-to1 and from2-to2 vertors directions are opposite
+     * Determines if from1-to1 and from2-to2 vertors directions are opposite
+     * @return true if from1-to1 and from2-to2 vertors directions are opposite
      */
     private static boolean isOppositeDirection(EastNorth from1, EastNorth to1, EastNorth from2, EastNorth to2) {
         return (from1.getX()-to1.getX())*(from2.getX()-to2.getX())

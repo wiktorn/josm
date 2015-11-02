@@ -53,6 +53,7 @@ import org.openstreetmap.josm.gui.util.ModifierListener;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Pair;
 import org.openstreetmap.josm.tools.Shortcut;
+import org.openstreetmap.josm.tools.Utils;
 
 /**
  * Move is an action that can move all kind of OsmPrimitives (except keys for now).
@@ -685,9 +686,10 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
         }
     }
 
-    /** returns true whenever elements have been grabbed and moved (i.e. the initial
-     * thresholds have been exceeded) and is still in progress (i.e. mouse button
-     * still pressed)
+    /**
+     * Determines whenever elements have been grabbed and moved (i.e. the initial
+     * thresholds have been exceeded) and is still in progress (i.e. mouse button still pressed)
+     * @return true if a drag is in progress
      */
     private boolean dragInProgress() {
         return didMouseDrag && startingDraggingPos != null;
@@ -771,7 +773,7 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
         return true;
     }
 
-    private boolean doesImpactStatusLine(Collection<Node> affectedNodes, Collection<Way> selectedWays) {
+    private static boolean doesImpactStatusLine(Collection<Node> affectedNodes, Collection<Way> selectedWays) {
         for (Way w : selectedWays) {
             for (Node n : w.getNodes()) {
                 if (affectedNodes.contains(n)) {
@@ -796,8 +798,9 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
 
     /**
      * Obtain command in undoRedo stack to "continue" when dragging
+     * @return last command
      */
-    private Command getLastCommand() {
+    private static Command getLastCommand() {
         Command c = !Main.main.undoRedo.commands.isEmpty()
                 ? Main.main.undoRedo.commands.getLast() : null;
         if (c instanceof SequenceCommand) {
@@ -807,12 +810,23 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
     }
 
     /**
-     * Present warning in case of large and possibly unwanted movements and undo
-     * unwanted movements.
+     * Present warning in the following cases and undo unwanted movements: <ul>
+     * <li>large and possibly unwanted movements</li>
+     * <li>movement of node with attached ways that are hidden by filters</li>
+     * </ul>
      *
      * @param e the mouse event causing the action (mouse released)
      */
     private void confirmOrUndoMovement(MouseEvent e) {
+        if (movesHiddenWay()) {
+            final ExtendedDialog ed = new ConfirmMoveDialog();
+            ed.setContent(tr("Are you sure that you want to move elements with attached ways that are hidden by filters?"));
+            ed.toggleEnable("movedHiddenElements");
+            ed.showDialog();
+            if (ed.getValue() != 1) {
+                Main.main.undoRedo.undo();
+            }
+        }
         int max = Main.pref.getInteger("warn.move.maxelements", 20), limit = max;
         for (OsmPrimitive osm : getCurrentDataSet().getSelected()) {
             if (osm instanceof Way) {
@@ -823,17 +837,12 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
             }
         }
         if (limit < 0) {
-            ExtendedDialog ed = new ExtendedDialog(
-                    Main.parent,
-                    tr("Move elements"),
-                    new String[]{tr("Move them"), tr("Undo move")});
-            ed.setButtonIcons(new String[]{"reorder", "cancel"});
+            final ExtendedDialog ed = new ConfirmMoveDialog();
             ed.setContent(
                     /* for correct i18n of plural forms - see #9110 */
                     trn("You moved more than {0} element. " + "Moving a large number of elements is often an error.\n" + "Really move them?",
                         "You moved more than {0} elements. " + "Moving a large number of elements is often an error.\n" + "Really move them?",
                         max, max));
-            ed.setCancelButton(2);
             ed.toggleEnable("movedManyElements");
             ed.showDialog();
 
@@ -846,6 +855,32 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
             if (ctrl) mergePrims(e.getPoint());
         }
         getCurrentDataSet().fireSelectionChanged();
+    }
+
+    static class ConfirmMoveDialog extends ExtendedDialog {
+        public ConfirmMoveDialog() {
+            super(Main.parent,
+                    tr("Move elements"),
+                    new String[]{tr("Move them"), tr("Undo move")});
+            setButtonIcons(new String[]{"reorder", "cancel"});
+            setCancelButton(2);
+
+        }
+    }
+
+    private boolean movesHiddenWay() {
+        final Collection<OsmPrimitive> elementsToTest = new HashSet<>(getCurrentDataSet().getSelected());
+        for (Way osm : Utils.filteredCollection(getCurrentDataSet().getSelected(), Way.class)) {
+            elementsToTest.addAll(osm.getNodes());
+        }
+        for (OsmPrimitive node : Utils.filteredCollection(elementsToTest, Node.class)) {
+            for (Way ref : Utils.filteredCollection(node.getReferrers(), Way.class)) {
+                if (ref.isDisabledAndHidden()) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -900,6 +935,7 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
     /**
      * Tries to find a node to merge to when in move-merge mode for the current mouse
      * position. Either returns the node or null, if no suitable one is nearby.
+     * @return node to merge to, or null
      */
     private Node findNodeToMergeTo(Point p) {
         Collection<Node> target = mv.getNearestNodes(p,

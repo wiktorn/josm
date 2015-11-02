@@ -60,10 +60,14 @@ public final class AlphanumComparator implements Comparator<String>, Serializabl
     }
 
     /**
-     * Length of string is passed in for improved efficiency (only need to
-     * calculate it once) *
+     * Returns an alphanum chunk.
+     * Length of string is passed in for improved efficiency (only need to calculate it once).
+     * @param s string
+     * @param slength string length
+     * @param marker position
+     * @return alphanum chunk found at given position
      */
-    private String getChunk(String s, int slength, int marker) {
+    private static String getChunk(String s, int slength, int marker) {
         StringBuilder chunk = new StringBuilder();
         char c = s.charAt(marker);
         chunk.append(c);

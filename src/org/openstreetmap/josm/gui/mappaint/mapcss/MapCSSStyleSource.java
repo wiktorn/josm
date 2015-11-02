@@ -99,7 +99,7 @@ public class MapCSSStyleSource extends StyleSource {
     /**
      * Set of all supported MapCSS keys.
      */
-    public static final Set<String> SUPPORTED_KEYS = new HashSet<>();
+    protected static final Set<String> SUPPORTED_KEYS = new HashSet<>();
     static {
         Field[] declaredFields = StyleKeys.class.getDeclaredFields();
         for (Field f : declaredFields) {
@@ -308,7 +308,7 @@ public class MapCSSStyleSource extends StyleSource {
             return key;
         }
 
-        private boolean conditionRequiresKeyPresence(KeyMatchType matchType) {
+        private static boolean conditionRequiresKeyPresence(KeyMatchType matchType) {
             return matchType != KeyMatchType.REGEX;
         }
 

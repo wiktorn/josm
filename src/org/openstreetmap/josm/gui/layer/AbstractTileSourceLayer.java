@@ -159,10 +159,6 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
         setBackgroundLayer(true);
         this.setVisible(true);
         MapView.addZoomChangeListener(this);
-        this.tileSource = getTileSource(info);
-        if (this.tileSource == null) {
-            throw new IllegalArgumentException(tr("Failed to create tile source"));
-        }
     }
 
     protected abstract TileLoaderFactory getTileLoaderFactory();
@@ -505,6 +501,13 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
      */
     @Override
     public void hookUpMapView() {
+        // this needs to be here and not in constructor to allow empty TileSource class construction
+        // using SessionWriter
+        this.tileSource = getTileSource(info);
+        if (this.tileSource == null) {
+            throw new IllegalArgumentException(tr("Failed to create tile source"));
+        }
+
         super.hookUpMapView();
         projectionChanged(null, Main.getProjection()); // check if projection is supported
         initTileSource(this.tileSource);
@@ -668,9 +671,9 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
             tileSize = tileSource.getTileSize();
         }
         // as we can see part of the tile at the top and at the bottom, use Math.ceil(...) + 1 to accommodate for that
-        int visibileTiles = (int) (Math.ceil( (double)height / tileSize + 1) * Math.ceil((double)width / tileSize + 1));
+        int visibileTiles = (int) (Math.ceil((double) height / tileSize + 1) * Math.ceil((double) width / tileSize + 1));
         // add 10% for tiles from different zoom levels
-        return (int)Math.ceil(
+        return (int) Math.ceil(
                 Math.pow(2d, ZOOM_OFFSET.get()) * visibileTiles // use offset to decide, how many tiles are visible
                 * 2);
     }

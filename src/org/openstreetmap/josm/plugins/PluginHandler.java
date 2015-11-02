@@ -7,6 +7,7 @@ import static org.openstreetmap.josm.tools.I18n.trn;
 
 import java.awt.Component;
 import java.awt.Font;
+import java.awt.GraphicsEnvironment;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
@@ -78,7 +79,7 @@ public final class PluginHandler {
     /**
      * Deprecated plugins that are removed on start
      */
-    public static final Collection<DeprecatedPlugin> DEPRECATED_PLUGINS;
+    protected static final Collection<DeprecatedPlugin> DEPRECATED_PLUGINS;
     static {
         String IN_CORE = tr("integrated into main program");
 
@@ -125,6 +126,7 @@ public final class PluginHandler {
             new DeprecatedPlugin("notes", IN_CORE),
             new DeprecatedPlugin("mirrored_download", IN_CORE),
             new DeprecatedPlugin("ImageryCache", IN_CORE),
+            new DeprecatedPlugin("commons-imaging", tr("replaced by new {0} plugin", "apache-commons")),
         });
     }
 
@@ -217,7 +219,8 @@ public final class PluginHandler {
         "Intersect_way",
         "CADTools",                // See #11438, #11518, https://github.com/ROTARIUANAMARIA/CADTools/issues/1
         "ContourOverlappingMerge", // See #11202, #11518, https://github.com/bularcasergiu/ContourOverlappingMerge/issues/1
-        "LaneConnector"            // See #11468, #11518, https://github.com/TrifanAdrian/LanecConnectorPlugin/issues/1
+        "LaneConnector",           // See #11468, #11518, https://github.com/TrifanAdrian/LanecConnectorPlugin/issues/1
+        "Remove.redundant.points"  // See #11468, #11518, https://github.com/bularcasergiu/RemoveRedundantPoints (not even created an issue...)
     };
 
     /**
@@ -229,6 +232,12 @@ public final class PluginHandler {
      * All installed and loaded plugins (resp. their main classes)
      */
     public static final Collection<PluginProxy> pluginList = new LinkedList<>();
+
+    /**
+     * All exceptions that occured during plugin loading
+     * @since 8938
+     */
+    public static final Map<String, Exception> pluginLoadingExceptions = new HashMap<>();
 
     /**
      * Global plugin ClassLoader.
@@ -278,7 +287,7 @@ public final class PluginHandler {
 
         // notify user about removed deprecated plugins
         //
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new StringBuilder(32);
         sb.append("<html>")
           .append(trn(
                 "The following plugin is no longer necessary and has been deactivated:",
@@ -307,6 +316,7 @@ public final class PluginHandler {
      * of plugins in the preferences, if necessary.
      *
      * Asks the user for every unmaintained plugin whether it should be removed.
+     * @param parent The parent Component used to display warning popup
      *
      * @param plugins the collection of plugins
      */
@@ -315,7 +325,7 @@ public final class PluginHandler {
             if (!plugins.contains(unmaintained)) {
                 continue;
             }
-            String msg =  tr("<html>Loading of the plugin \"{0}\" was requested."
+            String msg = tr("<html>Loading of the plugin \"{0}\" was requested."
                     + "<br>This plugin is no longer developed and very likely will produce errors."
                     +"<br>It should be disabled.<br>Delete from preferences?</html>", unmaintained);
             if (confirmDisablePlugin(parent, msg, unmaintained)) {
@@ -701,12 +711,14 @@ public final class PluginHandler {
             }
             msg = null;
         } catch (PluginException e) {
+            pluginLoadingExceptions.put(plugin.name, e);
             Main.error(e);
             if (e.getCause() instanceof ClassNotFoundException) {
                 msg = tr("<html>Could not load plugin {0} because the plugin<br>main class ''{1}'' was not found.<br>"
                         + "Delete from preferences?</html>", plugin.name, plugin.className);
             }
         }  catch (Exception e) {
+            pluginLoadingExceptions.put(plugin.name, e);
             Main.error(e);
         }
         if (msg != null && confirmDisablePlugin(parent, msg, plugin.name)) {
@@ -952,6 +964,7 @@ public final class PluginHandler {
      * @param pluginsWanted the collection of plugins to update. Updates all plugins if {@code null}
      * @param monitor the progress monitor. Defaults to {@link NullProgressMonitor#INSTANCE} if null.
      * @param displayErrMsg if {@code true}, a blocking error message is displayed in case of I/O exception.
+     * @return the list of plugins to load
      * @throws IllegalArgumentException if plugins is null
      */
     public static Collection<PluginInformation> updatePlugins(Component parent,
@@ -1088,16 +1101,19 @@ public final class PluginHandler {
                         null /* no specific help context */
                 )
         };
-        int ret = HelpAwareOptionPane.showOptionDialog(
-                parent,
-                reason,
-                tr("Disable plugin"),
-                JOptionPane.WARNING_MESSAGE,
-                null,
-                options,
-                options[0],
-                null // FIXME: add help topic
-        );
+        int ret = -1;
+        if (!GraphicsEnvironment.isHeadless()) {
+            ret = HelpAwareOptionPane.showOptionDialog(
+                    parent,
+                    reason,
+                    tr("Disable plugin"),
+                    JOptionPane.WARNING_MESSAGE,
+                    null,
+                    options,
+                    options[0],
+                    null // FIXME: add help topic
+            );
+        }
         return ret == 0;
     }
 
@@ -1445,6 +1461,20 @@ public final class PluginHandler {
             pluginTab.add(description, GBC.eop().fill(GBC.HORIZONTAL));
         }
         return pluginTab;
+    }
+
+    /**
+     * Returns the set of deprecated and unmaintained plugins.
+     * @return set of deprecated and unmaintained plugins names.
+     * @since 8938
+     */
+    public static Set<String> getDeprecatedAndUnmaintainedPlugins() {
+        Set<String> result = new HashSet<>(DEPRECATED_PLUGINS.size() + UNMAINTAINED_PLUGINS.length);
+        for (DeprecatedPlugin dp : DEPRECATED_PLUGINS) {
+            result.add(dp.name);
+        }
+        result.addAll(Arrays.asList(UNMAINTAINED_PLUGINS));
+        return result;
     }
 
     private static class UpdatePluginsMessagePanel extends JPanel {

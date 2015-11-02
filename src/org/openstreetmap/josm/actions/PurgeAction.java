@@ -180,8 +180,8 @@ public class PurgeAction extends JosmAction {
              * Add higher level relations (list gets extended while looping over it)
              */
             List<Relation> relLst = new ArrayList<>(relSet);
-            for (int i = 0; i < relLst.size(); ++i) {
-                for (OsmPrimitive parent : relLst.get(i).getReferrers()) {
+            for (Relation r : relLst) {
+                for (OsmPrimitive parent : r.getReferrers()) {
                     if (!(toPurgeChecked.contains(parent))
                             && hasOnlyIncompleteMembers((Relation) parent, toPurgeChecked, relLst)) {
                         relLst.add((Relation) parent);
@@ -309,7 +309,8 @@ public class PurgeAction extends JosmAction {
         setEnabled(selection != null && !selection.isEmpty());
     }
 
-    private boolean hasOnlyIncompleteMembers(Relation r, Collection<OsmPrimitive> toPurge, Collection<? extends OsmPrimitive> moreToPurge) {
+    private static boolean hasOnlyIncompleteMembers(
+            Relation r, Collection<OsmPrimitive> toPurge, Collection<? extends OsmPrimitive> moreToPurge) {
         for (RelationMember m : r.getMembers()) {
             if (!m.getMember().isIncomplete() && !toPurge.contains(m.getMember()) && !moreToPurge.contains(m.getMember()))
                 return false;

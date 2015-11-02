@@ -80,7 +80,7 @@ public class OsmValidator implements LayerChangeListener {
     /** Grid detail, multiplier of east,north values for valuable cell sizing */
     public static double griddetail;
 
-    public static final Collection<String> ignoredErrors = new TreeSet<>();
+    private static final Collection<String> ignoredErrors = new TreeSet<>();
 
     /**
      * All available tests
@@ -161,7 +161,7 @@ public class OsmValidator implements LayerChangeListener {
     /**
      * Check if plugin directory exists (store ignored errors file)
      */
-    private void checkValidatorDir() {
+    private static void checkValidatorDir() {
         try {
             File pathDir = new File(getValidatorDir());
             if (!pathDir.exists()) {
@@ -172,7 +172,7 @@ public class OsmValidator implements LayerChangeListener {
         }
     }
 
-    private void loadIgnoredErrors() {
+    private static void loadIgnoredErrors() {
         ignoredErrors.clear();
         if (Main.pref.getBoolean(ValidatorPreference.PREF_USE_IGNORE, true)) {
             Path path = Paths.get(getValidatorDir()).resolve("ignorederrors");

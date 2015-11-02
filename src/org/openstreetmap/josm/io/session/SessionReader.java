@@ -170,6 +170,8 @@ public class SessionReader {
          *         "layers/01/data.osm"
          *     - relativ to the .joz file:
          *         "../save/data.osm"           ("../" steps out of the archive)
+         * @param uriStr URI as string
+         * @return the InputStream
          *
          * @throws IOException Thrown when no Stream can be opened for the given URI, e.g. when the linked file has been deleted.
          */
@@ -195,6 +197,9 @@ public class SessionReader {
          *
          * Returns null if the URI points to a file inside the zip archive.
          * In this case, inZipPath will be set to the corresponding path.
+         * @param uriStr the URI as string
+         * @return the resulting File
+         * @throws IOException if any I/O error occurs
          */
         public File getFile(String uriStr) throws IOException {
             inZipPath = null;
@@ -242,6 +247,7 @@ public class SessionReader {
 
         /**
          * Name of the layer that is currently imported.
+         * @return layer name
          */
         public String getLayerName() {
             return layerName;
@@ -249,6 +255,7 @@ public class SessionReader {
 
         /**
          * Index of the layer that is currently imported.
+         * @return layer index
          */
         public int getLayerIndex() {
             return layerIndex;
@@ -257,6 +264,7 @@ public class SessionReader {
         /**
          * Dependencies - maps the layer index to the importer of the given
          * layer. All the dependent importers have loaded completely at this point.
+         * @return layer dependencies
          */
         public List<LayerDependency> getLayerDependencies() {
             return layerDependencies;

@@ -52,7 +52,7 @@ public class PleaseWaitProgressMonitor extends AbstractProgressMonitor {
 
     private boolean cancelable;
 
-    private void doInEDT(Runnable runnable) {
+    private static void doInEDT(Runnable runnable) {
         // This must be invoke later even if current thread is EDT because inside there is dialog.setVisible
         // which freeze current code flow until modal dialog is closed
         SwingUtilities.invokeLater(runnable);
@@ -173,6 +173,9 @@ public class PleaseWaitProgressMonitor extends AbstractProgressMonitor {
             @Override
             public void run() {
                 Main.currentProgressMonitor = PleaseWaitProgressMonitor.this;
+                if (GraphicsEnvironment.isHeadless()) {
+                    return;
+                }
                 if (dialogParent != null && dialog == null) {
                     dialog = new PleaseWaitDialog(dialogParent);
                 } else
