@@ -82,9 +82,7 @@ import java.util.Map;
     GNU General Public License</a>
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
  */
-
 public class Diff {
 
     /** Prepare to find differences between two arrays.  Each element of
@@ -93,6 +91,8 @@ public class Diff {
       are no longer needed for computing the differences.  They will
       be needed again later to print the results of the comparison as
       an edit script, if desired.
+     * @param a first array
+     * @param b second array
      */
     public Diff(Object[] a, Object[] b) {
         Map<Object, Integer> h = new HashMap<>(a.length + b.length);
@@ -127,30 +127,31 @@ public class Diff {
     /** Snakes bigger than this are considered "big". */
     private static final int SNAKE_LIMIT = 20;
 
-    /** Find the midpoint of the shortest edit script for a specified
-     portion of the two files.
-
-     We scan from the beginnings of the files, and simultaneously from the ends,
-     doing a breadth-first search through the space of edit-sequence.
-     When the two searches meet, we have found the midpoint of the shortest
-     edit sequence.
-
-     The value returned is the number of the diagonal on which the midpoint lies.
-     The diagonal number equals the number of inserted lines minus the number
-     of deleted lines (counting only lines before the midpoint).
-     The edit cost is stored into COST; this is the total number of
-     lines inserted or deleted (counting only lines before the midpoint).
-
-     This function assumes that the first lines of the specified portions
-     of the two files do not match, and likewise that the last lines do not
-     match.  The caller must trim matching lines from the beginning and end
-     of the portions it is going to specify.
-
-     Note that if we return the "wrong" diagonal value, or if
-     the value of bdiag at that diagonal is "wrong",
-     the worst this can do is cause suboptimal diff output.
-     It cannot cause incorrect diff output.  */
-
+    /**
+     * Find the midpoint of the shortest edit script for a specified
+     * portion of the two files.
+     *
+     * We scan from the beginnings of the files, and simultaneously from the ends,
+     * doing a breadth-first search through the space of edit-sequence.
+     * When the two searches meet, we have found the midpoint of the shortest
+     * edit sequence.
+     *
+     * The value returned is the number of the diagonal on which the midpoint lies.
+     * The diagonal number equals the number of inserted lines minus the number
+     * of deleted lines (counting only lines before the midpoint).
+     * The edit cost is stored into COST; this is the total number of
+     * lines inserted or deleted (counting only lines before the midpoint).
+     *
+     * This function assumes that the first lines of the specified portions
+     * of the two files do not match, and likewise that the last lines do not
+     * match.  The caller must trim matching lines from the beginning and end
+     * of the portions it is going to specify.
+     *
+     * Note that if we return the "wrong" diagonal value, or if
+     * the value of bdiag at that diagonal is "wrong",
+     * the worst this can do is cause suboptimal diff output.
+     * It cannot cause incorrect diff output.
+     */
     private int diag(int xoff, int xlim, int yoff, int ylim) {
         final int[] fd = fdiag; // Give the compiler a chance.
         final int[] bd = bdiag; // Additional help for the compiler.
@@ -475,8 +476,7 @@ public class Diff {
     forwardScript = new ForwardScript(),
     reverseScript = new ReverseScript();
 
-    /** Report the differences of two files.  DEPTH is the current directory
-        depth. */
+    /** Report the differences of two files. DEPTH is the current directory depth. */
     public final Change diff_2(final boolean reverse) {
         return diff(reverse ? reverseScript : forwardScript);
     }
@@ -567,6 +567,14 @@ public class Diff {
             this.inserted = inserted;
             this.deleted = deleted;
             this.link = old;
+        }
+
+        /**
+         * Returns the number of insertions and deletions of this change as well as
+         * (recursively) the changes linked via {@link #link}.
+         */
+        public int getTotalNumberOfChanges() {
+            return inserted + deleted + (link != null ? link.getTotalNumberOfChanges() : 0);
         }
 
         @Override

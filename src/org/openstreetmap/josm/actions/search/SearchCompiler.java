@@ -105,10 +105,10 @@ public class SearchCompiler {
     }
 
     public class CoreSimpleMatchFactory implements SimpleMatchFactory {
-        private Collection<String> keywords = Arrays.asList("id", "version",
+        private Collection<String> keywords = Arrays.asList("id", "version", "type", "user", "role",
                 "changeset", "nodes", "ways", "tags", "areasize", "waylength", "modified", "selected",
                 "incomplete", "untagged", "closed", "new", "indownloadedarea",
-                "allindownloadedarea", "inview", "allinview", "timestamp", "nth", "nth%");
+                "allindownloadedarea", "inview", "allinview", "timestamp", "nth", "nth%", "hasRole");
 
         @Override
         public Match get(String keyword, PushbackTokenizer tokenizer) throws ParseError {
@@ -140,6 +140,12 @@ public class SearchCompiler {
                         return new Id(tokenizer);
                     case "version":
                         return new Version(tokenizer);
+                    case "type":
+                        return new ExactType(tokenizer.readTextOrNumber());
+                    case "user":
+                        return new UserMatch(tokenizer.readTextOrNumber());
+                    case "role":
+                        return new RoleMatch(tokenizer.readTextOrNumber());
                     case "changeset":
                         return new ChangesetId(tokenizer);
                     case "nodes":
@@ -156,6 +162,8 @@ public class SearchCompiler {
                         return new Nth(tokenizer, false);
                     case "nth%":
                         return new Nth(tokenizer, true);
+                    case "hasRole":
+                        return new HasRole(tokenizer);
                     case "timestamp":
                         // add leading/trailing space in order to get expected split (e.g. "a--" => {"a", ""})
                         String rangeS = ' ' + tokenizer.readTextOrNumber() + ' ';
@@ -232,6 +240,8 @@ public class SearchCompiler {
 
         /**
          * Tests whether one of the primitives matches.
+         * @param primitives primitives
+         * @return {@code true} if one of the primitives matches, {@code false} otherwise
          */
         protected boolean existsMatch(Collection<? extends OsmPrimitive> primitives) {
             for (OsmPrimitive p : primitives) {
@@ -243,6 +253,8 @@ public class SearchCompiler {
 
         /**
          * Tests whether all primitives match.
+         * @param primitives primitives
+         * @return {@code true} if all primitives match, {@code false} otherwise
          */
         protected boolean forallMatch(Collection<? extends OsmPrimitive> primitives) {
             for (OsmPrimitive p : primitives) {
@@ -622,7 +634,9 @@ public class SearchCompiler {
             this.referenceValue = referenceValue;
             Double v = null;
             try {
-                v = Double.valueOf(referenceValue);
+                if (referenceValue != null) {
+                    v = Double.valueOf(referenceValue);
+                }
             } catch (NumberFormatException ignore) {
                 if (Main.isTraceEnabled()) {
                     Main.trace(ignore.getMessage());
@@ -1127,6 +1141,22 @@ public class SearchCompiler {
     }
 
     /**
+     * Matches relations with a member of the given role
+     */
+    private static class HasRole extends Match {
+        private final String role;
+
+        HasRole(PushbackTokenizer tokenizer) {
+            role = tokenizer.readTextOrNumber();
+        }
+
+        @Override
+        public boolean match(OsmPrimitive osm) {
+            return osm instanceof Relation && ((Relation) osm).getMemberRoles().contains(role);
+        }
+    }
+
+    /**
      * Matches objects that are new (i.e. have not been uploaded to the server)
      */
     private static class New extends Match {
@@ -1564,7 +1594,8 @@ public class SearchCompiler {
                     return unaryFactory.get(key, parseFactor(), tokenizer);
 
                 // key:value form where value is a string (may be OSM key search)
-                return parseKV(key, tokenizer.readTextOrNumber());
+                final String value = tokenizer.readTextOrNumber();
+                return new KeyValue(key, value != null ? value : "", regexSearch, caseSensitive);
             } else if (tokenizer.readIfEqual(Token.QUESTION_MARK))
                 return new BooleanMatch(key, false);
             else {
@@ -1589,22 +1620,6 @@ public class SearchCompiler {
             throw new ParseError(errorMessage);
         else
             return fact;
-    }
-
-    private Match parseKV(String key, String value) throws ParseError {
-        if (value == null) {
-            value = "";
-        }
-        switch(key) {
-        case "type":
-            return new ExactType(value);
-        case "user":
-            return new UserMatch(value);
-        case "role":
-            return new RoleMatch(value);
-        default:
-            return new KeyValue(key, value, regexSearch, caseSensitive);
-        }
     }
 
     private static int regexFlags(boolean caseSensitive) {

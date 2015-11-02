@@ -29,7 +29,6 @@ import org.openstreetmap.josm.command.ChangeCommand;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.DeleteCommand;
 import org.openstreetmap.josm.command.SequenceCommand;
-import org.openstreetmap.josm.corrector.UserCancelException;
 import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.osm.DataSet;
@@ -45,6 +44,7 @@ import org.openstreetmap.josm.gui.conflict.tags.CombinePrimitiveResolverDialog;
 import org.openstreetmap.josm.tools.Geometry;
 import org.openstreetmap.josm.tools.Pair;
 import org.openstreetmap.josm.tools.Shortcut;
+import org.openstreetmap.josm.tools.UserCancelException;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -258,7 +258,8 @@ public class JoinAreasAction extends JosmAction {
         }
 
         /**
-         * Oriented angle (N1N2, N1N3) in range [0; 2*Math.PI[
+         * Returns oriented angle (N1N2, N1N3) in range [0; 2*Math.PI[
+         * @return oriented angle (N1N2, N1N3) in range [0; 2*Math.PI[
          */
         private static double getAngle(Node N1, Node N2, Node N3) {
             EastNorth en1 = N1.getEastNorth();
@@ -587,11 +588,10 @@ public class JoinAreasAction extends JosmAction {
 
         // Find boundary ways
         List<Way> discardedWays = new ArrayList<>();
-        List<AssembledPolygon> bounadries = findBoundaryPolygons(preparedWays, discardedWays);
+        List<AssembledPolygon> boundaries = findBoundaryPolygons(preparedWays, discardedWays);
 
         //find polygons
-        List<AssembledMultipolygon> preparedPolygons = findPolygons(bounadries);
-
+        List<AssembledMultipolygon> preparedPolygons = findPolygons(boundaries);
 
         //assemble final polygons
         List<Multipolygon> polygons = new ArrayList<>();
@@ -929,8 +929,10 @@ public class JoinAreasAction extends JosmAction {
     }
 
     /**
-     * This is a method splits way into smaller parts, using the prepared nodes list as split points.
+     * This is a method that splits way into smaller parts, using the prepared nodes list as split points.
      * Uses {@link SplitWayAction#splitWay} for the heavy lifting.
+     * @param way way to split
+     * @param nodes split points
      * @return list of split ways (or original ways if no splitting is done).
      */
     private List<Way> splitWayOnNodes(Way way, Set<Node> nodes) {
@@ -939,7 +941,8 @@ public class JoinAreasAction extends JosmAction {
         List<List<Node>> chunks = buildNodeChunks(way, nodes);
 
         if (chunks.size() > 1) {
-            SplitWayResult split = SplitWayAction.splitWay(getEditLayer(), way, chunks, Collections.<OsmPrimitive>emptyList());
+            SplitWayResult split = SplitWayAction.splitWay(getEditLayer(), way, chunks,
+                    Collections.<OsmPrimitive>emptyList(), SplitWayAction.Strategy.keepFirstChunk());
 
             //execute the command, we need the results
             cmds.add(split.getCommand());
@@ -962,7 +965,7 @@ public class JoinAreasAction extends JosmAction {
      * @param splitNodes the places where to cut.
      * @return list of node paths to produce.
      */
-    private List<List<Node>> buildNodeChunks(Way way, Collection<Node> splitNodes) {
+    private static List<List<Node>> buildNodeChunks(Way way, Collection<Node> splitNodes) {
         List<List<Node>> result = new ArrayList<>();
         List<Node> curList = new ArrayList<>();
 
@@ -1141,6 +1144,7 @@ public class JoinAreasAction extends JosmAction {
     /**
      * This method checks if polygons have several touching parts and splits them in several polygons.
      * @param polygons the polygons to process.
+     * @return the resulting list of polygons
      */
     public static List<AssembledPolygon> fixTouchingPolygons(List<AssembledPolygon> polygons) {
         List<AssembledPolygon> newPolygons = new ArrayList<>();

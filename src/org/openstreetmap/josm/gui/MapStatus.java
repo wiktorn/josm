@@ -32,6 +32,8 @@ import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.TreeSet;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
@@ -347,6 +349,10 @@ public class MapStatus extends JPanel implements Helpful, Destroyable, Preferenc
 
         private MapFrame parent;
 
+        private final BlockingQueue<MouseState> incomingMouseState = new LinkedBlockingQueue<>();
+
+        private Point lastMousePos;
+
         Collector(MapFrame parent) {
             this.parent = parent;
         }
@@ -359,28 +365,16 @@ public class MapStatus extends JPanel implements Helpful, Destroyable, Preferenc
             registerListeners();
             try {
                 for (;;) {
-
-                    final MouseState ms = new MouseState();
-                    synchronized (this) {
-                        // TODO Would be better if the timeout wasn't necessary
-                        try {
-                            wait(1000);
-                        } catch (InterruptedException e) {
-                            // Occurs frequently during JOSM shutdown, log set to trace only
-                            Main.trace("InterruptedException in "+MapStatus.class.getSimpleName());
-                        }
-                        ms.modifiers = mouseState.modifiers;
-                        ms.mousePos = mouseState.mousePos;
-                    }
-                    if (parent != Main.map)
-                        return; // exit, if new parent.
-
-                    // Do nothing, if required data is missing
-                    if (ms.mousePos == null || mv.center == null) {
-                        continue;
-                    }
-
                     try {
+                        final MouseState ms = incomingMouseState.take();
+                        if (parent != Main.map)
+                            return; // exit, if new parent.
+
+                        // Do nothing, if required data is missing
+                        if (ms.mousePos == null || mv.center == null) {
+                            continue;
+                        }
+
                         EventQueue.invokeAndWait(new CollectorWorker(ms));
                     } catch (InterruptedException e) {
                         // Occurs frequently during JOSM shutdown, log set to trace only
@@ -649,20 +643,36 @@ public class MapStatus extends JPanel implements Helpful, Destroyable, Preferenc
             });
             return l;
         }
+
+        /**
+         * Called whenever the mouse position or modifiers changed.
+         * @param mousePos The new mouse position. <code>null</code> if it did not change.
+         * @param modifiers The new modifiers.
+         */
+        public synchronized void updateMousePosition(Point mousePos, int modifiers) {
+            if (mousePos != null) {
+                lastMousePos = mousePos;
+            }
+            MouseState ms = new MouseState(lastMousePos, modifiers);
+            // remove mouse states that are in the queue. Our mouse state is newer.
+            incomingMouseState.clear();
+            incomingMouseState.offer(ms);
+        }
     }
 
     /**
      * Everything, the collector is interested of. Access must be synchronized.
      * @author imi
      */
-    static class MouseState {
-        private Point mousePos;
-        private int modifiers;
+    private static class MouseState {
+        private final Point mousePos;
+        private final int modifiers;
+
+        MouseState(Point mousePos, int modifiers) {
+            this.mousePos = mousePos;
+            this.modifiers = modifiers;
+        }
     }
-    /**
-     * The last sent mouse movement event.
-     */
-    private transient MouseState mouseState = new MouseState();
 
     private transient AWTEventListener awtListener = new AWTEventListener() {
          @Override
@@ -670,11 +680,12 @@ public class MapStatus extends JPanel implements Helpful, Destroyable, Preferenc
             if (event instanceof InputEvent &&
                     ((InputEvent) event).getComponent() == mv) {
                 synchronized (collector) {
-                    mouseState.modifiers = ((InputEvent) event).getModifiersEx();
+                    int modifiers = ((InputEvent) event).getModifiersEx();
+                    Point mousePos = null;
                     if (event instanceof MouseEvent) {
-                        mouseState.mousePos = ((MouseEvent) event).getPoint();
+                        mousePos = ((MouseEvent) event).getPoint();
                     }
-                    collector.notifyAll();
+                    collector.updateMousePosition(mousePos, modifiers);
                 }
             }
         }
@@ -684,9 +695,7 @@ public class MapStatus extends JPanel implements Helpful, Destroyable, Preferenc
         @Override
         public void mouseMoved(MouseEvent e) {
             synchronized (collector) {
-                mouseState.modifiers = e.getModifiersEx();
-                mouseState.mousePos = e.getPoint();
-                collector.notifyAll();
+                collector.updateMousePosition(e.getPoint(), e.getModifiersEx());
             }
         }
 
@@ -699,8 +708,7 @@ public class MapStatus extends JPanel implements Helpful, Destroyable, Preferenc
     private transient KeyAdapter keyAdapter = new KeyAdapter() {
         @Override public void keyPressed(KeyEvent e) {
             synchronized (collector) {
-                mouseState.modifiers = e.getModifiersEx();
-                collector.notifyAll();
+                collector.updateMousePosition(null, e.getModifiersEx());
             }
         }
 

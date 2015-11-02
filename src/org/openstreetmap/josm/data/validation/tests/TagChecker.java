@@ -44,12 +44,12 @@ import org.openstreetmap.josm.data.validation.TestError;
 import org.openstreetmap.josm.data.validation.util.Entities;
 import org.openstreetmap.josm.gui.preferences.validator.ValidatorPreference;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
-import org.openstreetmap.josm.gui.tagging.TaggingPreset;
-import org.openstreetmap.josm.gui.tagging.TaggingPresetItem;
-import org.openstreetmap.josm.gui.tagging.TaggingPresetItems.Check;
-import org.openstreetmap.josm.gui.tagging.TaggingPresetItems.CheckGroup;
-import org.openstreetmap.josm.gui.tagging.TaggingPresetItems.KeyedItem;
-import org.openstreetmap.josm.gui.tagging.TaggingPresets;
+import org.openstreetmap.josm.gui.tagging.presets.TaggingPreset;
+import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetItem;
+import org.openstreetmap.josm.gui.tagging.presets.TaggingPresets;
+import org.openstreetmap.josm.gui.tagging.presets.items.Check;
+import org.openstreetmap.josm.gui.tagging.presets.items.CheckGroup;
+import org.openstreetmap.josm.gui.tagging.presets.items.KeyedItem;
 import org.openstreetmap.josm.gui.widgets.EditableList;
 import org.openstreetmap.josm.io.CachedFile;
 import org.openstreetmap.josm.io.UTFInputStreamReader;
@@ -295,8 +295,9 @@ public class TagChecker extends TagTest {
     /**
      * Checks given string (key or value) if it contains characters with code below 0x20 (either newline or some other special characters)
      * @param s string to check
+     * @return {@code true} if {@code s} contains characters with code below 0x20
      */
-    private boolean containsLow(String s) {
+    private static boolean containsLow(String s) {
         if (s == null)
             return false;
         for (int i = 0; i < s.length(); i++) {
@@ -404,7 +405,7 @@ public class TagChecker extends TagTest {
                     if (!keyInPresets) {
                         String prettifiedKey = harmonizeKey(key);
                         String fixedKey = harmonizedKeys.get(prettifiedKey);
-                        if (fixedKey != null && !"".equals(fixedKey)) {
+                        if (fixedKey != null && !"".equals(fixedKey) && !fixedKey.equals(key)) {
                             // misspelled preset key
                             String i = marktr("Key ''{0}'' looks like ''{1}''.");
                             errors.add(new FixableTestError(this, Severity.WARNING, tr("Misspelled property key"),
@@ -453,7 +454,7 @@ public class TagChecker extends TagTest {
         }
     }
 
-    private Map<String, String> getPossibleValues(Set<String> values) {
+    private static Map<String, String> getPossibleValues(Set<String> values) {
         // generate a map with common typos
         Map<String, String> map = new HashMap<>();
         if (values != null) {
@@ -665,7 +666,7 @@ public class TagChecker extends TagTest {
             public boolean valueAll;
             public boolean valueBool;
 
-            private Pattern getPattern(String str) throws PatternSyntaxException {
+            private static Pattern getPattern(String str) throws PatternSyntaxException {
                 if (str.endsWith("/i"))
                     return Pattern.compile(str.substring(1, str.length()-2), Pattern.CASE_INSENSITIVE);
                 if (str.endsWith("/"))

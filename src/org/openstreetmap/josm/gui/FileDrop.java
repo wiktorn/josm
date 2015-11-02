@@ -225,8 +225,12 @@ public class FileDrop {
         }
     }
 
-    /** Determine if the dragged data is a file list. */
-    private boolean isDragOk(final DropTargetDragEvent evt) {
+    /**
+     * Determines if the dragged data is a file list.
+     * @param evt the drag event
+     * @return {@code true} if the dragged data is a file list
+     */
+    private static boolean isDragOk(final DropTargetDragEvent evt) {
         boolean ok = false;
 
         // Get data flavors being dragged

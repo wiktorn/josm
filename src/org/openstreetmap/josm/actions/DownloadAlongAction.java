@@ -90,6 +90,13 @@ public abstract class DownloadAlongAction extends JosmAction {
      *
      * This functions calculates the rectangles, asks the user to continue and downloads
      * the areas if applicable.
+     *
+     * @param a download area hull
+     * @param maxArea maximum area size for a single download
+     * @param osmDownload Set to true if OSM data should be downloaded
+     * @param gpxDownload Set to true if GPX data should be downloaded
+     * @param title the title string for the confirmation dialog
+     * @param progressMonitor the progress monitor
      */
     protected static void confirmAndDownloadAreas(Area a, double maxArea, boolean osmDownload, boolean gpxDownload, String title,
             ProgressMonitor progressMonitor) {

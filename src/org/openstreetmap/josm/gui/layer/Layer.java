@@ -154,9 +154,11 @@ public abstract class Layer implements Destroyable, MapViewPaintable, Projection
                 memoryBytesRequired += layer.estimateMemoryUsage();
             }
             if (memoryBytesRequired >  Runtime.getRuntime().maxMemory()) {
-                throw new IllegalArgumentException(tr("To add another layer you need to allocate at least {0,number,#}MB memory to JOSM using -Xmx{0,number,#}M "
+                throw new IllegalArgumentException(
+                        tr("To add another layer you need to allocate at least {0,number,#}MB memory to JOSM using -Xmx{0,number,#}M "
                         + "option (see http://forum.openstreetmap.org/viewtopic.php?id=25677).\n"
-                        + "Currently you have {1,number,#}MB memory allocated for JOSM", memoryBytesRequired / 1024 / 1024, Runtime.getRuntime().maxMemory() / 1024 / 1024));
+                        + "Currently you have {1,number,#}MB memory allocated for JOSM",
+                        memoryBytesRequired / 1024 / 1024, Runtime.getRuntime().maxMemory() / 1024 / 1024));
             }
         }
     }
@@ -171,6 +173,7 @@ public abstract class Layer implements Destroyable, MapViewPaintable, Projection
     /**
      * Return a representative small image for this layer. The image must not
      * be larger than 64 pixel in any dimension.
+     * @return layer icon
      */
     public abstract Icon getIcon();
 
@@ -179,6 +182,7 @@ public abstract class Layer implements Destroyable, MapViewPaintable, Projection
      * @param ignoreCustom Custom color should return null, as no default color
      *      is used. When this is true, then even for custom coloring the base
      *      color is returned - mainly for layer internal use.
+     * @return layer color
      */
     public Color getColor(boolean ignoreCustom) {
         return null;
@@ -222,8 +226,8 @@ public abstract class Layer implements Destroyable, MapViewPaintable, Projection
      * menu component than JMenuItem or when it supports multiple layers. Actions that support multiple layers should also
      * have correct equals implementation.
      *
-     * Use SeparatorLayerAction.INSTANCE instead of new JSeparator
-     *
+     * Use {@link SeparatorLayerAction#INSTANCE} instead of new JSeparator
+     * @return menu actions for this layer
      */
     public abstract Action[] getMenuEntries();
 

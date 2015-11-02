@@ -40,6 +40,7 @@ import org.openstreetmap.josm.io.session.SessionLayerExporter;
 import org.openstreetmap.josm.io.session.SessionWriter;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.MultiMap;
+import org.openstreetmap.josm.tools.UserCancelException;
 import org.openstreetmap.josm.tools.Utils;
 import org.openstreetmap.josm.tools.WindowGeometry;
 
@@ -63,13 +64,30 @@ public class SessionSaveAsAction extends DiskAccessAction {
 
     @Override
     public void actionPerformed(ActionEvent e) {
+        try {
+            saveSession();
+        } catch (UserCancelException ignore) {
+            if (Main.isTraceEnabled()) {
+                Main.trace(ignore.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Attempts to save the session.
+     * @throws UserCancelException when the user has cancelled the save process.
+     * @since 8913
+     */
+    public void saveSession() throws UserCancelException {
         if (!isEnabled()) {
             return;
         }
 
         SessionSaveAsDialog dlg = new SessionSaveAsDialog();
         dlg.showDialog();
-        if (dlg.getValue() != 1) return;
+        if (dlg.getValue() != 1) {
+            throw new UserCancelException();
+        }
 
         boolean zipRequired = false;
         for (Layer l : layers) {
@@ -92,8 +110,9 @@ public class SessionSaveAsAction extends DiskAccessAction {
                     JFileChooser.FILES_ONLY, "lastDirectory");
         }
 
-        if (fc == null)
-            return;
+        if (fc == null) {
+            throw new UserCancelException();
+        }
 
         File file = fc.getSelectedFile();
         String fn = file.getName();
@@ -115,8 +134,9 @@ public class SessionSaveAsAction extends DiskAccessAction {
         }
         if (fn.indexOf('.') == -1) {
             file = new File(file.getPath() + (zip ? ".joz" : ".jos"));
-            if (!SaveActionBase.confirmOverwrite(file))
-                return;
+            if (!SaveActionBase.confirmOverwrite(file)) {
+                throw new UserCancelException();
+            }
         }
 
         List<Layer> layersOut = new ArrayList<>();

@@ -35,7 +35,7 @@ import org.xml.sax.SAXException;
  * Open the download dialog and download the data.
  * Run in the worker thread.
  */
-public class DownloadOsmTask extends AbstractDownloadTask {
+public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
 
     protected static final String PATTERN_OSM_API_URL           = "https?://.*/api/0.6/(map|nodes?|ways?|relations?|\\*).*";
     protected static final String PATTERN_OVERPASS_API_URL      = "https?://.*/interpreter\\?data=.*";
@@ -43,10 +43,12 @@ public class DownloadOsmTask extends AbstractDownloadTask {
     protected static final String PATTERN_EXTERNAL_OSM_FILE     = "https?://.*/.*\\.osm";
 
     protected Bounds currentBounds;
-    protected DataSet downloadedData;
     protected DownloadTask downloadTask;
 
     protected String newLayerName;
+
+    /** This allows subclasses to ignore this warning */
+    protected boolean warnAboutEmptyArea = true;
 
     @Override
     public String[] getPatterns() {
@@ -65,18 +67,6 @@ public class DownloadOsmTask extends AbstractDownloadTask {
         } else {
             return super.getTitle();
         }
-    }
-
-    protected void rememberDownloadedData(DataSet ds) {
-        this.downloadedData = ds;
-    }
-
-    /**
-     * Replies the {@link DataSet} containing the downloaded OSM data.
-     * @return The {@link DataSet} containing the downloaded OSM data.
-     */
-    public DataSet getDownloadedData() {
-        return downloadedData;
     }
 
     @Override
@@ -135,6 +125,8 @@ public class DownloadOsmTask extends AbstractDownloadTask {
 
     /**
      * This allows subclasses to perform operations on the URL before {@link #loadUrl} is performed.
+     * @param url the original URL
+     * @return the modified URL
      */
     protected String modifyUrlBeforeLoad(String url) {
         return url;
@@ -142,18 +134,18 @@ public class DownloadOsmTask extends AbstractDownloadTask {
 
     /**
      * Loads a given URL from the OSM Server
-     * @param new_layer True if the data should be saved to a new layer
+     * @param newLayer True if the data should be saved to a new layer
      * @param url The URL as String
      */
     @Override
-    public Future<?> loadUrl(boolean new_layer, String url, ProgressMonitor progressMonitor) {
-        url = modifyUrlBeforeLoad(url);
-        downloadTask = new DownloadTask(new_layer,
-                new OsmServerLocationReader(url),
+    public Future<?> loadUrl(boolean newLayer, String url, ProgressMonitor progressMonitor) {
+        String newUrl = modifyUrlBeforeLoad(url);
+        downloadTask = new DownloadTask(newLayer,
+                new OsmServerLocationReader(newUrl),
                 progressMonitor);
         currentBounds = null;
         // Extract .osm filename from URL to set the new layer name
-        extractOsmFilename("https?://.*/(.*\\.osm)", url);
+        extractOsmFilename("https?://.*/(.*\\.osm)", newUrl);
         return Main.worker.submit(downloadTask);
     }
 
@@ -181,6 +173,7 @@ public class DownloadOsmTask extends AbstractDownloadTask {
     public abstract static class AbstractInternalTask extends PleaseWaitRunnable {
 
         protected final boolean newLayer;
+        protected final boolean zoomAfterDownload;
         protected DataSet dataSet;
 
         /**
@@ -191,10 +184,12 @@ public class DownloadOsmTask extends AbstractDownloadTask {
          * @param ignoreException If true, exception will be propagated to calling code. If false then
          * exception will be thrown directly in EDT. When this runnable is executed using executor framework
          * then use false unless you read result of task (because exception will get lost if you don't)
+         * @param zoomAfterDownload If true, the map view will zoom to download area after download
          */
-        public AbstractInternalTask(boolean newLayer, String title, boolean ignoreException) {
+        public AbstractInternalTask(boolean newLayer, String title, boolean ignoreException, boolean zoomAfterDownload) {
             super(title, ignoreException);
             this.newLayer = newLayer;
+            this.zoomAfterDownload = zoomAfterDownload;
         }
 
         /**
@@ -206,10 +201,13 @@ public class DownloadOsmTask extends AbstractDownloadTask {
          * @param ignoreException If true, exception will be propagated to calling code. If false then
          * exception will be thrown directly in EDT. When this runnable is executed using executor framework
          * then use false unless you read result of task (because exception will get lost if you don't)
+         * @param zoomAfterDownload If true, the map view will zoom to download area after download
          */
-        public AbstractInternalTask(boolean newLayer, String title, ProgressMonitor progressMonitor, boolean ignoreException) {
+        public AbstractInternalTask(boolean newLayer, String title, ProgressMonitor progressMonitor, boolean ignoreException,
+                boolean zoomAfterDownload) {
             super(title, progressMonitor, ignoreException);
             this.newLayer = newLayer;
+            this.zoomAfterDownload = zoomAfterDownload;
         }
 
         protected OsmDataLayer getEditLayer() {
@@ -218,8 +216,8 @@ public class DownloadOsmTask extends AbstractDownloadTask {
         }
 
         protected int getNumDataLayers() {
-            int count = 0;
             if (!Main.isDisplayingMapView()) return 0;
+            int count = 0;
             Collection<Layer> layers = Main.map.mapView.getAllLayers();
             for (Layer layer : layers) {
                 if (layer instanceof OsmDataLayer) {
@@ -288,7 +286,9 @@ public class DownloadOsmTask extends AbstractDownloadTask {
                     layer = getFirstDataLayer();
                 }
                 layer.mergeFrom(dataSet);
-                computeBboxAndCenterScale(bounds);
+                if (zoomAfterDownload) {
+                    computeBboxAndCenterScale(bounds);
+                }
                 layer.onPostDownloadFromServer();
             }
         }
@@ -297,8 +297,26 @@ public class DownloadOsmTask extends AbstractDownloadTask {
     protected class DownloadTask extends AbstractInternalTask {
         protected final OsmServerReader reader;
 
+        /**
+         * Constructs a new {@code DownloadTask}.
+         * @param newLayer if {@code true}, force download to a new layer
+         * @param reader OSM data reader
+         * @param progressMonitor progress monitor
+         */
         public DownloadTask(boolean newLayer, OsmServerReader reader, ProgressMonitor progressMonitor) {
-            super(newLayer, tr("Downloading data"), progressMonitor, false);
+            this(newLayer, reader, progressMonitor, true);
+        }
+
+        /**
+         * Constructs a new {@code DownloadTask}.
+         * @param newLayer if {@code true}, force download to a new layer
+         * @param reader OSM data reader
+         * @param progressMonitor progress monitor
+         * @param zoomAfterDownload If true, the map view will zoom to download area after download
+         * @since 8942
+         */
+        public DownloadTask(boolean newLayer, OsmServerReader reader, ProgressMonitor progressMonitor, boolean zoomAfterDownload) {
+            super(newLayer, tr("Downloading data"), progressMonitor, false, zoomAfterDownload);
             this.reader = reader;
         }
 
@@ -336,7 +354,9 @@ public class DownloadOsmTask extends AbstractDownloadTask {
             if (dataSet == null)
                 return; // user canceled download or error occurred
             if (dataSet.allPrimitives().isEmpty()) {
-                rememberErrorMessage(tr("No data found in this area."));
+                if (warnAboutEmptyArea) {
+                    rememberErrorMessage(tr("No data found in this area."));
+                }
                 // need to synthesize a download bounds lest the visual indication of downloaded area doesn't work
                 dataSet.dataSources.add(new DataSource(currentBounds != null ? currentBounds :
                     new Bounds(new LatLon(0, 0)), "OpenStreetMap server"));

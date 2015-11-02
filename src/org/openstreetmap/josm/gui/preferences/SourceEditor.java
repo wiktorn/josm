@@ -392,16 +392,19 @@ public abstract class SourceEditor extends JPanel {
 
     /**
      * Load the list of source entries that the user has configured.
+     * @return list of source entries that the user has configured
      */
     public abstract Collection<? extends SourceEntry> getInitialSourcesList();
 
     /**
      * Load the list of configured icon paths.
+     * @return list of configured icon paths
      */
     public abstract Collection<String> getInitialIconPathsList();
 
     /**
      * Get the default list of entries (used when resetting the list).
+     * @return default list of entries
      */
     public abstract Collection<ExtendedSourceEntry> getDefault();
 
@@ -446,8 +449,9 @@ public abstract class SourceEditor extends JPanel {
 
     /**
      * Synchronously loads available sources and returns the parsed list.
+     * @return list of available sources
      */
-    Collection<ExtendedSourceEntry> loadAndGetAvailableSources() {
+    public final Collection<ExtendedSourceEntry> loadAndGetAvailableSources() {
         try {
             final SourceLoader loader = new SourceLoader(availableSourcesUrl, sourceProviders);
             loader.realRun();
@@ -465,6 +469,9 @@ public abstract class SourceEditor extends JPanel {
         Main.worker.submit(new SourceLoader(url, sourceProviders));
     }
 
+    /**
+     * Performs the initial loading of source providers. Does nothing if already done.
+     */
     public void initiallyLoadAvailableSources() {
         if (!sourcesInitiallyLoaded) {
             reloadAvailableSources(availableSourcesUrl, sourceProviders);
@@ -683,7 +690,7 @@ public abstract class SourceEditor extends JPanel {
             return title == null ? simpleFileName : title;
         }
 
-        private void appendRow(StringBuilder s, String th, String td) {
+        private static void appendRow(StringBuilder s, String th, String td) {
             s.append("<tr><th>").append(th).append("</th><td>").append(td).append("</td</tr>");
         }
 
@@ -1425,7 +1432,7 @@ public abstract class SourceEditor extends JPanel {
                     fromSourceEntry((SourceEntry) value), isSelected, hasFocus, row, column);
         }
 
-        private String fromSourceEntry(SourceEntry entry) {
+        private static String fromSourceEntry(SourceEntry entry) {
             if (entry == null)
                 return null;
             StringBuilder s = new StringBuilder("<html><b>");

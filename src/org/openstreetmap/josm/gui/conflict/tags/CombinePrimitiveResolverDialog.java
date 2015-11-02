@@ -9,6 +9,7 @@ import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.GraphicsEnvironment;
 import java.awt.event.ActionEvent;
 import java.awt.event.HierarchyBoundsListener;
 import java.awt.event.HierarchyEvent;
@@ -17,11 +18,8 @@ import java.awt.event.WindowEvent;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import javax.swing.AbstractAction;
@@ -36,7 +34,6 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.ExpertToggleAction;
 import org.openstreetmap.josm.command.ChangePropertyCommand;
 import org.openstreetmap.josm.command.Command;
-import org.openstreetmap.josm.corrector.UserCancelException;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
@@ -50,8 +47,7 @@ import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.ImageProvider;
-import org.openstreetmap.josm.tools.MultiMap;
-import org.openstreetmap.josm.tools.Predicates;
+import org.openstreetmap.josm.tools.UserCancelException;
 import org.openstreetmap.josm.tools.Utils;
 import org.openstreetmap.josm.tools.Utils.Function;
 import org.openstreetmap.josm.tools.WindowGeometry;
@@ -82,8 +78,8 @@ import org.openstreetmap.josm.tools.WindowGeometry;
  * You should also set the target primitive which other primitives (ways or nodes) are
  * merged to, see {@link #setTargetPrimitive(OsmPrimitive)}.
  *
- * After the dialog is closed use {@link #isCanceled()} to check whether the user canceled
- * the dialog. If it wasn't canceled you may build a collection of {@link Command} objects
+ * After the dialog is closed use {@link #isApplied()} to check whether the dialog has been
+ * applied. If it was applied you may build a collection of {@link Command} objects
  * which reflect the conflict resolution decisions the user made in the dialog:
  * see {@link #buildResolutionCommands()}
  */
@@ -113,7 +109,7 @@ public class CombinePrimitiveResolverDialog extends JDialog {
     private AutoAdjustingSplitPane spTagConflictTypes;
     private TagConflictResolver pnlTagConflictResolver;
     protected RelationMemberConflictResolver pnlRelationMemberConflictResolver;
-    private boolean canceled;
+    private boolean applied;
     private JPanel pnlButtons;
     protected transient OsmPrimitive targetPrimitive;
 
@@ -297,48 +293,12 @@ public class CombinePrimitiveResolverDialog extends JDialog {
         return cmds;
     }
 
-    protected void prepareDefaultTagDecisions() {
-        getTagConflictResolverModel().prepareDefaultTagDecisions();
-    }
-
-    protected void prepareDefaultRelationDecisions() {
-        final RelationMemberConflictResolverModel model = getRelationMemberConflictResolverModel();
-        final Map<Relation, Integer> numberOfKeepResolutions = new HashMap<>();
-        final MultiMap<OsmPrimitive, Relation> resolvedRelationsPerPrimitive = new MultiMap<>();
-
-        for (int i = 0; i < model.getNumDecisions(); i++) {
-            final RelationMemberConflictDecision decision = model.getDecision(i);
-            final Relation r = decision.getRelation();
-            final OsmPrimitive p = decision.getOriginalPrimitive();
-            if (!numberOfKeepResolutions.containsKey(r)) {
-                decision.decide(RelationMemberConflictDecisionType.KEEP);
-                numberOfKeepResolutions.put(r, 1);
-                resolvedRelationsPerPrimitive.put(p, r);
-                continue;
-            }
-
-            final Integer keepResolutions = numberOfKeepResolutions.get(r);
-            final Collection<Relation> resolvedRelations = Utils.firstNonNull(
-                    resolvedRelationsPerPrimitive.get(p), Collections.<Relation>emptyList());
-            if (keepResolutions <= Utils.filter(resolvedRelations, Predicates.equalTo(r)).size()) {
-                // old relation contains one primitive more often than the current resolution => keep the current member
-                decision.decide(RelationMemberConflictDecisionType.KEEP);
-                numberOfKeepResolutions.put(r, keepResolutions + 1);
-                resolvedRelationsPerPrimitive.put(p, r);
-            } else {
-                decision.decide(RelationMemberConflictDecisionType.REMOVE);
-                resolvedRelationsPerPrimitive.put(p, r);
-            }
-        }
-        model.refresh();
-    }
-
     /**
      * Prepares the default decisions for populated tag and relation membership conflicts.
      */
     public void prepareDefaultDecisions() {
-        prepareDefaultTagDecisions();
-        prepareDefaultRelationDecisions();
+        getTagConflictResolverModel().prepareDefaultTagDecisions();
+        getRelationMemberConflictResolverModel().prepareDefaultRelationDecisions();
     }
 
     protected JPanel buildEmptyConflictsPanel() {
@@ -377,16 +337,16 @@ public class CombinePrimitiveResolverDialog extends JDialog {
         pnlRelationMemberConflictResolver.prepareForEditing();
     }
 
-    protected void setCanceled(boolean canceled) {
-        this.canceled = canceled;
+    protected void setApplied(boolean applied) {
+        this.applied = applied;
     }
 
     /**
-     * Determines if this dialog has been cancelled.
-     * @return true if this dialog has been cancelled, false otherwise.
+     * Determines if this dialog has been closed with "Apply".
+     * @return true if this dialog has been closed with "Apply", false otherwise.
      */
-    public boolean isCanceled() {
-        return canceled;
+    public boolean isApplied() {
+        return applied;
     }
 
     @Override
@@ -395,7 +355,7 @@ public class CombinePrimitiveResolverDialog extends JDialog {
             prepareGUIBeforeConflictResolutionStarts();
             new WindowGeometry(getClass().getName() + ".geometry", WindowGeometry.centerInWindow(Main.parent,
                     new Dimension(600, 400))).applySafe(this);
-            setCanceled(false);
+            setApplied(false);
             btnApply.requestFocusInWindow();
         } else if (isShowing()) { // Avoid IllegalComponentStateException like in #8775
             new WindowGeometry(this).remember(getClass().getName() + ".geometry");
@@ -414,7 +374,6 @@ public class CombinePrimitiveResolverDialog extends JDialog {
 
         @Override
         public void actionPerformed(ActionEvent arg0) {
-            setCanceled(true);
             setVisible(false);
         }
     }
@@ -430,6 +389,7 @@ public class CombinePrimitiveResolverDialog extends JDialog {
 
         @Override
         public void actionPerformed(ActionEvent arg0) {
+            setApplied(true);
             setVisible(false);
             pnlTagConflictResolver.rememberPreferences();
         }
@@ -534,31 +494,34 @@ public class CombinePrimitiveResolverDialog extends JDialog {
             }
         }
 
-        // Build conflict resolution dialog
-        final CombinePrimitiveResolverDialog dialog = CombinePrimitiveResolverDialog.getInstance();
-
-        dialog.getTagConflictResolverModel().populate(tagsToEdit, completeWayTags.getKeysWithMultipleValues());
-        dialog.getRelationMemberConflictResolverModel().populate(parentRelations, primitives);
-        dialog.prepareDefaultDecisions();
-
-        // Ensure a proper title is displayed instead of a previous target (fix #7925)
-        if (targetPrimitives.size() == 1) {
-            dialog.setTargetPrimitive(targetPrimitives.iterator().next());
-        } else {
-            dialog.setTargetPrimitive(null);
-        }
-
-        // Resolve tag conflicts if necessary
-        if (!dialog.isResolvedCompletely()) {
-            dialog.setVisible(true);
-            if (dialog.isCanceled()) {
-                throw new UserCancelException();
-            }
-        }
         List<Command> cmds = new LinkedList<>();
-        for (OsmPrimitive i : targetPrimitives) {
-            dialog.setTargetPrimitive(i);
-            cmds.addAll(dialog.buildResolutionCommands());
+
+        if (!GraphicsEnvironment.isHeadless()) {
+            // Build conflict resolution dialog
+            final CombinePrimitiveResolverDialog dialog = CombinePrimitiveResolverDialog.getInstance();
+
+            dialog.getTagConflictResolverModel().populate(tagsToEdit, completeWayTags.getKeysWithMultipleValues());
+            dialog.getRelationMemberConflictResolverModel().populate(parentRelations, primitives);
+            dialog.prepareDefaultDecisions();
+
+            // Ensure a proper title is displayed instead of a previous target (fix #7925)
+            if (targetPrimitives.size() == 1) {
+                dialog.setTargetPrimitive(targetPrimitives.iterator().next());
+            } else {
+                dialog.setTargetPrimitive(null);
+            }
+
+            // Resolve tag conflicts if necessary
+            if (!dialog.isResolvedCompletely()) {
+                dialog.setVisible(true);
+                if (!dialog.isApplied()) {
+                    throw new UserCancelException();
+                }
+            }
+            for (OsmPrimitive i : targetPrimitives) {
+                dialog.setTargetPrimitive(i);
+                cmds.addAll(dialog.buildResolutionCommands());
+            }
         }
         return cmds;
     }

@@ -140,11 +140,11 @@ public class MapFrame extends JPanel implements Destroyable, LayerChangeListener
 
     // Map modes
     public final SelectAction mapModeSelect;
+    public final DrawAction mapModeDraw;
+    public final ZoomAction mapModeZoom;
     public LassoModeAction mapModeSelectLasso;
 
     private final transient Map<Layer, MapMode> lastMapMode = new HashMap<>();
-    private final MapMode mapModeDraw;
-    private final MapMode mapModeZoom;
 
     /**
      * The status line below the map
@@ -329,6 +329,7 @@ public class MapFrame extends JPanel implements Destroyable, LayerChangeListener
     /**
      * Call this to add new toggle dialogs to the left button-list
      * @param dlg The toggle dialog. It must not be in the list already.
+     * @return button allowing to toggle the dialog
      */
     public IconToggleButton addToggleDialog(final ToggleDialog dlg, boolean isExpert) {
         final IconToggleButton button = new IconToggleButton(dlg.getToggleAction(), isExpert);

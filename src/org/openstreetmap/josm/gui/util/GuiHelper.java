@@ -315,6 +315,7 @@ public final class GuiHelper {
 
     /**
      * Gets the font used to display JOSM title in about dialog and splash screen.
+     * @return title font
      * @since 5797
      */
     public static Font getTitleFont() {
@@ -359,7 +360,7 @@ public final class GuiHelper {
         while (keys.hasMoreElements()) {
             Object key = keys.nextElement();
             Object value = UIManager.get(key);
-            if (value != null && value instanceof FontUIResource) {
+            if (value instanceof FontUIResource) {
                 FontUIResource fui = (FontUIResource) value;
                 UIManager.put(key, new FontUIResource(name, fui.getStyle(), fui.getSize()));
             }

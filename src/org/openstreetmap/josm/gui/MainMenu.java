@@ -129,8 +129,8 @@ import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.mappaint.MapPaintMenu;
 import org.openstreetmap.josm.gui.preferences.imagery.ImageryPreference;
 import org.openstreetmap.josm.gui.preferences.map.TaggingPresetPreference;
-import org.openstreetmap.josm.gui.tagging.TaggingPresetSearchAction;
-import org.openstreetmap.josm.gui.tagging.TaggingPresetSearchPrimitiveDialog;
+import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetSearchAction;
+import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetSearchPrimitiveDialog;
 import org.openstreetmap.josm.gui.widgets.DisableShortcutsOnFocusGainedTextField;
 import org.openstreetmap.josm.tools.Shortcut;
 
@@ -597,15 +597,6 @@ public class MainMenu extends JMenuBar {
     }
 
     /**
-     * @deprecated Use {@link #addMenu(String, String, int, int, String)} instead.
-     */
-    // Kept for compatibility with plugins
-    @Deprecated
-    public JMenu addMenu(String name, int mnemonicKey, int position, String relativeHelpTopic) {
-        return addMenu(name, tr(name), mnemonicKey, position, relativeHelpTopic);
-    }
-
-    /**
      * Creates a menu and adds it on the given position to the main menu.
      *
      * @param name              the untranslated name (used as identifier for shortcut registration)
@@ -854,6 +845,7 @@ public class MainMenu extends JMenuBar {
 
     /**
      * Create search field.
+     * @return the search field
      */
     private DisableShortcutsOnFocusGainedTextField createSearchField() {
         DisableShortcutsOnFocusGainedTextField searchField = new DisableShortcutsOnFocusGainedTextField() {
@@ -908,7 +900,7 @@ public class MainMenu extends JMenuBar {
      * @param textToFind The text to find
      * @param result resulting list ofmenu items
      */
-    private void findMenuItems(final JMenu menu, final String textToFind, final List<JMenuItem> result) {
+    private static void findMenuItems(final JMenu menu, final String textToFind, final List<JMenuItem> result) {
         for (int i = 0; i < menu.getItemCount(); i++) {
             JMenuItem menuItem = menu.getItem(i);
             if (menuItem == null) continue;

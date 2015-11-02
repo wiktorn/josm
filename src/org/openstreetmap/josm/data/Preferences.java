@@ -688,7 +688,7 @@ public class Preferences {
         return cacheDir;
     }
 
-    private void addPossibleResourceDir(Set<String> locations, String s) {
+    private static void addPossibleResourceDir(Set<String> locations, String s) {
         if (s != null) {
             if (!s.endsWith(File.separator)) {
                 s += File.separator;
@@ -836,6 +836,7 @@ public class Preferences {
 
     /**
      * Called after every put. In case of a problem, do nothing but output the error in log.
+     * @throws IOException if any I/O error occurs
      */
     public void save() throws IOException {
         /* currently unused, but may help to fix configuration issues in future */
@@ -866,7 +867,7 @@ public class Preferences {
         setCorrectPermissions(backupFile);
     }
 
-    private void setCorrectPermissions(File file) {
+    private static void setCorrectPermissions(File file) {
         if (!file.setReadable(false, false) && Main.isDebugEnabled()) {
             Main.debug(tr("Unable to set file non-readable {0}", file.getAbsolutePath()));
         }
@@ -1336,7 +1337,7 @@ public class Preferences {
         return putListOfStructs(key, serializeListOfStructs(val, klass));
     }
 
-    private <T> Collection<Map<String, String>> serializeListOfStructs(Collection<T> l, Class<T> klass) {
+    private static <T> Collection<Map<String, String>> serializeListOfStructs(Collection<T> l, Class<T> klass) {
         if (l == null)
             return null;
         Collection<Map<String, String>> vals = new ArrayList<>();
@@ -1501,7 +1502,7 @@ public class Preferences {
             } catch (Exception | InternalError e) {
                 // Ignore all exceptions, including internal error raised by Java 9 Jigsaw EA:
                 // java.lang.InternalError: legacy getBundle can't be used to find sun.awt.resources.awt in module java.desktop
-                // InternalError catch to remove when https://bugs.openjdk.java.net/browse/JI-9025152 is resolved
+                // InternalError catch to remove when https://bugs.openjdk.java.net/browse/JDK-8136804 is resolved
                 if (Main.isTraceEnabled()) {
                     Main.trace(e.getMessage());
                 }
@@ -1516,6 +1517,7 @@ public class Preferences {
         // Force Java 7 to use old sorting algorithm of Arrays.sort (fix #8712).
         // See Oracle bug database: https://bugs.openjdk.java.net/browse/JDK-7075600
         // and https://bugs.openjdk.java.net/browse/JDK-6923200
+        // The bug seems to have been fixed in Java 8, to remove during transition
         if (getBoolean("jdk.Arrays.useLegacyMergeSort", !Version.getInstance().isLocalBuild())) {
             Utils.updateSystemProperty("java.util.Arrays.useLegacyMergeSort", "true");
         }

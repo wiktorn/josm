@@ -224,6 +224,7 @@ public class UnGlueAction extends JosmAction {
      *
      * The way will be put into the object variable "selectedWay", the
      * node into "selectedNode".
+     * @return true if either one node is selected or one node and one way are selected and the node is part of the way
      */
     private boolean checkSelection(Collection<? extends OsmPrimitive> selection) {
 
@@ -259,6 +260,7 @@ public class UnGlueAction extends JosmAction {
      *
      * The way will be put into the object variable "selectedWay", the
      * nodes into "selectedNodes".
+     * @return true if one way and any number of nodes that are part of that way are selected
      */
     private boolean checkSelection2(Collection<? extends OsmPrimitive> selection) {
         if (selection.isEmpty())
@@ -301,8 +303,9 @@ public class UnGlueAction extends JosmAction {
      * <li>the add-node command will be put into the parameter cmds.</li>
      * <li>the changed way will be returned and must be put into cmds by the caller!</li>
      * </ul>
+     * @return new way
      */
-    private Way modifyWay(Node originalNode, Way w, List<Command> cmds, List<Node> newNodes) {
+    private static Way modifyWay(Node originalNode, Way w, List<Command> cmds, List<Node> newNodes) {
         // clone the node for the way
         Node newNode = new Node(originalNode, true /* clear OSM ID */);
         newNodes.add(newNode);
@@ -395,7 +398,7 @@ public class UnGlueAction extends JosmAction {
      * @param cmds Commands to execute
      * @param newNodes New created nodes by this set of command
      */
-    private void execCommands(List<Command> cmds, List<Node> newNodes) {
+    private static void execCommands(List<Command> cmds, List<Node> newNodes) {
         Main.main.undoRedo.add(new SequenceCommand(/* for correct i18n of plural forms - see #9110 */
                 trn("Dupe into {0} node", "Dupe into {0} nodes", newNodes.size() + 1, newNodes.size() + 1), cmds));
         // select one of the new nodes
