@@ -47,7 +47,6 @@ import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.Shortcut;
-import org.openstreetmap.josm.tools.Utils;
 
 /**
  * Splits a way into multiple ways (all identical except for their node list).
@@ -198,15 +197,18 @@ public class SplitWayAction extends JosmAction {
             final List<Way> newWays = createNewWaysFromChunks(selectedWay, wayChunks);
             final Way wayToKeep = Strategy.keepLongestChunk().determineWayToKeep(newWays);
 
-            if (ExpertToggleAction.isExpert() && !selectedWay.isNew() && Main.pref.getBoolean("splitway.segment-selection-dialog", true)) {
+            if (ExpertToggleAction.isExpert() && !selectedWay.isNew()) {
                 final ExtendedDialog dialog = new SegmentToKeepSelectionDialog(selectedWay, newWays, wayToKeep, sel);
-                dialog.setModal(false);
-                dialog.showDialog();
-            } else {
-                final SplitWayResult result = doSplitWay(getEditLayer(), selectedWay, wayToKeep, newWays, sel);
-                Main.main.undoRedo.add(result.getCommand());
-                getCurrentDataSet().setSelected(result.getNewSelection());
+                dialog.toggleEnable("way.split.segment-selection-dialog");
+                if (!dialog.toggleCheckState()) {
+                    dialog.setModal(false);
+                    dialog.showDialog();
+                    return; // splitting is performed in SegmentToKeepSelectionDialog.buttonAction()
+                }
             }
+            final SplitWayResult result = doSplitWay(getEditLayer(), selectedWay, wayToKeep, newWays, sel);
+            Main.main.undoRedo.add(result.getCommand());
+            getCurrentDataSet().setSelected(result.getNewSelection());
         }
     }
 
@@ -218,6 +220,7 @@ public class SplitWayAction extends JosmAction {
         final List<Way> newWays;
         final JList<Way> list;
         final List<OsmPrimitive> selection;
+        final Way wayToKeep;
 
         SegmentToKeepSelectionDialog(Way selectedWay, List<Way> newWays, Way wayToKeep, List<OsmPrimitive> selection) {
             super(Main.parent, tr("Which way segment should reuse the history of {0}?", selectedWay.getId()),
@@ -226,9 +229,9 @@ public class SplitWayAction extends JosmAction {
             this.selectedWay = selectedWay;
             this.newWays = newWays;
             this.selection = selection;
+            this.wayToKeep = wayToKeep;
             this.list = new JList<>(newWays.toArray(new Way[newWays.size()]));
-            buildList();
-            this.list.setSelectedValue(wayToKeep, true);
+            configureList();
 
             setButtonIcons(new String[]{"ok", "cancel"});
             final JPanel pane = new JPanel(new GridBagLayout());
@@ -237,20 +240,21 @@ public class SplitWayAction extends JosmAction {
             setContent(pane);
         }
 
-        private void buildList() {
+        private void configureList() {
             list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
             list.addListSelectionListener(new ListSelectionListener() {
                 @Override
                 public void valueChanged(ListSelectionEvent e) {
                     final Way selected = list.getSelectedValue();
-                    if (Main.isDisplayingMapView() && selected != null) {
-                        final List<WaySegment> segments = Utils.transform(selected.getNodes().subList(0, selected.getNodesCount() - 1),
-                                new Utils.Function<Node, WaySegment>() {
-                            @Override
-                            public WaySegment apply(Node x) {
-                                return new WaySegment(selectedWay, selectedWay.getNodes().indexOf(x));
-                            }
-                        });
+                    if (Main.isDisplayingMapView() && selected != null && selected.getNodesCount() > 1) {
+                        final Collection<WaySegment> segments = new ArrayList<>(selected.getNodesCount() - 1);
+                        final Iterator<Node> it = selected.getNodes().iterator();
+                        Node previousNode = it.next();
+                        while (it.hasNext()) {
+                            final Node node = it.next();
+                            segments.add(WaySegment.forNodePair(selectedWay, previousNode, node));
+                            previousNode = node;
+                        }
                         setHighlightedWaySegments(segments);
                     }
                 }
@@ -279,7 +283,7 @@ public class SplitWayAction extends JosmAction {
         public void setVisible(boolean visible) {
             super.setVisible(visible);
             if (visible) {
-                list.setSelectedIndex(list.getSelectedIndex()); // highlight way segments
+                list.setSelectedValue(wayToKeep, true);
             } else {
                 setHighlightedWaySegments(Collections.<WaySegment>emptyList());
             }
@@ -288,6 +292,7 @@ public class SplitWayAction extends JosmAction {
         @Override
         protected void buttonAction(int buttonIndex, ActionEvent evt) {
             super.buttonAction(buttonIndex, evt);
+            toggleSaveState(); // necessary since #showDialog() does not handle it due to the non-modal dialog
             if (getValue() == 1) {
                 final Way wayToKeep = list.getSelectedValue();
                 final SplitWayResult result = doSplitWay(getEditLayer(), selectedWay, wayToKeep, newWays, selection);
