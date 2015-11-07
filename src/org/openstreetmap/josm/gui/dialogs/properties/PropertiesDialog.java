@@ -13,6 +13,8 @@ import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -47,6 +49,7 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableColumnModel;
 import javax.swing.table.TableModel;
+import javax.swing.table.TableRowSorter;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.JosmAction;
@@ -56,6 +59,7 @@ import org.openstreetmap.josm.actions.relation.SelectInRelationListAction;
 import org.openstreetmap.josm.actions.relation.SelectMembersAction;
 import org.openstreetmap.josm.actions.relation.SelectRelationAction;
 import org.openstreetmap.josm.actions.search.SearchAction.SearchSetting;
+import org.openstreetmap.josm.actions.search.SearchCompiler;
 import org.openstreetmap.josm.command.ChangeCommand;
 import org.openstreetmap.josm.command.ChangePropertyCommand;
 import org.openstreetmap.josm.command.Command;
@@ -84,11 +88,14 @@ import org.openstreetmap.josm.gui.dialogs.ToggleDialog;
 import org.openstreetmap.josm.gui.dialogs.relation.RelationEditor;
 import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
-import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetHandler;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPreset;
+import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetHandler;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetType;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.util.HighlightHelper;
+import org.openstreetmap.josm.gui.widgets.CompileSearchTextDecorator;
+import org.openstreetmap.josm.gui.widgets.DisableShortcutsOnFocusGainedTextField;
+import org.openstreetmap.josm.gui.widgets.JosmTextField;
 import org.openstreetmap.josm.gui.widgets.PopupMenuLauncher;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
@@ -127,7 +134,9 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
     /**
      * The tag data of selected objects.
      */
-    private final DefaultTableModel tagData = new ReadOnlyTableModel();
+    private final ReadOnlyTableModel tagData = new ReadOnlyTableModel();
+    private final TableRowSorter<ReadOnlyTableModel> tagRowSorter = new TableRowSorter<>(tagData);
+    private final JosmTextField tagTableFilter;
 
     /**
      * The membership data of selected objects.
@@ -242,6 +251,8 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
         setupMembershipMenu();
         buildMembershipTable();
 
+        tagTableFilter = setupFilter();
+
         // combine both tables and wrap them in a scrollPane
         boolean top = Main.pref.getBoolean("properties.presets.top", true);
         bothTables.setLayout(new GridBagLayout());
@@ -251,6 +262,7 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
             bothTables.add(pluginHook, GBC.eol().insets(0, 1, 1, 1).anchor(GBC.NORTHEAST).weight(epsilon, epsilon));
         }
         bothTables.add(selectSth, GBC.eol().fill().insets(10, 10, 10, 10));
+        bothTables.add(tagTableFilter, GBC.eol().fill(GBC.HORIZONTAL));
         bothTables.add(tagTable.getTableHeader(), GBC.eol().fill(GBC.HORIZONTAL));
         bothTables.add(tagTable, GBC.eol().fill(GBC.BOTH));
         bothTables.add(membershipTable.getTableHeader(), GBC.eol().fill(GBC.HORIZONTAL));
@@ -293,6 +305,7 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
         PropertiesCellRenderer cellRenderer = new PropertiesCellRenderer();
         tagTable.getColumnModel().getColumn(0).setCellRenderer(cellRenderer);
         tagTable.getColumnModel().getColumn(1).setCellRenderer(cellRenderer);
+        tagTable.setRowSorter(tagRowSorter);
     }
 
     private void buildMembershipTable() {
@@ -455,6 +468,10 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
         tagTable.addMouseListener(new PopupMenuLauncher(tagMenu));
     }
 
+    public void setFilter(final SearchCompiler.Match filter) {
+        this.tagRowSorter.setRowFilter(new SearchBasedRowFilter(filter));
+    }
+
     /**
      * Assigns all needed keys like Enter and Spacebar to most important actions.
      */
@@ -497,6 +514,19 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
         getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(
                 KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0), "onHelp");
         getActionMap().put("onHelp", helpAction);
+    }
+
+    private JosmTextField setupFilter() {
+        final JosmTextField f = new DisableShortcutsOnFocusGainedTextField();
+        f.setToolTipText(tr("Tag filter"));
+        final CompileSearchTextDecorator decorator = CompileSearchTextDecorator.decorate(f);
+        f.addPropertyChangeListener("filter", new PropertyChangeListener() {
+            @Override
+            public void propertyChange(PropertyChangeEvent evt) {
+                setFilter(decorator.getMatch());
+            }
+        });
+        return f;
     }
 
      /**
@@ -685,6 +715,7 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
         deleteAction.setEnabled(hasTags || hasMemberships);
         tagTable.setVisible(hasTags);
         tagTable.getTableHeader().setVisible(hasTags);
+        tagTableFilter.setVisible(hasTags);
         selectSth.setVisible(!hasSelection);
         pluginHook.setVisible(hasSelection);
 
