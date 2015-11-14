@@ -1218,7 +1218,7 @@ public abstract class AbstractTileSourceLayer extends ImageryLayer implements Im
         }
 
         private boolean insane() {
-            return size() > tileCache.size();
+            return size() > tileCache.getCacheSize();
         }
 
         private double tilesSpanned() {
