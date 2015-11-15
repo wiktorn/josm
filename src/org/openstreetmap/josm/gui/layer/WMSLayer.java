@@ -13,6 +13,8 @@ import java.util.TreeSet;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
+import javax.swing.JCheckBox;
+import javax.swing.JOptionPane;
 
 import org.apache.commons.jcs.access.CacheAccess;
 import org.openstreetmap.gui.jmapviewer.interfaces.TileLoader;
@@ -112,7 +114,8 @@ public class WMSLayer extends AbstractCachedTileSourceLayer {
 
     @Override
     public boolean isProjectionSupported(Projection proj) {
-        return supportedProjections == null || supportedProjections.isEmpty() || supportedProjections.contains(proj.toCode());
+        return supportedProjections == null || supportedProjections.isEmpty() || supportedProjections.contains(proj.toCode()) ||
+                (info.isEpsg4326To3857Supported() && supportedProjections.contains("EPSG:4326") &&  "EPSG:3857".equals(Main.getProjection().toCode()));
     }
 
     @Override
@@ -123,7 +126,7 @@ public class WMSLayer extends AbstractCachedTileSourceLayer {
         }
         String appendix = "";
 
-        if (supportedProjections.contains("EPSG:4326") &&  "EPSG:3857".equals(Main.getProjection().toCode())) {
+        if (isReprojectionPossible()) {
             appendix = ". " + tr("JOSM will use EPSG:4326 to query the server, but results may vary "
                     + "depending on the WMS server");
         }
@@ -132,7 +135,28 @@ public class WMSLayer extends AbstractCachedTileSourceLayer {
 
     @Override
     public void projectionChanged(Projection oldValue, Projection newValue) {
-        super.projectionChanged(oldValue, newValue);
+        // do not call super - we need custom warning dialog
+
+        if (!isProjectionSupported(newValue)) {
+            JCheckBox doNotShowAgain = new JCheckBox(tr("Do not show this message again"));
+            String message = tr("The layer {0} does not support the new projection {1}.\n"
+                    + " Supported projections are: {2}\n"
+                    + "Change the projection again or remove the layer.",
+                    getName(), newValue.toCode(), nameSupportedProjections());
+
+            Object[] dialogParams;
+            if (isReprojectionPossible()) {
+                dialogParams = new Object[] {message, doNotShowAgain};
+            } else {
+                dialogParams = new Object[] {message};
+            }
+            JOptionPane.showMessageDialog(Main.parent, dialogParams, tr("Warning"), JOptionPane.WARNING_MESSAGE);
+
+            if (doNotShowAgain.isSelected()) {
+                info.setEpsg4326To3857Supported(true);
+                ImageryLayerInfo.instance.save();
+            }
+        }
 
         if (!newValue.equals(oldValue) && tileSource instanceof TemplatedWMSTileSource) {
             ((TemplatedWMSTileSource) tileSource).initProjection(newValue);
@@ -154,5 +178,9 @@ public class WMSLayer extends AbstractCachedTileSourceLayer {
      */
     public static CacheAccess<String, BufferedImageCacheEntry> getCache() {
         return AbstractCachedTileSourceLayer.getCache(CACHE_REGION_NAME);
+    }
+
+    private boolean isReprojectionPossible() {
+        return supportedProjections.contains("EPSG:4326") &&  "EPSG:3857".equals(Main.getProjection().toCode());
     }
 }
