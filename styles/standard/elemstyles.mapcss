@@ -50,6 +50,12 @@ setting::place_fill_colour {
   default: false;
 }
 
+setting::partial_fill {
+  type: boolean;
+  label: tr("Areas are drawn with fill only around their inner edges");
+  default: true;
+}
+
 /*********************/
 /* turn restrictions */
 /*********************/
@@ -1489,11 +1495,51 @@ node[man_made=cutline] {
 /* office tags */
 /***************/
 
-area[office=company],
-area[office=government] {
+node[office=accountant],
+node[office=administrative],
+node[office=advertising_agency],
+node[office=architect],
+node[office=association],
+node[office=company],
+node[office=educational_institution],
+node[office=employment_agency],
+node[office=estate_agent],
+node[office=foundation],
+node[office=government],
+node[office=insurance],
+node[office=it],
+node[office=lawyer],
+node[office=newspaper],
+node[office=ngo],
+node[office=notary],
+node[office=political_party],
+node[office=religion],
+node[office=research],
+node[office=tax_advisor],
+node[office=telecommunication] {
     fill-color: office#de5696;
 }
-node[office=company] {
+node[office=accountant],
+node[office=administrative],
+node[office=advertising_agency],
+node[office=architect],
+node[office=association],
+node[office=company],
+node[office=educational_institution],
+node[office=employment_agency],
+node[office=estate_agent],
+node[office=foundation],
+node[office=insurance],
+node[office=it],
+node[office=lawyer],
+node[office=newspaper],
+node[office=ngo],
+node[office=notary],
+node[office=political_party],
+node[office=religion],
+node[office=research],
+node[office=tax_advisor],
+node[office=telecommunication] {
     icon-image: "icons/office_blue.png";
     set icon_z17;
     text: auto;
@@ -4569,11 +4615,10 @@ node[place=farm] {
     text-halo-radius: 1;
     z-index: 2.1;
 }
-node[place=locality] {
+node|z15-[place=locality],
+node|z-14[place=locality][!setting("hide_icons")] {
     icon-image: "place/locality.png";
-    set icon_z0;
     text: auto;
-    set text_z0;
     font-size: 10;
     font-weight: bold;
     text-color:black;
@@ -4634,9 +4679,10 @@ way["tiger:reviewed"=no]::core_tiger {
 
 /*
 Summary of different zoom levels:
-  (any zoom)    place=* and a few natural icons with their text is shown
+  (any zoom)    place=* (except locality) and a few natural icons with their text is shown
   |z-15         untagged way nodes are hidden completely
-  |z16-         fixme=* and note=* symbols
+  |z15          place=locality icon
+  |z16-         fixme=* and note=* symbols; place=locality text
   |z17-         normal POI icons (without text),
                 street name along highway=* ways
   |z18-         text for normal POI icons is shown
@@ -4692,6 +4738,9 @@ relation|z-16[type=restriction][setting("hide_icons")] {
 }
 node|z-17[setting("hide_icons")]!.text_z0 {
     text: none;
+}
+node|z16-17[setting("hide_icons")][place=locality] {
+    text: auto;
 }
 
 node|z19,area|z19   { font-size: 9; }
@@ -4795,6 +4844,14 @@ way|z19[highway][setting("highway_labels")] {
 }
 way|z20-[highway][setting("highway_labels")] {
     font-size: 12;
+}
+
+/*************/
+/* Area fill */
+/*************/
+
+area[setting("partial_fill")] {
+    fill-extent: 25;
 }
 
 /* "deprecated" tags 
