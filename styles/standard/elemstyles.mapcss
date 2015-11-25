@@ -53,7 +53,7 @@ setting::place_fill_colour {
 setting::partial_fill {
   type: boolean;
   label: tr("Areas are drawn with fill only around their inner edges");
-  default: true;
+  default: false;
 }
 
 /*********************/
@@ -1399,6 +1399,16 @@ way[man_made=embankment][waterway] {
 way[man_made=pipeline] {
     width: 2;
     color: pipeline#660000;
+}
+node[pipeline=marker] {
+    icon-image: "misc/pipeline_marker.svg";
+    set icon_z17;
+    text: auto;
+}
+node[pipeline=valve] {
+    icon-image: "misc/valve.svg";
+    set icon_z17;
+    text: auto;
 }
 node[man_made=breakwater],
 node[man_made=groyne],
@@ -3130,7 +3140,6 @@ area[natural],
 area[man_made] {
     z-index: -2; /* put areas that can have other areas inside (e.g. building) a little lower, see #9606 */
 }
-area[landuse=farm],
 area[landuse=farmland] {
     fill-color: farmland#b8e0b1;
 }
@@ -3512,7 +3521,7 @@ area[aeroway=aerodrome] {
     width: 2;
     dashes: 9,9;
 }
-node[aeroway=aerodrome] {
+node[aeroway=aerodrome][military!=airfield] {
     icon-image: "transport/airport.png";
     set icon_z17;
     text: auto;
@@ -4021,12 +4030,6 @@ node[natural=peak][tourism=viewpoint] {
 area[natural=glacier] {
     fill-color: glacier#ffffff;
 }
-node[natural=glacier] {
-    icon-image: "misc/landmark/glacier_small.png";
-    set icon_z0;
-    text: auto;
-    set text_z0;
-}
 node[natural=volcano] {
     icon-image: "misc/landmark/volcano_small.png";
     set icon_z0;
@@ -4154,6 +4157,7 @@ node[natural=tree][type=palm] {
     set icon_z17;
     text: auto;
 }
+node[natural=glacier],
 node[natural=scree],
 node[natural=scrub],
 node[natural=fell],
