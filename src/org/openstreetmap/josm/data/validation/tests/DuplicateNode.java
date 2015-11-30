@@ -43,7 +43,7 @@ public class DuplicateNode extends Test {
 
     private static class NodeHash implements Hash<Object, Object> {
 
-        private double precision = Main.pref.getDouble("validator.duplicatenodes.precision", 0.);
+        private final double precision = Main.pref.getDouble("validator.duplicatenodes.precision", 0.);
 
         private LatLon roundCoord(LatLon coor) {
             return new LatLon(
@@ -381,7 +381,7 @@ public class DuplicateNode extends Test {
     @Override
     public Command fixError(TestError testError) {
         if (!isFixable(testError)) return null;
-        Collection<OsmPrimitive> sel = new LinkedList<OsmPrimitive>(testError.getPrimitives());
+        Collection<OsmPrimitive> sel = new LinkedList<>(testError.getPrimitives());
         Set<Node> nodes = new LinkedHashSet<>(OsmPrimitive.getFilteredList(sel, Node.class));
 
         // Filter nodes that have already been deleted (see #5764 and #5773)

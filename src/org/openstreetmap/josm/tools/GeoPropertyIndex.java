@@ -31,6 +31,7 @@ public class GeoPropertyIndex<T> {
          * @return property value at that point. Must not be null.
          */
         T get(LatLon ll);
+
         /**
          * Look up the property for a coordinate rectangle.
          * @param box the rectangle
@@ -55,7 +56,7 @@ public class GeoPropertyIndex<T> {
     public GeoPropertyIndex(GeoProperty<T> geoProp, int maxLevel) {
         this.geoProp = geoProp;
         this.maxLevel = maxLevel;
-        this.root = new GPLevel<T>(0, new BBox(-180, -90, 180, 90), null, this);
+        this.root = new GPLevel<>(0, new BBox(-180, -90, 180, 90), null, this);
         this.lastLevelUsed = root;
     }
 

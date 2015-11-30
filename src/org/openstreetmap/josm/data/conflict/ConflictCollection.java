@@ -39,7 +39,7 @@ import org.openstreetmap.josm.tools.Utils;
  */
 public class ConflictCollection implements Iterable<Conflict<? extends OsmPrimitive>> {
     private final List<Conflict<? extends OsmPrimitive>> conflicts;
-    private CopyOnWriteArrayList<IConflictListener> listeners;
+    private final CopyOnWriteArrayList<IConflictListener> listeners;
 
     private static class FilterPredicate implements Predicate<Conflict<? extends OsmPrimitive>> {
 
@@ -189,6 +189,7 @@ public class ConflictCollection implements Iterable<Conflict<? extends OsmPrimit
         }
         return null;
     }
+
     /**
      * Replies the conflict for the {@link OsmPrimitive} <code>their</code>, null
      * if no such conflict exists.

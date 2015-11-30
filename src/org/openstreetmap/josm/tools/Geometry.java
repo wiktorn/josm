@@ -42,7 +42,12 @@ public final class Geometry {
         // Hide default constructor for utils classes
     }
 
-    public enum PolygonIntersection {FIRST_INSIDE_SECOND, SECOND_INSIDE_FIRST, OUTSIDE, CROSSING}
+    public enum PolygonIntersection {
+        FIRST_INSIDE_SECOND,
+        SECOND_INSIDE_FIRST,
+        OUTSIDE,
+        CROSSING
+    }
 
     /**
      * Will find all intersection and add nodes there for list of given ways.
@@ -346,12 +351,13 @@ public final class Geometry {
 
         double a2 = p4.getY() - p3.getY();
         double b2 = p3.getX() - p4.getX();
-        double c2 = (p4.getX() - p1.getX()) * (p3.getY() - p1.getY()) - (p3.getX() - p1.getX()) * (p4.getY() - p1.getY());
 
         // Solve the equations
         double det = a1 * b2 - a2 * b1;
         if (det == 0)
             return null; // Lines are parallel
+
+        double c2 = (p4.getX() - p1.getX()) * (p3.getY() - p1.getY()) - (p3.getX() - p1.getX()) * (p4.getY() - p1.getY());
 
         return new EastNorth(b1 * c2 / det + p1.getX(), -a1 * c2 / det + p1.getY());
     }
@@ -567,15 +573,15 @@ public final class Geometry {
         if (polygonNodes.size() < 2)
             return false;
 
-        boolean inside = false;
-        Node p1, p2;
-
         //iterate each side of the polygon, start with the last segment
         Node oldPoint = polygonNodes.get(polygonNodes.size() - 1);
 
         if (!oldPoint.isLatLonKnown()) {
             return false;
         }
+
+        boolean inside = false;
+        Node p1, p2;
 
         for (Node newPoint : polygonNodes) {
             //skip duplicate points
@@ -596,11 +602,19 @@ public final class Geometry {
                 p2 = oldPoint;
             }
 
-            //test if the line is crossed and if so invert the inside flag.
-            if ((newPoint.getEastNorth().getY() < point.getEastNorth().getY()) == (point.getEastNorth().getY() <= oldPoint.getEastNorth().getY())
-                    && (point.getEastNorth().getX() - p1.getEastNorth().getX()) * (p2.getEastNorth().getY() - p1.getEastNorth().getY())
-                    < (p2.getEastNorth().getX() - p1.getEastNorth().getX()) * (point.getEastNorth().getY() - p1.getEastNorth().getY())) {
-                inside = !inside;
+            EastNorth pEN = point.getEastNorth();
+            EastNorth opEN = oldPoint.getEastNorth();
+            EastNorth npEN = newPoint.getEastNorth();
+            EastNorth p1EN = p1.getEastNorth();
+            EastNorth p2EN = p2.getEastNorth();
+
+            if (pEN != null && opEN != null && npEN != null && p1EN != null && p2EN != null) {
+                //test if the line is crossed and if so invert the inside flag.
+                if ((npEN.getY() < pEN.getY()) == (pEN.getY() <= opEN.getY())
+                        && (pEN.getX() - p1EN.getX()) * (p2EN.getY() - p1EN.getY())
+                        < (p2EN.getX() - p1EN.getX()) * (pEN.getY() - p1EN.getY())) {
+                    inside = !inside;
+                }
             }
 
             oldPoint = newPoint;
@@ -694,11 +708,11 @@ public final class Geometry {
      * @see #isClockwise(Way)
      */
     public static boolean isClockwise(List<Node> nodes) {
-        double area2 = 0.;
         int nodesCount = nodes.size();
         if (nodesCount < 3 || nodes.get(0) != nodes.get(nodesCount - 1)) {
             throw new IllegalArgumentException("Way must be closed to check orientation.");
         }
+        double area2 = 0.;
 
         for (int node = 1; node <= /*sic! consider last-first as well*/ nodesCount; node++) {
             LatLon coorPrev = nodes.get(node - 1).getCoor();
@@ -935,5 +949,54 @@ public final class Geometry {
             }
         }
         return false;
+    }
+
+    /**
+     * Data class to hold two double values (area and perimeter of a polygon).
+     */
+    public static class AreaAndPerimeter {
+        private final double area;
+        private final double perimeter;
+
+        public AreaAndPerimeter(double area, double perimeter) {
+            this.area = area;
+            this.perimeter = perimeter;
+        }
+
+        public double getArea() {
+            return area;
+        }
+
+        public double getPerimeter() {
+            return perimeter;
+        }
+    }
+
+    /**
+     * Calculate area and perimeter length of a polygon.
+     * 
+     * Uses current projection; units are that of the projected coordinates.
+     * 
+     * @param nodes the list of nodes representing the polygon (must be
+     * closed, i.e. first node equals last node)
+     * @return area and perimeter
+     */
+    public static AreaAndPerimeter getAreaAndPerimeter(List<Node> nodes) {
+        if (nodes.get(0) != nodes.get(nodes.size() - 1)) {
+            throw new IllegalArgumentException();
+        }
+        double area = 0;
+        double perimeter = 0;
+        Node lastN = null;
+        for (Node n : nodes) {
+            if (lastN != null) {
+                EastNorth p1 = lastN.getEastNorth();
+                EastNorth p2 = n.getEastNorth();
+                area += p1.east() * p2.north() - p2.east() * p1.north();
+                perimeter += p1.distance(p2);
+            }
+            lastN = n;
+        }
+        return new AreaAndPerimeter(Math.abs(area) / 2, perimeter);
     }
 }

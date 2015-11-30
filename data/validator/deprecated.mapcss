@@ -534,3 +534,23 @@ relation[/^..$/][!to] {
   suggestAlternative: "addr:postcode";
   suggestAlternative: "postal_code";
 }
+
+*[water=intermittent] {
+  throwWarning: tr("{0} is deprecated", "{0.tag}");
+  suggestAlternative: "intermittent=yes";
+  fixRemove: "water";
+  fixAdd: "intermittent=yes";
+}
+
+*[type][man_made=pipeline],
+*[type][pipeline=marker] {
+  throwWarning: tr("{0} is deprecated", "{0.key}");
+  suggestAlternative: "substance";
+  fixChangeKey: "type => substance";
+}
+
+*[landuse=farm] {
+  throwWarning: tr("{0} is deprecated", "{0.tag}");
+  suggestAlternative: "landuse=farmland";
+  suggestAlternative: "landuse=farmyard";
+}

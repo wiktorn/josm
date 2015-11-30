@@ -101,8 +101,8 @@ public final class CreateCircleAction extends JosmAction {
      * Class designed to create a couple between a node and its angle relative to the center of the circle.
      */
     private static class PolarNode {
-        private double a;
-        private Node node;
+        private final double a;
+        private final Node node;
 
         PolarNode(EastNorth center, Node n) {
             EastNorth pt = n.getEastNorth();
@@ -161,9 +161,7 @@ public final class CreateCircleAction extends JosmAction {
             return;
         }
 
-        // now we can start doing things to OSM data
-        Collection<Command> cmds = new LinkedList<>();
-        EastNorth center = null;
+        EastNorth center;
 
         if (nodes.size() == 2) {
             // diameter: two single nodes needed or a way with two nodes
@@ -200,6 +198,9 @@ public final class CreateCircleAction extends JosmAction {
         Arrays.sort(angles, new PolarNodeComparator());
         int[] count = distributeNodes(angles,
                 numberOfNodesInCircle >= nodes.size() ? numberOfNodesInCircle - nodes.size() : 0);
+
+        // now we can start doing things to OSM data
+        Collection<Command> cmds = new LinkedList<>();
 
         // build a way for the circle
         List<Node> nodesToAdd = new ArrayList<>();

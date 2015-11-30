@@ -2,7 +2,6 @@
 package org.openstreetmap.josm.data.osm.visitor.paint.relations;
 
 import java.awt.geom.Path2D;
-import java.awt.geom.Path2D.Double;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
@@ -26,6 +25,8 @@ import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.osm.event.NodeMovedEvent;
 import org.openstreetmap.josm.data.osm.event.WayNodesChangedEvent;
 import org.openstreetmap.josm.data.osm.visitor.paint.relations.Multipolygon.PolyData.Intersection;
+import org.openstreetmap.josm.tools.Geometry;
+import org.openstreetmap.josm.tools.Geometry.AreaAndPerimeter;
 
 /**
  * Multipolygon data used to represent complex areas, see <a href="https://wiki.openstreetmap.org/wiki/Relation:multipolygon">wiki</a>.
@@ -189,7 +190,11 @@ public class Multipolygon {
     }
 
     public static class PolyData {
-        public enum Intersection {INSIDE, OUTSIDE, CROSSING}
+        public enum Intersection {
+            INSIDE,
+            OUTSIDE,
+            CROSSING
+        }
 
         private final Path2D.Double poly;
         public boolean selected;
@@ -229,7 +234,7 @@ public class Multipolygon {
                     }
                 }
             }
-            if (!initial) { // fix #7593
+            if (nodes.size() >= 3 && nodes.get(0) == nodes.get(nodes.size() - 1)) {
                 poly.closePath();
             }
             for (PolyData inner : inners) {
@@ -239,7 +244,7 @@ public class Multipolygon {
 
         public PolyData(PolyData copy) {
             this.selected = copy.selected;
-            this.poly = (Double) copy.poly.clone();
+            this.poly = (Path2D.Double) copy.poly.clone();
             this.wayIds = Collections.unmodifiableCollection(copy.wayIds);
             this.nodes = new ArrayList<>(copy.nodes);
             this.inners = new ArrayList<>(copy.inners);
@@ -355,6 +360,26 @@ public class Multipolygon {
             if (wayIds.contains(wayId) || innerChanged) {
                 resetNodes(event.getDataset());
             }
+        }
+
+        public boolean isClosed() {
+            if (nodes.size() < 3 || nodes.get(0) != nodes.get(nodes.size() - 1)) return false;
+            for (PolyData inner : inners) {
+                if (!inner.isClosed()) return false;
+            }
+            return true;
+        }
+
+        public AreaAndPerimeter getAreaAndPerimeter() {
+            AreaAndPerimeter ap = Geometry.getAreaAndPerimeter(nodes);
+            double area = ap.getArea();
+            double perimeter = ap.getPerimeter();
+            for (PolyData inner : inners) {
+                AreaAndPerimeter apInner = inner.getAreaAndPerimeter();
+                area -= apInner.getArea();
+                perimeter += apInner.getPerimeter();
+            }
+            return new AreaAndPerimeter(area, perimeter);
         }
     }
 

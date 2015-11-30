@@ -104,7 +104,7 @@ public class NotesDialog extends ToggleDialog implements LayerChangeListener {
 
     private void buildDialog() {
         model = new NoteTableModel();
-        displayList = new JList<Note>(model);
+        displayList = new JList<>(model);
         displayList.setCellRenderer(new NoteRenderer());
         displayList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         displayList.addListSelectionListener(new ListSelectionListener() {
@@ -114,7 +114,8 @@ public class NotesDialog extends ToggleDialog implements LayerChangeListener {
                     noteData.setSelectedNote(displayList.getSelectedValue());
                 }
                 updateButtonStates();
-            }});
+            }
+        });
         displayList.addMouseListener(new MouseAdapter() {
             //center view on selected note on double click
             @Override

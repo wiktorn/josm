@@ -39,7 +39,10 @@ public class NoteReader {
      * while the other is used to generate the notes dump file. The parser
      * needs to know which one it is handling.
      */
-    private enum NoteParseMode {API, DUMP}
+    private enum NoteParseMode {
+        API,
+        DUMP
+    }
 
     /**
      * SAX handler to read note information from its XML representation.
@@ -69,11 +72,11 @@ public class NoteReader {
             switch(qName) {
             case "osm":
                 parseMode = NoteParseMode.API;
-                notes = new ArrayList<Note>(100);
+                notes = new ArrayList<>(100);
                 return;
             case "osm-notes":
                 parseMode = NoteParseMode.DUMP;
-                notes = new ArrayList<Note>(10000);
+                notes = new ArrayList<>(10000);
                 return;
             }
 
