@@ -38,7 +38,7 @@ public class AlignImageryPanel extends JPanel {
      */
     public AlignImageryPanel(boolean oneLine, final ImageryInfo infoToAdd) {
         Font font = getFont().deriveFont(Font.PLAIN, 14.0f);
-        JLabel nagLabel = new JLabel(tr("Aerial imagery \"" + infoToAdd.getName() + "\" might be misaligned. Please check its offset using GPS tracks!"));
+        JLabel nagLabel = new JLabel(tr("Aerial imagery \"{0}\" might be misaligned. Please check its offset using GPS tracks!", infoToAdd.getName()));
         UrlLabel detailsList = new UrlLabel(tr("http://wiki.openstreetmap.org/wiki/Using_Imagery"), tr("Details..."));
         nagLabel.setLabelFor(detailsList);
         nagLabel.setFont(font);
