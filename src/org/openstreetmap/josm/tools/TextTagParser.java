@@ -41,10 +41,10 @@ public final class TextTagParser {
     public static class TextAnalyzer {
         private boolean quotesStarted;
         private boolean esc;
-        private StringBuilder s = new StringBuilder(200);
+        private final StringBuilder s = new StringBuilder(200);
         private int pos;
-        private String data;
-        private int n;
+        private final String data;
+        private final int n;
 
         public TextAnalyzer(String text) {
             pos = 0;
@@ -214,7 +214,7 @@ public final class TextTagParser {
         // Format
         // tag1\tval1\ntag2\tval2\n
         tags = readTagsByRegexp(buf, "[\\r\\n]+", ".*?([a-zA-Z0-9:_]+).*\\t(.*?)", false);
-                // try "tag\tvalue\n" format
+        // try "tag\tvalue\n" format
         if (tags != null) return tags;
 
         // Format
@@ -223,7 +223,7 @@ public final class TextTagParser {
         // a = "b=c" is OK
         // a = b=c  - this method of parsing fails intentionally
         tags = readTagsByRegexp(buf, "[\\n\\t\\r]+", "(.*?)=(.*?)", true);
-                // try format  t1=v1\n t2=v2\n ...
+        // try format  t1=v1\n t2=v2\n ...
         if (tags != null) return tags;
 
         // JSON-format

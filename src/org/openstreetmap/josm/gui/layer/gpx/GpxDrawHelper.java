@@ -27,7 +27,7 @@ import org.openstreetmap.josm.tools.ColorScale;
  * @since 7319
  */
 public class GpxDrawHelper {
-    private GpxData data;
+    private final GpxData data;
 
     // draw lines between points belonging to different segments
     private boolean forceLines;
@@ -301,7 +301,7 @@ public class GpxDrawHelper {
                 if (Double.isNaN(c.lat()) || Double.isNaN(c.lon())) {
                     continue;
                 }
-                 // now we are sure some color will be assigned
+                // now we are sure some color will be assigned
                 Color color = null;
 
                 if (colored == ColorMode.HDOP) {

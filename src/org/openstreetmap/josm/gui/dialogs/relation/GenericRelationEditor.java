@@ -97,17 +97,17 @@ import org.openstreetmap.josm.tools.WindowGeometry;
  */
 public class GenericRelationEditor extends RelationEditor  {
     /** the tag table and its model */
-    private TagEditorPanel tagEditorPanel;
-    private ReferringRelationsBrowser referrerBrowser;
-    private ReferringRelationsBrowserModel referrerModel;
+    private final TagEditorPanel tagEditorPanel;
+    private final ReferringRelationsBrowser referrerBrowser;
+    private final ReferringRelationsBrowserModel referrerModel;
 
     /** the member table */
     private MemberTable memberTable;
-    private MemberTableModel memberTableModel;
+    private final MemberTableModel memberTableModel;
 
     /** the model for the selection table */
     private SelectionTable selectionTable;
-    private SelectionTableModel selectionTableModel;
+    private final SelectionTableModel selectionTableModel;
 
     private AutoCompletingTextField tfRole;
 
@@ -1120,8 +1120,7 @@ public class GenericRelationEditor extends RelationEditor  {
             putValue(SHORT_DESCRIPTION, tr("Reverse the order of the relation members"));
             putValue(SMALL_ICON, ImageProvider.get("dialogs/relation", "reverse"));
             putValue(NAME, tr("Reverse"));
-        //  Shortcut.register Shortcut("relationeditor:reverse", tr("Relation Editor: Reverse"),
-        //      KeyEvent.VK_END, Shortcut.ALT)
+        //  Shortcut.register Shortcut("relationeditor:reverse", tr("Relation Editor: Reverse"), KeyEvent.VK_END, Shortcut.ALT)
             updateEnabledState();
         }
 
@@ -1569,8 +1568,7 @@ public class GenericRelationEditor extends RelationEditor  {
             putValue(SHORT_DESCRIPTION, tr("Download selected incomplete members"));
             putValue(SMALL_ICON, ImageProvider.get("dialogs/relation", "downloadincompleteselected"));
             putValue(NAME, tr("Download Members"));
-        //  Shortcut.register Shortcut("relationeditor:downloadincomplete", tr("Relation Editor: Download Members"),
-        //      KeyEvent.VK_K, Shortcut.ALT)
+        //  Shortcut.register Shortcut("relationeditor:downloadincomplete", tr("Relation Editor: Download Members"), KeyEvent.VK_K, Shortcut.ALT)
             updateEnabledState();
         }
 

@@ -544,7 +544,7 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
         return f;
     }
 
-     /**
+    /**
      * This simply fires up an {@link RelationEditor} for the relation shown; everything else
      * is the editor's business.
      *
@@ -863,7 +863,7 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
     }
 
     static class MemberInfo {
-        private List<RelationMember> role = new ArrayList<>();
+        private final List<RelationMember> role = new ArrayList<>();
         private Set<OsmPrimitive> members = new HashSet<>();
         private List<Integer> position = new ArrayList<>();
         private Iterable<OsmPrimitive> selection;

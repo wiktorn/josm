@@ -65,7 +65,7 @@ public class RelationTree extends JTree {
      * @return the parent dialog; null, if there is no parent dialog
      */
     protected Dialog getParentDialog() {
-        Component c = RelationTree.this;
+        Component c = this;
         while (c != null && !(c instanceof Dialog)) {
             c = c.getParent();
         }
@@ -104,9 +104,9 @@ public class RelationTree extends JTree {
     class RelationLoader extends PleaseWaitRunnable {
         private boolean canceled;
         private Exception lastException;
-        private Relation relation;
+        private final Relation relation;
         private DataSet ds;
-        private TreePath path;
+        private final TreePath path;
 
         RelationLoader(Dialog dialog, Relation relation, TreePath path) {
             super(
