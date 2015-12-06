@@ -361,10 +361,10 @@
         </optional>
     </chunk>
     <chunk id="car_brands">
-    <multiselect key="brand" text="Car brand" values="Alfa Romeo;Aston Martin;Audi;Bentley;BMW;Buick;Cadillac;Chevrolet;Chrysler;Citroën;Dacia;Daewoo;Daihatsu;Dodge;Ferrari;Fiat;Ford;GMC;Great Wall;Holden;Honda;Hyundai;Infiniti;Isuzu;Jaguar;Jeep;Kia;Lada;Lancia;Land Rover;Lexus;Lincoln;Lotus;Maserati;Mazda;Mercedes-Benz;Mini;Mitsubishi;Nissan;Opel;Peugeot;Renault;Saab;Seat;Škoda;Smart;SsangYong;Subaru;Suzuki;Toyota;Vauxhall;Volkswagen;Volvo" />
+    <multiselect key="brand" text="Car brand" values="Alfa Romeo;Aston Martin;Audi;Bentley;BMW;Buick;Cadillac;Chevrolet;Chrysler;Citroën;Dacia;Daewoo;Daihatsu;Dodge;Ferrari;Fiat;Ford;GMC;Great Wall;Holden;Honda;Hyundai;Infiniti;Isuzu;Jaguar;Jeep;Kia;Lada;Lancia;Land Rover;Lexus;Lincoln;Lotus;Maserati;Mazda;Mercedes-Benz;Mini;Mitsubishi;Nissan;Opel;Peugeot;Porsche;Renault;Saab;Seat;Škoda;Smart;SsangYong;Subaru;Suzuki;Tata;Toyota;Vauxhall;Volkswagen;Volvo" values_no_i18n="true" />
   </chunk>
   <chunk id="motorcycle_brands">
-    <multiselect key="brand" text="Motorcycle brand" values="Aprillia;BMW;Ducati;Gilera;Harley-Davidson;Honda;Kawasaki;KTM;Kymco;Piaggio;Peugeot;Piaggio;Suzuki;Triumph;Vespa;Yamaha" />
+    <multiselect key="brand" text="Motorcycle brand" values="Aprillia;BMW;Ducati;Gilera;Harley-Davidson;Honda;Kawasaki;KTM;Kymco;Piaggio;Peugeot;Piaggio;Suzuki;Triumph;Vespa;Yamaha" values_no_i18n="true" />
   </chunk>
   <!-- Link chunks -->
   <chunk id="link_contact_address">
@@ -1108,6 +1108,7 @@
                   uk.href="http://wiki.openstreetmap.org/wiki/Uk:Tag:highway=footway" />
             <key key="highway" value="footway" />
             <optional>
+                <combo key="footway" text="Type" values="sidewalk,crossing" values_context="footway" />
                 <reference ref="name_layer" />
                 <reference ref="surface_smoothness" />
                 <reference ref="highway_yesno_incline" />
@@ -2259,6 +2260,10 @@
                   pt_BR.href="http://wiki.openstreetmap.org/wiki/Pt-br:Tag:waterway=turning_point" />
             <key key="waterway" value="turning_point" />
         </item> <!-- Turning Point -->
+        <item name="Buoy" icon="styles/standard/nautical/buoy.svg" type="node" preset_name_label="true">
+            <link href="http://wiki.openstreetmap.org/wiki/Tag:seamark=buoy" />
+            <key key="seamark" value="buoy" />
+        </item> <!-- Buoy -->
         <separator/>
         <item name="Slipway" icon="styles/standard/nautical/slipway.png" type="node,way" preset_name_label="true">
             <link href="http://wiki.openstreetmap.org/wiki/Tag:leisure=slipway"
@@ -2479,7 +2484,14 @@
                   pt_BR.href="http://wiki.openstreetmap.org/wiki/Pt-br:Tag:railway=switch" />
             <key key="railway" value="switch" />
             <text key="ref" text="Reference" />
+            <text key="operator" text="Operator" />
         </item> <!-- Railway Switch -->
+        <item name="Railway Signal" icon="styles/standard/vehicle/railway_signal.svg" type="node" preset_name_label="true">
+            <link href="http://wiki.openstreetmap.org/wiki/Tag:railway=signal" />
+            <key key="railway" value="signal" />
+            <text key="ref" text="Reference" />
+            <text key="operator" text="Operator" />
+        </item> <!-- Railway Signal -->
         <item name="Railway milestone" icon="styles/standard/vehicle/milestone.svg" type="node" preset_name_label="true">
             <link href="http://wiki.openstreetmap.org/wiki/Tag:railway=milestone" />
             <key key="railway" value="milestone" />
@@ -3032,6 +3044,7 @@
             <text key="name" text="Name" />
             <check key="bench" text="Bench" />
             <check key="shelter" text="Shelter" />
+            <check key="bin" text="Waste Basket/Trash Can" />
             <check key="covered" text="Covered" />
             <reference ref="wheelchair" />
             <optional>
@@ -3199,8 +3212,9 @@
             <key key="highway" value="bus_stop" />
             <optional>
                 <text key="name" text="Name" />
-                <check key="shelter" text="Shelter" />
                 <check key="bench" text="Bench" />
+                <check key="shelter" text="Shelter" />
+                <check key="bin" text="Waste Basket/Trash Can" />
                 <combo key="tactile_paving" text="Tactile Paving" values="yes,no,incorrect" />
             </optional>
         </item> <!-- Bus Stop -->
