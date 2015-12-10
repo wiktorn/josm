@@ -699,7 +699,7 @@ public abstract class Main {
         }.call();
     }
 
-    private abstract class InitializationTask implements Callable<Void> {
+    private abstract static class InitializationTask implements Callable<Void> {
 
         private final String name;
 
@@ -1616,7 +1616,7 @@ public abstract class Main {
      * @return {@code true} if the listeners collection changed as a result of the call
      */
     public static boolean addMapFrameListener(MapFrameListener listener, boolean fireWhenMapViewPresent) {
-        boolean changed = listener != null ? mapFrameListeners.add(listener) : false;
+        boolean changed = listener != null && mapFrameListeners.add(listener);
         if (fireWhenMapViewPresent && changed && map != null) {
             listener.mapFrameInitialized(null, map);
         }
@@ -1640,7 +1640,7 @@ public abstract class Main {
      * @since 5957
      */
     public static boolean removeMapFrameListener(MapFrameListener listener) {
-        return listener != null ? mapFrameListeners.remove(listener) : false;
+        return listener != null && mapFrameListeners.remove(listener);
     }
 
     /**

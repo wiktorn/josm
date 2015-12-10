@@ -115,7 +115,7 @@ public abstract class Condition {
         BEGINS_WITH,
         /** The value needs to end with the reference string. */
         ENDS_WITH,
-         /** The value needs to contain the reference string. */
+        /** The value needs to contain the reference string. */
         CONTAINS;
 
         protected static final Set<Op> NEGATED_OPS = EnumSet.of(NEQ, NREGEX);
@@ -139,13 +139,13 @@ public abstract class Condition {
                 final boolean contains = Pattern.compile(prototypeString).matcher(testString).find();
                 return REGEX.equals(this) ? contains : !contains;
             case ONE_OF:
-                return Arrays.asList(testString.split("\\s*;\\s*")).contains(prototypeString);
+                return testString != null && Arrays.asList(testString.split("\\s*;\\s*")).contains(prototypeString);
             case BEGINS_WITH:
-                return testString.startsWith(prototypeString);
+                return testString != null && testString.startsWith(prototypeString);
             case ENDS_WITH:
-                return testString.endsWith(prototypeString);
+                return testString != null && testString.endsWith(prototypeString);
             case CONTAINS:
-                return testString.contains(prototypeString);
+                return testString != null && testString.contains(prototypeString);
             }
 
             float test_float;

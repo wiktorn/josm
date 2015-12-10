@@ -89,7 +89,7 @@ public class SessionReader {
     private ZipFile zipFile;
     private List<Layer> layers = new ArrayList<>();
     private int active = -1;
-    private List<Runnable> postLoadTasks = new ArrayList<>();
+    private final List<Runnable> postLoadTasks = new ArrayList<>();
     private ViewportData viewport;
 
     /**
@@ -125,9 +125,9 @@ public class SessionReader {
 
     public class ImportSupport {
 
-        private String layerName;
-        private int layerIndex;
-        private List<LayerDependency> layerDependencies;
+        private final String layerName;
+        private final int layerIndex;
+        private final List<LayerDependency> layerDependencies;
 
         public ImportSupport(String layerName, int layerIndex, List<LayerDependency> layerDependencies) {
             this.layerName = layerName;
@@ -272,9 +272,9 @@ public class SessionReader {
     }
 
     public static class LayerDependency {
-        private Integer index;
-        private Layer layer;
-        private SessionLayerImporter importer;
+        private final Integer index;
+        private final Layer layer;
+        private final SessionLayerImporter importer;
 
         public LayerDependency(Integer index, Layer layer, SessionLayerImporter importer) {
             this.index = index;
@@ -412,14 +412,16 @@ public class SessionReader {
             Element e = elems.get(idx);
             if (e == null) {
                 error(tr("missing layer with index {0}", idx));
-            }
-            if (!e.hasAttribute("name")) {
+                return;
+            } else if (!e.hasAttribute("name")) {
                 error(tr("missing mandatory attribute ''name'' for element ''layer''"));
+                return;
             }
             String name = e.getAttribute("name");
             names.put(idx, name);
             if (!e.hasAttribute("type")) {
                 error(tr("missing mandatory attribute ''type'' for element ''layer''"));
+                return;
             }
             String type = e.getAttribute("type");
             SessionLayerImporter imp = getSessionLayerImporter(type);

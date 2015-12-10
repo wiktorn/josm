@@ -101,14 +101,14 @@ public final class HelpAwareOptionPane {
         }
 
         private boolean addChangeListener(ChangeListener listener) {
-            return listener != null ? listeners.add(listener) : false;
+            return listener != null && listeners.add(listener);
         }
     }
 
     private static class DefaultAction extends AbstractAction {
-        private JDialog dialog;
-        private JOptionPane pane;
-        private int value;
+        private final JDialog dialog;
+        private final JOptionPane pane;
+        private final int value;
 
         DefaultAction(JDialog dialog, JOptionPane pane, int value) {
             this.dialog = dialog;

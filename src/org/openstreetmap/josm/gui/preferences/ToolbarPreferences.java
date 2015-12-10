@@ -407,21 +407,21 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
             shortcutEdit.setVisible(act != null);
         }
 
-        private JMenuItem remove = new JMenuItem(new AbstractAction(tr("Remove from toolbar")) {
+        private final JMenuItem remove = new JMenuItem(new AbstractAction(tr("Remove from toolbar")) {
             @Override
             public void actionPerformed(ActionEvent e) {
-                                Collection<String> t = new LinkedList<>(getToolString());
-                                ActionParser parser = new ActionParser(null);
-                                // get text definition of current action
+                Collection<String> t = new LinkedList<>(getToolString());
+                ActionParser parser = new ActionParser(null);
+                // get text definition of current action
                 String res = parser.saveAction(act);
-                                // remove the button from toolbar preferences
-                                t.remove(res);
-                                Main.pref.putCollection("toolbar", t);
-                                Main.toolbar.refreshToolbarControl();
-                            }
-                });
+                // remove the button from toolbar preferences
+                t.remove(res);
+                Main.pref.putCollection("toolbar", t);
+                Main.toolbar.refreshToolbarControl();
+            }
+        });
 
-        private JMenuItem configure = new JMenuItem(new AbstractAction(tr("Configure toolbar")) {
+        private final JMenuItem configure = new JMenuItem(new AbstractAction(tr("Configure toolbar")) {
             @Override
             public void actionPerformed(ActionEvent e) {
                 final PreferenceDialog p = new PreferenceDialog(Main.parent);
@@ -430,7 +430,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
             }
         });
 
-        private JMenuItem shortcutEdit = new JMenuItem(new AbstractAction(tr("Edit shortcut")) {
+        private final JMenuItem shortcutEdit = new JMenuItem(new AbstractAction(tr("Edit shortcut")) {
             @Override
             public void actionPerformed(ActionEvent e) {
                 final PreferenceDialog p = new PreferenceDialog(Main.parent);
@@ -442,7 +442,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
             }
         });
 
-        private JCheckBoxMenuItem doNotHide = new JCheckBoxMenuItem(new AbstractAction(tr("Do not hide toolbar and menu")) {
+        private final JCheckBoxMenuItem doNotHide = new JCheckBoxMenuItem(new AbstractAction(tr("Do not hide toolbar and menu")) {
             @Override
             public void actionPerformed(ActionEvent e) {
                 boolean sel = ((JCheckBoxMenuItem) e.getSource()).getState();
@@ -473,7 +473,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
         }
     }
 
-    private ToolbarPopupMenu popupMenu = new ToolbarPopupMenu();
+    private final ToolbarPopupMenu popupMenu = new ToolbarPopupMenu();
 
     /**
      * Key: Registered name (property "toolbar" of action).

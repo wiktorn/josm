@@ -3,7 +3,6 @@ package org.openstreetmap.josm.data.imagery;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
 
-import java.awt.Dimension;
 import java.awt.GridBagLayout;
 import java.awt.Point;
 import java.io.ByteArrayInputStream;
@@ -24,6 +23,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
 import javax.swing.table.AbstractTableModel;
@@ -58,7 +58,7 @@ import org.openstreetmap.josm.tools.Utils;
 public class WMTSTileSource extends TMSTileSource implements TemplatedTileSource {
     private static final String PATTERN_HEADER  = "\\{header\\(([^,]+),([^}]+)\\)\\}";
 
-    private static final String URL_GET_ENCODING_PARAMS = "SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER={layer}&STYLE={Style}&"
+    private static final String URL_GET_ENCODING_PARAMS = "SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER={layer}&STYLE={style}&"
             + "FORMAT={format}&tileMatrixSet={TileMatrixSet}&tileMatrix={TileMatrix}&tileRow={TileRow}&tileCol={TileCol}";
 
     private static final String[] ALL_PATTERNS = {
@@ -199,12 +199,11 @@ public class WMTSTileSource extends TMSTileSource implements TemplatedTileSource
                             return false;
                         }
                     });
-            this.list.setPreferredSize(new Dimension(400, 400));
             this.list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
             this.list.setRowSelectionAllowed(true);
             this.list.setColumnSelectionAllowed(false);
             JPanel panel = new JPanel(new GridBagLayout());
-            panel.add(this.list, GBC.eol().fill());
+            panel.add(new JScrollPane(this.list), GBC.eol().fill());
             setContent(panel);
         }
 
@@ -648,16 +647,20 @@ public class WMTSTileSource extends TMSTileSource implements TemplatedTileSource
             return "";
         }
 
-        switch (transferMode) {
-        case KVP:
-            url = baseUrl + URL_GET_ENCODING_PARAMS;
-            break;
-        case REST:
+        if (currentLayer.baseUrl != null && transferMode == null) {
             url = currentLayer.baseUrl;
-            break;
-        default:
-            url = "";
-            break;
+        } else {
+            switch (transferMode) {
+            case KVP:
+                url = baseUrl + URL_GET_ENCODING_PARAMS;
+                break;
+            case REST:
+                url = currentLayer.baseUrl;
+                break;
+            default:
+                url = "";
+                break;
+            }
         }
 
         TileMatrix tileMatrix = getTileMatrix(zoom);
@@ -672,7 +675,7 @@ public class WMTSTileSource extends TMSTileSource implements TemplatedTileSource
                 .replaceAll("\\{TileMatrix\\}", tileMatrix.identifier)
                 .replaceAll("\\{TileRow\\}", Integer.toString(tiley))
                 .replaceAll("\\{TileCol\\}", Integer.toString(tilex))
-                .replaceAll("\\{Style\\}", this.currentLayer.style);
+                .replaceAll("(?i)\\{style\\}", this.currentLayer.style);
     }
 
     /**

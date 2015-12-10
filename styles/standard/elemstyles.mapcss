@@ -53,7 +53,7 @@ setting::place_fill_colour {
 setting::partial_fill {
   type: boolean;
   label: tr("Areas are drawn with fill only around their inner edges");
-  default: false;
+  default: true;
 }
 
 /*********************/
@@ -3466,8 +3466,13 @@ way[railway=funicular] {
     dashes: 9,9;
 }
 node[railway=switch] {
-    icon-image: "presets/railway_switch.png";
+    icon-image: "presets/railway_switch.svg";
     icon-width: 16;
+    set icon_z17;
+    text: auto;
+}
+node[railway=signal] {
+    icon-image: "vehicle/railway_signal.svg";
     set icon_z17;
     text: auto;
 }
@@ -4857,25 +4862,3 @@ way|z20-[highway][setting("highway_labels")] {
 area[setting("partial_fill")] {
     fill-extent: 25;
 }
-
-/* "deprecated" tags 
-     historic=museum -> tourism=museum 
-     man_made=power_wind -> power=generator and power_source=wind 
-     man_made=power_hydro -> power=generator and power_source=hydro 
-     man_made=power_fossil -> power=generator and power_source=fossil 
-     man_made=power_nuclear -> power=generator and power_source=nuclear 
-     amenity=park_bench -> amenity=bench 
-     amenity=signpost -> information=guidepost 
-     amenity=emergency_phone -> emergency=phone 
-     highway minor - classification now more detailed 
-     highway=stile -> barrier=stile 
-     highway=gate -> barrier=gate 
-     highway=cattle_grid -> barrier=cattle_grid 
-     highway=toll_booth -> barrier=toll_booth 
-     highway=viaduct -> bridge=viaduct 
-     railway=viaduct -> bridge=viaduct 
-     waterway=aqueduct -> bridge=aqueduct 
-     natural=marsh -> natural=wetland 
-     leisure=zoo -> tourism=zoo 
-     power=station -> power=plant or power=sub_station 
-*/

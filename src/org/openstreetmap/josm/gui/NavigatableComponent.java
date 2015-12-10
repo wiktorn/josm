@@ -214,13 +214,23 @@ public class NavigatableComponent extends JComponent implements Helpful {
     }
 
     /**
-     * @return Returns the center point. A copy is returned, so users cannot
-     *      change the center by accessing the return value. Use zoomTo instead.
+     * Returns the current center of the viewport.
+     *
+     * (Use {@link #zoomTo(EastNorth)} to the change the center.)
+     *
+     * @return the current center of the viewport
      */
     public EastNorth getCenter() {
         return center;
     }
 
+    /**
+     * Returns the current scale.
+     *
+     * In east/north units per pixel.
+     *
+     * @return the current scale
+     */
     public double getScale() {
         return scale;
     }
@@ -591,8 +601,8 @@ public class NavigatableComponent extends JComponent implements Helpful {
         }
     }
 
-    private Stack<ZoomData> zoomUndoBuffer = new Stack<>();
-    private Stack<ZoomData> zoomRedoBuffer = new Stack<>();
+    private final Stack<ZoomData> zoomUndoBuffer = new Stack<>();
+    private final Stack<ZoomData> zoomRedoBuffer = new Stack<>();
     private Date zoomTimestamp = new Date();
 
     private void pushZoomUndo(EastNorth center, double scale) {
@@ -990,7 +1000,7 @@ public class NavigatableComponent extends JComponent implements Helpful {
         return (ntsel != null && useSelected) ? ntsel : wayseg;
     }
 
-     /**
+    /**
      * The *result* depends on the current map selection state IF use_selected is true.
      *
      * @param p the point for which to search the nearest segment.
