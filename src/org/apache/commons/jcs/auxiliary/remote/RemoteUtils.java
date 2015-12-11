@@ -30,8 +30,6 @@ import java.rmi.registry.Registry;
 import java.rmi.server.RMISocketFactory;
 import java.util.Enumeration;
 import java.util.Properties;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -194,7 +192,7 @@ public class RemoteUtils
                 } );
             }
         }
-        catch ( Exception e )
+        catch ( IOException e )
         {
             // Only try to do it once. Otherwise we
             // Generate errors for each region on construction.
@@ -210,10 +208,22 @@ public class RemoteUtils
     /**
      * Get the naming url used for RMI registration
      *
-     * @param registryHost
-     * @param registryPort
-     * @param serviceName
-     * @return
+     * @param location the remote location
+     * @param serviceName the remote service name
+     * @return the URL for RMI lookup
+     */
+    public static String getNamingURL(final RemoteLocation location, final String serviceName)
+    {
+        return getNamingURL(location.getHost(), location.getPort(), serviceName);
+    }
+
+    /**
+     * Get the naming url used for RMI registration
+     *
+     * @param registryHost the remote host
+     * @param registryPort the remote port
+     * @param serviceName the remote service name
+     * @return the URL for RMI lookup
      */
     public static String getNamingURL(final String registryHost, final int registryPort, final String serviceName)
     {
@@ -222,30 +232,5 @@ public class RemoteUtils
         }
         final String registryURL = "//" + registryHost + ":" + registryPort + "/" + serviceName;
         return registryURL;
-    }
-
-    /** Pattern for parsing server:port */
-    private static final Pattern SERVER_COLON_PORT = Pattern.compile("(\\S+)\\s*:\\s*(\\d+)");
-
-    /**
-     * Parse remote server and port from the string representation server:port and store them in
-     * the RemoteCacheAttributes
-     *
-     * @param server the input string
-     * @param rca the target attribute object
-     */
-    public static void parseServerAndPort(final String server, final RemoteCacheAttributes rca)
-    {
-        Matcher match = SERVER_COLON_PORT.matcher(server);
-
-        if (match.find() && match.groupCount() == 2)
-        {
-            rca.setRemoteHost( match.group(1) );
-            rca.setRemotePort( Integer.parseInt( match.group(2) ) );
-        }
-        else
-        {
-            log.error("Invalid server descriptor: " + server);
-        }
     }
 }

@@ -144,7 +144,7 @@ public class BlockDiskCache<K, V>
             }
 
             // Initialization finished successfully, so set alive to true.
-            alive = true;
+            setAlive(true);
             if ( log.isInfoEnabled() )
             {
                 log.info( logCacheName + "Block Disk Cache is alive." );
@@ -306,15 +306,14 @@ public class BlockDiskCache<K, V>
      * in the key store.</li> <li>If we found a key, ask the BlockDisk for the object at the
      * blocks..</li> <li>Release the lock.</li>
      * </ol>
-     * (non-Javadoc)
      * @param key
      * @return ICacheElement
-     * @see org.apache.commons.jcs.auxiliary.disk.AbstractDiskCache#doGet(java.io.Serializable)
+     * @see org.apache.commons.jcs.auxiliary.disk.AbstractDiskCache#get(Object)
      */
     @Override
     protected ICacheElement<K, V> processGet( K key )
     {
-        if ( !alive )
+        if ( !isAlive() )
         {
             if ( log.isDebugEnabled() )
             {
@@ -366,12 +365,12 @@ public class BlockDiskCache<K, V>
      * lock.</li>
      * </ol>
      * @param element
-     * @see org.apache.commons.jcs.auxiliary.disk.AbstractDiskCache#doUpdate(org.apache.commons.jcs.engine.behavior.ICacheElement)
+     * @see org.apache.commons.jcs.auxiliary.disk.AbstractDiskCache#update(ICacheElement)
      */
     @Override
     protected void processUpdate( ICacheElement<K, V> element )
     {
-        if ( !alive )
+        if ( !isAlive() )
         {
             if ( log.isDebugEnabled() )
             {
@@ -422,15 +421,14 @@ public class BlockDiskCache<K, V>
      * Returns true if the removal was successful; or false if there is nothing to remove. Current
      * implementation always result in a disk orphan.
      * <p>
-     * (non-Javadoc)
      * @param key
      * @return true if removed anything
-     * @see org.apache.commons.jcs.auxiliary.disk.AbstractDiskCache#doRemove(java.io.Serializable)
+     * @see org.apache.commons.jcs.auxiliary.disk.AbstractDiskCache#remove(Object)
      */
     @Override
     protected boolean processRemove( K key )
     {
-        if ( !alive )
+        if ( !isAlive() )
         {
             if ( log.isDebugEnabled() )
             {
@@ -458,7 +456,7 @@ public class BlockDiskCache<K, V>
 
                     if ( k instanceof String && k.toString().startsWith( key.toString() ) )
                     {
-                        int[] ded = this.keyStore.get( key );
+                        int[] ded = entry.getValue();
                         this.dataFile.freeBlocks( ded );
                         iter.remove();
                         removed = true;
@@ -478,7 +476,7 @@ public class BlockDiskCache<K, V>
                     if ( k instanceof GroupAttrName &&
                         ((GroupAttrName<?>)k).groupId.equals(((GroupAttrName<?>)key).groupId))
                     {
-                        int[] ded = this.keyStore.get( key );
+                        int[] ded = entry.getValue();
                         this.dataFile.freeBlocks( ded );
                         iter.remove();
                         removed = true;
@@ -523,7 +521,7 @@ public class BlockDiskCache<K, V>
     /**
      * Resets the keyfile, the disk file, and the memory key map.
      * <p>
-     * @see org.apache.commons.jcs.auxiliary.disk.AbstractDiskCache#doRemoveAll()
+     * @see org.apache.commons.jcs.auxiliary.disk.AbstractDiskCache#removeAll()
      */
     @Override
     protected void processRemoveAll()
@@ -575,7 +573,7 @@ public class BlockDiskCache<K, V>
     protected void disposeInternal()
         throws InterruptedException
     {
-        if ( !alive )
+        if ( !isAlive() )
         {
             log.error( logCacheName + "Not alive and dispose was called, filename: " + fileName );
             return;
@@ -584,8 +582,7 @@ public class BlockDiskCache<K, V>
         try
         {
             // Prevents any interaction with the cache while we're shutting down.
-            alive = false;
-
+            setAlive(false);
             this.keyStore.saveKeys();
 
             try
@@ -620,7 +617,6 @@ public class BlockDiskCache<K, V>
     /**
      * Returns the attributes.
      * <p>
-     * (non-Javadoc)
      * @see org.apache.commons.jcs.auxiliary.AuxiliaryCache#getAuxiliaryCacheAttributes()
      */
     @Override
@@ -686,7 +682,6 @@ public class BlockDiskCache<K, V>
     /**
      * Returns info about the disk cache.
      * <p>
-     * (non-Javadoc)
      * @see org.apache.commons.jcs.auxiliary.AuxiliaryCache#getStatistics()
      */
     @Override
@@ -697,7 +692,7 @@ public class BlockDiskCache<K, V>
 
         ArrayList<IStatElement<?>> elems = new ArrayList<IStatElement<?>>();
 
-        elems.add(new StatElement<Boolean>( "Is Alive", Boolean.valueOf(alive) ) );
+        elems.add(new StatElement<Boolean>( "Is Alive", Boolean.valueOf(isAlive()) ) );
         elems.add(new StatElement<Integer>( "Key Map Size", Integer.valueOf(this.keyStore.size()) ) );
 
         if (this.dataFile != null)
