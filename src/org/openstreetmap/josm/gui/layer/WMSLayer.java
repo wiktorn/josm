@@ -13,6 +13,7 @@ import java.util.TreeSet;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
+import javax.swing.JOptionPane;
 
 import org.apache.commons.jcs.access.CacheAccess;
 import org.openstreetmap.gui.jmapviewer.interfaces.TileLoader;
@@ -142,7 +143,9 @@ public class WMSLayer extends AbstractCachedTileSourceLayer {
                     + "Change the projection again or remove the layer.",
                     getName(), newValue.toCode(), nameSupportedProjections());
 
-            ExtendedDialog warningDialog = new ExtendedDialog(Main.parent, tr("Warning"), new String[]{tr("OK")}).setContent(message);
+            ExtendedDialog warningDialog = new ExtendedDialog(Main.parent, tr("Warning"), new String[]{tr("OK")}).
+                    setContent(message).
+                    setIcon(JOptionPane.WARNING_MESSAGE);
 
             if (isReprojectionPossible()) {
                 warningDialog.toggleEnable("imagery.wms.projectionSupportWarnings." + tileSource.getBaseUrl());
