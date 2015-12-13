@@ -20,17 +20,14 @@ package org.apache.commons.jcs.auxiliary.lateral;
  */
 
 import org.apache.commons.jcs.auxiliary.AbstractAuxiliaryCacheAttributes;
-import org.apache.commons.jcs.auxiliary.AuxiliaryCacheAttributes;
 import org.apache.commons.jcs.auxiliary.lateral.behavior.ILateralCacheAttributes;
-
-import java.io.Serializable;
 
 /**
  * This class stores attributes for all of the available lateral cache auxiliaries.
  */
 public class LateralCacheAttributes
     extends AbstractAuxiliaryCacheAttributes
-    implements Serializable, ILateralCacheAttributes
+    implements ILateralCacheAttributes
 {
     /** Don't change */
     private static final long serialVersionUID = -3408449508837393660L;
@@ -233,24 +230,6 @@ public class LateralCacheAttributes
     public boolean getPutOnlyMode()
     {
         return putOnlyMode;
-    }
-
-    /**
-     * Returns a clone of the attributes.
-     * @return Self
-     */
-    @Override
-    public AuxiliaryCacheAttributes copy()
-    {
-        try
-        {
-            return (AuxiliaryCacheAttributes) this.clone();
-        }
-        catch ( Exception e )
-        {
-            //noop
-        }
-        return this;
     }
 
     /**
