@@ -20,7 +20,7 @@ import javax.swing.border.EtchedBorder;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.imagery.ImageryInfo;
-import org.openstreetmap.josm.data.imagery.ImageryLayerInfo;
+import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.gui.widgets.UrlLabel;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
@@ -34,9 +34,10 @@ public class AlignImageryPanel extends JPanel {
 
     /**
      * @param oneLine if true, show the nagging message in one line, otherwise - in two lines
+     * @param showAgain show again property
      * @param infoToAdd imagery info for which the nagging message is shown
      */
-    public AlignImageryPanel(boolean oneLine, final ImageryInfo infoToAdd) {
+    public AlignImageryPanel(boolean oneLine, final BooleanProperty showAgain, ImageryInfo infoToAdd) {
         Font font = getFont().deriveFont(Font.PLAIN, 14.0f);
         JLabel nagLabel = new JLabel(tr("Aerial imagery \"{0}\" might be misaligned. Please check its offset using GPS tracks!", infoToAdd.getName()));
         UrlLabel detailsList = new UrlLabel(tr("http://wiki.openstreetmap.org/wiki/Using_Imagery"), tr("Details..."));
@@ -57,8 +58,7 @@ public class AlignImageryPanel extends JPanel {
                 if (Main.isDisplayingMapView()) {
                     Main.map.removeTopPanel(AlignImageryPanel.class);
                     if (doNotShowAgain.isSelected()) {
-                        infoToAdd.setGeoreferenceValid(true);
-                        ImageryLayerInfo.instance.save();
+                        showAgain.put(false);
                     }
                 }
             }
@@ -84,10 +84,11 @@ public class AlignImageryPanel extends JPanel {
      * @param infoToAdd ImageryInfo for which the nag panel should be created
      */
     public static void addNagPanelIfNeeded(ImageryInfo infoToAdd) {
-        if (Main.isDisplayingMapView() && !infoToAdd.isGeoreferenceValid()) {
+        BooleanProperty showAgain = new BooleanProperty("message.imagery.nagPanel." + infoToAdd.getUrl(), true);
+        if (Main.isDisplayingMapView() && showAgain.get() && !infoToAdd.isGeoreferenceValid() ) {
             if (Main.map.getTopPanel(AlignImageryPanel.class) == null) {
                 double w = Toolkit.getDefaultToolkit().getScreenSize().getWidth();
-                AlignImageryPanel p = new AlignImageryPanel(w > 1300, infoToAdd);
+                AlignImageryPanel p = new AlignImageryPanel(w > 1300, showAgain, infoToAdd);
                 Main.map.addTopPanel(p);
             }
         }
