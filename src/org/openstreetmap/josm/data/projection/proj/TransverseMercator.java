@@ -3,6 +3,7 @@ package org.openstreetmap.josm.data.projection.proj;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
 
+import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.projection.ProjectionConfigurationException;
 
 /**
@@ -55,12 +56,12 @@ import org.openstreetmap.josm.data.projection.ProjectionConfigurationException;
  *        EPSG Guidence Note Number 7, Version 19.</li>
  * </ul>
  *
- * @see <A HREF="http://mathworld.wolfram.com/MercatorProjection.html">Transverse Mercator projection on MathWorld</A>
- * @see <A HREF="http://www.remotesensing.org/geotiff/proj_list/transverse_mercator.html">"Transverse_Mercator" on RemoteSensing.org</A>
- *
  * @author André Gosselin
  * @author Martin Desruisseaux (PMO, IRD)
  * @author Rueben Schulz
+ *
+ * @see <A HREF="http://mathworld.wolfram.com/MercatorProjection.html">Transverse Mercator projection on MathWorld</A>
+ * @see <A HREF="http://www.remotesensing.org/geotiff/proj_list/transverse_mercator.html">"Transverse_Mercator" on RemoteSensing.org</A>
  */
 public class TransverseMercator extends AbstractProj {
 
@@ -68,14 +69,14 @@ public class TransverseMercator extends AbstractProj {
      * Contants used for the forward and inverse transform for the eliptical
      * case of the Transverse Mercator.
      */
-    private static final double FC1= 1.00000000000000000000000,  // 1/1
-                                FC2= 0.50000000000000000000000,  // 1/2
-                                FC3= 0.16666666666666666666666,  // 1/6
-                                FC4= 0.08333333333333333333333,  // 1/12
-                                FC5= 0.05000000000000000000000,  // 1/20
-                                FC6= 0.03333333333333333333333,  // 1/30
-                                FC7= 0.02380952380952380952380,  // 1/42
-                                FC8= 0.01785714285714285714285;  // 1/56
+    private static final double FC1 = 1.00000000000000000000000,  // 1/1
+                                FC2 = 0.50000000000000000000000,  // 1/2
+                                FC3 = 0.16666666666666666666666,  // 1/6
+                                FC4 = 0.08333333333333333333333,  // 1/12
+                                FC5 = 0.05000000000000000000000,  // 1/20
+                                FC6 = 0.03333333333333333333333,  // 1/30
+                                FC7 = 0.02380952380952380952380,  // 1/42
+                                FC8 = 0.01785714285714285714285;  // 1/56
 
     /**
      * Maximum difference allowed when comparing real numbers.
@@ -84,7 +85,7 @@ public class TransverseMercator extends AbstractProj {
 
     /**
      * A derived quantity of excentricity, computed by <code>e'² = (a²-b²)/b² = es/(1-es)</code>
-     * where <var>a</var> is the semi-major axis length and <var>b</bar> is the semi-minor axis
+     * where <var>a</var> is the semi-major axis length and <var>b</var> is the semi-minor axis
      * length.
      */
     private double eb2;
@@ -124,6 +125,7 @@ public class TransverseMercator extends AbstractProj {
 
     @Override
     public double[] project(double y, double x) {
+        x = normalizeLon(x);
         double sinphi = Math.sin(y);
         double cosphi = Math.cos(y);
 
@@ -137,16 +139,16 @@ public class TransverseMercator extends AbstractProj {
         /* NOTE: meridinal distance at latitudeOfOrigin is always 0 */
         y = (mlfn(y, sinphi, cosphi) - ml0 +
             sinphi * al * x *
-            FC2 * ( 1.0 +
+            FC2 * (1.0 +
             FC4 * als * (5.0 - t + n*(9.0 + 4.0*n) +
             FC6 * als * (61.0 + t * (t - 58.0) + n*(270.0 - 330.0*t) +
-            FC8 * als * (1385.0 + t * ( t*(543.0 - t) - 3111.0))))));
+            FC8 * als * (1385.0 + t * (t*(543.0 - t) - 3111.0))))));
 
         x = al*(FC1 + FC3 * als*(1.0 - t + n +
             FC5 * als * (5.0 + t*(t - 18.0) + n*(14.0 - 58.0*t) +
-            FC7 * als * (61.0+ t*(t*(179.0 - t) - 479.0 )))));
+            FC7 * als * (61.0+ t*(t*(179.0 - t) - 479.0)))));
 
-        return new double[] { x, y };
+        return new double[] {x, y};
     }
 
     @Override
@@ -154,7 +156,7 @@ public class TransverseMercator extends AbstractProj {
         double phi = inv_mlfn(ml0 + y);
 
         if (Math.abs(phi) >= Math.PI/2) {
-            y = y<0.0 ? -(Math.PI/2) : (Math.PI/2);
+            y = y < 0.0 ? -(Math.PI/2) : (Math.PI/2);
             x = 0.0;
         } else {
             double sinphi = Math.sin(phi);
@@ -177,6 +179,11 @@ public class TransverseMercator extends AbstractProj {
                 ds*FC5*(5.0 + t*(28.0 + 24* t + 8.0*n) + 6.0*n -
                 ds*FC7*(61.0 + t*(662.0 + t*(1320.0 + 720.0*t))))))/cosphi;
         }
-        return new double[] { y, x };
+        return new double[] {y, x};
+    }
+
+    @Override
+    public Bounds getAlgorithmBounds() {
+        return new Bounds(-90, -10, 90, 10, false);
     }
 }
