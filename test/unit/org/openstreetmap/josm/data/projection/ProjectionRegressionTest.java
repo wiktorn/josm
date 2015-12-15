@@ -27,14 +27,12 @@ import org.openstreetmap.josm.TestUtils;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
-import org.openstreetmap.josm.gui.preferences.projection.ProjectionChoice;
-import org.openstreetmap.josm.gui.preferences.projection.ProjectionPreference;
 import org.openstreetmap.josm.tools.Pair;
 
 /**
  * This test is used to monitor changes in projection code.
  *
- * It keeps a record of test data in the file data_nodist/projection-regression-test-data.csv.
+ * It keeps a record of test data in the file data_nodist/projection/projection-regression-test-data.
  * This record is generated from the current Projection classes available in JOSM. It needs to
  * be updated, whenever a projection is added / removed or an algorithm is changed, such that
  * the computed values are numerically different. There is no error threshold, every change is reported.
@@ -44,8 +42,8 @@ import org.openstreetmap.josm.tools.Pair;
  */
 public class ProjectionRegressionTest {
 
-    private static final String PROJECTION_DATA_FILE = "data_nodist/projection-regression-test-data.csv";
-    private static final String PROJECTION_DATA_FILE_JAVA_9 = "data_nodist/projection-regression-test-data-java9.csv";
+    private static final String PROJECTION_DATA_FILE = "data_nodist/projection/projection-regression-test-data";
+    private static final String PROJECTION_DATA_FILE_JAVA_9 = "data_nodist/projection/projection-regression-test-data-java9";
 
     private static class TestData {
         public String code;
@@ -110,6 +108,7 @@ public class ProjectionRegressionTest {
                         "%s%n  ll  %s %s%n  en  %s %s%n  ll2 %s %s%n", proj.toCode(), lat, lon, en.east(), en.north(), ll2.lat(), ll2.lon()));
             }
         }
+        System.out.println("Update successful.");
     }
 
     private static List<TestData> readData() throws IOException, FileNotFoundException {
@@ -165,12 +164,10 @@ public class ProjectionRegressionTest {
 
         StringBuilder fail = new StringBuilder();
 
-        for (ProjectionChoice pc : ProjectionPreference.getProjectionChoices()) {
-            for (String code : pc.allCodes()) {
-               if (!dataCodes.contains(code)) {
-                    fail.append("Did not find projection "+code+" in test data!\n");
-                }
-            }
+        for (String code : Projections.getAllProjectionCodes()) {
+            if (!dataCodes.contains(code)) {
+                 fail.append("Did not find projection "+code+" in test data!\n");
+             }
         }
 
         for (TestData data : allData) {

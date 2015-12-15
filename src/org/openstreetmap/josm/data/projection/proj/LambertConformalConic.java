@@ -14,6 +14,7 @@ import static java.lang.Math.tan;
 import static java.lang.Math.toRadians;
 import static org.openstreetmap.josm.tools.I18n.tr;
 
+import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.projection.CustomProjection.Param;
 import org.openstreetmap.josm.data.projection.Ellipsoid;
 import org.openstreetmap.josm.data.projection.ProjectionConfigurationException;
@@ -23,7 +24,7 @@ import org.openstreetmap.josm.data.projection.ProjectionConfigurationException;
  *
  * @author Pieren
  */
-public class LambertConformalConic implements Proj {
+public class LambertConformalConic extends AbstractProj {
 
     protected Ellipsoid ellps;
     protected double e;
@@ -153,6 +154,7 @@ public class LambertConformalConic implements Proj {
 
     @Override
     public double[] project(double phi, double lambda) {
+        lambda = normalizeLon(lambda);
         double sinphi = sin(phi);
         double l = (0.5*log((1+sinphi)/(1-sinphi))) - e/2*log((1+e*sinphi)/(1-e*sinphi));
         double r = f*exp(-n*l);
@@ -174,5 +176,19 @@ public class LambertConformalConic implements Proj {
 
     public final Parameters getParameters() {
         return params;
+    }
+
+    @Override
+    public Bounds getAlgorithmBounds() {
+        double lat;
+        if (params instanceof Parameters2SP) {
+            Parameters2SP p2p = (Parameters2SP) params;
+            lat = (p2p.standardParallel1 + p2p.standardParallel2) / 2;
+        } else {
+            lat = params.latitudeOrigin;
+        }
+        double minlat = Math.max(lat - 60, -89);
+        double maxlat = Math.min(lat + 60, 89);
+        return new Bounds(minlat, -85, maxlat, 85, false);
     }
 }
