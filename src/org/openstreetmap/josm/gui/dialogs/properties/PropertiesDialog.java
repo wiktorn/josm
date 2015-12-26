@@ -47,6 +47,7 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumnModel;
 import javax.swing.table.TableModel;
 import javax.swing.table.TableRowSorter;
@@ -136,6 +137,7 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
      * The tag data of selected objects.
      */
     private final ReadOnlyTableModel tagData = new ReadOnlyTableModel();
+    private final PropertiesCellRenderer cellRenderer = new PropertiesCellRenderer();
     private final TableRowSorter<ReadOnlyTableModel> tagRowSorter = new TableRowSorter<>(tagData);
     private final JosmTextField tagTableFilter;
 
@@ -303,7 +305,6 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
         tagTable.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         tagTable.getTableHeader().setReorderingAllowed(false);
 
-        PropertiesCellRenderer cellRenderer = new PropertiesCellRenderer();
         tagTable.getColumnModel().getColumn(0).setCellRenderer(cellRenderer);
         tagTable.getColumnModel().getColumn(1).setCellRenderer(cellRenderer);
         tagTable.setRowSorter(tagRowSorter);
@@ -817,6 +818,28 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
     }
 
     /**
+     * Adds a custom table cell renderer to render cells of the tags table.
+     *
+     * If the renderer is not capable performing a {@link TableCellRenderer#getTableCellRendererComponent},
+     * it should return {@code null} to fall back to the
+     * {@link PropertiesCellRenderer#getTableCellRendererComponent default implementation}.
+     * @param renderer the renderer to add
+     * @since 9149
+     */
+    public void addCustomPropertiesCellRenderer(TableCellRenderer renderer) {
+        cellRenderer.addCustomRenderer(renderer);
+    }
+
+    /**
+     * Removes a custom table cell renderer.
+     * @param renderer the renderer to remove
+     * @since 9149
+     */
+    public void removeCustomPropertiesCellRenderer(TableCellRenderer renderer) {
+        cellRenderer.removeCustomRenderer(renderer);
+    }
+
+    /**
      * Class that watches for mouse clicks
      * @author imi
      */
@@ -1107,7 +1130,7 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
         @Override
         public void actionPerformed(ActionEvent e) {
             try {
-                String base = Main.pref.get("url.openstreetmap-wiki", "http://wiki.openstreetmap.org/wiki/");
+                String base = Main.pref.get("url.openstreetmap-wiki", "https://wiki.openstreetmap.org/wiki/");
                 String lang = LanguageInfo.getWikiLanguagePrefix();
                 final List<URI> uris = new ArrayList<>();
                 int row;
