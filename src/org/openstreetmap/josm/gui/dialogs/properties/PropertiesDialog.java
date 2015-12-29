@@ -15,7 +15,6 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
-import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -47,6 +46,7 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumnModel;
 import javax.swing.table.TableModel;
 import javax.swing.table.TableRowSorter;
@@ -99,6 +99,7 @@ import org.openstreetmap.josm.gui.widgets.JosmTextField;
 import org.openstreetmap.josm.gui.widgets.PopupMenuLauncher;
 import org.openstreetmap.josm.tools.AlphanumComparator;
 import org.openstreetmap.josm.tools.GBC;
+import org.openstreetmap.josm.tools.HttpClient;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.InputMapUtils;
 import org.openstreetmap.josm.tools.LanguageInfo;
@@ -136,6 +137,7 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
      * The tag data of selected objects.
      */
     private final ReadOnlyTableModel tagData = new ReadOnlyTableModel();
+    private final PropertiesCellRenderer cellRenderer = new PropertiesCellRenderer();
     private final TableRowSorter<ReadOnlyTableModel> tagRowSorter = new TableRowSorter<>(tagData);
     private final JosmTextField tagTableFilter;
 
@@ -303,7 +305,6 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
         tagTable.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         tagTable.getTableHeader().setReorderingAllowed(false);
 
-        PropertiesCellRenderer cellRenderer = new PropertiesCellRenderer();
         tagTable.getColumnModel().getColumn(0).setCellRenderer(cellRenderer);
         tagTable.getColumnModel().getColumn(1).setCellRenderer(cellRenderer);
         tagTable.setRowSorter(tagRowSorter);
@@ -817,6 +818,28 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
     }
 
     /**
+     * Adds a custom table cell renderer to render cells of the tags table.
+     *
+     * If the renderer is not capable performing a {@link TableCellRenderer#getTableCellRendererComponent},
+     * it should return {@code null} to fall back to the
+     * {@link PropertiesCellRenderer#getTableCellRendererComponent default implementation}.
+     * @param renderer the renderer to add
+     * @since 9149
+     */
+    public void addCustomPropertiesCellRenderer(TableCellRenderer renderer) {
+        cellRenderer.addCustomRenderer(renderer);
+    }
+
+    /**
+     * Removes a custom table cell renderer.
+     * @param renderer the renderer to remove
+     * @since 9149
+     */
+    public void removeCustomPropertiesCellRenderer(TableCellRenderer renderer) {
+        cellRenderer.removeCustomRenderer(renderer);
+    }
+
+    /**
      * Class that watches for mouse clicks
      * @author imi
      */
@@ -1107,7 +1130,7 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
         @Override
         public void actionPerformed(ActionEvent e) {
             try {
-                String base = Main.pref.get("url.openstreetmap-wiki", "http://wiki.openstreetmap.org/wiki/");
+                String base = Main.pref.get("url.openstreetmap-wiki", "https://wiki.openstreetmap.org/wiki/");
                 String lang = LanguageInfo.getWikiLanguagePrefix();
                 final List<URI> uris = new ArrayList<>();
                 int row;
@@ -1147,24 +1170,22 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
                     @Override public void run() {
                         try {
                             // find a page that actually exists in the wiki
-                            HttpURLConnection conn;
+                            HttpClient.Response conn;
                             for (URI u : uris) {
-                                conn = Utils.openHttpConnection(u.toURL());
-                                conn.setConnectTimeout(Main.pref.getInteger("socket.timeout.connect", 15)*1000);
+                                conn = HttpClient.create(u.toURL(), "HEAD").connect();
 
                                 if (conn.getResponseCode() != 200) {
-                                    Main.info("{0} does not exist", u);
                                     conn.disconnect();
                                 } else {
-                                    int osize = conn.getContentLength();
+                                    long osize = conn.getContentLength();
                                     if (osize > -1) {
                                         conn.disconnect();
 
-                                        conn = Utils.openHttpConnection(new URI(u.toString()
+                                        final URI newURI = new URI(u.toString()
                                                 .replace("=", "%3D") /* do not URLencode whole string! */
                                                 .replaceFirst("/wiki/", "/w/index.php?redirect=no&title=")
-                                                ).toURL());
-                                        conn.setConnectTimeout(Main.pref.getInteger("socket.timeout.connect", 15)*1000);
+                                        );
+                                        conn = HttpClient.create(newURI.toURL(), "HEAD").connect();
                                     }
 
                                     /* redirect pages have different content length, but retrieving a "nonredirect"
@@ -1175,7 +1196,6 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
                                         Main.info("{0} is a mediawiki redirect", u);
                                         conn.disconnect();
                                     } else {
-                                        Main.info("browsing to {0}", u);
                                         conn.disconnect();
 
                                         OpenBrowser.displayUrl(u.toString());

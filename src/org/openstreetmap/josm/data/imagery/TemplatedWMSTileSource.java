@@ -15,7 +15,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.openstreetmap.gui.jmapviewer.OsmMercator;
 import org.openstreetmap.gui.jmapviewer.Tile;
 import org.openstreetmap.gui.jmapviewer.TileXY;
 import org.openstreetmap.gui.jmapviewer.interfaces.ICoordinate;
@@ -23,6 +22,7 @@ import org.openstreetmap.gui.jmapviewer.interfaces.TemplatedTileSource;
 import org.openstreetmap.gui.jmapviewer.tilesources.TMSTileSource;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Bounds;
+import org.openstreetmap.josm.data.ProjectionBounds;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.projection.Projection;
@@ -38,8 +38,9 @@ import org.openstreetmap.josm.tools.CheckParameterUtil;
 public class TemplatedWMSTileSource extends TMSTileSource implements TemplatedTileSource {
     private final Map<String, String> headers = new ConcurrentHashMap<>();
     private final Set<String> serverProjections;
-    private EastNorth topLeftCorner;
-    private Bounds worldBounds;
+    private EastNorth anchorPosition;
+    private int[] tileXMin;
+    private int[] tileYMin;
     private int[] tileXMax;
     private int[] tileYMax;
     private double[] degreesPerTile;
@@ -90,20 +91,28 @@ public class TemplatedWMSTileSource extends TMSTileSource implements TemplatedTi
         initProjection(Main.getProjection());
     }
 
+    private void initAnchorPosition(Projection proj) {
+        Bounds worldBounds = proj.getWorldBoundsLatLon();
+        EastNorth min = proj.latlon2eastNorth(worldBounds.getMin());
+        EastNorth max = proj.latlon2eastNorth(worldBounds.getMax());
+        this.anchorPosition = new EastNorth(min.east(), max.north());
+    }
+
     /**
      * Initializes class with projection in JOSM. This call is needed every time projection changes.
      * @param proj new projection that shall be used for computations
      */
     public void initProjection(Projection proj) {
-        this.worldBounds = getWorldBounds();
-        EastNorth min = proj.latlon2eastNorth(worldBounds.getMin());
-        EastNorth max = proj.latlon2eastNorth(worldBounds.getMax());
-        this.topLeftCorner = new EastNorth(min.east(), max.north());
+        initAnchorPosition(proj);
+        ProjectionBounds worldBounds = proj.getWorldBoundsBoxEastNorth();
 
-        LatLon bottomRight = new LatLon(worldBounds.getMinLat(), worldBounds.getMaxLon());
+        EastNorth topLeft = new EastNorth(worldBounds.getMin().east(), worldBounds.getMax().north());
+        EastNorth bottomRight = new EastNorth(worldBounds.getMax().east(), worldBounds.getMin().north());
 
         // use 256 as "tile size" to keep the scale in line with default tiles in Mercator projection
         double crsScale = 256 * 0.28e-03 / proj.getMetersPerUnit();
+        tileXMin = new int[getMaxZoom() + 1];
+        tileYMin = new int[getMaxZoom() + 1];
         tileXMax = new int[getMaxZoom() + 1];
         tileYMax = new int[getMaxZoom() + 1];
         degreesPerTile = new double[getMaxZoom() + 1];
@@ -112,7 +121,10 @@ public class TemplatedWMSTileSource extends TMSTileSource implements TemplatedTi
             // use well known scale set "GoogleCompatibile" from OGC WMTS spec to calculate number of tiles per zoom level
             // this makes the zoom levels "glued" to standard TMS zoom levels
             degreesPerTile[zoom] = (SCALE_DENOMINATOR_ZOOM_LEVEL_1 / Math.pow(2, zoom - 1)) * crsScale;
-            TileXY maxTileIndex = latLonToTileXY(bottomRight.toCoordinate(), zoom);
+            TileXY minTileIndex = eastNorthToTileXY(topLeft, zoom);
+            tileXMin[zoom] = minTileIndex.getXIndex();
+            tileYMin[zoom] = minTileIndex.getYIndex();
+            TileXY maxTileIndex = eastNorthToTileXY(bottomRight, zoom);
             tileXMax[zoom] = maxTileIndex.getXIndex();
             tileYMax[zoom] = maxTileIndex.getYIndex();
         }
@@ -242,10 +254,14 @@ public class TemplatedWMSTileSource extends TMSTileSource implements TemplatedTi
     public TileXY latLonToTileXY(double lat, double lon, int zoom) {
         Projection proj = Main.getProjection();
         EastNorth enPoint = proj.latlon2eastNorth(new LatLon(lat, lon));
+        return eastNorthToTileXY(enPoint, zoom);
+    }
+
+    private TileXY eastNorthToTileXY(EastNorth enPoint, int zoom) {
         double scale = getDegreesPerTile(zoom);
         return new TileXY(
-                (enPoint.east() - topLeftCorner.east()) / scale,
-                (topLeftCorner.north() - enPoint.north()) / scale
+                (enPoint.east() - anchorPosition.east()) / scale,
+                (anchorPosition.north() - enPoint.north()) / scale
                 );
     }
 
@@ -261,7 +277,7 @@ public class TemplatedWMSTileSource extends TMSTileSource implements TemplatedTi
 
     @Override
     public int getTileXMin(int zoom) {
-        return 0;
+        return tileXMin[zoom];
     }
 
     @Override
@@ -271,7 +287,7 @@ public class TemplatedWMSTileSource extends TMSTileSource implements TemplatedTi
 
     @Override
     public int getTileYMin(int zoom) {
-        return 0;
+        return tileYMin[zoom];
     }
 
     @Override
@@ -279,8 +295,8 @@ public class TemplatedWMSTileSource extends TMSTileSource implements TemplatedTi
         double scale = getDegreesPerTile(zoom) / getTileSize();
         EastNorth point = Main.getProjection().latlon2eastNorth(new LatLon(lat, lon));
         return new Point(
-                    (int) Math.round((point.east() - topLeftCorner.east())   / scale),
-                    (int) Math.round((topLeftCorner.north() - point.north()) / scale)
+                    (int) Math.round((point.east() - anchorPosition.east())   / scale),
+                    (int) Math.round((anchorPosition.north() - point.north()) / scale)
                 );
     }
 
@@ -299,8 +315,8 @@ public class TemplatedWMSTileSource extends TMSTileSource implements TemplatedTi
         double scale = getDegreesPerTile(zoom) / getTileSize();
         Projection proj = Main.getProjection();
         EastNorth ret = new EastNorth(
-                topLeftCorner.east() + x * scale,
-                topLeftCorner.north() - y * scale
+                anchorPosition.east() + x * scale,
+                anchorPosition.north() - y * scale
                 );
         return proj.eastNorth2latlon(ret).toCoordinate();
     }
@@ -347,32 +363,12 @@ public class TemplatedWMSTileSource extends TMSTileSource implements TemplatedTi
     protected EastNorth getTileEastNorth(int x, int y, int z) {
         double scale = getDegreesPerTile(z);
         return new EastNorth(
-                        topLeftCorner.east() + x * scale,
-                        topLeftCorner.north() - y * scale
+                        anchorPosition.east() + x * scale,
+                        anchorPosition.north() - y * scale
                         );
     }
 
     private double getDegreesPerTile(int zoom) {
         return degreesPerTile[zoom];
-    }
-
-    /**
-     * returns world bounds, but detect situation, when default bounds are provided (-90, -180, 90, 180), and projection
-     * returns very close values for both min and max X. To work around this problem, cap this projection on north and south
-     * pole, the same way they are capped in Mercator projection, so conversions should work properly
-     */
-    private static Bounds getWorldBounds() {
-        Projection proj = Main.getProjection();
-        Bounds bounds = proj.getWorldBoundsLatLon();
-        EastNorth min = proj.latlon2eastNorth(bounds.getMin());
-        EastNorth max = proj.latlon2eastNorth(bounds.getMax());
-
-        if (Math.abs(min.getX() - max.getX()) < 1 && bounds.equals(new Bounds(new LatLon(-90, -180), new LatLon(90, 180)))) {
-            return new Bounds(
-                    new LatLon(OsmMercator.MIN_LAT, bounds.getMinLon()),
-                    new LatLon(OsmMercator.MAX_LAT, bounds.getMaxLon())
-                    );
-        }
-        return bounds;
     }
 }
