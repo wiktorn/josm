@@ -10,7 +10,9 @@ import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.RenderingHints;
 import java.awt.Stroke;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
@@ -78,6 +80,7 @@ public class GpxDrawHelper {
     /** Opacity for hdop points **/
     private int hdopAlpha;
 
+    private static final Color DEFAULT_COLOR = Color.magenta;
 
     // lookup array to draw arrows without doing any math
     private static final int ll0 = 9;
@@ -125,7 +128,7 @@ public class GpxDrawHelper {
      * @return the color or null if the color is not constant
      */
     public Color getColor(String layerName, boolean ignoreCustom) {
-        Color c = Main.pref.getColor(marktr("gps point"), specName(layerName), Color.gray);
+        Color c = Main.pref.getColor(marktr("gps point"), specName(layerName), DEFAULT_COLOR);
         return ignoreCustom || getColorMode(layerName) == ColorMode.NONE ? c : null;
     }
 
@@ -148,7 +151,7 @@ public class GpxDrawHelper {
      * @return the color
      **/
     public static Color getGenericColor() {
-        return Main.pref.getColor(marktr("gps point"), Color.gray);
+        return Main.pref.getColor(marktr("gps point"), DEFAULT_COLOR);
     }
 
     /**
@@ -223,6 +226,7 @@ public class GpxDrawHelper {
 
         if (colorModeDynamic) {
             if (colored == ColorMode.VELOCITY) {
+                final List<Double> velocities = new ArrayList<>();
                 for (Collection<WayPoint> segment : data.getLinesIterable(null)) {
                     if (!forceLines) {
                         oldWp = null;
@@ -235,6 +239,7 @@ public class GpxDrawHelper {
                         if (oldWp != null && trkPnt.time > oldWp.time) {
                             double vel = c.greatCircleDistance(oldWp.getCoor())
                                     / (trkPnt.time - oldWp.time);
+                            velocities.add(vel);
                             if (vel > maxval) {
                                 maxval = vel;
                             }
@@ -245,6 +250,9 @@ public class GpxDrawHelper {
                         oldWp = trkPnt;
                     }
                 }
+                Collections.sort(velocities);
+                minval = velocities.get(velocities.size() / 20); // 5% percentile to remove outliers
+                maxval = velocities.get(velocities.size() * 19 / 20); // 95% percentile to remove outliers
                 if (minval >= maxval) {
                     velocityScale.setRange(0, 120/3.6);
                 } else {

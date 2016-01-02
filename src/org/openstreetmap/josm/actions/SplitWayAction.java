@@ -18,6 +18,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.JLabel;
@@ -54,7 +55,6 @@ import org.openstreetmap.josm.tools.Shortcut;
  * Ways are just split at the selected nodes.  The nodes remain in their
  * original order.  Selected nodes at the end of a way are ignored.
  */
-
 public class SplitWayAction extends JosmAction {
 
     /**
@@ -131,6 +131,12 @@ public class SplitWayAction extends JosmAction {
      */
     @Override
     public void actionPerformed(ActionEvent e) {
+
+        if (SegmentToKeepSelectionDialog.DISPLAY_COUNT.get() > 0) {
+            new Notification(tr("Cannot split since another split operation is already in progress"))
+                    .setIcon(JOptionPane.WARNING_MESSAGE).show();
+            return;
+        }
 
         Collection<OsmPrimitive> selection = getCurrentDataSet().getSelected();
 
@@ -216,6 +222,7 @@ public class SplitWayAction extends JosmAction {
      * A dialog to query which way segment should reuse the history of the way to split.
      */
     static class SegmentToKeepSelectionDialog extends ExtendedDialog {
+        static final AtomicInteger DISPLAY_COUNT = new AtomicInteger();
         final Way selectedWay;
         final List<Way> newWays;
         final JList<Way> list;
@@ -238,6 +245,7 @@ public class SplitWayAction extends JosmAction {
             pane.add(new JLabel(getTitle()), GBC.eol().fill(GBC.HORIZONTAL));
             pane.add(list, GBC.eop().fill(GBC.HORIZONTAL));
             setContent(pane);
+            setDefaultCloseOperation(HIDE_ON_CLOSE);
         }
 
         private void configureList() {
@@ -283,9 +291,11 @@ public class SplitWayAction extends JosmAction {
         public void setVisible(boolean visible) {
             super.setVisible(visible);
             if (visible) {
+                DISPLAY_COUNT.incrementAndGet();
                 list.setSelectedValue(wayToKeep, true);
             } else {
                 setHighlightedWaySegments(Collections.<WaySegment>emptyList());
+                DISPLAY_COUNT.decrementAndGet();
             }
         }
 
@@ -319,6 +329,7 @@ public class SplitWayAction extends JosmAction {
 
         /**
          * Returns a strategy which selects the way chunk with the highest node count to keep.
+         * @return strategy which selects the way chunk with the highest node count to keep
          */
         public static Strategy keepLongestChunk() {
             return new Strategy() {
@@ -337,6 +348,7 @@ public class SplitWayAction extends JosmAction {
 
         /**
          * Returns a strategy which selects the first way chunk.
+         * @return strategy which selects the first way chunk
          */
         public static Strategy keepFirstChunk() {
             return new Strategy() {
@@ -347,7 +359,6 @@ public class SplitWayAction extends JosmAction {
             };
         }
     }
-
 
     /**
      * Determine which ways to split.

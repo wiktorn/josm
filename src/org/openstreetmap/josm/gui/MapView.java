@@ -464,6 +464,7 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
      *     becomes active</li>
      *   <li>otherwise, the top most layer of any type becomes active</li>
      * </ul>
+     * @param layersList lit of layers
      *
      * @return the next active data layer
      */
@@ -836,6 +837,7 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
      * <pre>
      *     List&lt;WMSLayer&gt; wmsLayers = getLayersOfType(WMSLayer.class);
      * </pre>
+     * @param <T> layer type
      *
      * @param ofType The layer type.
      * @return an unmodifiable list of layers of a certain type.

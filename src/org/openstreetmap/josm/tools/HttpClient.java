@@ -77,7 +77,7 @@ public final class HttpClient {
         connection.setRequestProperty("User-Agent", Version.getInstance().getFullAgentString());
         connection.setConnectTimeout(connectTimeout);
         connection.setReadTimeout(readTimeout);
-        connection.setInstanceFollowRedirects(maxRedirects > 0);
+        connection.setInstanceFollowRedirects(false); // we do that ourselves
         if (ifModifiedSince > 0) {
             connection.setIfModifiedSince(ifModifiedSince);
         }
@@ -135,7 +135,7 @@ public final class HttpClient {
                             " Can''t redirect. Aborting.", connection.getResponseCode());
                     throw new IOException(msg);
                 } else if (maxRedirects > 0) {
-                    url = new URL(redirectLocation);
+                    url = new URL(url, redirectLocation);
                     maxRedirects--;
                     Main.info(tr("Download redirected to ''{0}''", redirectLocation));
                     return connect();
@@ -309,6 +309,7 @@ public final class HttpClient {
         /**
          * Returns the {@code Content-Encoding} header.
          * @return {@code Content-Encoding} HTTP header
+         * @see HttpURLConnection#getContentEncoding()
          */
         public String getContentEncoding() {
             return connection.getContentEncoding();
@@ -323,8 +324,29 @@ public final class HttpClient {
         }
 
         /**
+         * Returns the {@code Expire} header.
+         * @return {@code Expire} HTTP header
+         * @see HttpURLConnection#getExpiration()
+         * @since 9232
+         */
+        public long getExpiration() {
+            return connection.getExpiration();
+        }
+
+        /**
+         * Returns the {@code Last-Modified} header.
+         * @return {@code Last-Modified} HTTP header
+         * @see HttpURLConnection#getLastModified()
+         * @since 9232
+         */
+        public long getLastModified() {
+            return connection.getLastModified();
+        }
+
+        /**
          * Returns the {@code Content-Length} header.
          * @return {@code Content-Length} HTTP header
+         * @see HttpURLConnection#getContentLengthLong()
          */
         public long getContentLength() {
             return connection.getContentLengthLong();
@@ -342,14 +364,13 @@ public final class HttpClient {
         }
 
         /**
-         * Returns the list of Strings that represents the named header field values.
-         * @param name the name of a header field
-         * @return unmodifiable List of Strings that represents the corresponding field values
+         * Returns an unmodifiable Map mapping header keys to a List of header values.
+         * @return unmodifiable Map mapping header keys to a List of header values
          * @see HttpURLConnection#getHeaderFields()
-         * @since 9172
+         * @since 9232
          */
-        public List<String> getHeaderFields(String name) {
-            return connection.getHeaderFields().get(name);
+        public Map<String, List<String>> getHeaderFields() {
+            return connection.getHeaderFields();
         }
 
         /**
@@ -436,7 +457,7 @@ public final class HttpClient {
 
     /**
      * Sets whether not to set header {@code Connection=close}
-     * <p/>
+     * <p>
      * This might fix #7640, see
      * <a href='https://web.archive.org/web/20140118201501/http://www.tikalk.com/java/forums/httpurlconnection-disable-keep-alive'>here</a>.
      *

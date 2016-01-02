@@ -534,6 +534,7 @@ public class MainMenu extends JMenuBar {
      *
      * This method handles all the shortcut handling. It also makes sure that actions that are
      * handled by the OS are not duplicated on the menu.
+     * @param <E> group item enum type
      * @param menu to add the action to
      * @param action the action that should get a menu item
      * @param group the item should be added to. Groups are split by a separator.
@@ -555,6 +556,7 @@ public class MainMenu extends JMenuBar {
     /**
      * Add a JosmAction to a menu and automatically prints accelerator if available.
      * Also adds a checkbox that may be toggled.
+     * @param <E> group enum item type
      * @param menu to add the action to
      * @param action the action that should get a menu item
      * @param group the item should be added to. Groups are split by a separator. Use
@@ -572,7 +574,12 @@ public class MainMenu extends JMenuBar {
         return mi;
     }
 
-    /** finds the correct insertion index for a given group and adds separators if necessary */
+    /**
+     * Finds the correct insertion index for a given group and adds separators if necessary
+     * @param menu menu
+     * @param group group number
+     * @return correct insertion index
+     */
     private static int getInsertionIndexForGroup(JMenu menu, int group) {
         if (group < 0)
             return -1;
@@ -616,6 +623,7 @@ public class MainMenu extends JMenuBar {
 
     /**
      * Adds the given menu on the given position to the main menu.
+     * @param <T> menu type
      *
      * @param menu              the menu to add
      * @param name              the untranslated name (used as identifier for shortcut registration)
