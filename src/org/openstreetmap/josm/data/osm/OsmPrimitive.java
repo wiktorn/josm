@@ -16,6 +16,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import org.openstreetmap.josm.Main;
@@ -775,7 +776,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
 
     /**
      * Returns {@link #getKeys()} for which {@code key} does not fulfill {@link #isUninterestingKey}.
-     * @return list of interesting tags
+     * @return A map of interesting tags
      */
     public Map<String, String> getInterestingTags() {
         Map<String, String> result = new HashMap<>();
@@ -832,26 +833,22 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
     }
 
     private void updateTagged() {
-        if (keys != null) {
-            for (String key: keySet()) {
-                // 'area' is not really uninteresting (putting it in that list may have unpredictable side effects)
-                // but it's clearly not enough to consider an object as tagged (see #9261)
-                if (!isUninterestingKey(key) && !"area".equals(key)) {
-                    updateFlagsNoLock(FLAG_TAGGED, true);
-                    return;
-                }
+        for (String key: keySet()) {
+            // 'area' is not really uninteresting (putting it in that list may have unpredictable side effects)
+            // but it's clearly not enough to consider an object as tagged (see #9261)
+            if (!isUninterestingKey(key) && !"area".equals(key)) {
+                updateFlagsNoLock(FLAG_TAGGED, true);
+                return;
             }
         }
         updateFlagsNoLock(FLAG_TAGGED, false);
     }
 
     private void updateAnnotated() {
-        if (keys != null) {
-            for (String key: keySet()) {
-                if (getWorkInProgressKeys().contains(key)) {
-                    updateFlagsNoLock(FLAG_ANNOTATED, true);
-                    return;
-                }
+        for (String key: keySet()) {
+            if (getWorkInProgressKeys().contains(key)) {
+                updateFlagsNoLock(FLAG_ANNOTATED, true);
+                return;
             }
         }
         updateFlagsNoLock(FLAG_ANNOTATED, false);
@@ -1168,7 +1165,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
                 throw new DataIntegrityProblemException(
                         tr("Cannot merge primitives with different ids. This id is {0}, the other is {1}", id, other.getId()));
 
-            setKeys(other.getKeys());
+            setKeys(other.hasKeys() ? other.getKeys() : null);
             timestamp = other.timestamp;
             version = other.version;
             setIncomplete(other.isIncomplete());
@@ -1187,12 +1184,8 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      * @return true if other isn't null and has the same interesting tags (key/value-pairs) as this.
      */
     public boolean hasSameInterestingTags(OsmPrimitive other) {
-        // We cannot directly use Arrays.equals(keys, other.keys) as keys is not ordered by key
-        // but we can at least check if both arrays are null or of the same size before creating
-        // and comparing the key maps (costly operation, see #7159)
         return (keys == null && other.keys == null)
-                || (keys != null && other.keys != null && keys.length == other.keys.length
-                        && (keys.length == 0 || getInterestingTags().equals(other.getInterestingTags())));
+                || getInterestingTags().equals(other.getInterestingTags());
     }
 
     /**
@@ -1248,7 +1241,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      */
     public void load(PrimitiveData data) {
         // Write lock is provided by subclasses
-        setKeys(data.getKeys());
+        setKeys(data.hasKeys() ? data.getKeys() : null);
         setRawTimestamp(data.getRawTimestamp());
         user = data.getUser();
         setChangesetId(data.getChangesetId());
@@ -1270,7 +1263,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      */
     protected void saveCommonAttributes(PrimitiveData data) {
         data.setId(id);
-        data.setKeys(getKeys());
+        data.setKeys(hasKeys() ? getKeys() : null);
         data.setRawTimestamp(getRawTimestamp());
         data.setUser(user);
         data.setDeleted(isDeleted());
@@ -1327,9 +1320,10 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      */
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof OsmPrimitive)
-            return ((OsmPrimitive) obj).id == id && obj.getClass() == getClass();
-        return false;
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        OsmPrimitive that = (OsmPrimitive) obj;
+        return Objects.equals(id, that.id);
     }
 
     /**
@@ -1338,8 +1332,8 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      * An primitive has the same hashcode as its incomplete counterpart.
      */
     @Override
-    public final int hashCode() {
-        return (int) id;
+    public int hashCode() {
+        return Objects.hash(id);
     }
 
     /**

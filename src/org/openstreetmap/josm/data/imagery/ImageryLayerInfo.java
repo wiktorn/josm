@@ -16,11 +16,15 @@ import java.util.TreeSet;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.imagery.ImageryInfo.ImageryPreferenceEntry;
+import org.openstreetmap.josm.gui.PleaseWaitRunnable;
 import org.openstreetmap.josm.io.CachedFile;
 import org.openstreetmap.josm.io.OfflineAccessException;
 import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.io.imagery.ImageryReader;
+import org.openstreetmap.josm.tools.Utils;
 import org.xml.sax.SAXException;
+
+import static org.openstreetmap.josm.tools.I18n.tr;
 
 /**
  * Manages the list of imagery entries that are shown in the imagery menu.
@@ -58,7 +62,11 @@ public class ImageryLayerInfo {
         layerIds.clear();
     }
 
-    public void load() {
+    /**
+     * Loads the custom as well as default imagery entries.
+     * @param fastFail whether opening HTTP connections should fail fast, see {@link ImageryReader#setFastFail(boolean)}
+     */
+     public void load(boolean fastFail) {
         clear();
         List<ImageryPreferenceEntry> entries = Main.pref.getListOfStructs("imagery.entries", null, ImageryPreferenceEntry.class);
         if (entries != null) {
@@ -72,7 +80,7 @@ public class ImageryLayerInfo {
             }
             Collections.sort(layers);
         }
-        loadDefaults(false);
+        loadDefaults(false, true, fastFail);
     }
 
     /**
@@ -83,11 +91,53 @@ public class ImageryLayerInfo {
      * already present.
      *
      * @param clearCache if true, clear the cache and start a fresh download.
+     * @param quiet whether not the loading should be performed using a {@link PleaseWaitRunnable} in the background
+     * @param fastFail whether opening HTTP connections should fail fast, see {@link ImageryReader#setFastFail(boolean)}
      */
-    public void loadDefaults(boolean clearCache) {
-        defaultLayers.clear();
-        defaultLayerIds.clear();
-        for (String source : getImageryLayersSites()) {
+    public void loadDefaults(boolean clearCache, boolean quiet, boolean fastFail) {
+        final DefaultEntryLoader loader = new DefaultEntryLoader(clearCache, fastFail);
+        if (quiet) {
+            loader.realRun();
+            loader.finish();
+        } else {
+            Main.worker.execute(new DefaultEntryLoader(clearCache, fastFail));
+        }
+    }
+
+    /**
+     * Loader/updater of the available imagery entries
+     */
+    class DefaultEntryLoader extends PleaseWaitRunnable {
+
+        private final boolean clearCache;
+        private final boolean fastFail;
+        private final List<ImageryInfo> newLayers = new ArrayList<>();
+        private transient ImageryReader reader;
+        private transient boolean canceled;
+
+        DefaultEntryLoader(boolean clearCache, boolean fastFail) {
+            super(tr("Update default entries"));
+            this.clearCache = clearCache;
+            this.fastFail = fastFail;
+        }
+
+        @Override
+        protected void cancel() {
+            canceled = true;
+            Utils.close(reader);
+        }
+
+        @Override
+        protected void realRun() {
+            for (String source : getImageryLayersSites()) {
+                if (canceled) {
+                    return;
+                }
+                loadSource(source);
+            }
+        }
+
+        protected void loadSource(String source) {
             boolean online = true;
             try {
                 OnlineResource.JOSM_WEBSITE.checkOfflineAccess(source, Main.getJOSMWebsite());
@@ -99,22 +149,27 @@ public class ImageryLayerInfo {
                 CachedFile.cleanup(source);
             }
             try {
-                ImageryReader reader = new ImageryReader(source);
+                reader = new ImageryReader(source);
+                reader.setFastFail(fastFail);
                 Collection<ImageryInfo> result = reader.parse();
-                defaultLayers.addAll(result);
+                newLayers.addAll(result);
             } catch (IOException ex) {
                 Main.error(ex, false);
             } catch (SAXException ex) {
                 Main.error(ex);
             }
         }
-        while (defaultLayers.remove(null)) {
-            // Do nothing
+
+        @Override
+        protected void finish() {
+            defaultLayers.clear();
+            defaultLayers.addAll(newLayers);
+            defaultLayerIds.clear();
+            Collections.sort(defaultLayers);
+            buildIdMap(defaultLayers, defaultLayerIds);
+            updateEntriesFromDefaults();
+            buildIdMap(layers, layerIds);
         }
-        Collections.sort(defaultLayers);
-        buildIdMap(defaultLayers, defaultLayerIds);
-        updateEntriesFromDefaults();
-        buildIdMap(layers, layerIds);
     }
 
     /**

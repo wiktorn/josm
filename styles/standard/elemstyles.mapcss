@@ -9,7 +9,7 @@ Documentation of MapCSS format:
 */
 
 meta {
-    icon: "dialogs/mappaint/josm_small.png";
+    icon: "logo.svg";
 }
 
 canvas {
@@ -320,7 +320,8 @@ node[building=garages] {
     set icon_z17;
     text: auto;
 }
-node[entrance=yes] {
+node[entrance=yes],
+node[entrance=staircase] {
     icon-image: "misc/entrance-yes.png";
     set icon_z17;
     text: auto;
@@ -381,6 +382,7 @@ way[barrier=retaining_wall],
 way[barrier=block],
 way[barrier=chain],
 way[barrier=ditch],
+way[barrier=jersey_barrier],
 way[barrier=kerb] {
     width: 2;
     color: barrier#F0F050;
@@ -479,6 +481,7 @@ node[barrier=bump_gate],
 node[barrier=portcullis],
 node[barrier=bus_trap],
 node[barrier=drawbridge],
+node[barrier=jersey_barrier],
 node[barrier=hampshire_gate] {
     icon-image: "misc/no_icon.png";
     set icon_z17;
@@ -644,11 +647,6 @@ way[highway=steps] {
     width: 3;
     color: foot#00ff00;
     dashes: 2,2;
-}
-node[highway=steps] {
-    icon-image: "transport/steps.png";
-    set icon_z17;
-    text: auto;
 }
 way[highway=bus_guideway] {
     width: 1;
@@ -855,7 +853,7 @@ area[highway=emergency_access_point] {
     fill-color: emergency_access_point#c0c0c0;
 }
 node[highway=emergency_access_point] {
-    icon-image: "service/emergency_access_point.png";
+    icon-image: "service/emergency_access_point.svg";
     set icon_z17;
     text: auto;
 }
@@ -1132,12 +1130,17 @@ node[piste:type=snow_park] {
 /**************/
 
 node[power=tower] {
-    icon-image: "misc/landmark/power/tower_small.png";
+    icon-image: "power/tower.svg";
     set icon_z17;
     text: auto;
 }
 node[power=pole] {
-    icon-image: "misc/landmark/power/pole.png";
+    icon-image: "power/pole.svg";
+    set icon_z17;
+    text: auto;
+}
+node[power=pole][transformer=distribution] {
+    icon-image: "power/pole_transformer.svg";
     set icon_z17;
     text: auto;
 }
@@ -1168,23 +1171,48 @@ area[power=converter],
 area[power=generator] {
     fill-color: power#eeeeee;
 }
-node[power=cable_distribution_cabinet],
+node[power=cable_distribution_cabinet] {
+    icon-image: "power/cable_distribution_cabinet.svg";
+    set icon_z17;
+    text: auto;
+}
 node[power=generator] {
-    icon-image: "misc/landmark/power.png";
+    icon-image: "power/generator.svg";
     set icon_z17;
     text: auto;
 }
 node[power=substation] {
-    icon-image: "icons/power_substation.n.16.png";
+    icon-image: "power/substation.svg";
     set icon_z17;
     text: auto;
 }
 node[power=transformer] {
-    icon-image: "misc/landmark/power/transformer.png";
-    icon-width: 16;
+    icon-image: "power/transformer.svg";
     set icon_z17;
     text: auto;
 }
+
+node[power=switchgear] {
+    icon-image: "power/switchgear.svg";
+    set icon_z17;
+    text: auto;
+}
+node[power=switch] {
+    icon-image: "power/switch.svg";
+    set icon_z17;
+    text: auto;
+}
+node[power=converter] {
+    icon-image: "power/converter.svg";
+    set icon_z17;
+    text: auto;
+}
+node[power=compensator] {
+    icon-image: "power/compensator.svg";
+    set icon_z17;
+    text: auto;
+}
+
 
 /*************************/
 /* generator:source tags */
@@ -1837,6 +1865,7 @@ area[shop=car_dealer],
 area[shop=car_repair],
 area[shop=tyres],
 area[shop=chemist],
+area[shop=tobacco],
 area[shop=clothes],
 area[shop=computer],
 area[shop=confectionery],
@@ -1986,6 +2015,11 @@ node[shop=tyres] {
 }
 node[shop=chemist] {
     icon-image: "shop/chemist.png";
+    set icon_z17;
+    text: auto;
+}
+node[shop=tobacco] {
+    icon-image: "shop/tobacco.svg";
     set icon_z17;
     text: auto;
 }
@@ -2740,7 +2774,6 @@ area[amenity=hospital],
 area[amenity=clinic],
 area[amenity=nursing_home],
 area[amenity=social_facility],
-area[amenity=nursery],
 area[amenity=baby_hatch],
 area[amenity=doctors],
 area[amenity=dentist],
@@ -2748,40 +2781,67 @@ area[amenity=veterinary] {
     fill-color: health#eeeeee;
 }
 node[amenity=pharmacy] {
-    icon-image: "health/pharmacy.png";
+    icon-image: "health/pharmacy.svg";
     set icon_z17;
     text: auto;
 }
-node[amenity=hospital],
+node[amenity=hospital] {
+    icon-image: "health/hospital.svg";
+    set icon_z17;
+    text: auto;
+}
 node[amenity=clinic] {
-    icon-image: "health/hospital.png";
+    icon-image: "health/clinic.svg";
     set icon_z17;
     text: auto;
 }
-node[amenity=nursing_home],
-node[amenity=social_facility],
-node[amenity=nursery] {
-    icon-image: "misc/no_icon.png";
+node[amenity=nursing_home] {
+    icon-image: "social_facility/nursing_home.svg";
+    set icon_z17;
+    text: auto;
+}
+node[amenity=social_facility][social_facility=group_home] {
+    icon-image: "social_facility/group_home.svg";
+    set icon_z17;
+    text: auto;
+}
+node[amenity=social_facility][social_facility=assisted_living] {
+    icon-image: "social_facility/assisted_living.svg";
+    set icon_z17;
+    text: auto;
+}
+node[amenity=social_facility][social_facility=outreach] {
+    icon-image: "social_facility/outreach.svg";
+    set icon_z17;
+    text: auto;
+}
+node[amenity=social_facility][social_facility=shelter] {
+    icon-image: "social_facility/shelter.svg";
+    set icon_z17;
+    text: auto;
+}
+node[amenity=social_facility][social_facility=food_bank] {
+    icon-image: "social_facility/food_bank.svg";
     set icon_z17;
     text: auto;
 }
 node[amenity=baby_hatch] {
-    icon-image: "health/baby_hatch.png";
+    icon-image: "health/baby_hatch.svg";
     set icon_z17;
     text: auto;
 }
 node[amenity=doctors] {
-    icon-image: "health/doctor.png";
+    icon-image: "health/doctors.svg";
     set icon_z17;
     text: auto;
 }
 node[amenity=dentist] {
-    icon-image: "health/dentist.png";
+    icon-image: "health/dentist.svg";
     set icon_z17;
     text: auto;
 }
 node[amenity=veterinary] {
-    icon-image: "health/veterinary.png";
+    icon-image: "health/veterinary.svg";
     set icon_z17;
     text: auto;
 }
@@ -3005,9 +3065,10 @@ area[tourism=guest_house],
 area[tourism=hostel],
 area[tourism=chalet],
 area[tourism=alpine_hut],
+area[tourism=wilderness_hut],
 area[tourism=camp_site],
 area[tourism=caravan_site] {
-    fill-color: hotel#e1a0a2;
+    fill-color: hotel#feced0;
 }
 node[tourism=hotel] {
     icon-image: "accommodation/hotel.svg";
@@ -3448,12 +3509,12 @@ node[railway=subway_entrance] {
     text: auto;
 }
 node[railway=crossing] {
-    icon-image: "vehicle/crossing.png";
+    icon-image: "transport/railway/crossing.svg";
     set icon_z17;
     text: auto;
 }
 node[railway=level_crossing] {
-    icon-image: "presets/level_crossing.png";
+    icon-image: "transport/railway/level_crossing.svg";
     icon-width: 16;
     set icon_z17;
     text: auto;
@@ -3524,12 +3585,12 @@ area[railway=turntable] {
     fill-color: rail#404040;
 }
 node[railway=turntable] {
-    icon-image: "transport/turntable.png";
+    icon-image: "transport/railway/turntable.svg";
     set icon_z17;
     text: auto;
 }
 node[railway=buffer_stop] {
-    icon-image: "transport/buffer_stop.png";
+    icon-image: "transport/railway/buffer_stop.svg";
     set icon_z17;
     text: auto;
 }
@@ -3546,18 +3607,18 @@ way[railway=funicular] {
     dashes: 9,9;
 }
 node[railway=switch] {
-    icon-image: "presets/railway_switch.svg";
+    icon-image: "transport/railway/switch.svg";
     icon-width: 16;
     set icon_z17;
     text: auto;
 }
 node[railway=signal] {
-    icon-image: "vehicle/railway_signal.svg";
+    icon-image: "transport/railway/signal.svg";
     set icon_z17;
     text: auto;
 }
 node[railway=milestone] {
-    icon-image: "vehicle/milestone.svg";
+    icon-image: "transport/railway/milestone.svg";
     set icon_z17;
     text: auto;
 }
@@ -4950,7 +5011,7 @@ area[setting("partial_fill")] {
     fill-extent: 15;
 }
 
-/* Turn partial fill off and us plain fill, when the partial fill covers about
+/* Turn partial fill off and use plain fill, when the partial fill covers about
    100% of the area. This reduces artifacts (typically for incomplete multipolygons).
    Switching between full and partial fill while drawing an area might be irritating,
    so only do this at low zoom. */
@@ -4959,7 +5020,7 @@ area|z-13[setting("partial_fill")] {
 }
 
 /* Larger extent for closed areas.
-   Turn partial fill off, when it covers more than about 50% of the area. This is avoids
+   Turn partial fill off, when it covers more than about 50% of the area. This avoids
    areas with small unfilled patches in the center. */
 area[setting("partial_fill")]:closed2 {
     fill-extent: 25;

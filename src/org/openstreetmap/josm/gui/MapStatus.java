@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.List;
+import java.util.Objects;
 import java.util.TreeSet;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -91,7 +92,9 @@ import org.openstreetmap.josm.tools.Predicate;
  */
 public class MapStatus extends JPanel implements Helpful, Destroyable, PreferenceChangedListener {
 
-    private static final DecimalFormat ONE_DECIMAL_PLACE = new DecimalFormat("0.0");
+    private static final DecimalFormat ONE_DECIMAL_PLACE = new DecimalFormat(
+            Main.pref.get("statusbar.decimal-format", "0.0")); // change of preference requires restart
+    private static final double DISTANCE_THRESHOLD = Main.pref.getDouble("statusbar.distance-threshold", 0.01);
 
     /**
      * Property for map status background color.
@@ -179,14 +182,18 @@ public class MapStatus extends JPanel implements Helpful, Destroyable, Preferenc
 
     }
 
+    /** The {@link CoordinateFormat} set in the previous update */
+    private transient CoordinateFormat previousCoordinateFormat = null;
     private final ImageLabel latText = new ImageLabel("lat",
-            tr("The geographic latitude at the mouse pointer."), 11, PROP_BACKGROUND_COLOR.get());
+            null, 11, PROP_BACKGROUND_COLOR.get());
     private final ImageLabel lonText = new ImageLabel("lon",
-            tr("The geographic longitude at the mouse pointer."), 11, PROP_BACKGROUND_COLOR.get());
+            null, 11, PROP_BACKGROUND_COLOR.get());
     private final ImageLabel headingText = new ImageLabel("heading",
-            tr("The (compass) heading of the line segment being drawn."), 6, PROP_BACKGROUND_COLOR.get());
+            tr("The (compass) heading of the line segment being drawn."),
+            ONE_DECIMAL_PLACE.format(360).length() + 1, PROP_BACKGROUND_COLOR.get());
     private final ImageLabel angleText = new ImageLabel("angle",
-            tr("The angle between the previous and the current way segment."), 6, PROP_BACKGROUND_COLOR.get());
+            tr("The angle between the previous and the current way segment."),
+            ONE_DECIMAL_PLACE.format(360).length() + 1, PROP_BACKGROUND_COLOR.get());
     private final ImageLabel distText = new ImageLabel("dist",
             tr("The length of the new way segment being drawn."), 10, PROP_BACKGROUND_COLOR.get());
     private final ImageLabel nameText = new ImageLabel("name",
@@ -756,7 +763,10 @@ public class MapStatus extends JPanel implements Helpful, Destroyable, Preferenc
 
         private final JMenuItem jumpButton = add(Main.main.menu.jumpToAct);
 
+        /** Icons for selecting {@link SystemOfMeasurement} */
         private final Collection<JCheckBoxMenuItem> somItems = new ArrayList<>();
+        /** Icons for selecting {@link CoordinateFormat}  */
+        private final Collection<JCheckBoxMenuItem> coordinateFormatItems = new ArrayList<>();
 
         private final JSeparator separator = new JSeparator();
 
@@ -779,6 +789,16 @@ public class MapStatus extends JPanel implements Helpful, Destroyable, Preferenc
                 somItems.add(item);
                 add(item);
             }
+            for (final CoordinateFormat format : CoordinateFormat.values()) {
+                JCheckBoxMenuItem item = new JCheckBoxMenuItem(new AbstractAction(format.getDisplayName()) {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        CoordinateFormat.setCoordinateFormat(format);
+                    }
+                });
+                coordinateFormatItems.add(item);
+                add(item);
+            }
 
             add(separator);
             add(doNotHide);
@@ -793,7 +813,12 @@ public class MapStatus extends JPanel implements Helpful, Destroyable, Preferenc
                         item.setSelected(item.getText().equals(currentSOM));
                         item.setVisible(distText.equals(invoker));
                     }
-                    separator.setVisible(distText.equals(invoker));
+                    final String currentCorrdinateFormat = CoordinateFormat.getDefaultFormat().getDisplayName();
+                    for (JMenuItem item : coordinateFormatItems) {
+                        item.setSelected(currentCorrdinateFormat.equals(item.getText()));
+                        item.setVisible(latText.equals(invoker) || lonText.equals(invoker));
+                    }
+                    separator.setVisible(distText.equals(invoker) || latText.equals(invoker) || lonText.equals(invoker));
                     doNotHide.setSelected(Main.pref.getBoolean("statusbar.always-visible", true));
                 }
 
@@ -848,6 +873,21 @@ public class MapStatus extends JPanel implements Helpful, Destroyable, Preferenc
                     LatLon p = mv.getLatLon(e.getX(), e.getY());
                     latText.setText(p.latToString(mCord));
                     lonText.setText(p.lonToString(mCord));
+                    if (Objects.equals(previousCoordinateFormat, mCord)) {
+                        // do nothing
+                    } else if (CoordinateFormat.EAST_NORTH.equals(mCord)) {
+                        latText.setIcon("northing");
+                        lonText.setIcon("easting");
+                        latText.setToolTipText(tr("The northing at the mouse pointer."));
+                        lonText.setToolTipText(tr("The easting at the mouse pointer."));
+                        previousCoordinateFormat = mCord;
+                    } else {
+                        latText.setIcon("lat");
+                        lonText.setIcon("lon");
+                        latText.setToolTipText(tr("The geographic latitude at the mouse pointer."));
+                        lonText.setToolTipText(tr("The geographic longitude at the mouse pointer."));
+                        previousCoordinateFormat = mCord;
+                    }
                 }
             }
         });
@@ -998,7 +1038,7 @@ public class MapStatus extends JPanel implements Helpful, Destroyable, Preferenc
      */
     public void setDist(double dist) {
         distValue = dist;
-        distText.setText(dist < 0 ? "--" : NavigatableComponent.getDistText(dist, ONE_DECIMAL_PLACE, 0.01));
+        distText.setText(dist < 0 ? "--" : NavigatableComponent.getDistText(dist, ONE_DECIMAL_PLACE, DISTANCE_THRESHOLD));
     }
 
     /**

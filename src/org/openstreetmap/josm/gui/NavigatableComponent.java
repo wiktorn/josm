@@ -310,32 +310,20 @@ public class NavigatableComponent extends JComponent implements Helpful {
         return getLatLon((int) x, (int) y);
     }
 
+    public ProjectionBounds getProjectionBounds(Rectangle r) {
+        EastNorth p1 = getEastNorth(r.x, r.y);
+        EastNorth p2 = getEastNorth(r.x + r.width, r.y + r.height);
+        ProjectionBounds pb = new ProjectionBounds(p1);
+        pb.extend(p2);
+        return pb;
+    }
+    
     /**
      * @param r rectangle
      * @return Minimum bounds that will cover rectangle
      */
     public Bounds getLatLonBounds(Rectangle r) {
-        // TODO Maybe this should be (optional) method of Projection implementation
-        EastNorth p1 = getEastNorth(r.x, r.y);
-        EastNorth p2 = getEastNorth(r.x + r.width, r.y + r.height);
-
-        Bounds result = new Bounds(Main.getProjection().eastNorth2latlon(p1));
-
-        double eastMin = Math.min(p1.east(), p2.east());
-        double eastMax = Math.max(p1.east(), p2.east());
-        double northMin = Math.min(p1.north(), p2.north());
-        double northMax = Math.max(p1.north(), p2.north());
-        double deltaEast = (eastMax - eastMin) / 10;
-        double deltaNorth = (northMax - northMin) / 10;
-
-        for (int i = 0; i < 10; i++) {
-            result.extend(Main.getProjection().eastNorth2latlon(new EastNorth(eastMin + i * deltaEast, northMin)));
-            result.extend(Main.getProjection().eastNorth2latlon(new EastNorth(eastMin + i * deltaEast, northMax)));
-            result.extend(Main.getProjection().eastNorth2latlon(new EastNorth(eastMin, northMin  + i * deltaNorth)));
-            result.extend(Main.getProjection().eastNorth2latlon(new EastNorth(eastMax, northMin  + i * deltaNorth)));
-        }
-
-        return result;
+        return Main.getProjection().getLatLonBoundsBox(getProjectionBounds(r));
     }
 
     public AffineTransform getAffineTransform() {
@@ -438,7 +426,7 @@ public class NavigatableComponent extends JComponent implements Helpful {
         // don't zoom in too much, minimum: 100 px = 1 cm
         LatLon ll1 = getLatLon(width / 2 - 50, height / 2);
         LatLon ll2 = getLatLon(width / 2 + 50, height / 2);
-        if (ll1.isValid() && ll1.isValid() && b.contains(ll1) && b.contains(ll2)) {
+        if (ll1.isValid() && ll2.isValid() && b.contains(ll1) && b.contains(ll2)) {
             double d_m = ll1.greatCircleDistance(ll2);
             double d_en = 100 * scale;
             double scaleMin = 0.01 * d_en / d_m / 100;
@@ -599,16 +587,16 @@ public class NavigatableComponent extends JComponent implements Helpful {
     }
 
     private class ZoomData {
-        private final LatLon center;
+        private final EastNorth center;
         private final double scale;
 
         ZoomData(EastNorth center, double scale) {
-            this.center = Projections.inverseProject(center);
+            this.center = center;
             this.scale = scale;
         }
 
         public EastNorth getCenterEastNorth() {
-            return getProjection().latlon2eastNorth(center);
+            return center;
         }
 
         public double getScale() {

@@ -1,6 +1,7 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.gui.dialogs;
 
+import static org.openstreetmap.josm.tools.I18n.marktr;
 import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.Component;
@@ -15,22 +16,23 @@ import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 import javax.swing.AbstractAction;
 import javax.swing.DefaultButtonModel;
 import javax.swing.DefaultListSelectionModel;
+import javax.swing.ImageIcon;
 import javax.swing.JCheckBox;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
@@ -509,19 +511,13 @@ public class MapPaintDialog extends ToggleDialog {
                         tr("Save style ''{0}'' as ''{1}''", s.getDisplayString(), file.getPath()));
                 try {
                     InputStream in = s.getSourceInputStream();
-                    try (
-                        InputStream bis = new BufferedInputStream(in);
-                        OutputStream bos = new BufferedOutputStream(new FileOutputStream(file))
-                    ) {
-                        byte[] buffer = new byte[4096];
-                        int length;
-                        while ((length = bis.read(buffer)) > -1 && !canceled) {
-                            bos.write(buffer, 0, length);
-                        }
+                    try (InputStream bis = new BufferedInputStream(in)) {
+                        Files.copy(bis, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
                     } finally {
                         s.closeSourceInputStream(in);
                     }
                 } catch (IOException e) {
+                    Main.warn(e);
                     error = true;
                 }
             }
@@ -550,6 +546,7 @@ public class MapPaintDialog extends ToggleDialog {
     protected class InfoAction extends AbstractAction {
 
         private boolean errorsTabLoaded;
+        private boolean warningsTabLoaded;
         private boolean sourceTabLoaded;
 
         /**
@@ -579,34 +576,29 @@ public class MapPaintDialog extends ToggleDialog {
             lblInfo.setFont(lblInfo.getFont().deriveFont(Font.PLAIN));
             tabs.setTabComponentAt(0, lblInfo);
 
-            final JPanel pErrors = new JPanel(new GridBagLayout());
-            tabs.add("Errors", pErrors);
-            JLabel lblErrors;
-            if (s.getErrors().isEmpty()) {
-                lblErrors = new JLabel(tr("Errors"));
-                lblErrors.setFont(lblInfo.getFont().deriveFont(Font.PLAIN));
-                lblErrors.setEnabled(false);
-                tabs.setTabComponentAt(1, lblErrors);
-                tabs.setEnabledAt(1, false);
-            } else {
-                lblErrors = new JLabel(tr("Errors"), ImageProvider.get("misc", "error"), JLabel.HORIZONTAL);
-                tabs.setTabComponentAt(1, lblErrors);
-            }
+            final JPanel pErrors = addErrorOrWarningTab(tabs, lblInfo,
+                    s.getErrors(), marktr("Errors"), 1, ImageProvider.get("misc", "error"));
+            final JPanel pWarnings = addErrorOrWarningTab(tabs, lblInfo,
+                    s.getWarnings(), marktr("Warnings"), 2, ImageProvider.get("warning-small"));
 
             final JPanel pSource = new JPanel(new GridBagLayout());
             tabs.addTab("Source", pSource);
             JLabel lblSource = new JLabel(tr("Source"));
             lblSource.setFont(lblSource.getFont().deriveFont(Font.PLAIN));
-            tabs.setTabComponentAt(2, lblSource);
+            tabs.setTabComponentAt(3, lblSource);
 
             tabs.getModel().addChangeListener(new ChangeListener() {
                 @Override
                 public void stateChanged(ChangeEvent e) {
                     if (!errorsTabLoaded && ((SingleSelectionModel) e.getSource()).getSelectedIndex() == 1) {
                         errorsTabLoaded = true;
-                        buildErrorsPanel(s, pErrors);
+                        buildErrorsOrWarningPanel(s.getErrors(), pErrors);
                     }
-                    if (!sourceTabLoaded && ((SingleSelectionModel) e.getSource()).getSelectedIndex() == 2) {
+                    if (!warningsTabLoaded && ((SingleSelectionModel) e.getSource()).getSelectedIndex() == 2) {
+                        warningsTabLoaded = true;
+                        buildErrorsOrWarningPanel(s.getWarnings(), pWarnings);
+                    }
+                    if (!sourceTabLoaded && ((SingleSelectionModel) e.getSource()).getSelectedIndex() == 3) {
                         sourceTabLoaded = true;
                         buildSourcePanel(s, pSource);
                     }
@@ -614,6 +606,23 @@ public class MapPaintDialog extends ToggleDialog {
             });
             info.setContent(tabs, false);
             info.showDialog();
+        }
+
+        private JPanel addErrorOrWarningTab(final JTabbedPane tabs, JLabel lblInfo,
+                Collection<?> items, String title, int pos, ImageIcon icon) {
+            final JPanel pErrors = new JPanel(new GridBagLayout());
+            tabs.add(title, pErrors);
+            if (items.isEmpty()) {
+                JLabel lblErrors = new JLabel(tr(title));
+                lblErrors.setFont(lblInfo.getFont().deriveFont(Font.PLAIN));
+                lblErrors.setEnabled(false);
+                tabs.setTabComponentAt(pos, lblErrors);
+                tabs.setEnabledAt(pos, false);
+            } else {
+                JLabel lblErrors = new JLabel(tr(title), icon, JLabel.HORIZONTAL);
+                tabs.setTabComponentAt(pos, lblErrors);
+            }
+            return pErrors;
         }
 
         private JPanel buildInfoPanel(StyleSource s) {
@@ -664,12 +673,12 @@ public class MapPaintDialog extends ToggleDialog {
             }
         }
 
-        private void buildErrorsPanel(StyleSource s, JPanel p) {
+        private <T> void buildErrorsOrWarningPanel(Collection<T> items, JPanel p) {
             JosmTextArea txtErrors = new JosmTextArea();
             txtErrors.setFont(GuiHelper.getMonospacedFont(txtErrors));
             txtErrors.setEditable(false);
             p.add(new JScrollPane(txtErrors), GBC.std().fill());
-            for (Throwable t : s.getErrors()) {
+            for (T t : items) {
                 txtErrors.append(t + "\n");
             }
         }

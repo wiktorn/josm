@@ -41,6 +41,7 @@ import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPreset;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetHandler;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetType;
+import org.openstreetmap.josm.gui.tagging.presets.TaggingPresets;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.OsmPrimitivesTableModel;
 
@@ -421,28 +422,41 @@ implements TableModelListener, SelectionChangedListener, DataSetListener, OsmPri
     }
 
     private void addMembersAtIndex(List<? extends OsmPrimitive> primitives, int index) {
-        final Collection<TaggingPreset> presets = TaggingPreset.getMatchingPresets(EnumSet.of(TaggingPresetType.RELATION),
-                presetHandler.getSelection().iterator().next().getKeys(), false);
         if (primitives == null)
             return;
         int idx = index;
         for (OsmPrimitive primitive : primitives) {
-            Set<String> potentialRoles = new TreeSet<>();
-            for (TaggingPreset tp : presets) {
-                String suggestedRole = tp.suggestRoleForOsmPrimitive(primitive);
-                if (suggestedRole != null) {
-                    potentialRoles.add(suggestedRole);
-                }
-            }
-            // TODO: propose user to choose role among potential ones instead of picking first one
-            final String role = potentialRoles.isEmpty() ? null : potentialRoles.iterator().next();
-            RelationMember member = new RelationMember(role == null ? "" : role, primitive);
+            final RelationMember member = getRelationMemberForPrimitive(primitive);
             members.add(idx++, member);
         }
         fireTableDataChanged();
         getSelectionModel().clearSelection();
         getSelectionModel().addSelectionInterval(index, index + primitives.size() - 1);
         fireMakeMemberVisible(index);
+    }
+
+    RelationMember getRelationMemberForPrimitive(final OsmPrimitive primitive) {
+        final Collection<TaggingPreset> presets = TaggingPresets.getMatchingPresets(EnumSet.of(TaggingPresetType.RELATION),
+                presetHandler.getSelection().iterator().next().getKeys(), false);
+        Collection<String> potentialRoles = new TreeSet<>();
+        for (TaggingPreset tp : presets) {
+            String suggestedRole = tp.suggestRoleForOsmPrimitive(primitive);
+            if (suggestedRole != null) {
+                potentialRoles.add(suggestedRole);
+            }
+        }
+        // TODO: propose user to choose role among potential ones instead of picking first one
+        final String role = potentialRoles.isEmpty() ? "" : potentialRoles.iterator().next();
+        return new RelationMember(role == null ? "" : role, primitive);
+    }
+
+    void addMembersAtIndex(final Iterable<RelationMember> newMembers, final int index) {
+        int idx = index;
+        for (RelationMember member : newMembers) {
+            members.add(idx++, member);
+        }
+        invalidateConnectionType();
+        fireTableRowsInserted(index, idx - 1);
     }
 
     public void addMembersAtBeginning(List<? extends OsmPrimitive> primitives) {
@@ -741,6 +755,10 @@ implements TableModelListener, SelectionChangedListener, DataSetListener, OsmPri
 
     @Override
     public void tableChanged(TableModelEvent e) {
+        invalidateConnectionType();
+    }
+
+    private void invalidateConnectionType() {
         connectionType = null;
     }
 

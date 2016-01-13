@@ -400,7 +400,6 @@ public class MainApplication extends Main {
             }
         }
 
-        DefaultAuthenticator.createInstance();
         Authenticator.setDefault(DefaultAuthenticator.getInstance());
         DefaultProxySelector proxySelector = new DefaultProxySelector(ProxySelector.getDefault());
         ProxySelector.setDefault(proxySelector);
@@ -472,7 +471,6 @@ public class MainApplication extends Main {
                 splash.setVisible(false);
                 splash.dispose();
                 mainFrame.setVisible(true);
-                main.gettingStarted.requestFocusInWindow();
             }
         });
 

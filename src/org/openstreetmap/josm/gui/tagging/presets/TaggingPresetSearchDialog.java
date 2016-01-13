@@ -34,7 +34,7 @@ public final class TaggingPresetSearchDialog extends ExtendedDialog {
     private TaggingPresetSearchDialog() {
         super(Main.parent, tr("Presets"), new String[] {tr("Select"), tr("Cancel")});
         selector = new TaggingPresetSelector(true, true);
-        setContent(selector);
+        setContent(selector, false);
         DataSet.addSelectionListener(selector);
         selector.setDblClickListener(new ActionListener() {
             @Override
@@ -56,7 +56,7 @@ public final class TaggingPresetSearchDialog extends ExtendedDialog {
     protected void buttonAction(int buttonIndex, ActionEvent evt) {
         super.buttonAction(buttonIndex, evt);
         if (buttonIndex == 0) {
-            TaggingPreset preset = selector.getSelectedPreset();
+            TaggingPreset preset = selector.getSelectedPresetAndUpdateClassification();
             if (preset != null) {
                 preset.actionPerformed(null);
             }

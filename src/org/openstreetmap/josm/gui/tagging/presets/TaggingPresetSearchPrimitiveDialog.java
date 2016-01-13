@@ -64,7 +64,7 @@ public final class TaggingPresetSearchPrimitiveDialog extends ExtendedDialog {
     TaggingPresetSearchPrimitiveDialog() {
         super(Main.parent, tr("Presets"), new String[] {tr("Search"), tr("Cancel")});
         selector = new TaggingPresetSelector(false, false);
-        setContent(selector);
+        setContent(selector, false);
         selector.setDblClickListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -85,7 +85,7 @@ public final class TaggingPresetSearchPrimitiveDialog extends ExtendedDialog {
     protected void buttonAction(int buttonIndex, ActionEvent evt) {
         super.buttonAction(buttonIndex, evt);
         if (buttonIndex == 0) {
-            TaggingPreset preset = selector.getSelectedPreset();
+            TaggingPreset preset = selector.getSelectedPresetAndUpdateClassification();
             if (preset != null) {
                 final Set<OsmPrimitive> matching = new HashSet<>(Utils.filter(Main.main.getCurrentDataSet().allPrimitives(), preset));
                 Main.main.getCurrentDataSet().setSelected(matching);

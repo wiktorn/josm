@@ -182,13 +182,14 @@ public class SearchCompiler {
                             long maxDate = rangeA2.isEmpty() ? System.currentTimeMillis() : DateUtils.fromString(rangeA2).getTime();
                             return new TimestampRange(minDate, maxDate);
                         } else {
-                            // I18n: Don't translate timestamp keyword
-                            throw new ParseError(tr("Expecting <i>min</i>/<i>max</i> after ''timestamp''"));
+                            throw new ParseError("<html>" + tr("Expecting {0} after {1}", "<i>min</i>/<i>max</i>", "<i>timestamp</i>"));
                         }
                     }
+                } else {
+                    throw new ParseError("<html>" + tr("Expecting {0} after {1}", "<code>:</code>", "<i>" + keyword + "</i>"));
                 }
             }
-            return null;
+            throw new IllegalStateException("Not expecting keyword " + keyword);
         }
 
         @Override
@@ -1466,13 +1467,38 @@ public class SearchCompiler {
 
         @Override
         protected Collection<Bounds> getBounds() {
-            return Main.main.getCurrentDataSet() == null || Main.main.getCurrentDataSet().getDataSourceArea() == null
+            return Main.main == null || Main.main.getCurrentDataSet() == null || Main.main.getCurrentDataSet().getDataSourceArea() == null
                     ? null : Main.main.getCurrentDataSet().getDataSourceBounds();
         }
 
         @Override
         public String toString() {
             return all ? "allindownloadedarea" : "indownloadedarea";
+        }
+    }
+
+    /**
+     * Matches objects which are not outside the source area ("downloaded area").
+     * Unlink {@link InDataSourceArea} this matches also if no source area is set (e.g., for new layers).
+     */
+    public static class NotOutsideDataSourceArea extends InDataSourceArea {
+
+        /**
+         * Constructs a new {@code NotOutsideDataSourceArea}.
+         */
+        public NotOutsideDataSourceArea() {
+            super(false);
+        }
+
+        @Override
+        protected Collection<Bounds> getBounds() {
+            final Collection<Bounds> bounds = super.getBounds();
+            return bounds == null || bounds.isEmpty() ? Collections.singleton(Main.getProjection().getWorldBoundsLatLon()) : bounds;
+        }
+
+        @Override
+        public String toString() {
+            return "NotOutsideDataSourceArea";
         }
     }
 

@@ -1,6 +1,7 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.tools;
 
+import static org.openstreetmap.josm.tools.I18n.marktr;
 import static org.openstreetmap.josm.tools.I18n.tr;
 import static org.openstreetmap.josm.tools.I18n.trn;
 
@@ -22,7 +23,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
@@ -48,8 +48,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinWorkerThread;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
@@ -90,7 +91,7 @@ public final class Utils {
 
     public static final String URL_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~:/?#[]@!$&'()*+,;=%";
 
-    private static char[] DEFAULT_STRIP = {'\u200B', '\uFEFF'};
+    private static final char[] DEFAULT_STRIP = {'\u200B', '\uFEFF'};
 
     /**
      * Tests whether {@code predicate} applies to at least one element from {@code collection}.
@@ -434,24 +435,6 @@ public final class Utils {
     }
 
     /**
-     * Copy data from source stream to output stream.
-     * @param source source stream
-     * @param destination target stream
-     * @return number of bytes copied
-     * @throws IOException if any I/O error occurs
-     */
-    public static int copyStream(InputStream source, OutputStream destination) throws IOException {
-        int count = 0;
-        byte[] b = new byte[512];
-        int read;
-        while ((read = source.read(b)) != -1) {
-            count += read;
-            destination.write(b, 0, read);
-        }
-        return count;
-    }
-
-    /**
      * Deletes a directory recursively.
      * @param path The directory to delete
      * @return  <code>true</code> if and only if the file or directory is
@@ -464,13 +447,40 @@ public final class Utils {
                 for (File file : files) {
                     if (file.isDirectory()) {
                         deleteDirectory(file);
-                    } else if (!file.delete()) {
-                        Main.warn("Unable to delete file: "+file.getPath());
+                    } else {
+                        deleteFile(file);
                     }
                 }
             }
         }
         return path.delete();
+    }
+
+    /**
+     * Deletes a file and log a default warning if the deletion fails.
+     * @param file file to delete
+     * and must contain a single parameter <code>{0}</code> for the file path
+     * @return {@code true} if and only if the file is successfully deleted; {@code false} otherwise
+     * @since 9296
+     */
+    public static boolean deleteFile(File file) {
+        return deleteFile(file, marktr("Unable to delete file {0}"));
+    }
+
+    /**
+     * Deletes a file and log a configurable warning if the deletion fails.
+     * @param file file to delete
+     * @param warnMsg warning message. It will be translated with {@code tr()}
+     * and must contain a single parameter <code>{0}</code> for the file path
+     * @return {@code true} if and only if the file is successfully deleted; {@code false} otherwise
+     * @since 9296
+     */
+    public static boolean deleteFile(File file, String warnMsg) {
+        boolean result = file.delete();
+        if (!result) {
+            Main.warn(tr(warnMsg, file.getPath()));
+        }
+        return result;
     }
 
     /**
@@ -989,7 +999,8 @@ public final class Utils {
     }
 
     /**
-     * An alternative to {@link String#trim()} to effectively remove all leading and trailing white characters, including Unicode ones.
+     * An alternative to {@link String#trim()} to effectively remove all leading
+     * and trailing white characters, including Unicode ones.
      * @param str The string to strip
      * @return <code>str</code>, without leading and trailing characters, according to
      *         {@link Character#isWhitespace(char)} and {@link Character#isSpaceChar(char)}.
@@ -1006,7 +1017,8 @@ public final class Utils {
     }
 
     /**
-     * An alternative to {@link String#trim()} to effectively remove all leading and trailing white characters, including Unicode ones.
+     * An alternative to {@link String#trim()} to effectively remove all leading
+     * and trailing white characters, including Unicode ones.
      * @param str The string to strip
      * @param skipChars additional characters to skip
      * @return <code>str</code>, without leading and trailing characters, according to
@@ -1142,6 +1154,33 @@ public final class Utils {
         }
         long days = elapsedTime / MILLIS_OF_DAY;
         return String.format("%d %s %d %s", days, trn("day", "days", days), (elapsedTime - days * MILLIS_OF_DAY) / MILLIS_OF_HOUR, tr("h"));
+    }
+
+    /**
+     * Returns a human readable representation (B, kB, MB, ...) for the given number of byes.
+     * @param bytes the number of bytes
+     * @param locale the locale used for formatting
+     * @return a human readable representation
+     * @since 9274
+     */
+    public static String getSizeString(long bytes, Locale locale) {
+        if (bytes < 0) {
+            throw new IllegalArgumentException("bytes must be >= 0");
+        }
+        final String[] units = {"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"};
+        int unitIndex = 0;
+        double value = bytes;
+        while (value >= 1024 && unitIndex < units.length) {
+            value /= 1024;
+            unitIndex++;
+        }
+        if (value > 100 || unitIndex == 0) {
+            return String.format(locale, "%.0f %s", value, units[unitIndex]);
+        } else if (value > 10) {
+            return String.format(locale, "%.1f %s", value, units[unitIndex]);
+        } else {
+            return String.format(locale, "%.2f %s", value, units[unitIndex]);
+        }
     }
 
     /**
@@ -1374,18 +1413,37 @@ public final class Utils {
     }
 
     /**
-     * Returns a pair containing the number of threads (n), and a thread pool (if n &gt; 1) to perform
-     * multi-thread computation in the context of the given preference key.
-     * @param pref The preference key
+     * Returns a {@link ForkJoinPool} with the parallelism given by the preference key.
+     * @param pref The preference key to determine parallelism
      * @param nameFormat see {@link #newThreadFactory(String, int)}
      * @param threadPriority see {@link #newThreadFactory(String, int)}
-     * @return a pair containing the number of threads (n), and a thread pool (if n &gt; 1, null otherwise)
-     * @since 7423
+     * @return a {@link ForkJoinPool}
      */
-    public static Pair<Integer, ExecutorService> newThreadPool(String pref, String nameFormat, int threadPriority) {
+    public static ForkJoinPool newForkJoinPool(String pref, final String nameFormat, final int threadPriority) {
         int noThreads = Main.pref.getInteger(pref, Runtime.getRuntime().availableProcessors());
-        ExecutorService pool = noThreads <= 1 ? null : Executors.newFixedThreadPool(noThreads, newThreadFactory(nameFormat, threadPriority));
-        return new Pair<>(noThreads, pool);
+        return new ForkJoinPool(noThreads, new ForkJoinPool.ForkJoinWorkerThreadFactory() {
+            final AtomicLong count = new AtomicLong(0);
+            @Override
+            public ForkJoinWorkerThread newThread(ForkJoinPool pool) {
+                final ForkJoinWorkerThread thread = ForkJoinPool.defaultForkJoinWorkerThreadFactory.newThread(pool);
+                thread.setName(String.format(Locale.ENGLISH, nameFormat, count.getAndIncrement()));
+                thread.setPriority(threadPriority);
+                return thread;
+            }
+        }, null, true);
+    }
+
+    /**
+     * Returns an executor which executes commands in the calling thread
+     * @return an executor
+     */
+    public static Executor newDirectExecutor() {
+        return new Executor() {
+            @Override
+            public void execute(Runnable command) {
+                command.run();
+            }
+        };
     }
 
     /**

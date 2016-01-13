@@ -145,13 +145,11 @@ public class LayerListDialog extends ToggleDialog {
      * to toggle the visibility of the first ten layers.
      */
     private void createVisibilityToggleShortcuts() {
-        final int[] k = {
-                KeyEvent.VK_1, KeyEvent.VK_2, KeyEvent.VK_3, KeyEvent.VK_4, KeyEvent.VK_5,
-                KeyEvent.VK_6, KeyEvent.VK_7, KeyEvent.VK_8, KeyEvent.VK_9, KeyEvent.VK_0};
-
         for (int i = 0; i < 10; i++) {
-            visibilityToggleShortcuts[i] = Shortcut.registerShortcut("subwindow:layers:toggleLayer" + (i+1),
-                    tr("Toggle visibility of layer: {0}", i+1), k[i], Shortcut.ALT);
+            final int i1 = i + 1;
+            /* POSSIBLE SHORTCUTS: 1,2,3,4,5,6,7,8,9,0=10 */
+            visibilityToggleShortcuts[i] = Shortcut.registerShortcut("subwindow:layers:toggleLayer" + i1,
+                    tr("Toggle visibility of layer: {0}", i1), KeyEvent.VK_0 + (i1 % 10), Shortcut.ALT);
             visibilityToggleActions[i] = new ToggleLayerIndexVisibility(i);
             Main.registerActionShortcut(visibilityToggleActions[i], visibilityToggleShortcuts[i]);
         }
@@ -1143,7 +1141,6 @@ public class LayerListDialog extends ToggleDialog {
     class PopupMenuHandler extends PopupMenuLauncher {
         @Override
         public void showMenu(MouseEvent evt) {
-            Layer layer = getModel().getLayer(layerList.getSelectedRow());
             menu = new LayerListPopup(getModel().getSelectedLayers());
             super.showMenu(evt);
         }

@@ -11,6 +11,7 @@ import java.awt.Point;
 import java.awt.RenderingHints;
 import java.awt.Stroke;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -105,7 +106,15 @@ public class GpxDrawHelper {
      * Different color modes
      */
     public enum ColorMode {
-        NONE, VELOCITY, HDOP, DIRECTION, TIME
+        NONE, VELOCITY, HDOP, DIRECTION, TIME;
+
+        static ColorMode fromIndex(final int index) {
+            return values()[index];
+        }
+
+        int toIndex() {
+            return Arrays.asList(values()).indexOf(this);
+        }
     }
 
     /**
@@ -140,7 +149,7 @@ public class GpxDrawHelper {
     public ColorMode getColorMode(String layerName) {
         try {
             int i = Main.pref.getInteger("draw.rawgps.colors", specName(layerName), 0);
-            return ColorMode.values()[i];
+            return ColorMode.fromIndex(i);
         } catch (Exception e) {
             Main.warn(e);
         }
@@ -240,22 +249,16 @@ public class GpxDrawHelper {
                             double vel = c.greatCircleDistance(oldWp.getCoor())
                                     / (trkPnt.time - oldWp.time);
                             velocities.add(vel);
-                            if (vel > maxval) {
-                                maxval = vel;
-                            }
-                            if (vel < minval) {
-                                minval = vel;
-                            }
                         }
                         oldWp = trkPnt;
                     }
                 }
                 Collections.sort(velocities);
-                minval = velocities.get(velocities.size() / 20); // 5% percentile to remove outliers
-                maxval = velocities.get(velocities.size() * 19 / 20); // 95% percentile to remove outliers
-                if (minval >= maxval) {
+                if (velocities.isEmpty()) {
                     velocityScale.setRange(0, 120/3.6);
                 } else {
+                    minval = velocities.get(velocities.size() / 20); // 5% percentile to remove outliers
+                    maxval = velocities.get(velocities.size() * 19 / 20); // 95% percentile to remove outliers
                     velocityScale.setRange(minval, maxval);
                 }
             } else if (colored == ColorMode.HDOP) {

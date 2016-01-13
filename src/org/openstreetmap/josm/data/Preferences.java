@@ -1,6 +1,7 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.data;
 
+import static org.openstreetmap.josm.tools.I18n.marktr;
 import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.Color;
@@ -149,6 +150,12 @@ public class Preferences {
     protected final SortedMap<String, String> colornames = new TreeMap<>();
 
     /**
+     * Indicates whether {@link #init(boolean)} completed successfully.
+     * Used to decide whether to write backup preference file in {@link #save()}
+     */
+    protected boolean initSuccessful = false;
+
+    /**
      * Interface for a preference value.
      *
      * Implementations must provide a proper <code>equals</code> method.
@@ -220,27 +227,15 @@ public class Preferences {
 
         @Override
         public int hashCode() {
-            final int prime = 31;
-            int result = 1;
-            result = prime * result + ((value == null) ? 0 : value.hashCode());
-            return result;
+            return Objects.hash(value);
         }
 
         @Override
         public boolean equals(Object obj) {
-            if (this == obj)
-                return true;
-            if (obj == null)
-                return false;
-            if (!(obj instanceof AbstractSetting))
-                return false;
-            AbstractSetting<?> other = (AbstractSetting<?>) obj;
-            if (value == null) {
-                if (other.value != null)
-                    return false;
-            } else if (!value.equals(other.value))
-                return false;
-            return true;
+            if (this == obj) return true;
+            if (obj == null || getClass() != obj.getClass()) return false;
+            AbstractSetting<?> that = (AbstractSetting<?>) obj;
+            return Objects.equals(value, that.value);
         }
     }
 
@@ -860,7 +855,7 @@ public class Preferences {
         File backupFile = new File(prefFile + "_backup");
 
         // Backup old preferences if there are old preferences
-        if (prefFile.exists()) {
+        if (prefFile.exists() && prefFile.length() > 0 && initSuccessful) {
             Utils.copyFile(prefFile, backupFile);
         }
 
@@ -871,9 +866,7 @@ public class Preferences {
 
         File tmpFile = new File(prefFile + "_tmp");
         Utils.copyFile(tmpFile, prefFile);
-        if (!tmpFile.delete()) {
-            Main.warn(tr("Unable to delete temporary file {0}", tmpFile.getAbsolutePath()));
-        }
+        Utils.deleteFile(tmpFile, marktr("Unable to delete temporary file {0}"));
 
         setCorrectPermissions(prefFile);
         setCorrectPermissions(backupFile);
@@ -921,6 +914,7 @@ public class Preferences {
      * @param reset if {@code true}, current settings file is replaced by the default one
      */
     public void init(boolean reset) {
+        initSuccessful = false;
         // get the preferences.
         File prefDir = getPreferencesDirectory();
         if (prefDir.exists()) {
@@ -958,6 +952,8 @@ public class Preferences {
                 resetToDefault();
                 save();
             } else if (reset) {
+                File backupFile = new File(prefDir, "preferences.xml.bak");
+                Main.platform.rename(preferenceFile, backupFile);
                 Main.warn(tr("Replacing existing preference file ''{0}'' with default preference file.", preferenceFile.getAbsoluteFile()));
                 resetToDefault();
                 save();
@@ -975,6 +971,7 @@ public class Preferences {
         }
         try {
             load();
+            initSuccessful = true;
         } catch (Exception e) {
             Main.error(e);
             File backupFile = new File(prefDir, "preferences.xml.bak");

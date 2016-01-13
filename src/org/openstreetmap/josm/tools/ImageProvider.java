@@ -58,12 +58,13 @@ import javax.xml.bind.DatatypeConverter;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.OsmPrimitiveType;
-import org.openstreetmap.josm.gui.mappaint.ElemStyle;
-import org.openstreetmap.josm.gui.mappaint.MapImage;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
-import org.openstreetmap.josm.gui.mappaint.NodeElemStyle;
 import org.openstreetmap.josm.gui.mappaint.Range;
-import org.openstreetmap.josm.gui.mappaint.StyleCache.StyleList;
+import org.openstreetmap.josm.gui.mappaint.StyleElementList;
+import org.openstreetmap.josm.gui.mappaint.styleelement.MapImage;
+import org.openstreetmap.josm.gui.mappaint.styleelement.StyleElement;
+import org.openstreetmap.josm.gui.tagging.presets.TaggingPreset;
+import org.openstreetmap.josm.gui.tagging.presets.TaggingPresets;
 import org.openstreetmap.josm.io.CachedFile;
 import org.openstreetmap.josm.plugins.PluginHandler;
 import org.w3c.dom.Element;
@@ -79,6 +80,7 @@ import org.xml.sax.helpers.XMLReaderFactory;
 
 import com.kitfox.svg.SVGDiagram;
 import com.kitfox.svg.SVGUniverse;
+import org.openstreetmap.josm.gui.mappaint.styleelement.NodeElement;
 
 /**
  * Helper class to support the application with images.
@@ -1296,10 +1298,10 @@ public class ImageProvider {
     public static ImageIcon getPadded(OsmPrimitive primitive, Rectangle iconSize) {
         // Check if the current styles have special icon for tagged nodes.
         if (primitive instanceof org.openstreetmap.josm.data.osm.Node) {
-            Pair<StyleList, Range> nodeStyles = MapPaintStyles.getStyles().generateStyles(primitive, 100, false);
-            for (ElemStyle style : nodeStyles.a) {
-                if (style instanceof NodeElemStyle) {
-                    NodeElemStyle nodeStyle = (NodeElemStyle) style;
+            Pair<StyleElementList, Range> nodeStyles = MapPaintStyles.getStyles().generateStyles(primitive, 100, false);
+            for (StyleElement style : nodeStyles.a) {
+                if (style instanceof NodeElement) {
+                    NodeElement nodeStyle = (NodeElement) style;
                     MapImage icon = nodeStyle.mapImage;
                     if (icon != null) {
                         int backgroundWidth = iconSize.height;
@@ -1330,6 +1332,15 @@ public class ImageProvider {
 
                         return new ImageIcon(image);
                     }
+                }
+            }
+        }
+
+        // Check if the presets have icons for nodes/relations.
+        if (!OsmPrimitiveType.WAY.equals(primitive.getType())) {
+            for (final TaggingPreset preset : TaggingPresets.getMatchingPresets(primitive)) {
+                if (preset.getIcon() != null) {
+                    return preset.getIcon();
                 }
             }
         }

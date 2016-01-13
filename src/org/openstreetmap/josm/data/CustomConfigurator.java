@@ -313,10 +313,8 @@ public final class CustomConfigurator {
                 }
             }
         }
-        try {
-            f.delete();
-        } catch (Exception e) {
-            log("Warning: Can not delete file "+f.getPath()+": "+e.getMessage());
+        if (!Utils.deleteFile(f)) {
+            log("Warning: Can not delete file "+f.getPath());
         }
     }
 
@@ -587,7 +585,7 @@ public final class CustomConfigurator {
          private void processDeleteElement(Element item) {
             String path = evalVars(item.getAttribute("path"));
             String base = evalVars(item.getAttribute("base"));
-            deleteFile(base, path);
+            deleteFile(path, base);
         }
 
         private void processDownloadElement(Element item) {

@@ -2,6 +2,7 @@
 package org.openstreetmap.josm.data.coor;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 import org.openstreetmap.josm.data.osm.BBox;
 
@@ -112,33 +113,17 @@ abstract class Coordinate implements Serializable {
         return new BBox(x - r, y - r, x + r, y + r);
     }
 
-    protected final int computeHashCode(int init) {
-        final int prime = 31;
-        int result = init;
-        long temp;
-        temp = java.lang.Double.doubleToLongBits(x);
-        result = prime * result + (int) (temp ^ (temp >>> 32));
-        temp = java.lang.Double.doubleToLongBits(y);
-        result = prime * result + (int) (temp ^ (temp >>> 32));
-        return result;
-    }
-
     @Override
     public int hashCode() {
-        return computeHashCode(1);
+        return Objects.hash(x, y);
     }
 
     @Override
     public boolean equals(Object obj) {
-        if (this == obj)
-            return true;
-        if (obj == null || getClass() != obj.getClass())
-            return false;
-        Coordinate other = (Coordinate) obj;
-        if (java.lang.Double.doubleToLongBits(x) != java.lang.Double.doubleToLongBits(other.x))
-            return false;
-        if (java.lang.Double.doubleToLongBits(y) != java.lang.Double.doubleToLongBits(other.y))
-            return false;
-        return true;
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        Coordinate that = (Coordinate) obj;
+        return Double.compare(that.x, x) == 0 &&
+                Double.compare(that.y, y) == 0;
     }
 }

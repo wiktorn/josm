@@ -15,6 +15,7 @@ import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.Arrays;
 import java.util.Locale;
+import java.util.Objects;
 
 import org.openstreetmap.gui.jmapviewer.interfaces.ICoordinate;
 import org.openstreetmap.josm.Main;
@@ -53,6 +54,12 @@ public class LatLon extends Coordinate {
      * @since 6178
      */
     public static final LatLon ZERO = new LatLon(0, 0);
+
+    /**
+     * North and south pole.
+     */
+    public static final LatLon NORTH_POLE = new LatLon(90, 0);
+    public static final LatLon SOUTH_POLE = new LatLon(-90, 0);
 
     private static DecimalFormat cDmsMinuteFormatter = new DecimalFormat("00");
     private static DecimalFormat cDmsSecondFormatter = new DecimalFormat("00.0");
@@ -427,23 +434,16 @@ public class LatLon extends Coordinate {
 
     @Override
     public int hashCode() {
-        return computeHashCode(super.hashCode());
+        return Objects.hash(x, y);
     }
 
     @Override
     public boolean equals(Object obj) {
-        if (this == obj)
-            return true;
-        if (!super.equals(obj))
-            return false;
-        if (getClass() != obj.getClass())
-            return false;
-        Coordinate other = (Coordinate) obj;
-        if (java.lang.Double.doubleToLongBits(x) != java.lang.Double.doubleToLongBits(other.x))
-            return false;
-        if (java.lang.Double.doubleToLongBits(y) != java.lang.Double.doubleToLongBits(other.y))
-            return false;
-        return true;
+        if (this == obj) return true;
+        if (!(obj instanceof LatLon)) return false;
+        LatLon that = (LatLon) obj;
+        return Double.compare(that.x, x) == 0 &&
+                Double.compare(that.y, y) == 0;
     }
 
     public ICoordinate toCoordinate() {

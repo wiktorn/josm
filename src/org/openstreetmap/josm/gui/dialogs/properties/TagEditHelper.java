@@ -73,6 +73,7 @@ import org.openstreetmap.josm.gui.tagging.ac.AutoCompletingComboBox;
 import org.openstreetmap.josm.gui.tagging.ac.AutoCompletionListItem;
 import org.openstreetmap.josm.gui.tagging.ac.AutoCompletionManager;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPreset;
+import org.openstreetmap.josm.gui.tagging.presets.TaggingPresets;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.PopupMenuLauncher;
 import org.openstreetmap.josm.io.XmlWriter;
@@ -704,13 +705,12 @@ class TagEditHelper {
             List<Tag> tags = new LinkedList<>(recentTags.keySet());
             for (int i = tags.size()-1; i >= 0 && count <= tagsToShow; i--, count++) {
                 final Tag t = tags.get(i);
-                // Create action for reusing the tag, with keyboard shortcut Ctrl+(1-5)
-                String actionShortcutKey = "properties:recent:"+count;
-                String actionShortcutShiftKey = "properties:recent:shift:"+count;
-                // CHECKSTYLE.OFF: LineLength
-                Shortcut sc = Shortcut.registerShortcut(actionShortcutKey, tr("Choose recent tag {0}", count), KeyEvent.VK_0+count, Shortcut.CTRL);
-                // CHECKSTYLE.ON: LineLength
-                final JosmAction action = new JosmAction(actionShortcutKey, null, tr("Use this tag again"), sc, false) {
+                // Create action for reusing the tag, with keyboard shortcut
+                /* POSSIBLE SHORTCUTS: 1,2,3,4,5,6,7,8,9,0=10 */
+                final Shortcut sc = count > 10 ? null : Shortcut.registerShortcut("properties:recent:" + count,
+                        tr("Choose recent tag {0}", count), KeyEvent.VK_0 + (count % 10), Shortcut.CTRL);
+                final JosmAction action = new JosmAction(
+                        tr("Choose recent tag {0}", count), null, tr("Use this tag again"), sc, false) {
                     @Override
                     public void actionPerformed(ActionEvent e) {
                         keys.setSelectedItem(t.getKey());
@@ -720,9 +720,11 @@ class TagEditHelper {
                         selectValuesCombobox();
                     }
                 };
-                Shortcut scShift = Shortcut.registerShortcut(actionShortcutShiftKey, tr("Apply recent tag {0}", count),
-                        KeyEvent.VK_0+count, Shortcut.CTRL_SHIFT);
-                final JosmAction actionShift = new JosmAction(actionShortcutShiftKey, null, tr("Use this tag again"), scShift, false) {
+                /* POSSIBLE SHORTCUTS: 1,2,3,4,5,6,7,8,9,0=10 */
+                final Shortcut scShift = count > 10 ? null : Shortcut.registerShortcut("properties:recent:apply:" + count,
+                         tr("Apply recent tag {0}", count), KeyEvent.VK_0 + (count % 10), Shortcut.CTRL_SHIFT);
+                final JosmAction actionShift = new JosmAction(
+                        tr("Apply recent tag {0}", count), null, tr("Use this tag again"), scShift, false) {
                     @Override
                     public void actionPerformed(ActionEvent e) {
                         action.actionPerformed(null);
@@ -739,7 +741,7 @@ class TagEditHelper {
                     // If no icon found in map style look at presets
                     Map<String, String> map = new HashMap<>();
                     map.put(t.getKey(), t.getValue());
-                    for (TaggingPreset tp : TaggingPreset.getMatchingPresets(null, map, false)) {
+                    for (TaggingPreset tp : TaggingPresets.getMatchingPresets(null, map, false)) {
                         icon = tp.getIcon();
                         if (icon != null) {
                             break;
@@ -762,12 +764,14 @@ class TagEditHelper {
                         + "<td style='border:1px solid gray'>" + XmlWriter.encode(t.toString(), true) + '<' +
                         "/td></tr></table></html>");
                 tagLabel.setFont(tagLabel.getFont().deriveFont(Font.PLAIN));
-                if (action.isEnabled()) {
+                if (action.isEnabled() && sc != null && scShift != null) {
                     // Register action
-                    mainPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(sc.getKeyStroke(), actionShortcutKey);
-                    mainPanel.getActionMap().put(actionShortcutKey, action);
-                    mainPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(scShift.getKeyStroke(), actionShortcutShiftKey);
-                    mainPanel.getActionMap().put(actionShortcutShiftKey, actionShift);
+                    mainPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(sc.getKeyStroke(), "choose"+count);
+                    mainPanel.getActionMap().put("choose"+count, action);
+                    mainPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(scShift.getKeyStroke(), "apply"+count);
+                    mainPanel.getActionMap().put("apply"+count, actionShift);
+                }
+                if (action.isEnabled()) {
                     // Make the tag label clickable and set tooltip to the action description (this displays also the keyboard shortcut)
                     tagLabel.setToolTipText((String) action.getValue(Action.SHORT_DESCRIPTION));
                     tagLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));

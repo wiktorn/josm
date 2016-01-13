@@ -112,7 +112,7 @@ public abstract class OsmServerReader extends OsmConnection {
             boolean uncompressAccordingToContentDisposition) throws OsmTransferException {
         try {
             OnlineResource.JOSM_WEBSITE.checkOfflineAccess(urlStr, Main.getJOSMWebsite());
-            OnlineResource.OSM_API.checkOfflineAccess(urlStr, Main.pref.get("osm-server.url", OsmApi.DEFAULT_API_URL));
+            OnlineResource.OSM_API.checkOfflineAccess(urlStr, OsmApi.getOsmApi().getServerUrl());
 
             URL url = null;
             try {
@@ -122,15 +122,18 @@ public abstract class OsmServerReader extends OsmConnection {
             }
 
             final HttpClient client = HttpClient.create(url);
+            activeConnection = client;
             client.setReasonForRequest(reason);
+            adaptRequest(client);
             if (doAuthenticate) {
                 addAuth(client);
             }
             if (cancel)
                 throw new OsmTransferCanceledException("Operation canceled");
 
+            final HttpClient.Response response;
             try {
-                activeConnection = client.connect(progressMonitor);
+                response = client.connect(progressMonitor);
             } catch (Exception e) {
                 Main.error(e);
                 OsmTransferException ote = new OsmTransferException(
@@ -139,25 +142,25 @@ public abstract class OsmServerReader extends OsmConnection {
                 throw ote;
             }
             try {
-                if (activeConnection.getResponseCode() == HttpURLConnection.HTTP_UNAUTHORIZED)
+                if (response.getResponseCode() == HttpURLConnection.HTTP_UNAUTHORIZED)
                     throw new OsmApiException(HttpURLConnection.HTTP_UNAUTHORIZED, null, null);
 
-                if (activeConnection.getResponseCode() == HttpURLConnection.HTTP_PROXY_AUTH)
+                if (response.getResponseCode() == HttpURLConnection.HTTP_PROXY_AUTH)
                     throw new OsmTransferCanceledException("Proxy Authentication Required");
 
-                if (activeConnection.getResponseCode() != HttpURLConnection.HTTP_OK) {
-                    String errorHeader = activeConnection.getHeaderField("Error");
+                if (response.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                    String errorHeader = response.getHeaderField("Error");
                     String errorBody;
                     try {
-                        errorBody = activeConnection.fetchContent();
+                        errorBody = response.fetchContent();
                     } catch (Exception e) {
                         errorBody = tr("Reading error text failed.");
                     }
-                    throw new OsmApiException(activeConnection.getResponseCode(), errorHeader, errorBody, url.toString());
+                    throw new OsmApiException(response.getResponseCode(), errorHeader, errorBody, url.toString());
                 }
 
-                activeConnection.uncompressAccordingToContentDisposition(uncompressAccordingToContentDisposition);
-                return activeConnection.getContent();
+                response.uncompressAccordingToContentDisposition(uncompressAccordingToContentDisposition);
+                return response.getContent();
             } catch (OsmTransferException e) {
                 throw e;
             } catch (Exception e) {
@@ -166,6 +169,14 @@ public abstract class OsmServerReader extends OsmConnection {
         } finally {
             progressMonitor.invalidate();
         }
+    }
+
+    /**
+     * Allows subclasses to modify the request.
+     * @param request the prepared request
+     * @since 9308
+     */
+    protected void adaptRequest(HttpClient request) {
     }
 
     /**

@@ -13,6 +13,8 @@ import java.util.regex.Pattern;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Bounds;
+import org.openstreetmap.josm.data.ProjectionBounds;
+import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.projection.datum.CentricDatum;
 import org.openstreetmap.josm.data.projection.datum.Datum;
@@ -22,6 +24,7 @@ import org.openstreetmap.josm.data.projection.datum.NullDatum;
 import org.openstreetmap.josm.data.projection.datum.SevenParameterDatum;
 import org.openstreetmap.josm.data.projection.datum.ThreeParameterDatum;
 import org.openstreetmap.josm.data.projection.datum.WGS84Datum;
+import org.openstreetmap.josm.data.projection.proj.IPolar;
 import org.openstreetmap.josm.data.projection.proj.Mercator;
 import org.openstreetmap.josm.data.projection.proj.Proj;
 import org.openstreetmap.josm.data.projection.proj.ProjParameters;
@@ -94,6 +97,8 @@ public class CustomProjection extends AbstractProjection {
         lat_1("lat_1", true),
         /** Latitude of second standard parallel */
         lat_2("lat_2", true),
+        /** Latitude of true scale */
+        lat_ts("lat_ts", true),
         /** the exact proj.4 string will be preserved in the WKT representation */
         wktext("wktext", false),  // ignored
         /** meters, US survey feet, etc. */
@@ -492,6 +497,10 @@ public class CustomProjection extends AbstractProjection {
         if (s != null) {
             projParams.lat2 = parseAngle(s, Param.lat_2.key);
         }
+        s = parameters.get(Param.lat_ts.key);
+        if (s != null) {
+            projParams.lat_ts = parseAngle(s, Param.lat_ts.key);
+        }
         proj.initialize(projParams);
         return proj;
     }
@@ -688,5 +697,69 @@ public class CustomProjection extends AbstractProjection {
             throw new RuntimeException();
         }
         return ret;
+    }
+
+    private EastNorth getPointAlong(int i, int N, ProjectionBounds r) {
+        double dEast = (r.maxEast - r.minEast) / N;
+        double dNorth = (r.maxNorth - r.minNorth) / N;
+        if (i < N) {
+            return new EastNorth(r.minEast + i * dEast, r.minNorth);
+        } else if (i < 2*N) {
+            i -= N;
+            return new EastNorth(r.maxEast, r.minNorth + i * dNorth);
+        } else if (i < 3*N) {
+            i -= 2*N;
+            return new EastNorth(r.maxEast - i * dEast, r.maxNorth);
+        } else if (i < 4*N) {
+            i -= 3*N;
+            return new EastNorth(r.minEast, r.maxNorth - i * dNorth);
+        } else {
+            throw new AssertionError();
+        }
+    }
+
+    @Override
+    public Bounds getLatLonBoundsBox(ProjectionBounds r) {
+        final int N = 10;
+        Bounds result = new Bounds(eastNorth2latlon(r.getMin()));
+        result.extend(eastNorth2latlon(r.getMax()));
+        LatLon llPrev = null;
+        for (int i = 0; i < 4*N; i++) {
+            LatLon llNow = eastNorth2latlon(getPointAlong(i, N, r));
+            result.extend(llNow);
+            // check if segment crosses 180th meridian and if so, make sure
+            // to extend bounds to +/-180 degrees longitude
+            if (llPrev != null) {
+                double lon1 = llPrev.lon();
+                double lon2 = llNow.lon();
+                if (90 < lon1 && lon1 < 180 && -180 < lon2 && lon2 < -90) {
+                    result.extend(new LatLon(llPrev.lat(), 180));
+                    result.extend(new LatLon(llNow.lat(), -180));
+                }
+                if (90 < lon2 && lon2 < 180 && -180 < lon1 && lon1 < -90) {
+                    result.extend(new LatLon(llNow.lat(), 180));
+                    result.extend(new LatLon(llPrev.lat(), -180));
+                }
+            }
+            llPrev = llNow;
+        }
+        // if the box contains one of the poles, the above method did not get
+        // correct min/max latitude value
+        if (proj instanceof IPolar) {
+            IPolar polarProj = (IPolar) proj;
+            if (polarProj.hasPole(false)) {
+                EastNorth enNorthPole = latlon2eastNorth(LatLon.NORTH_POLE);
+                if (r.contains(enNorthPole)) {
+                    result.extend(LatLon.NORTH_POLE);
+                }
+            }
+            if (polarProj.hasPole(true)) {
+                EastNorth enSouthPole = latlon2eastNorth(LatLon.SOUTH_POLE);
+                if (r.contains(enSouthPole)) {
+                    result.extend(LatLon.SOUTH_POLE);
+                }
+            }
+        }
+        return result;
     }
 }
