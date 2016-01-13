@@ -13,18 +13,18 @@ import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
+import java.util.concurrent.Executor;
 
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.SwingUtilities;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.oauth.OAuthToken;
 import org.openstreetmap.josm.gui.SideButton;
 import org.openstreetmap.josm.gui.preferences.server.OAuthAccessTokenHolder;
+import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.HtmlPanel;
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
@@ -46,7 +46,8 @@ public class SemiAutomaticAuthorizationUI extends AbstractAuthorizationUI {
     private RetrieveRequestTokenPanel pnlRetrieveRequestToken;
     private RetrieveAccessTokenPanel pnlRetrieveAccessToken;
     private ShowAccessTokenPanel pnlShowAccessToken;
-
+    private final Executor executor;
+    
     /**
      * build the UI
      */
@@ -62,10 +63,12 @@ public class SemiAutomaticAuthorizationUI extends AbstractAuthorizationUI {
     /**
      * Constructs a new {@code SemiAutomaticAuthorizationUI} for the given API URL.
      * @param apiUrl The OSM API URL
+     * @param executor the executor used for running the HTTP requests for the authorization
      * @since 5422
      */
-    public SemiAutomaticAuthorizationUI(String apiUrl) {
+    public SemiAutomaticAuthorizationUI(String apiUrl, Executor executor) {
         super(apiUrl);
+        this.executor = executor;
         build();
     }
 
@@ -395,14 +398,14 @@ public class SemiAutomaticAuthorizationUI extends AbstractAuthorizationUI {
                     SemiAutomaticAuthorizationUI.this,
                     getAdvancedPropertiesPanel().getAdvancedParameters()
             );
-            Main.worker.submit(task);
+            executor.execute(task);
             Runnable r  = new Runnable() {
                 @Override
                 public void run() {
                     if (task.isCanceled()) return;
                     if (task.getRequestToken() == null) return;
                     requestToken = task.getRequestToken();
-                    SwingUtilities.invokeLater(new Runnable() {
+                    GuiHelper.runInEDT(new Runnable() {
                         @Override
                         public void run() {
                             transitionToRetrieveAccessToken();
@@ -410,7 +413,7 @@ public class SemiAutomaticAuthorizationUI extends AbstractAuthorizationUI {
                     });
                 }
             };
-            Main.worker.submit(r);
+            executor.execute(r);
         }
     }
 
@@ -432,22 +435,22 @@ public class SemiAutomaticAuthorizationUI extends AbstractAuthorizationUI {
                     getAdvancedPropertiesPanel().getAdvancedParameters(),
                     requestToken
             );
-            Main.worker.submit(task);
+            executor.execute(task);
             Runnable r  = new Runnable() {
                 @Override
                 public void run() {
                     if (task.isCanceled()) return;
                     if (task.getAccessToken() == null) return;
-                    setAccessToken(task.getAccessToken());
-                    SwingUtilities.invokeLater(new Runnable() {
+                    GuiHelper.runInEDT(new Runnable() {
                         @Override
                         public void run() {
+                            setAccessToken(task.getAccessToken());
                             transitionToShowAccessToken();
                         }
                     });
                 }
             };
-            Main.worker.submit(r);
+            executor.execute(r);
         }
     }
 
@@ -470,7 +473,7 @@ public class SemiAutomaticAuthorizationUI extends AbstractAuthorizationUI {
                     getAdvancedPropertiesPanel().getAdvancedParameters(),
                     getAccessToken()
             );
-            Main.worker.submit(task);
+            executor.execute(task);
         }
     }
 }

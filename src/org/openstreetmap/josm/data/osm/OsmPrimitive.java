@@ -16,6 +16,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import org.openstreetmap.josm.Main;
@@ -476,8 +477,8 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
 
     /**
      * Remove the disabled flag from the primitive.
-     * Afterwards, the primitive is displayed normally and can be selected
-     * again.
+     * Afterwards, the primitive is displayed normally and can be selected again.
+     * @return {@code true} if a change occurred
      */
     public boolean unsetDisabledState() {
         boolean locked = writeLock();
@@ -492,6 +493,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
 
     /**
      * Set binary property used internally by the filter mechanism.
+     * @param isExplicit new "disabled type" flag value
      */
     public void setDisabledType(boolean isExplicit) {
         updateFlags(FLAG_DISABLED_TYPE, isExplicit);
@@ -499,22 +501,23 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
 
     /**
      * Set binary property used internally by the filter mechanism.
+     * @param isExplicit new "hidden type" flag value
      */
     public void setHiddenType(boolean isExplicit) {
         updateFlags(FLAG_HIDDEN_TYPE, isExplicit);
     }
 
     /**
-     * Replies true, if this primitive is disabled. (E.g. a filter
-     * applies)
+     * Replies true, if this primitive is disabled. (E.g. a filter applies)
+     * @return {@code true} if this object has the "disabled" flag enabled
      */
     public boolean isDisabled() {
         return (flags & FLAG_DISABLED) != 0;
     }
 
     /**
-     * Replies true, if this primitive is disabled and marked as
-     * completely hidden on the map.
+     * Replies true, if this primitive is disabled and marked as completely hidden on the map.
+     * @return {@code true} if this object has both the "disabled" and "hide if disabled" flags enabled
      */
     public boolean isDisabledAndHidden() {
         return ((flags & FLAG_DISABLED) != 0) && ((flags & FLAG_HIDE_IF_DISABLED) != 0);
@@ -522,6 +525,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
 
     /**
      * Get binary property used internally by the filter mechanism.
+     * @return {@code true} if this object has the "hidden type" flag enabled
      */
     public boolean getHiddenType() {
         return (flags & FLAG_HIDDEN_TYPE) != 0;
@@ -529,15 +533,24 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
 
     /**
      * Get binary property used internally by the filter mechanism.
+     * @return {@code true} if this object has the "disabled type" flag enabled
      */
     public boolean getDisabledType() {
         return (flags & FLAG_DISABLED_TYPE) != 0;
     }
 
+    /**
+     * Determines if this object is selectable.
+     * @return {@code true} if this object is selectable
+     */
     public boolean isSelectable() {
         return (flags & (FLAG_DELETED + FLAG_INCOMPLETE + FLAG_DISABLED + FLAG_HIDE_IF_DISABLED)) == 0;
     }
 
+    /**
+     * Determines if this object is drawable.
+     * @return {@code true} if this object is drawable
+     */
     public boolean isDrawable() {
         return (flags & (FLAG_DELETED + FLAG_INCOMPLETE + FLAG_HIDE_IF_DISABLED)) == 0;
     }
@@ -763,6 +776,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
 
     /**
      * Returns {@link #getKeys()} for which {@code key} does not fulfill {@link #isUninterestingKey}.
+     * @return A map of interesting tags
      */
     public Map<String, String> getInterestingTags() {
         Map<String, String> result = new HashMap<>();
@@ -819,26 +833,22 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
     }
 
     private void updateTagged() {
-        if (keys != null) {
-            for (String key: keySet()) {
-                // 'area' is not really uninteresting (putting it in that list may have unpredictable side effects)
-                // but it's clearly not enough to consider an object as tagged (see #9261)
-                if (!isUninterestingKey(key) && !"area".equals(key)) {
-                    updateFlagsNoLock(FLAG_TAGGED, true);
-                    return;
-                }
+        for (String key: keySet()) {
+            // 'area' is not really uninteresting (putting it in that list may have unpredictable side effects)
+            // but it's clearly not enough to consider an object as tagged (see #9261)
+            if (!isUninterestingKey(key) && !"area".equals(key)) {
+                updateFlagsNoLock(FLAG_TAGGED, true);
+                return;
             }
         }
         updateFlagsNoLock(FLAG_TAGGED, false);
     }
 
     private void updateAnnotated() {
-        if (keys != null) {
-            for (String key: keySet()) {
-                if (getWorkInProgressKeys().contains(key)) {
-                    updateFlagsNoLock(FLAG_ANNOTATED, true);
-                    return;
-                }
+        for (String key: keySet()) {
+            if (getWorkInProgressKeys().contains(key)) {
+                updateFlagsNoLock(FLAG_ANNOTATED, true);
+                return;
             }
         }
         updateFlagsNoLock(FLAG_ANNOTATED, false);
@@ -882,11 +892,16 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
 
     /**
      * true if this object has direction dependent tags (e.g. oneway)
+     * @return {@code true} if this object has direction dependent tags
      */
     public boolean hasDirectionKeys() {
         return (flags & FLAG_HAS_DIRECTIONS) != 0;
     }
 
+    /**
+     * true if this object has the "reversed diretion" flag enabled
+     * @return {@code true} if this object has the "reversed diretion" flag enabled
+     */
     public boolean reversedDirection() {
         return (flags & FLAG_DIRECTION_REVERSED) != 0;
     }
@@ -1081,6 +1096,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
     /**
       Return true, if this primitive is referred by at least n ways
       @param n Minimal number of ways to return true. Must be positive
+     * @return {@code true} if this primitive is referred by at least n ways
      */
     public final boolean isReferredByWays(int n) {
         // Count only referrers that are members of the same dataset (primitive can have some fake references, for example
@@ -1116,6 +1132,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
     /**
      * Get and write all attributes from the parameter. Does not fire any listener, so
      * use this only in the data initializing phase
+     * @param other other primitive
      */
     public void cloneFrom(OsmPrimitive other) {
         // write lock is provided by subclasses
@@ -1148,7 +1165,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
                 throw new DataIntegrityProblemException(
                         tr("Cannot merge primitives with different ids. This id is {0}, the other is {1}", id, other.getId()));
 
-            setKeys(other.getKeys());
+            setKeys(other.hasKeys() ? other.getKeys() : null);
             timestamp = other.timestamp;
             version = other.version;
             setIncomplete(other.isIncomplete());
@@ -1167,12 +1184,8 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      * @return true if other isn't null and has the same interesting tags (key/value-pairs) as this.
      */
     public boolean hasSameInterestingTags(OsmPrimitive other) {
-        // We cannot directly use Arrays.equals(keys, other.keys) as keys is not ordered by key
-        // but we can at least check if both arrays are null or of the same size before creating
-        // and comparing the key maps (costly operation, see #7159)
         return (keys == null && other.keys == null)
-                || (keys != null && other.keys != null && keys.length == other.keys.length
-                        && (keys.length == 0 || getInterestingTags().equals(other.getInterestingTags())));
+                || getInterestingTags().equals(other.getInterestingTags());
     }
 
     /**
@@ -1228,7 +1241,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      */
     public void load(PrimitiveData data) {
         // Write lock is provided by subclasses
-        setKeys(data.getKeys());
+        setKeys(data.hasKeys() ? data.getKeys() : null);
         setRawTimestamp(data.getRawTimestamp());
         user = data.getUser();
         setChangesetId(data.getChangesetId());
@@ -1250,7 +1263,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      */
     protected void saveCommonAttributes(PrimitiveData data) {
         data.setId(id);
-        data.setKeys(getKeys());
+        data.setKeys(hasKeys() ? getKeys() : null);
         data.setRawTimestamp(getRawTimestamp());
         data.setUser(user);
         data.setDeleted(isDeleted());
@@ -1307,9 +1320,10 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      */
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof OsmPrimitive)
-            return ((OsmPrimitive) obj).id == id && obj.getClass() == getClass();
-        return false;
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        OsmPrimitive that = (OsmPrimitive) obj;
+        return Objects.equals(id, that.id);
     }
 
     /**
@@ -1318,12 +1332,13 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      * An primitive has the same hashcode as its incomplete counterpart.
      */
     @Override
-    public final int hashCode() {
-        return (int) id;
+    public int hashCode() {
+        return Objects.hash(id);
     }
 
     /**
      * Replies the display name of a primitive formatted by <code>formatter</code>
+     * @param formatter formatter to use
      *
      * @return the display name
      */
@@ -1361,6 +1376,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
 
     /**
      * Replies the set of referring relations
+     * @param primitives primitives to fetch relations from
      *
      * @return the set of referring relations
      */

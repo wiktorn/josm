@@ -4,6 +4,7 @@ package org.openstreetmap.josm.command;
 import static org.openstreetmap.josm.tools.I18n.trn;
 
 import java.util.Collection;
+import java.util.Objects;
 
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.osm.Node;
@@ -34,6 +35,8 @@ public class RotateCommand extends TransformNodesCommand {
     /**
      * Creates a RotateCommand.
      * Assign the initial object set, compute pivot point and inital rotation angle.
+     * @param objects objects to fetch nodes from
+     * @param currentEN cuurent eats/north
      */
     public RotateCommand(Collection<OsmPrimitive> objects, EastNorth currentEN) {
         super(objects);
@@ -47,6 +50,7 @@ public class RotateCommand extends TransformNodesCommand {
 
     /**
      * Get angle between the horizontal axis and the line formed by the pivot and given point.
+     * @param currentEN cuurent eats/north
      * @return angle between the horizontal axis and the line formed by the pivot and given point
      **/
     protected final double getAngle(EastNorth currentEN) {
@@ -89,35 +93,17 @@ public class RotateCommand extends TransformNodesCommand {
 
     @Override
     public int hashCode() {
-        final int prime = 31;
-        int result = super.hashCode();
-        result = prime * result + ((pivot == null) ? 0 : pivot.hashCode());
-        long temp;
-        temp = Double.doubleToLongBits(rotationAngle);
-        result = prime * result + (int) (temp ^ (temp >>> 32));
-        temp = Double.doubleToLongBits(startAngle);
-        result = prime * result + (int) (temp ^ (temp >>> 32));
-        return result;
+        return Objects.hash(super.hashCode(), pivot, startAngle, rotationAngle);
     }
 
     @Override
     public boolean equals(Object obj) {
-        if (this == obj)
-            return true;
-        if (!super.equals(obj))
-            return false;
-        if (getClass() != obj.getClass())
-            return false;
-        RotateCommand other = (RotateCommand) obj;
-        if (pivot == null) {
-            if (other.pivot != null)
-                return false;
-        } else if (!pivot.equals(other.pivot))
-            return false;
-        if (Double.doubleToLongBits(rotationAngle) != Double.doubleToLongBits(other.rotationAngle))
-            return false;
-        if (Double.doubleToLongBits(startAngle) != Double.doubleToLongBits(other.startAngle))
-            return false;
-        return true;
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        if (!super.equals(obj)) return false;
+        RotateCommand that = (RotateCommand) obj;
+        return Double.compare(that.startAngle, startAngle) == 0 &&
+                Double.compare(that.rotationAngle, rotationAngle) == 0 &&
+                Objects.equals(pivot, that.pivot);
     }
 }

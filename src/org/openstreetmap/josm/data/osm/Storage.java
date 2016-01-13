@@ -67,6 +67,7 @@ import org.openstreetmap.josm.tools.Utils;
  * </ul>
  *
  * @author nenik
+ * @param <T> type of stored objects
  */
 public class Storage<T> extends AbstractSet<T> {
 
@@ -103,6 +104,7 @@ public class Storage<T> extends AbstractSet<T> {
 
     /**
      * Constructs a new {@code Storage} with given capacity.
+     * @param capacity capacity
      */
     public Storage(int capacity) {
         this(Storage.<T>defaultHash(), capacity, false);
@@ -265,6 +267,8 @@ public class Storage<T> extends AbstractSet<T> {
 
     /**
      * Additional mixing of hash
+     * @param h hash
+     * @return new hash
      */
     private static int rehash(int h) {
         return 1103515245*h >> 2;
@@ -272,6 +276,8 @@ public class Storage<T> extends AbstractSet<T> {
 
     /**
      * Finds a bucket for given key.
+     * @param <K> type for hashCode and first equals parameter
+     * @param ha hash function
      *
      * @param key The key to compare
      * @return the bucket equivalent to the key or -(bucket) as an empty slot
@@ -344,8 +350,8 @@ public class Storage<T> extends AbstractSet<T> {
     // -------------- factories --------------------
     /**
      * A factory for default hash implementation.
-     * @return a hash implementation that just delegates to object's own
-     * hashCode and equals.
+     * @param <O> type for hash
+     * @return a hash implementation that just delegates to object's own hashCode and equals.
      */
     public static <O> Hash<O, O> defaultHash() {
         return new Hash<O, O>() {

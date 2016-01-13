@@ -113,17 +113,20 @@ public final class Ellipsoid {
     public final double b;
 
     /**
-     * first eccentricity
+     * first eccentricity:
+     * sqrt(a*a - b*b) / a
      */
     public final double e;
 
     /**
-     * first eccentricity squared
+     * first eccentricity squared:
+     * (a*a - b*b) / (a*a)
      */
     public final double e2;
 
     /**
-     * square of the second eccentricity
+     * square of the second eccentricity:
+     * (a*a - b*b) / (b*b)
      */
     public final double eb2;
 
@@ -265,6 +268,7 @@ public final class Ellipsoid {
     /**
      * Returns isometric latitude of phi on given first eccentricity (e)
      * @param phi The local latitude (radians).
+     * @param e first eccentricity
      * @return isometric latitude of phi on first eccentricity (e)
      */
     public double latitudeIsometric(double phi, double e) {
@@ -285,10 +289,11 @@ public final class Ellipsoid {
     }
 
     /**
-     * Returns geographic latitude of isometric latitude of first eccentricity (e)
-     * and epsilon precision
-     * @return geographic latitude of isometric latitude of first eccentricity (e)
-     * and epsilon precision
+     * Returns geographic latitude of isometric latitude of first eccentricity (e) and epsilon precision
+     * @param latIso isometric latitude
+     * @param e first eccentricity
+     * @param epsilon epsilon precision
+     * @return geographic latitude of isometric latitude of first eccentricity (e) and epsilon precision
      */
     public double latitude(double latIso, double e, double epsilon) {
         double lat0 = 2*Math.atan(Math.exp(latIso))-Math.PI/2;
@@ -328,7 +333,7 @@ public final class Ellipsoid {
         }
         return new LatLon(Math.toDegrees(lt), Math.toDegrees(lg));
     }
-
+    
     /**
      * convert ellipsoidal coordinates to cartesian coordinates
      *

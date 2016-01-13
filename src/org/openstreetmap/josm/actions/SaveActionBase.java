@@ -34,10 +34,7 @@ public abstract class SaveActionBase extends DiskAccessAction {
     public void actionPerformed(ActionEvent e) {
         if (!isEnabled())
             return;
-        boolean saved = doSave();
-        if (saved) {
-            addToFileOpenHistory(file);
-        }
+        doSave();
     }
 
     public boolean doSave() {
@@ -105,6 +102,7 @@ public abstract class SaveActionBase extends DiskAccessAction {
             Main.error(e);
             return false;
         }
+        addToFileOpenHistory(file);
         return true;
     }
 

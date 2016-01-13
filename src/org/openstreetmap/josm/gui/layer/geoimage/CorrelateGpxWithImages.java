@@ -80,7 +80,6 @@ import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Utils;
 import org.openstreetmap.josm.tools.date.DateUtils;
-import org.openstreetmap.josm.tools.date.PrimaryDateParser;
 import org.xml.sax.SAXException;
 
 /**
@@ -156,7 +155,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
                 if (yLayer != null) {
                     if (yLayer.data != null) {
                         for (ImageEntry ie : yLayer.data) {
-                            ie.tmp = null;
+                            ie.discardTmp();
                         }
                     }
                     yLayer.updateBufferAndRepaint();
@@ -825,7 +824,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
             // So reset all images.
             if (yLayer.data != null) {
                 for (ImageEntry ie: yLayer.data) {
-                    ie.tmp = null;
+                    ie.discardTmp();
                 }
             }
 
@@ -833,7 +832,8 @@ public class CorrelateGpxWithImages extends AbstractAction {
             List<ImageEntry> dateImgLst = getSortedImgList();
             // Create a temporary copy for each image
             for (ImageEntry ie : dateImgLst) {
-                ie.cleanTmp();
+                ie.createTmp();
+                ie.tmp.setPos(null);
             }
 
             GpxDataWrapper selGpx = selectedGPX(false);
@@ -1012,7 +1012,6 @@ public class CorrelateGpxWithImages extends AbstractAction {
             GpxData gpx = gpxW.data;
 
             List<ImageEntry> imgs = getSortedImgList();
-            PrimaryDateParser dateParser = new PrimaryDateParser();
 
             // no images found, exit
             if (imgs.isEmpty()) {
@@ -1030,14 +1029,12 @@ public class CorrelateGpxWithImages extends AbstractAction {
             outer: for (GpxTrack trk : gpx.tracks) {
                 for (GpxTrackSegment segment : trk.getSegments()) {
                     for (WayPoint curWp : segment.getWayPoints()) {
-                        String curDateWpStr = curWp.getString(GpxConstants.PT_TIME);
-                        if (curDateWpStr == null) {
-                            continue;
-                        }
-
                         try {
-                            firstGPXDate = dateParser.parse(curDateWpStr).getTime()/1000;
-                            break outer;
+                            final Date parsedTime = curWp.setTimeFromAttribute();
+                            if (parsedTime != null) {
+                                firstGPXDate = parsedTime.getTime();
+                                break outer;
+                            }
                         } catch (Exception e) {
                             Main.warn(e);
                         }
@@ -1143,11 +1140,13 @@ public class CorrelateGpxWithImages extends AbstractAction {
     /**
      * Match a list of photos to a gpx track with a given offset.
      * All images need a exifTime attribute and the List must be sorted according to these times.
+     * @param images images to match
+     * @param selectedGpx selected GPX data
+     * @param offset offset
+     * @return number of matched points
      */
-    private int matchGpxTrack(List<ImageEntry> images, GpxData selectedGpx, long offset) {
+    static int matchGpxTrack(List<ImageEntry> images, GpxData selectedGpx, long offset) {
         int ret = 0;
-
-        PrimaryDateParser dateParser = new PrimaryDateParser();
 
         for (GpxTrack trk : selectedGpx.tracks) {
             for (GpxTrackSegment segment : trk.getSegments()) {
@@ -1156,27 +1155,21 @@ public class CorrelateGpxWithImages extends AbstractAction {
                 WayPoint prevWp = null;
 
                 for (WayPoint curWp : segment.getWayPoints()) {
-
-                    String curWpTimeStr = curWp.getString(GpxConstants.PT_TIME);
-                    if (curWpTimeStr != null) {
-
-                        try {
-                            long curWpTime = dateParser.parse(curWpTimeStr).getTime() + offset;
+                    try {
+                        final Date parsedTime = curWp.setTimeFromAttribute();
+                        if (parsedTime != null) {
+                            final long curWpTime = parsedTime.getTime() + offset;
                             ret += matchPoints(images, prevWp, prevWpTime, curWp, curWpTime, offset);
 
                             prevWp = curWp;
                             prevWpTime = curWpTime;
-
-                        } catch (ParseException e) {
-                            Main.error("Error while parsing date \"" + curWpTimeStr + '"');
-                            Main.error(e);
-                            prevWp = null;
-                            prevWpTime = 0;
+                            continue;
                         }
-                    } else {
-                        prevWp = null;
-                        prevWpTime = 0;
+                    } catch (Exception e) {
+                        Main.warn(e);
                     }
+                    prevWp = null;
+                    prevWpTime = 0;
                 }
             }
         }
@@ -1195,7 +1188,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
         return null;
     }
 
-    private int matchPoints(List<ImageEntry> images, WayPoint prevWp, long prevWpTime,
+    static int matchPoints(List<ImageEntry> images, WayPoint prevWp, long prevWpTime,
             WayPoint curWp, long curWpTime, long offset) {
         // Time between the track point and the previous one, 5 sec if first point, i.e. photos take
         // 5 sec before the first track point can be assumed to be take at the starting position

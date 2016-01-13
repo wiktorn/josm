@@ -3,11 +3,12 @@ package org.openstreetmap.josm.plugins;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.List;
@@ -100,11 +101,14 @@ public abstract class Plugin implements MapFrameListener {
     /**
      * Called in the download dialog to give the plugin a chance to modify the list
      * of bounding box selectors.
+     * @param list list of bounding box selectors
      */
     public void addDownloadSelection(List<DownloadSelection> list) {}
 
     /**
      * Copies the resource 'from' to the file in the plugin directory named 'to'.
+     * @param from source file
+     * @param to target file
      * @throws FileNotFoundException if the file exists but is a directory rather than a regular file,
      * does not exist but cannot be created, or cannot be opened for any other reason
      * @throws IOException if any other I/O error occurs
@@ -115,17 +119,11 @@ public abstract class Plugin implements MapFrameListener {
         if (!pluginDir.exists()) {
             pluginDir.mkdirs();
         }
-        try (
-            FileOutputStream out = new FileOutputStream(new File(pluginDirName, to));
-            InputStream in = getClass().getResourceAsStream(from)
-        ) {
+        try (InputStream in = getClass().getResourceAsStream(from)) {
             if (in == null) {
                 throw new IOException("Resource not found: "+from);
             }
-            byte[] buffer = new byte[8192];
-            for (int len = in.read(buffer); len > 0; len = in.read(buffer)) {
-                out.write(buffer, 0, len);
-            }
+            Files.copy(in, new File(pluginDirName, to).toPath(), StandardCopyOption.REPLACE_EXISTING);
         }
     }
 
@@ -148,6 +146,7 @@ public abstract class Plugin implements MapFrameListener {
         File pluginJar = new File(pluginDir, info.name + ".jar");
         final URL pluginJarUrl = Utils.fileToURL(pluginJar);
         return AccessController.doPrivileged(new PrivilegedAction<ClassLoader>() {
+              @Override
               public ClassLoader run() {
                   return new URLClassLoader(new URL[] {pluginJarUrl}, Main.class.getClassLoader());
               }

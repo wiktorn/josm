@@ -52,16 +52,27 @@ public abstract class AbstractProj implements Proj {
     protected double en0, en1, en2, en3, en4;
 
     /**
+     * Ellipsoid excentricity, equals to <code>sqrt({@link #e2 excentricity squared})</code>.
+     * Value 0 means that the ellipsoid is spherical.
+     *
+     * @see #e2
+     */
+    protected double e;
+
+    /**
      * The square of excentricity: e² = (a²-b²)/a² where
      * <var>e</var> is the excentricity,
      * <var>a</var> is the semi major axis length and
      * <var>b</var> is the semi minor axis length.
+     *
+     * @see #e
      */
     protected double e2;
 
     @Override
     public void initialize(ProjParameters params) throws ProjectionConfigurationException {
         e2 = params.ellps.e2;
+        e = params.ellps.e;
         //  Compute constants for the mlfn
         double t;
         en0 = C00 - e2  *  (C02 + e2  *
@@ -120,6 +131,12 @@ public abstract class AbstractProj implements Proj {
         }
     }
 
+    /**
+     * Make sure longitude value is within <code>[-PI, PI]</code> range.
+     * @param lon the longitude in radians
+     * @return lon plus/minus multiples of <code>2*PI</code>, as needed to get
+     * in <code>[-PI, PI]</code> range
+     */
     public static double normalizeLon(double lon) {
         if (lon >= -Math.PI && lon <= Math.PI)
             return lon;
@@ -132,5 +149,30 @@ public abstract class AbstractProj implements Proj {
             }
             return lon;
         }
+    }
+
+    /**
+     * Computes function <code>f(s,c,e²) = c/sqrt(1 - s²&times;e²)</code> needed for the true scale
+     * latitude (Snyder 14-15), where <var>s</var> and <var>c</var> are the sine and cosine of
+     * the true scale latitude, and <var>e²</var> is the {@linkplain #e2 eccentricity squared}.
+     * @param s sine of the true scale latitude
+     * @param c cosine of the true scale latitude
+     * @return <code>c/sqrt(1 - s²&times;e²)</code>
+     */
+    final double msfn(final double s, final double c) {
+        return c / Math.sqrt(1.0 - (s*s) * e2);
+    }
+
+    /**
+     * Computes function (15-9) and (9-13) from Snyder.
+     * Equivalent to negative of function (7-7).
+     * @param lat the latitude
+     * @param sinlat sine of the latitude
+     * @return auxiliary value computed from <code>lat</code> and <code>sinlat</code>
+     */
+    final double tsfn(final double lat, double sinlat) {
+        sinlat *= e;
+        // NOTE: change sign to get the equivalent of Snyder (7-7).
+        return Math.tan(0.5 * (Math.PI/2 - lat)) / Math.pow((1 - sinlat) / (1 + sinlat), 0.5*e);
     }
 }

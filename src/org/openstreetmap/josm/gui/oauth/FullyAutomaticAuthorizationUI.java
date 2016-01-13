@@ -14,6 +14,7 @@ import java.awt.event.ActionEvent;
 import java.io.IOException;
 import java.net.Authenticator.RequestorType;
 import java.net.PasswordAuthentication;
+import java.util.concurrent.Executor;
 
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
@@ -66,6 +67,7 @@ public class FullyAutomaticAuthorizationUI extends AbstractAuthorizationUI {
     private JPanel pnlPropertiesPanel;
     private JPanel pnlActionButtonsPanel;
     private JPanel pnlResult;
+    private final Executor executor;
 
     /**
      * Builds the panel with the three privileges the user can grant JOSM
@@ -94,7 +96,7 @@ public class FullyAutomaticAuthorizationUI extends AbstractAuthorizationUI {
         HtmlPanel pnlMessage = new HtmlPanel();
         HTMLEditorKit kit = (HTMLEditorKit) pnlMessage.getEditorPane().getEditorKit();
         kit.getStyleSheet().addRule(
-                ".warning-body {background-color:rgb(253,255,221);padding: 10pt; " +
+                ".warning-body {background-color:#DDFFDD; padding: 10pt; " +
                 "border-color:rgb(128,128,128);border-style: solid;border-width: 1px;}");
         kit.getStyleSheet().addRule("ol {margin-left: 1cm}");
         pnlMessage.setText("<html><body><p class=\"warning-body\">"
@@ -135,25 +137,6 @@ public class FullyAutomaticAuthorizationUI extends AbstractAuthorizationUI {
         SelectAllOnFocusGainedDecorator.decorate(tfPassword);
         valPassword = new PasswordValidator(tfPassword);
         valPassword.validate();
-
-        gc.gridy = 3;
-        gc.gridx = 0;
-        gc.anchor = GridBagConstraints.NORTHWEST;
-        gc.fill = GridBagConstraints.HORIZONTAL;
-        gc.weightx = 1.0;
-        gc.gridwidth = 2;
-        pnlMessage = new HtmlPanel();
-        kit = (HTMLEditorKit) pnlMessage.getEditorPane().getEditorKit();
-        kit.getStyleSheet().addRule(
-                ".warning-body {background-color:rgb(253,255,221);padding: 10pt; " +
-                "border-color:rgb(128,128,128);border-style: solid;border-width: 1px;}");
-        kit.getStyleSheet().addRule("ol {margin-left: 1cm}");
-        pnlMessage.setText("<html><body>"
-                + "<p class=\"warning-body\">"
-                + tr("<strong>Warning:</strong> JOSM does login <strong>once</strong> using a secure connection.")
-                + "</p>"
-                + "</body></html>");
-        pnl.add(pnlMessage, gc);
 
         // filler - grab remaining space
         gc.gridy = 4;
@@ -314,10 +297,12 @@ public class FullyAutomaticAuthorizationUI extends AbstractAuthorizationUI {
     /**
      * Constructs a new {@code FullyAutomaticAuthorizationUI} for the given API URL.
      * @param apiUrl The OSM API URL
+     * @param executor the executor used for running the HTTP requests for the authorization
      * @since 5422
      */
-    public FullyAutomaticAuthorizationUI(String apiUrl) {
+    public FullyAutomaticAuthorizationUI(String apiUrl, Executor executor) {
         super(apiUrl);
+        this.executor = executor;
         build();
     }
 
@@ -345,7 +330,7 @@ public class FullyAutomaticAuthorizationUI extends AbstractAuthorizationUI {
 
         @Override
         public void actionPerformed(ActionEvent evt) {
-            Main.worker.submit(new FullyAutomaticAuthorisationTask(FullyAutomaticAuthorizationUI.this));
+            executor.execute(new FullyAutomaticAuthorisationTask(FullyAutomaticAuthorizationUI.this));
         }
 
         protected final void updateEnabledState() {
@@ -395,7 +380,7 @@ public class FullyAutomaticAuthorizationUI extends AbstractAuthorizationUI {
 
         @Override
         public void actionPerformed(ActionEvent arg0) {
-            Main.worker.submit(new TestAccessTokenTask(
+            executor.execute(new TestAccessTokenTask(
                     FullyAutomaticAuthorizationUI.this,
                     getApiUrl(),
                     getAdvancedPropertiesPanel().getAdvancedParameters(),
@@ -493,13 +478,7 @@ public class FullyAutomaticAuthorizationUI extends AbstractAuthorizationUI {
         }
 
         protected void alertLoginFailed(OsmLoginFailedException e) {
-            String loginUrl = null;
-            try {
-                loginUrl = authClient.buildOsmLoginUrl();
-            } catch (OsmOAuthAuthorizationException e1) {
-                alertInvalidLoginUrl();
-                return;
-            }
+            final String loginUrl = getAdvancedPropertiesPanel().getAdvancedParameters().getOsmLoginUrl();
             HelpAwareOptionPane.showOptionDialog(
                     FullyAutomaticAuthorizationUI.this,
                     tr("<html>"

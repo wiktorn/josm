@@ -32,10 +32,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinTask;
+import java.util.concurrent.RecursiveTask;
 
 import javax.swing.AbstractButton;
 import javax.swing.FocusManager;
@@ -58,26 +57,25 @@ import org.openstreetmap.josm.data.osm.visitor.paint.relations.Multipolygon;
 import org.openstreetmap.josm.data.osm.visitor.paint.relations.Multipolygon.PolyData;
 import org.openstreetmap.josm.data.osm.visitor.paint.relations.MultipolygonCache;
 import org.openstreetmap.josm.gui.NavigatableComponent;
-import org.openstreetmap.josm.gui.mappaint.AreaElemStyle;
-import org.openstreetmap.josm.gui.mappaint.BoxTextElemStyle;
-import org.openstreetmap.josm.gui.mappaint.BoxTextElemStyle.HorizontalTextAlignment;
-import org.openstreetmap.josm.gui.mappaint.BoxTextElemStyle.VerticalTextAlignment;
-import org.openstreetmap.josm.gui.mappaint.ElemStyle;
 import org.openstreetmap.josm.gui.mappaint.ElemStyles;
-import org.openstreetmap.josm.gui.mappaint.MapImage;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
-import org.openstreetmap.josm.gui.mappaint.NodeElemStyle;
-import org.openstreetmap.josm.gui.mappaint.NodeElemStyle.Symbol;
-import org.openstreetmap.josm.gui.mappaint.RepeatImageElemStyle.LineImageAlignment;
-import org.openstreetmap.josm.gui.mappaint.StyleCache.StyleList;
-import org.openstreetmap.josm.gui.mappaint.TextElement;
+import org.openstreetmap.josm.gui.mappaint.StyleElementList;
 import org.openstreetmap.josm.gui.mappaint.mapcss.MapCSSStyleSource;
 import org.openstreetmap.josm.gui.mappaint.mapcss.Selector;
+import org.openstreetmap.josm.gui.mappaint.styleelement.AreaElement;
+import org.openstreetmap.josm.gui.mappaint.styleelement.BoxTextElement;
+import org.openstreetmap.josm.gui.mappaint.styleelement.BoxTextElement.HorizontalTextAlignment;
+import org.openstreetmap.josm.gui.mappaint.styleelement.BoxTextElement.VerticalTextAlignment;
+import org.openstreetmap.josm.gui.mappaint.styleelement.MapImage;
+import org.openstreetmap.josm.gui.mappaint.styleelement.NodeElement;
+import org.openstreetmap.josm.gui.mappaint.styleelement.NodeElement.Symbol;
+import org.openstreetmap.josm.gui.mappaint.styleelement.RepeatImageElement.LineImageAlignment;
+import org.openstreetmap.josm.gui.mappaint.styleelement.StyleElement;
+import org.openstreetmap.josm.gui.mappaint.styleelement.TextLabel;
 import org.openstreetmap.josm.tools.CompositeList;
 import org.openstreetmap.josm.tools.Geometry;
 import org.openstreetmap.josm.tools.Geometry.AreaAndPerimeter;
 import org.openstreetmap.josm.tools.ImageProvider;
-import org.openstreetmap.josm.tools.Pair;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -86,8 +84,8 @@ import org.openstreetmap.josm.tools.Utils;
  */
 public class StyledMapRenderer extends AbstractMapRenderer {
 
-    private static final Pair<Integer, ExecutorService> THREAD_POOL =
-            Utils.newThreadPool("mappaint.StyledMapRenderer.style_creation.numberOfThreads", "styled-map-renderer-%d", Thread.NORM_PRIORITY);
+    private static final ForkJoinPool THREAD_POOL =
+            Utils.newForkJoinPool("mappaint.StyledMapRenderer.style_creation.numberOfThreads", "styled-map-renderer-%d", Thread.NORM_PRIORITY);
 
     /**
      * Iterates over a list of Way Nodes and returns screen coordinates that
@@ -189,11 +187,11 @@ public class StyledMapRenderer extends AbstractMapRenderer {
     }
 
     private static class StyleRecord implements Comparable<StyleRecord> {
-        private final ElemStyle style;
+        private final StyleElement style;
         private final OsmPrimitive osm;
         private final int flags;
 
-        StyleRecord(ElemStyle style, OsmPrimitive osm, int flags) {
+        StyleRecord(StyleElement style, OsmPrimitive osm, int flags) {
             this.style = style;
             this.osm = osm;
             this.flags = flags;
@@ -222,9 +220,9 @@ public class StyledMapRenderer extends AbstractMapRenderer {
                 return dz;
 
             // simple node on top of icons and shapes
-            if (this.style == NodeElemStyle.SIMPLE_NODE_ELEMSTYLE && other.style != NodeElemStyle.SIMPLE_NODE_ELEMSTYLE)
+            if (this.style == NodeElement.SIMPLE_NODE_ELEMSTYLE && other.style != NodeElement.SIMPLE_NODE_ELEMSTYLE)
                 return 1;
-            if (this.style != NodeElemStyle.SIMPLE_NODE_ELEMSTYLE && other.style == NodeElemStyle.SIMPLE_NODE_ELEMSTYLE)
+            if (this.style != NodeElement.SIMPLE_NODE_ELEMSTYLE && other.style == NodeElement.SIMPLE_NODE_ELEMSTYLE)
                 return -1;
 
             // newer primitives to the front
@@ -417,7 +415,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
      * @param disabled {@code true} if element is disabled (filtered out)
      * @param text text style to use
      */
-    private void displayText(GlyphVector gv, String s, int x, int y, boolean disabled, TextElement text) {
+    private void displayText(GlyphVector gv, String s, int x, int y, boolean disabled, TextLabel text) {
         if (gv == null && s.isEmpty()) return;
         if (isInactiveMode || disabled) {
             g.setColor(inactiveColor);
@@ -471,7 +469,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
      * @param text The text to write on the area.
      */
     protected void drawArea(OsmPrimitive osm, Path2D.Double path, Color color,
-            MapImage fillImage, Float extent, Path2D.Double pfClip, boolean disabled, TextElement text) {
+            MapImage fillImage, Float extent, Path2D.Double pfClip, boolean disabled, TextLabel text) {
 
         Shape area = path.createTransformedShape(nc.getAffineTransform());
 
@@ -524,7 +522,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         drawAreaText(osm, text, area);
     }
 
-    private void drawAreaText(OsmPrimitive osm, TextElement text, Shape area) {
+    private void drawAreaText(OsmPrimitive osm, TextLabel text, Shape area) {
         if (text != null && isShowNames()) {
             // abort if we can't compose the label to be rendered
             if (text.labelCompositionStrategy == null) return;
@@ -611,7 +609,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
      * @param disabled If this should be drawn with a special disabled style.
      * @param text The text to write on the area.
      */
-    public void drawArea(Relation r, Color color, MapImage fillImage, Float extent, Float extentThreshold, boolean disabled, TextElement text) {
+    public void drawArea(Relation r, Color color, MapImage fillImage, Float extent, Float extentThreshold, boolean disabled, TextLabel text) {
         Multipolygon multipolygon = MultipolygonCache.getInstance().get(nc, r);
         if (!r.isDisabled() && !multipolygon.getOuterWays().isEmpty()) {
             for (PolyData pd : multipolygon.getCombinedPolygons()) {
@@ -647,7 +645,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
      * @param disabled If this should be drawn with a special disabled style.
      * @param text The text to write on the area.
      */
-    public void drawArea(Way w, Color color, MapImage fillImage, Float extent, Float extentThreshold, boolean disabled, TextElement text) {
+    public void drawArea(Way w, Color color, MapImage fillImage, Float extent, Float extentThreshold, boolean disabled, TextLabel text) {
         Path2D.Double pfClip = null;
         if (extent != null) {
             if (!usePartialFill(Geometry.getAreaAndPerimeter(w.getNodes()), extent, extentThreshold)) {
@@ -677,12 +675,12 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         return ap.getPerimeter() * extent * scale < threshold * ap.getArea();
     }
 
-    public void drawBoxText(Node n, BoxTextElemStyle bs) {
+    public void drawBoxText(Node n, BoxTextElement bs) {
         if (!isShowNames() || bs == null)
             return;
 
         Point p = nc.getPoint(n);
-        TextElement text = bs.text;
+        TextLabel text = bs.text;
         String s = text.labelCompositionStrategy.compose(n);
         if (s == null) return;
 
@@ -1003,6 +1001,8 @@ public class StyledMapRenderer extends AbstractMapRenderer {
     /**
      * highlights a given point by drawing a rounded rectangle around it. Give the
      * size of the object you want to be highlighted, width is added automatically.
+     * @param p point
+     * @param size highlight size
      */
     private void drawPointHighlight(Point p, int size) {
         g.setColor(highlightColorTransparent);
@@ -1201,7 +1201,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
      * @param way The way to draw the text on.
      * @param text The text definition (font/.../text content) to draw.
      */
-    public void drawTextOnPath(Way way, TextElement text) {
+    public void drawTextOnPath(Way way, TextLabel text) {
         if (way == null || text == null)
             return;
         String name = text.getString(way);
@@ -1758,13 +1758,12 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         }
     }
 
-    private class ComputeStyleListWorker implements Callable<List<StyleRecord>>, Visitor {
+    private class ComputeStyleListWorker extends RecursiveTask<List<StyleRecord>> implements Visitor {
         private final List<? extends OsmPrimitive> input;
-        private final int from;
-        private final int to;
         private final List<StyleRecord> output;
 
         private final ElemStyles styles = MapPaintStyles.getStyles();
+        private final int directExecutionTaskSize;
 
         private final boolean drawArea = circum <= Main.pref.getInteger("mappaint.fillareas", 10000000);
         private final boolean drawMultipolygon = drawArea && Main.pref.getBoolean("mappaint.multipolygon", true);
@@ -1773,24 +1772,38 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         /**
          * Constructs a new {@code ComputeStyleListWorker}.
          * @param input the primitives to process
-         * @param from first index of <code>input</code> to use
-         * @param to last index + 1
          * @param output the list of styles to which styles will be added
+         * @param directExecutionTaskSize the threshold deciding whether to subdivide the tasks
          */
-        ComputeStyleListWorker(final List<? extends OsmPrimitive> input, int from, int to, List<StyleRecord> output) {
+        ComputeStyleListWorker(final List<? extends OsmPrimitive> input, List<StyleRecord> output, int directExecutionTaskSize) {
             this.input = input;
-            this.from = from;
-            this.to = to;
             this.output = output;
+            this.directExecutionTaskSize = directExecutionTaskSize;
             this.styles.setDrawMultipolygon(drawMultipolygon);
         }
 
         @Override
-        public List<StyleRecord> call() throws Exception {
+        protected List<StyleRecord> compute() {
+            if (input.size() <= directExecutionTaskSize) {
+                return computeDirectly();
+            } else {
+                final Collection<ForkJoinTask<List<StyleRecord>>> tasks = new ArrayList<>();
+                for (int fromIndex = 0; fromIndex < input.size(); fromIndex += directExecutionTaskSize) {
+                    final int toIndex = Math.min(fromIndex + directExecutionTaskSize, input.size());
+                    final List<StyleRecord> output = new ArrayList<>(directExecutionTaskSize);
+                    tasks.add(new ComputeStyleListWorker(input.subList(fromIndex, toIndex), output, directExecutionTaskSize).fork());
+                }
+                for (ForkJoinTask<List<StyleRecord>> task : tasks) {
+                    output.addAll(task.join());
+                }
+                return output;
+            }
+        }
+
+        public List<StyleRecord> computeDirectly() {
             MapCSSStyleSource.STYLE_SOURCE_LOCK.readLock().lock();
             try {
-                for (int i = from; i < to; i++) {
-                    OsmPrimitive osm = input.get(i);
+                for (final OsmPrimitive osm : input) {
                     if (osm.isDrawable()) {
                         osm.accept(this);
                     }
@@ -1822,69 +1835,30 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         }
 
         public void add(Node osm, int flags) {
-            StyleList sl = styles.get(osm, circum, nc);
-            for (ElemStyle s : sl) {
+            StyleElementList sl = styles.get(osm, circum, nc);
+            for (StyleElement s : sl) {
                 output.add(new StyleRecord(s, osm, flags));
             }
         }
 
         public void add(Relation osm, int flags) {
-            StyleList sl = styles.get(osm, circum, nc);
-            for (ElemStyle s : sl) {
-                if (drawMultipolygon && drawArea && s instanceof AreaElemStyle && (flags & FLAG_DISABLED) == 0) {
+            StyleElementList sl = styles.get(osm, circum, nc);
+            for (StyleElement s : sl) {
+                if (drawMultipolygon && drawArea && s instanceof AreaElement && (flags & FLAG_DISABLED) == 0) {
                     output.add(new StyleRecord(s, osm, flags));
-                } else if (drawRestriction && s instanceof NodeElemStyle) {
+                } else if (drawRestriction && s instanceof NodeElement) {
                     output.add(new StyleRecord(s, osm, flags));
                 }
             }
         }
 
         public void add(Way osm, int flags) {
-            StyleList sl = styles.get(osm, circum, nc);
-            for (ElemStyle s : sl) {
-                if (!(drawArea && (flags & FLAG_DISABLED) == 0) && s instanceof AreaElemStyle) {
+            StyleElementList sl = styles.get(osm, circum, nc);
+            for (StyleElement s : sl) {
+                if (!(drawArea && (flags & FLAG_DISABLED) == 0) && s instanceof AreaElement) {
                     continue;
                 }
                 output.add(new StyleRecord(s, osm, flags));
-            }
-        }
-    }
-
-    private class ConcurrentTasksHelper {
-
-        private final List<StyleRecord> allStyleElems;
-
-        ConcurrentTasksHelper(List<StyleRecord> allStyleElems) {
-            this.allStyleElems = allStyleElems;
-        }
-
-        void process(List<? extends OsmPrimitive> prims) {
-            final List<ComputeStyleListWorker> tasks = new ArrayList<>();
-            final int bucketsize = Math.max(100, prims.size()/THREAD_POOL.a/3);
-            final int noBuckets = (prims.size() + bucketsize - 1) / bucketsize;
-            final boolean singleThread = THREAD_POOL.a == 1 || noBuckets == 1;
-            for (int i = 0; i < noBuckets; i++) {
-                int from = i*bucketsize;
-                int to = Math.min((i+1)*bucketsize, prims.size());
-                List<StyleRecord> target = singleThread ? allStyleElems : new ArrayList<StyleRecord>(to - from);
-                tasks.add(new ComputeStyleListWorker(prims, from, to, target));
-            }
-            if (singleThread) {
-                try {
-                    for (ComputeStyleListWorker task : tasks) {
-                        task.call();
-                    }
-                } catch (Exception ex) {
-                    throw new RuntimeException(ex);
-                }
-            } else if (!tasks.isEmpty()) {
-                try {
-                    for (Future<List<StyleRecord>> future : THREAD_POOL.b.invokeAll(tasks)) {
-                        allStyleElems.addAll(future.get());
-                    }
-                } catch (InterruptedException | ExecutionException ex) {
-                    throw new RuntimeException(ex);
-                }
             }
         }
     }
@@ -1911,15 +1885,15 @@ public class StyledMapRenderer extends AbstractMapRenderer {
 
             final List<StyleRecord> allStyleElems = new ArrayList<>(nodes.size()+ways.size()+relations.size());
 
-            ConcurrentTasksHelper helper = new ConcurrentTasksHelper(allStyleElems);
-
             // Need to process all relations first.
             // Reason: Make sure, ElemStyles.getStyleCacheWithRange is
             // not called for the same primitive in parallel threads.
             // (Could be synchronized, but try to avoid this for
             // performance reasons.)
-            helper.process(relations);
-            helper.process(new CompositeList<>(nodes, ways));
+            THREAD_POOL.invoke(new ComputeStyleListWorker(relations, allStyleElems,
+                    Math.max(20, relations.size() / THREAD_POOL.getParallelism() / 3)));
+            THREAD_POOL.invoke(new ComputeStyleListWorker(new CompositeList<>(nodes, ways), allStyleElems,
+                    Math.max(100, (nodes.size() + ways.size()) / THREAD_POOL.getParallelism() / 3)));
 
             if (benchmark) {
                 timePhase1 = System.currentTimeMillis();

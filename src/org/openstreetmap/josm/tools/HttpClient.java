@@ -12,6 +12,7 @@ import java.net.HttpRetryException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.TreeMap;
@@ -27,6 +28,7 @@ import org.openstreetmap.josm.io.Compression;
 import org.openstreetmap.josm.io.ProgressInputStream;
 import org.openstreetmap.josm.io.ProgressOutputStream;
 import org.openstreetmap.josm.io.UTFInputStreamReader;
+import org.openstreetmap.josm.io.auth.DefaultAuthenticator;
 
 /**
  * Provides a uniform access for a HTTP/HTTPS server. This class should be used in favour of {@link HttpURLConnection}.
@@ -40,11 +42,12 @@ public final class HttpClient {
     private int readTimeout = Main.pref.getInteger("socket.timeout.read", 30) * 1000;
     private byte[] requestBody;
     private long ifModifiedSince;
-    private long contentLength;
     private final Map<String, String> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
     private int maxRedirects = Main.pref.getInteger("socket.maxredirects", 5);
     private boolean useCache;
     private String reasonForRequest;
+    private transient HttpURLConnection connection; // to allow disconnecting before `response` is set
+    private transient Response response;
 
     private HttpClient(URL url, String requestMethod) {
         this.url = url;
@@ -73,16 +76,14 @@ public final class HttpClient {
             progressMonitor = NullProgressMonitor.INSTANCE;
         }
         final HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        this.connection = connection;
         connection.setRequestMethod(requestMethod);
         connection.setRequestProperty("User-Agent", Version.getInstance().getFullAgentString());
         connection.setConnectTimeout(connectTimeout);
         connection.setReadTimeout(readTimeout);
-        connection.setInstanceFollowRedirects(maxRedirects > 0);
+        connection.setInstanceFollowRedirects(false); // we do that ourselves
         if (ifModifiedSince > 0) {
             connection.setIfModifiedSince(ifModifiedSince);
-        }
-        if (contentLength > 0) {
-            connection.setFixedLengthStreamingMode(contentLength);
         }
         connection.setUseCaches(useCache);
         if (!useCache) {
@@ -98,8 +99,8 @@ public final class HttpClient {
         progressMonitor.indeterminateSubTask(null);
 
         if ("PUT".equals(requestMethod) || "POST".equals(requestMethod) || "DELETE".equals(requestMethod)) {
-            Main.info("{0} {1} ({2} kB) ...", requestMethod, url, requestBody.length / 1024);
-            headers.put("Content-Length", String.valueOf(requestBody.length));
+            Main.info("{0} {1} ({2}) ...", requestMethod, url, Utils.getSizeString(requestBody.length, Locale.getDefault()));
+            connection.setFixedLengthStreamingMode(requestBody.length);
             connection.setDoOutput(true);
             try (OutputStream out = new BufferedOutputStream(
                     new ProgressOutputStream(connection.getOutputStream(), requestBody.length, progressMonitor))) {
@@ -115,10 +116,15 @@ public final class HttpClient {
                 Main.info("{0} {1}{2} -> {3}{4}",
                         requestMethod, url, hasReason ? " (" + reasonForRequest + ")" : "",
                         connection.getResponseCode(),
-                        connection.getContentLengthLong() > 0 ? " (" + connection.getContentLengthLong() / 1024 + "KB)" : ""
+                        connection.getContentLengthLong() > 0
+                                ? " (" + Utils.getSizeString(connection.getContentLengthLong(), Locale.getDefault()) + ")"
+                                : ""
                 );
                 if (Main.isDebugEnabled()) {
                     Main.debug("RESPONSE: " + connection.getHeaderFields());
+                }
+                if (DefaultAuthenticator.getInstance().isEnabled() && connection.getResponseCode() == HttpURLConnection.HTTP_UNAUTHORIZED) {
+                    DefaultAuthenticator.getInstance().addFailedCredentialHost(url.getHost());
                 }
             } catch (IOException e) {
                 Main.info("{0} {1} -> !!!", requestMethod, url);
@@ -135,7 +141,7 @@ public final class HttpClient {
                             " Can''t redirect. Aborting.", connection.getResponseCode());
                     throw new IOException(msg);
                 } else if (maxRedirects > 0) {
-                    url = new URL(redirectLocation);
+                    url = new URL(url, redirectLocation);
                     maxRedirects--;
                     Main.info(tr("Download redirected to ''{0}''", redirectLocation));
                     return connect();
@@ -144,7 +150,7 @@ public final class HttpClient {
                     throw new IOException(msg);
                 }
             }
-            Response response = new Response(connection, progressMonitor);
+            response = new Response(connection, progressMonitor);
             successfulConnection = true;
             return response;
         } finally {
@@ -152,6 +158,17 @@ public final class HttpClient {
                 connection.disconnect();
             }
         }
+    }
+
+    /**
+     * Returns the HTTP response which is set only after calling {@link #connect()}.
+     * Calling this method again, returns the identical object (unless another {@link #connect()} is performed).
+     *
+     * @return the HTTP response
+     * @since 9309
+     */
+    public Response getResponse() {
+        return response;
     }
 
     /**
@@ -309,6 +326,7 @@ public final class HttpClient {
         /**
          * Returns the {@code Content-Encoding} header.
          * @return {@code Content-Encoding} HTTP header
+         * @see HttpURLConnection#getContentEncoding()
          */
         public String getContentEncoding() {
             return connection.getContentEncoding();
@@ -323,8 +341,29 @@ public final class HttpClient {
         }
 
         /**
+         * Returns the {@code Expire} header.
+         * @return {@code Expire} HTTP header
+         * @see HttpURLConnection#getExpiration()
+         * @since 9232
+         */
+        public long getExpiration() {
+            return connection.getExpiration();
+        }
+
+        /**
+         * Returns the {@code Last-Modified} header.
+         * @return {@code Last-Modified} HTTP header
+         * @see HttpURLConnection#getLastModified()
+         * @since 9232
+         */
+        public long getLastModified() {
+            return connection.getLastModified();
+        }
+
+        /**
          * Returns the {@code Content-Length} header.
          * @return {@code Content-Length} HTTP header
+         * @see HttpURLConnection#getContentLengthLong()
          */
         public long getContentLength() {
             return connection.getContentLengthLong();
@@ -342,31 +381,20 @@ public final class HttpClient {
         }
 
         /**
-         * Returns the list of Strings that represents the named header field values.
-         * @param name the name of a header field
-         * @return unmodifiable List of Strings that represents the corresponding field values
+         * Returns an unmodifiable Map mapping header keys to a List of header values.
+         * @return unmodifiable Map mapping header keys to a List of header values
          * @see HttpURLConnection#getHeaderFields()
-         * @since 9172
+         * @since 9232
          */
-        public List<String> getHeaderFields(String name) {
-            return connection.getHeaderFields().get(name);
+        public Map<String, List<String>> getHeaderFields() {
+            return connection.getHeaderFields();
         }
 
         /**
          * @see HttpURLConnection#disconnect()
          */
         public void disconnect() {
-            // TODO is this block necessary for disconnecting?
-            // Fix upload aborts - see #263
-            connection.setConnectTimeout(100);
-            connection.setReadTimeout(100);
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException ex) {
-                Main.warn("InterruptedException in " + getClass().getSimpleName() + " during cancel");
-            }
-
-            connection.disconnect();
+            HttpClient.disconnect(connection);
         }
     }
 
@@ -436,7 +464,7 @@ public final class HttpClient {
 
     /**
      * Sets whether not to set header {@code Connection=close}
-     * <p/>
+     * <p>
      * This might fix #7640, see
      * <a href='https://web.archive.org/web/20140118201501/http://www.tikalk.com/java/forums/httpurlconnection-disable-keep-alive'>here</a>.
      *
@@ -488,9 +516,10 @@ public final class HttpClient {
      * @return {@code this}
      * @see HttpURLConnection#setFixedLengthStreamingMode(long)
      * @since 9178
+     * @deprecated Submitting data via POST, PUT, DELETE automatically sets this property on the connection
      */
+    @Deprecated
     public HttpClient setFixedLengthStreamingMode(long contentLength) {
-        this.contentLength = contentLength;
         return this;
     }
 
@@ -585,5 +614,25 @@ public final class HttpClient {
             default:
                 return false;
         }
+    }
+
+    /**
+     * @see HttpURLConnection#disconnect()
+     * @since 9309
+     */
+    public void disconnect() {
+        HttpClient.disconnect(connection);
+    }
+
+    private static void disconnect(final HttpURLConnection connection) {
+        // Fix upload aborts - see #263
+        connection.setConnectTimeout(100);
+        connection.setReadTimeout(100);
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException ex) {
+            Main.warn("InterruptedException in " + HttpClient.class + " during cancel");
+        }
+        connection.disconnect();
     }
 }

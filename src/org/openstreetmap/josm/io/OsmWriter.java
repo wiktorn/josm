@@ -14,6 +14,7 @@ import java.util.Map.Entry;
 import org.openstreetmap.josm.data.DataSource;
 import org.openstreetmap.josm.data.coor.CoordinateFormat;
 import org.openstreetmap.josm.data.coor.LatLon;
+import org.openstreetmap.josm.data.osm.AbstractPrimitive;
 import org.openstreetmap.josm.data.osm.Changeset;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.INode;
@@ -45,7 +46,11 @@ public class OsmWriter extends XmlWriter implements PrimitiveVisitor {
     private Changeset changeset;
 
     /**
-     * Do not call this directly. Use OsmWriterFactory instead.
+     * Constructs a new {@code OsmWriter}.
+     * Do not call this directly. Use {@link OsmWriterFactory} instead.
+     * @param out print writer
+     * @param osmConform if {@code true}, prevents modification attributes to be written to the common part
+     * @param version OSM API version (0.6)
      */
     protected OsmWriter(PrintWriter out, boolean osmConform, String version) {
         super(out);
@@ -88,9 +93,18 @@ public class OsmWriter extends XmlWriter implements PrimitiveVisitor {
         out.println("</osm>");
     }
 
-    protected static final Comparator<OsmPrimitive> byIdComparator = new Comparator<OsmPrimitive>() {
-        @Override public int compare(OsmPrimitive o1, OsmPrimitive o2) {
-            return o1.getUniqueId() < o2.getUniqueId() ? -1 : (o1.getUniqueId() == o2.getUniqueId() ? 0 : 1);
+    /**
+     * Sorts {@code -1} &rarr; {@code -infinity}, then {@code +1} &rarr; {@code +infinity}
+     */
+    protected static final Comparator<AbstractPrimitive> byIdComparator = new Comparator<AbstractPrimitive>() {
+        @Override public int compare(AbstractPrimitive o1, AbstractPrimitive o2) {
+            final long i1 = o1.getUniqueId();
+            final long i2 = o2.getUniqueId();
+            if (i1 < 0 && i2 < 0) {
+                return Long.compare(i2, i1);
+            } else {
+                return Long.compare(i1, i2);
+            }
         }
     };
 
@@ -278,6 +292,8 @@ public class OsmWriter extends XmlWriter implements PrimitiveVisitor {
     /**
      * Add the common part as the form of the tag as well as the XML attributes
      * id, action, user, and visible.
+     * @param osm osm primitive
+     * @param tagname XML tag matching osm primitive (node, way, relation)
      */
     protected void addCommon(IPrimitive osm, String tagname) {
         out.print("  <"+tagname);

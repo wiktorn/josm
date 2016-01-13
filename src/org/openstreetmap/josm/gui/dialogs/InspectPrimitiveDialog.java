@@ -38,12 +38,12 @@ import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.NavigatableComponent;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.mappaint.Cascade;
-import org.openstreetmap.josm.gui.mappaint.ElemStyle;
+import org.openstreetmap.josm.gui.mappaint.styleelement.StyleElement;
 import org.openstreetmap.josm.gui.mappaint.ElemStyles;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
 import org.openstreetmap.josm.gui.mappaint.MultiCascade;
 import org.openstreetmap.josm.gui.mappaint.StyleCache;
-import org.openstreetmap.josm.gui.mappaint.StyleCache.StyleList;
+import org.openstreetmap.josm.gui.mappaint.StyleElementList;
 import org.openstreetmap.josm.gui.mappaint.StyleSource;
 import org.openstreetmap.josm.gui.mappaint.mapcss.MapCSSStyleSource;
 import org.openstreetmap.josm.gui.mappaint.xml.XmlStyleSource;
@@ -361,8 +361,8 @@ public class InspectPrimitiveDialog extends ExtendedDialog {
                     }
                 }
                 txtMappaint.append(tr("\n\nList of generated Styles:\n"));
-                StyleList sl = elemstyles.get(osm, scale, nc);
-                for (ElemStyle s : sl) {
+                StyleElementList sl = elemstyles.get(osm, scale, nc);
+                for (StyleElement s : sl) {
                     txtMappaint.append(" * ").append(s).append('\n');
                 }
                 txtMappaint.append("\n\n");

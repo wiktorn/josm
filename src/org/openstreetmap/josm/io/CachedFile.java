@@ -4,17 +4,18 @@ package org.openstreetmap.josm.io;
 import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
+import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
@@ -41,7 +42,7 @@ import org.openstreetmap.josm.tools.Utils;
  * The file content is normally accessed with {@link #getInputStream()}, but
  * you can also get the mirrored copy with {@link #getFile()}.
  */
-public class CachedFile {
+public class CachedFile implements Closeable {
 
     /**
      * Caching strategy.
@@ -67,6 +68,8 @@ public class CachedFile {
     protected String httpAccept;
     protected CachingStrategy cachingStrategy;
 
+    private transient boolean fastFail;
+    private transient HttpClient activeConnection;
     protected File cacheFile;
     protected boolean initialized;
 
@@ -158,6 +161,15 @@ public class CachedFile {
         return this;
     }
 
+    /**
+     * Sets whether opening HTTP connections should fail fast, i.e., whether a
+     * {@link HttpClient#setConnectTimeout(int) low connect timeout} should be used.
+     * @param fastFail whether opening HTTP connections should fail fast
+     */
+    public void setFastFail(boolean fastFail) {
+        this.fastFail = fastFail;
+    }
+
     public String getName() {
         return name;
     }
@@ -197,6 +209,19 @@ public class CachedFile {
             }
         }
         return new FileInputStream(file);
+    }
+
+    /**
+     * Returns {@link #getInputStream()} wrapped in a buffered reader.
+     * <p/>
+     * Detects Unicode charset in use utilizing {@link UTFInputStreamReader}.
+     *
+     * @return buffered reader
+     * @throws IOException if any I/O error occurs
+     * @since 9411
+     */
+    public BufferedReader getContentReader() throws IOException {
+        return new BufferedReader(UTFInputStreamReader.create(getInputStream()));
     }
 
     /**
@@ -335,7 +360,7 @@ public class CachedFile {
                 if (localPath.size() == 2) {
                     File lfile = new File(localPath.get(1));
                     if (lfile.exists()) {
-                        lfile.delete();
+                        Utils.deleteFile(lfile);
                     }
                 }
                 Main.pref.putCollection(prefKey, null);
@@ -413,11 +438,14 @@ public class CachedFile {
         String localPath = "mirror_" + a;
         destDirFile = new File(destDir, localPath + ".tmp");
         try {
-            final HttpClient.Response con = HttpClient.create(url)
+            activeConnection = HttpClient.create(url)
                     .setAccept(httpAccept)
                     .setIfModifiedSince(ifModifiedSince == null ? 0L : ifModifiedSince)
-                    .setHeaders(httpHeaders)
-                    .connect();
+                    .setHeaders(httpHeaders);
+            if (fastFail) {
+                activeConnection.setReadTimeout(1000);
+            }
+            final HttpClient.Response con = activeConnection.connect();
             if (ifModifiedSince != null && con.getResponseCode() == HttpURLConnection.HTTP_NOT_MODIFIED) {
                 if (Main.isDebugEnabled()) {
                     Main.debug("304 Not Modified ("+urlStr+')');
@@ -428,17 +456,10 @@ public class CachedFile {
                         Arrays.asList(Long.toString(System.currentTimeMillis()), localPathEntry.get(1)));
                 return localFile;
             }
-            try (
-                InputStream bis = new BufferedInputStream(con.getContent());
-                OutputStream fos = new FileOutputStream(destDirFile);
-                OutputStream bos = new BufferedOutputStream(fos)
-            ) {
-                byte[] buffer = new byte[4096];
-                int length;
-                while ((length = bis.read(buffer)) > -1) {
-                    bos.write(buffer, 0, length);
-                }
+            try (InputStream bis = new BufferedInputStream(con.getContent())) {
+                Files.copy(bis, destDirFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
             }
+            activeConnection = null;
             localFile = new File(destDir, localPath);
             if (Main.platform.rename(destDirFile, localFile)) {
                 Main.pref.putCollection(prefKey,
@@ -461,7 +482,18 @@ public class CachedFile {
 
     private static void checkOfflineAccess(String urlString) {
         OnlineResource.JOSM_WEBSITE.checkOfflineAccess(urlString, Main.getJOSMWebsite());
-        OnlineResource.OSM_API.checkOfflineAccess(urlString, Main.pref.get("osm-server.url", OsmApi.DEFAULT_API_URL));
+        OnlineResource.OSM_API.checkOfflineAccess(urlString, OsmApi.getOsmApi().getServerUrl());
     }
 
+    /**
+     * Attempts to disconnect an URL connection.
+     * @see HttpClient#disconnect()
+     * @since 9411
+     */
+    @Override
+    public void close() {
+        if (activeConnection != null) {
+            activeConnection.disconnect();
+        }
+    }
 }

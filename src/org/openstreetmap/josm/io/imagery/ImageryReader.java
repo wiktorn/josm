@@ -1,8 +1,9 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.io.imagery;
 
+import java.io.BufferedReader;
+import java.io.Closeable;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -19,7 +20,7 @@ import org.openstreetmap.josm.data.imagery.ImageryInfo.ImageryBounds;
 import org.openstreetmap.josm.data.imagery.ImageryInfo.ImageryType;
 import org.openstreetmap.josm.data.imagery.Shape;
 import org.openstreetmap.josm.io.CachedFile;
-import org.openstreetmap.josm.io.UTFInputStreamReader;
+import org.openstreetmap.josm.tools.HttpClient;
 import org.openstreetmap.josm.tools.LanguageInfo;
 import org.openstreetmap.josm.tools.Utils;
 import org.xml.sax.Attributes;
@@ -27,9 +28,11 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
-public class ImageryReader {
+public class ImageryReader implements Closeable {
 
     private final String source;
+    private transient CachedFile cachedFile;
+    private transient boolean fastFail;
 
     private enum State {
         INIT,               // initial state, should always be at the bottom of the stack
@@ -52,11 +55,13 @@ public class ImageryReader {
     public List<ImageryInfo> parse() throws SAXException, IOException {
         Parser parser = new Parser();
         try {
-            try (InputStream in = new CachedFile(source)
-                    .setMaxAge(1*CachedFile.DAYS)
+            cachedFile = new CachedFile(source);
+            cachedFile.setFastFail(fastFail);
+            try (BufferedReader in = cachedFile
+                    .setMaxAge(CachedFile.DAYS)
                     .setCachingStrategy(CachedFile.CachingStrategy.IfModifiedSince)
-                    .getInputStream()) {
-                InputSource is = new InputSource(UTFInputStreamReader.create(in));
+                    .getContentReader()) {
+                InputSource is = new InputSource(in);
                 Utils.parseSafeSAX(is, parser);
                 return parser.entries;
             }
@@ -326,10 +331,10 @@ public class ImageryReader {
                     }
                     break;
                 case "valid-georeference":
-                    entry.setGeoreferenceValid(new Boolean(accumulator.toString()));
+                    entry.setGeoreferenceValid(Boolean.valueOf(accumulator.toString()));
                     break;
                 case "epsg4326to3857Supported":
-                    entry.setEpsg4326To3857Supported(new Boolean(accumulator.toString()));
+                    entry.setEpsg4326To3857Supported(Boolean.valueOf(accumulator.toString()));
                     break;
                 }
                 break;
@@ -353,5 +358,20 @@ public class ImageryReader {
 
             }
         }
+    }
+
+    /**
+     * Sets whether opening HTTP connections should fail fast, i.e., whether a
+     * {@link HttpClient#setConnectTimeout(int) low connect timeout} should be used.
+     * @param fastFail whether opening HTTP connections should fail fast
+     * @see CachedFile#setFastFail(boolean)
+     */
+    public void setFastFail(boolean fastFail) {
+        this.fastFail = fastFail;
+    }
+
+    @Override
+    public void close() throws IOException {
+        Utils.close(cachedFile);
     }
 }

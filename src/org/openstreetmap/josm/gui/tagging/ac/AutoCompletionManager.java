@@ -29,6 +29,7 @@ import org.openstreetmap.josm.data.osm.event.TagsChangedEvent;
 import org.openstreetmap.josm.data.osm.event.WayNodesChangedEvent;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPreset;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetItem;
+import org.openstreetmap.josm.gui.tagging.presets.TaggingPresets;
 import org.openstreetmap.josm.gui.tagging.presets.items.CheckGroup;
 import org.openstreetmap.josm.gui.tagging.presets.items.KeyedItem;
 import org.openstreetmap.josm.gui.tagging.presets.items.Roles;
@@ -82,11 +83,7 @@ public class AutoCompletionManager implements DataSetListener {
 
         @Override
         public int hashCode() {
-            int hash = 7;
-            hash = 59 * hash + Objects.hashCode(this.key);
-            hash = 59 * hash + Objects.hashCode(this.value);
-            hash = 59 * hash + (this.defaultKey ? 1 : 0);
-            return hash;
+            return Objects.hash(key, value, defaultKey);
         }
 
         @Override
@@ -334,7 +331,7 @@ public class AutoCompletionManager implements DataSetListener {
      */
     public void populateWithMemberRoles(AutoCompletionList list, Relation r) {
         CheckParameterUtil.ensureParameterNotNull(list, "list");
-        Collection<TaggingPreset> presets = r != null ? TaggingPreset.getMatchingPresets(null, r.getKeys(), false) : null;
+        Collection<TaggingPreset> presets = r != null ? TaggingPresets.getMatchingPresets(null, r.getKeys(), false) : null;
         if (r != null && presets != null && !presets.isEmpty()) {
             for (TaggingPreset tp : presets) {
                 if (tp.roles != null) {

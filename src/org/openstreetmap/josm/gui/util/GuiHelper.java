@@ -61,6 +61,8 @@ public final class GuiHelper {
 
     /**
      * disable / enable a component and all its child components
+     * @param root component
+     * @param enabled enabled state
      */
     public static void setEnabledRec(Container root, boolean enabled) {
         root.setEnabled(enabled);
@@ -119,6 +121,7 @@ public final class GuiHelper {
      * Executes synchronously a callable in
      * <a href="http://docs.oracle.com/javase/tutorial/uiswing/concurrency/dispatch.html">Event Dispatch Thread</a>
      * and return a value.
+     * @param <V> the result type of method <tt>call</tt>
      * @param callable The callable to execute
      * @return The computed result
      * @since 7204

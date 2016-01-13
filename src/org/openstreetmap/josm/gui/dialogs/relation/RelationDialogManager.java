@@ -53,33 +53,16 @@ public class RelationDialogManager extends WindowAdapter implements MapView.Laye
 
         @Override
         public int hashCode() {
-            final int prime = 31;
-            int result = 1;
-            result = prime * result + ((layer == null) ? 0 : layer.hashCode());
-            result = prime * result + ((relation == null) ? 0 : relation.hashCode());
-            return result;
+            return Objects.hash(relation, layer);
         }
 
         @Override
         public boolean equals(Object obj) {
-            if (this == obj)
-                return true;
-            if (obj == null)
-                return false;
-            if (getClass() != obj.getClass())
-                return false;
-            DialogContext other = (DialogContext) obj;
-            if (layer == null) {
-                if (other.layer != null)
-                    return false;
-            } else if (!layer.equals(other.layer))
-                return false;
-            if (relation == null) {
-                if (other.relation != null)
-                    return false;
-            } else if (!relation.equals(other.relation))
-                return false;
-            return true;
+            if (this == obj) return true;
+            if (obj == null || getClass() != obj.getClass()) return false;
+            DialogContext that = (DialogContext) obj;
+            return Objects.equals(relation, that.relation) &&
+                    Objects.equals(layer, that.layer);
         }
 
         public boolean matchesLayer(OsmDataLayer layer) {
@@ -230,7 +213,8 @@ public class RelationDialogManager extends WindowAdapter implements MapView.Laye
      * Replies true, if there is another open {@link RelationEditor} whose
      * upper left corner is close to <code>p</code>.
      *
-     * @param p  the reference point to check
+     * @param p the reference point to check
+     * @param thisEditor the current editor
      * @return true, if there is another open {@link RelationEditor} whose
      * upper left corner is close to <code>p</code>.
      */

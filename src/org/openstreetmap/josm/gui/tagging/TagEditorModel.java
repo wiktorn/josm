@@ -412,6 +412,7 @@ public class TagEditorModel extends AbstractTableModel {
 
     /**
      * applies the current state of the tag editor model to a map of tags
+     * @param keepEmpty {@code true} to keep empty tags
      *
      * @return the map of key/value pairs
      */
@@ -434,10 +435,19 @@ public class TagEditorModel extends AbstractTableModel {
         return result;
     }
 
+    /**
+     * Returns tags, without empty ones.
+     * @return not-empty tags
+     */
     public Map<String, String> getTags() {
         return getTags(false);
     }
 
+    /**
+     * Returns tags.
+     * @param keepEmpty {@code true} to keep empty tags
+     * @return tags
+     */
     public Map<String, String> getTags(boolean keepEmpty) {
         return applyToTags(keepEmpty);
     }

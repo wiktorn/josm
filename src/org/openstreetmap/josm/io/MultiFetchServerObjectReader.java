@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -17,8 +18,8 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
@@ -33,6 +34,7 @@ import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.SimplePrimitiveId;
 import org.openstreetmap.josm.data.osm.Way;
+import org.openstreetmap.josm.gui.preferences.server.OverpassServerPreference;
 import org.openstreetmap.josm.gui.progress.NullProgressMonitor;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
 import org.openstreetmap.josm.tools.Utils;
@@ -73,12 +75,39 @@ public class MultiFetchServerObjectReader extends OsmServerReader {
     /**
      * Constructs a {@code MultiFetchServerObjectReader}.
      */
-    public MultiFetchServerObjectReader() {
+    protected MultiFetchServerObjectReader() {
         nodes = new LinkedHashSet<>();
         ways = new LinkedHashSet<>();
         relations = new LinkedHashSet<>();
         this.outputDataSet = new DataSet();
         this.missingPrimitives = new LinkedHashSet<>();
+    }
+
+    /**
+     * Creates a new instance of {@link MultiFetchServerObjectReader} or {@link MultiFetchOverpassObjectReader}
+     * depending on the {@link OverpassServerPreference#useForMultiFetch preference}.
+     *
+     * @return a new instance
+     * @since 9241
+     */
+    public static MultiFetchServerObjectReader create() {
+        return create(OverpassServerPreference.useForMultiFetch());
+    }
+
+    /**
+     * Creates a new instance of {@link MultiFetchServerObjectReader} or {@link MultiFetchOverpassObjectReader}
+     * depending on the {@code fromMirror} parameter.
+     *
+     * @param fromMirror {@code false} for {@link MultiFetchServerObjectReader}, {@code true} for {@link MultiFetchOverpassObjectReader}
+     * @return a new instance
+     * @since 9241
+     */
+    static MultiFetchServerObjectReader create(final boolean fromMirror) {
+        if (fromMirror) {
+            return new MultiFetchOverpassObjectReader();
+        } else {
+            return new MultiFetchServerObjectReader();
+        }
     }
 
     /**
@@ -141,7 +170,7 @@ public class MultiFetchServerObjectReader extends OsmServerReader {
     public MultiFetchServerObjectReader appendWay(Way way) {
         if (way == null) return this;
         if (way.isNew()) return this;
-        for (Node node: way.getNodes()) {
+        for (Node node: !recursesDown() ? way.getNodes() : Collections.<Node>emptyList()) {
             if (!node.isNew()) {
                 remember(node.getPrimitiveId());
             }
@@ -160,7 +189,7 @@ public class MultiFetchServerObjectReader extends OsmServerReader {
         if (relation == null) return this;
         if (relation.isNew()) return this;
         remember(relation.getPrimitiveId());
-        for (RelationMember member : relation.getMembers()) {
+        for (RelationMember member : !recursesDown() ? relation.getMembers() : Collections.<RelationMember>emptyList()) {
             if (OsmPrimitiveType.from(member.getMember()).equals(OsmPrimitiveType.RELATION)) {
                 // avoid infinite recursion in case of cyclic dependencies in relations
                 //
@@ -239,35 +268,13 @@ public class MultiFetchServerObjectReader extends OsmServerReader {
      * @param idPackage  the package of ids
      * @return the request string
      */
-    protected static String buildRequestString(OsmPrimitiveType type, Set<Long> idPackage) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(type.getAPIName()).append("s?")
-        .append(type.getAPIName()).append("s=");
-
-        Iterator<Long> it = idPackage.iterator();
-        for (int i = 0; i < idPackage.size(); i++) {
-            sb.append(it.next());
-            if (i < idPackage.size()-1) {
-                sb.append(',');
-            }
-        }
-        return sb.toString();
+    protected String buildRequestString(final OsmPrimitiveType type, Set<Long> idPackage) {
+        return type.getAPIName() + "s?" + type.getAPIName() + "s=" + Utils.join(",", idPackage);
     }
 
-    /**
-     * builds the Multi Get request string for a single id and a given {@link OsmPrimitiveType}.
-     *
-     * @param type The primitive type. Must be one of {@link OsmPrimitiveType#NODE NODE}, {@link OsmPrimitiveType#WAY WAY},
-     * {@link OsmPrimitiveType#RELATION RELATION}
-     * @param id the id
-     * @return the request string
-     */
-    protected static String buildRequestString(OsmPrimitiveType type, long id) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(type.getAPIName()).append("s?")
-        .append(type.getAPIName()).append("s=")
-        .append(id);
-        return sb.toString();
+    @Override
+    protected String getBaseUrl() {
+        return super.getBaseUrl();
     }
 
     protected void rememberNodesOfIncompleteWaysToLoad(DataSet from) {
@@ -298,11 +305,12 @@ public class MultiFetchServerObjectReader extends OsmServerReader {
      * @param ids the set of ids
      * @param type The primitive type. Must be one of {@link OsmPrimitiveType#NODE NODE}, {@link OsmPrimitiveType#WAY WAY},
      * {@link OsmPrimitiveType#RELATION RELATION}
+     * @param progressMonitor progress monitor
      * @throws OsmTransferException if an error occurs while communicating with the API server
      */
     protected void fetchPrimitives(Set<Long> ids, OsmPrimitiveType type, ProgressMonitor progressMonitor) throws OsmTransferException {
         String msg = "";
-        String baseUrl = OsmApi.getOsmApi().getBaseUrl();
+        final String baseUrl = getBaseUrl();
         switch (type) {
             case NODE:     msg = tr("Fetching a package of nodes from ''{0}''",     baseUrl); break;
             case WAY:      msg = tr("Fetching a package of ways from ''{0}''",      baseUrl); break;
@@ -316,7 +324,8 @@ public class MultiFetchServerObjectReader extends OsmServerReader {
         // we will run up to MAX_DOWNLOAD_THREADS concurrent fetchers.
         int threadsNumber = Main.pref.getInteger("osm.download.threads", OsmApi.MAX_DOWNLOAD_THREADS);
         threadsNumber = Math.min(Math.max(threadsNumber, 1), OsmApi.MAX_DOWNLOAD_THREADS);
-        Executor exec = Executors.newFixedThreadPool(threadsNumber, Utils.newThreadFactory(getClass() + "-%d", Thread.NORM_PRIORITY));
+        final ExecutorService exec = Executors.newFixedThreadPool(
+                threadsNumber, Utils.newThreadFactory(getClass() + "-%d", Thread.NORM_PRIORITY));
         CompletionService<FetchResult> ecs = new ExecutorCompletionService<>(exec);
         List<Future<FetchResult>> jobs = new ArrayList<>();
         while (!toFetch.isEmpty()) {
@@ -338,7 +347,8 @@ public class MultiFetchServerObjectReader extends OsmServerReader {
                 Main.error(e);
             }
         }
-        // Cancel requests if the user choosed to
+        exec.shutdown();
+        // Cancel requests if the user chose to
         if (isCanceled()) {
             for (Future<FetchResult> job : jobs) {
                 job.cancel(true);
@@ -395,6 +405,15 @@ public class MultiFetchServerObjectReader extends OsmServerReader {
     }
 
     /**
+     * Whether this reader fetches nodes when loading ways, or members when loading relations.
+     *
+     * @return {@code true} if the reader recurses down
+     */
+    protected boolean recursesDown() {
+        return false;
+    }
+
+    /**
      * The class holding the results given by {@link Fetcher}.
      * It is only a wrapper of the resulting {@link DataSet} and the collection of {@link PrimitiveId} that could not have been loaded.
      */
@@ -427,7 +446,7 @@ public class MultiFetchServerObjectReader extends OsmServerReader {
      * The inheritance of {@link OsmServerReader} is only explained by the need to have a distinct OSM connection by {@code Fetcher} instance.
      * @see FetchResult
      */
-    protected static class Fetcher extends OsmServerReader implements Callable<FetchResult> {
+    protected class Fetcher extends OsmServerReader implements Callable<FetchResult> {
 
         private final Set<Long> pkg;
         private final OsmPrimitiveType type;
@@ -477,6 +496,11 @@ public class MultiFetchServerObjectReader extends OsmServerReader {
             }
         }
 
+        @Override
+        protected String getBaseUrl() {
+            return MultiFetchServerObjectReader.this.getBaseUrl();
+        }
+
         /**
          * invokes a Multi Get for a set of ids and a given {@link OsmPrimitiveType}.
          * The retrieved primitives are merged to {@link #outputDataSet}.
@@ -484,6 +508,7 @@ public class MultiFetchServerObjectReader extends OsmServerReader {
          * @param type The primitive type. Must be one of {@link OsmPrimitiveType#NODE NODE}, {@link OsmPrimitiveType#WAY WAY},
          * {@link OsmPrimitiveType#RELATION RELATION}
          * @param pkg the package of ids
+         * @param progressMonitor progress monitor
          * @return the {@link FetchResult} of this operation
          * @throws OsmTransferException if an error occurs while communicating with the API server
          */
@@ -512,11 +537,12 @@ public class MultiFetchServerObjectReader extends OsmServerReader {
          * @param type The primitive type. Must be one of {@link OsmPrimitiveType#NODE NODE}, {@link OsmPrimitiveType#WAY WAY},
          * {@link OsmPrimitiveType#RELATION RELATION}
          * @param id the id
+         * @param progressMonitor progress monitor
          * @return the {@link DataSet} resulting of this operation
          * @throws OsmTransferException if an error occurs while communicating with the API server
          */
         protected DataSet singleGetId(OsmPrimitiveType type, long id, ProgressMonitor progressMonitor) throws OsmTransferException {
-            String request = buildRequestString(type, id);
+            String request = buildRequestString(type, Collections.singleton(id));
             DataSet result = null;
             try (InputStream in = getInputStream(request, NullProgressMonitor.INSTANCE)) {
                 if (in == null) return null;
@@ -543,6 +569,7 @@ public class MultiFetchServerObjectReader extends OsmServerReader {
          * @param type The primitive type. Must be one of {@link OsmPrimitiveType#NODE NODE}, {@link OsmPrimitiveType#WAY WAY},
          * {@link OsmPrimitiveType#RELATION RELATION}
          * @param pkg the set of ids
+         * @param progressMonitor progress monitor
          * @return the {@link FetchResult} of this operation
          * @throws OsmTransferException if an error occurs while communicating with the API server
          */

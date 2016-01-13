@@ -51,6 +51,7 @@ import org.openstreetmap.josm.gui.preferences.plugin.PluginPreference;
 import org.openstreetmap.josm.gui.preferences.projection.ProjectionPreference;
 import org.openstreetmap.josm.gui.preferences.remotecontrol.RemoteControlPreference;
 import org.openstreetmap.josm.gui.preferences.server.AuthenticationPreference;
+import org.openstreetmap.josm.gui.preferences.server.OverpassServerPreference;
 import org.openstreetmap.josm.gui.preferences.server.ProxyPreference;
 import org.openstreetmap.josm.gui.preferences.server.ServerAccessPreference;
 import org.openstreetmap.josm.gui.preferences.shortcut.ShortcutPreference;
@@ -273,6 +274,7 @@ public final class PreferenceTabbedPane extends JTabbedPane implements MouseWhee
     /**
      * Construct a PreferencePanel for the preference settings. Layout is GridBagLayout
      * and a centered title label and the description are added.
+     * @param caller Preference settings, that display a top level tab
      * @return The created panel ready to add other controls.
      */
     public PreferencePanel createPreferenceTab(TabPreferenceSetting caller) {
@@ -282,12 +284,13 @@ public final class PreferenceTabbedPane extends JTabbedPane implements MouseWhee
     /**
      * Construct a PreferencePanel for the preference settings. Layout is GridBagLayout
      * and a centered title label and the description are added.
+     * @param caller Preference settings, that display a top level tab
      * @param inScrollPane if <code>true</code> the added tab will show scroll bars
      *        if the panel content is larger than the available space
      * @return The created panel ready to add other controls.
      */
     public PreferencePanel createPreferenceTab(TabPreferenceSetting caller, boolean inScrollPane) {
-        CheckParameterUtil.ensureParameterNotNull(caller);
+        CheckParameterUtil.ensureParameterNotNull(caller, "caller");
         PreferencePanel p = new PreferencePanel(caller);
 
         PreferenceTab tab = p;
@@ -558,6 +561,7 @@ public final class PreferenceTabbedPane extends JTabbedPane implements MouseWhee
         settingsFactories.add(new ServerAccessPreference.Factory());
         settingsFactories.add(new AuthenticationPreference.Factory());
         settingsFactories.add(new ProxyPreference.Factory());
+        settingsFactories.add(new OverpassServerPreference.Factory());
         settingsFactories.add(new MapPreference.Factory());
         settingsFactories.add(new ProjectionPreference.Factory());
         settingsFactories.add(new MapPaintPreference.Factory());

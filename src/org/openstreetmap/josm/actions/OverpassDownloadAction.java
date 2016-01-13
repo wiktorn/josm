@@ -14,7 +14,6 @@ import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
@@ -40,9 +39,9 @@ import org.openstreetmap.josm.actions.downloadtasks.PostDownloadHandler;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.preferences.CollectionProperty;
 import org.openstreetmap.josm.data.preferences.IntegerProperty;
-import org.openstreetmap.josm.data.preferences.StringProperty;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.download.DownloadDialog;
+import org.openstreetmap.josm.gui.preferences.server.OverpassServerPreference;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.HistoryComboBox;
 import org.openstreetmap.josm.gui.widgets.JosmTextArea;
@@ -50,6 +49,7 @@ import org.openstreetmap.josm.io.OverpassDownloadReader;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.OverpassTurboQueryWizard;
 import org.openstreetmap.josm.tools.Shortcut;
+import org.openstreetmap.josm.tools.UncheckedParseException;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -80,7 +80,7 @@ public class OverpassDownloadAction extends JosmAction {
             Bounds area = dialog.getSelectedDownloadArea();
             DownloadOsmTask task = new DownloadOsmTask();
             Future<?> future = task.download(
-                    new OverpassDownloadReader(area, dialog.getOverpassServer(), dialog.getOverpassQuery()),
+                    new OverpassDownloadReader(area, OverpassServerPreference.getOverpassServer(), dialog.getOverpassQuery()),
                     dialog.isNewLayerRequired(), area, null);
             Main.worker.submit(new PostDownloadHandler(task, future));
         }
@@ -116,13 +116,9 @@ public class OverpassDownloadAction extends JosmAction {
 
     private static final class OverpassDownloadDialog extends DownloadDialog {
 
-        private HistoryComboBox overpassServer;
         private HistoryComboBox overpassWizard;
         private JosmTextArea overpassQuery;
         private static OverpassDownloadDialog instance;
-        private static final StringProperty OVERPASS_SERVER = new StringProperty("download.overpass.server", "http://overpass-api.de/api/");
-        private static final CollectionProperty OVERPASS_SERVER_HISTORY = new CollectionProperty("download.overpass.servers",
-                Arrays.asList("http://overpass-api.de/api/", "http://overpass.osm.rambler.ru/cgi/"));
         private static final CollectionProperty OVERPASS_WIZARD_HISTORY = new CollectionProperty("download.overpass.wizard",
                 new ArrayList<String>());
 
@@ -161,7 +157,7 @@ public class OverpassDownloadAction extends JosmAction {
                     final String overpassWizardText = overpassWizard.getText();
                     try {
                         overpassQuery.setText(OverpassTurboQueryWizard.getInstance().constructQuery(overpassWizardText));
-                    } catch (OverpassTurboQueryWizard.ParseException ex) {
+                    } catch (UncheckedParseException ex) {
                         HelpAwareOptionPane.showOptionDialog(
                                 Main.parent,
                                 tr("<html>The Overpass wizard could not parse the following query:"
@@ -196,14 +192,6 @@ public class OverpassDownloadAction extends JosmAction {
             gbc.ipady = 200;
             pnl.add(pane, gbc);
 
-            overpassServer = new HistoryComboBox();
-            overpassServer.getEditor().getEditorComponent().addFocusListener(disableActionsFocusListener);
-            pnl.add(new JLabel(tr("Overpass server: ")), GBC.std().insets(5, 5, 5, 5));
-            pnl.add(overpassServer, GBC.eol().fill(GBC.HORIZONTAL));
-        }
-
-        public String getOverpassServer() {
-            return overpassServer.getText();
         }
 
         public String getOverpassQuery() {
@@ -217,8 +205,6 @@ public class OverpassDownloadAction extends JosmAction {
         @Override
         public void restoreSettings() {
             super.restoreSettings();
-            overpassServer.setPossibleItems(OVERPASS_SERVER_HISTORY.get());
-            overpassServer.setText(OVERPASS_SERVER.get());
             overpassWizard.setPossibleItems(OVERPASS_WIZARD_HISTORY.get());
         }
 
@@ -226,8 +212,6 @@ public class OverpassDownloadAction extends JosmAction {
         public void rememberSettings() {
             super.rememberSettings();
             overpassWizard.addCurrentItemToHistory();
-            OVERPASS_SERVER.put(getOverpassServer());
-            OVERPASS_SERVER_HISTORY.put(overpassServer.getHistory());
             OVERPASS_WIZARD_HISTORY.put(overpassWizard.getHistory());
             OverpassQueryHistoryPopup.addToHistory(getOverpassQuery());
         }

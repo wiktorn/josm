@@ -15,7 +15,7 @@
     <property name="javacc.home" location="tools"/>
     <property name="mapcss.dir" location="${src.dir}/org/openstreetmap/josm/gui/mappaint/mapcss"/>
     <property name="epsg.output" location="data/projection/custom-epsg"/>
-    <property name="groovy.jar" location="tools/groovy-all-2.4.5.jar"/>
+    <property name="groovy.jar" location="tools/groovy-all-2.4.6-SNAPSHOT.jar"/>
     <!-- build parameter: compression level (ant -Dclevel=N)
              N ranges from 0 (no compression) to 9 (maximum compression)
              default: 9 -->
@@ -275,6 +275,7 @@ Build-Date: ${build.tstamp}
                 sourcepath="${src.dir}"
                 encoding="UTF-8"    
                 packagenames="org.openstreetmap.josm.*,org.openstreetmap.gui.jmapviewer.*"
+                excludepackagenames="org.openstreetmap.josm.gui.mappaint.mapcss.parsergen.*"
                 windowtitle="JOSM"
                 use="true"
                 private="true"
@@ -600,17 +601,17 @@ Build-Date: ${build.tstamp}
         <taskdef name="groovy" classname="org.codehaus.groovy.ant.Groovy" classpath="${groovy.jar};tools/commons-cli-1.3.1.jar"/>
         <property name="taginfoextract" value="scripts/taginfoextract.groovy"/>
         <property name="imgurlprefix" value="http://josm.openstreetmap.de/download/taginfo/taginfo-img"/>
-    	<_taginfo type="mappaint" output="taginfo_style.json"/>
-    	<_taginfo type="presets" output="taginfo_presets.json"/>
-    	<_taginfo type="external_presets" output="taginfo_external_presets.json"/>
+        <_taginfo type="mappaint" output="taginfo_style.json"/>
+        <_taginfo type="presets" output="taginfo_presets.json"/>
+        <_taginfo type="external_presets" output="taginfo_external_presets.json"/>
     </target>
 
     <target name="checkstyle">
         <taskdef resource="com/puppycrawl/tools/checkstyle/ant/checkstyle-ant-task.properties" 
-        	classpath="tools/checkstyle/checkstyle-6.14-all.jar"/>
+             classpath="tools/checkstyle/checkstyle-6.14.1-all.jar"/>
         <checkstyle config="tools/checkstyle/josm_checks.xml">
             <fileset dir="${basedir}/src/org/openstreetmap/josm" includes="**/*.java" 
-            	excludes="gui/mappaint/mapcss/parsergen/*.java"/>
+                excludes="gui/mappaint/mapcss/parsergen/*.java"/>
             <fileset dir="${basedir}/test" includes="**/*.java"/>
             <formatter type="xml" toFile="checkstyle-josm.xml"/>
         </checkstyle>
@@ -646,19 +647,20 @@ Build-Date: ${build.tstamp}
     <!-- compile build script for generating projection list -->
     <target name="epsg-compile" depends="compile">
         <mkdir dir="build2"/>
-        <javac sourcepath="" srcdir="scripts"
+        <javac sourcepath="" srcdir="scripts" failonerror="true"
             destdir="build2" target="1.7" source="1.7" debug="on" includeantruntime="false" createMissingPackageInfoClass="false" encoding="UTF-8" classpath="build">
         </javac>
     </target>
     <!-- generate projection list -->
     <target name="epsg" depends="epsg-compile">
         <touch file="${epsg.output}"/>
-        <java classname="BuildProjectionDefinitions">
+        <java classname="BuildProjectionDefinitions" failonerror="true">
             <classpath>
                 <pathelement path="."/>
                 <pathelement path="build"/>
                 <pathelement path="build2"/>
             </classpath>
+            <arg value="${basedir}"/>
         </java>
     </target>
 </project>

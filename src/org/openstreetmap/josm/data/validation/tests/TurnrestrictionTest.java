@@ -38,6 +38,7 @@ public class TurnrestrictionTest extends Test {
     protected static final int MIX_VIA = 1813;
     protected static final int UNCONNECTED_VIA = 1814;
     protected static final int SUPERFLUOUS = 1815;
+    protected static final int FROM_EQUALS_TO = 1816;
 
     /**
      * Constructs a new {@code TurnrestrictionTest}.
@@ -141,6 +142,10 @@ public class TurnrestrictionTest extends Test {
         if (toWay == null) {
             errors.add(new TestError(this, Severity.ERROR, tr("No \"to\" way found"), NO_TO, r));
             return;
+        }
+        if (fromWay.equals(toWay)) {
+            errors.add(new TestError(this, r.hasTag("restriction", "no_u_turn") ? Severity.OTHER : Severity.WARNING,
+                    tr("\"from\" way equals \"to\" way"), FROM_EQUALS_TO, r));
         }
         if (via.isEmpty()) {
             errors.add(new TestError(this, Severity.ERROR, tr("No \"via\" node or way found"), NO_VIA, r));

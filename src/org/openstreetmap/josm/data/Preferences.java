@@ -1,6 +1,7 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.data;
 
+import static org.openstreetmap.josm.tools.I18n.marktr;
 import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.Color;
@@ -149,6 +150,12 @@ public class Preferences {
     protected final SortedMap<String, String> colornames = new TreeMap<>();
 
     /**
+     * Indicates whether {@link #init(boolean)} completed successfully.
+     * Used to decide whether to write backup preference file in {@link #save()}
+     */
+    protected boolean initSuccessful = false;
+
+    /**
      * Interface for a preference value.
      *
      * Implementations must provide a proper <code>equals</code> method.
@@ -220,27 +227,15 @@ public class Preferences {
 
         @Override
         public int hashCode() {
-            final int prime = 31;
-            int result = 1;
-            result = prime * result + ((value == null) ? 0 : value.hashCode());
-            return result;
+            return Objects.hash(value);
         }
 
         @Override
         public boolean equals(Object obj) {
-            if (this == obj)
-                return true;
-            if (obj == null)
-                return false;
-            if (!(obj instanceof AbstractSetting))
-                return false;
-            AbstractSetting<?> other = (AbstractSetting<?>) obj;
-            if (value == null) {
-                if (other.value != null)
-                    return false;
-            } else if (!value.equals(other.value))
-                return false;
-            return true;
+            if (this == obj) return true;
+            if (obj == null || getClass() != obj.getClass()) return false;
+            AbstractSetting<?> that = (AbstractSetting<?>) obj;
+            return Objects.equals(value, that.value);
         }
     }
 
@@ -821,7 +816,7 @@ public class Preferences {
      * @param key the unique identifier for the setting
      * @param value the value of the setting. Can be null or "" which both removes
      *  the key-value entry.
-     * @return true, if something has changed (i.e. value is different than before)
+     * @return {@code true}, if something has changed (i.e. value is different than before)
      */
     public boolean put(final String key, String value) {
         if (value != null && value.isEmpty()) {
@@ -860,7 +855,7 @@ public class Preferences {
         File backupFile = new File(prefFile + "_backup");
 
         // Backup old preferences if there are old preferences
-        if (prefFile.exists()) {
+        if (prefFile.exists() && prefFile.length() > 0 && initSuccessful) {
             Utils.copyFile(prefFile, backupFile);
         }
 
@@ -871,9 +866,7 @@ public class Preferences {
 
         File tmpFile = new File(prefFile + "_tmp");
         Utils.copyFile(tmpFile, prefFile);
-        if (!tmpFile.delete()) {
-            Main.warn(tr("Unable to delete temporary file {0}", tmpFile.getAbsolutePath()));
-        }
+        Utils.deleteFile(tmpFile, marktr("Unable to delete temporary file {0}"));
 
         setCorrectPermissions(prefFile);
         setCorrectPermissions(backupFile);
@@ -921,6 +914,7 @@ public class Preferences {
      * @param reset if {@code true}, current settings file is replaced by the default one
      */
     public void init(boolean reset) {
+        initSuccessful = false;
         // get the preferences.
         File prefDir = getPreferencesDirectory();
         if (prefDir.exists()) {
@@ -958,6 +952,8 @@ public class Preferences {
                 resetToDefault();
                 save();
             } else if (reset) {
+                File backupFile = new File(prefDir, "preferences.xml.bak");
+                Main.platform.rename(preferenceFile, backupFile);
                 Main.warn(tr("Replacing existing preference file ''{0}'' with default preference file.", preferenceFile.getAbsoluteFile()));
                 resetToDefault();
                 save();
@@ -975,6 +971,7 @@ public class Preferences {
         }
         try {
             load();
+            initSuccessful = true;
         } catch (Exception e) {
             Main.error(e);
             File backupFile = new File(prefDir, "preferences.xml.bak");
@@ -1177,7 +1174,7 @@ public class Preferences {
      * @param key the unique identifier for the setting
      * @param setting the value of the setting. In case it is null, the key-value
      * entry will be removed.
-     * @return true, if something has changed (i.e. value is different than before)
+     * @return {@code true}, if something has changed (i.e. value is different than before)
      */
     public boolean putSetting(final String key, Setting<?> setting) {
         CheckParameterUtil.ensureParameterNotNull(key);
@@ -1246,12 +1243,22 @@ public class Preferences {
         }
     }
 
+    /**
+     * Put a collection.
+     * @param key key
+     * @param value value
+     * @return {@code true}, if something has changed (i.e. value is different than before)
+     */
     public boolean putCollection(String key, Collection<String> value) {
         return putSetting(key, value == null ? null : ListSetting.create(value));
     }
 
     /**
      * Saves at most {@code maxsize} items of collection {@code val}.
+     * @param key key
+     * @param maxsize max number of items to save
+     * @param val value
+     * @return {@code true}, if something has changed (i.e. value is different than before)
      */
     public boolean putCollectionBounded(String key, int maxsize, Collection<String> val) {
         Collection<String> newCollection = new ArrayList<>(Math.min(maxsize, val.size()));
@@ -1267,6 +1274,9 @@ public class Preferences {
     /**
      * Used to read a 2-dimensional array of strings from the preference file.
      * If not a single entry could be found, <code>def</code> is returned.
+     * @param key preference key
+     * @param def default array value
+     * @return array value
      */
     @SuppressWarnings({ "unchecked", "rawtypes" })
     public synchronized Collection<Collection<String>> getArray(String key, Collection<Collection<String>> def) {
@@ -1279,6 +1289,12 @@ public class Preferences {
         return res == null ? Collections.<Collection<String>>emptyList() : res;
     }
 
+    /**
+     * Put an array.
+     * @param key key
+     * @param value value
+     * @return {@code true}, if something has changed (i.e. value is different than before)
+     */
     public boolean putArray(String key, Collection<Collection<String>> value) {
         return putSetting(key, value == null ? null : ListListSetting.create(value));
     }
@@ -1318,6 +1334,7 @@ public class Preferences {
      * the @pref annotation.
      * Default constructor is used to initialize the struct objects, properties
      * then override some of these default values.
+     * @param <T> klass type
      * @param key main preference key
      * @param klass The struct class
      * @return a list of objects of type T or an empty list if nothing was found
@@ -1332,6 +1349,11 @@ public class Preferences {
 
     /**
      * same as above, but returns def if nothing was found
+     * @param <T> klass type
+     * @param key main preference key
+     * @param def default value
+     * @param klass The struct class
+     * @return a list of objects of type T or {@code def} if nothing was found
      */
     public <T> List<T> getListOfStructs(String key, Collection<T> def, Class<T> klass) {
         Collection<Map<String, String>> prop =

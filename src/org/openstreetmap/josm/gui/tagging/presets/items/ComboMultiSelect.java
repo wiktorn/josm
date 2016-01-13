@@ -257,6 +257,7 @@ public abstract class ComboMultiSelect extends KeyedItem {
      * @param delimiter the delimiter, e.g. a comma. separates the entries and
      *      must be escaped within one entry
      * @param s the string
+     * @return splitted items
      */
     public static String[] splitEscaped(char delimiter, String s) {
         if (s == null)
@@ -319,8 +320,11 @@ public abstract class ComboMultiSelect extends KeyedItem {
             lhm.put(DIFFERENT, new PresetListEntry(DIFFERENT));
         }
 
-        p.add(new JLabel(tr("{0}:", locale_text)), GBC.std().insets(0, 0, 10, 0));
+        final JLabel label = new JLabel(tr("{0}:", locale_text));
+        label.setToolTipText(getKeyTooltipText());
+        p.add(label, GBC.std().insets(0, 0, 10, 0));
         addToPanelAnchor(p, default_, presetInitiallyMatches);
+        component.setToolTipText(getKeyTooltipText());
 
         return true;
 

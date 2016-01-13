@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import org.openstreetmap.josm.tools.Utils;
@@ -188,7 +189,11 @@ public final class User {
         return uid;
     }
 
-    /** private constructor, only called from get method. */
+    /**
+     * Private constructor, only called from get method.
+     * @param uid user id
+     * @param name user name
+     */
     private User(long uid, String name) {
         this.uid = uid;
         if (name != null) {
@@ -214,21 +219,15 @@ public final class User {
 
     @Override
     public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + getName().hashCode();
-        result = prime * result + (int) (uid ^ (uid >>> 32));
-        return result;
+        return Objects.hash(uid);
     }
 
     @Override
     public boolean equals(Object obj) {
-        if (!(obj instanceof User))
-            return false;
-        User other = (User) obj;
-        if (uid != other.uid)
-            return false;
-        return true;
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        User user = (User) obj;
+        return uid == user.uid;
     }
 
     @Override

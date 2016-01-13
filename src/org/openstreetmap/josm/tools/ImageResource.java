@@ -159,6 +159,8 @@ public class ImageResource {
             throw new IllegalArgumentException(maxSize+" is invalid");
         float realWidth;
         float realHeight;
+        int maxWidth = maxSize.width;
+        int maxHeight = maxSize.height;
         if (svg != null) {
             realWidth = svg.getWidth();
             realHeight = svg.getHeight();
@@ -167,15 +169,12 @@ public class ImageResource {
             ImageIcon icon = new ImageIcon(baseImage);
             realWidth = icon.getIconWidth();
             realHeight = icon.getIconHeight();
-        }
-        int maxWidth = maxSize.width;
-        int maxHeight = maxSize.height;
-
-        if (realWidth <= maxWidth) {
-            maxWidth = -1;
-        }
-        if (realHeight <= maxHeight) {
-            maxHeight = -1;
+            if (realWidth <= maxWidth) {
+                maxWidth = -1;
+            }
+            if (realHeight <= maxHeight) {
+                maxHeight = -1;
+            }
         }
 
         if (maxWidth == -1 && maxHeight == -1)

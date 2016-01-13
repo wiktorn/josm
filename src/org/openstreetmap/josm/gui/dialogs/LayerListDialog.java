@@ -145,13 +145,11 @@ public class LayerListDialog extends ToggleDialog {
      * to toggle the visibility of the first ten layers.
      */
     private void createVisibilityToggleShortcuts() {
-        final int[] k = {
-                KeyEvent.VK_1, KeyEvent.VK_2, KeyEvent.VK_3, KeyEvent.VK_4, KeyEvent.VK_5,
-                KeyEvent.VK_6, KeyEvent.VK_7, KeyEvent.VK_8, KeyEvent.VK_9, KeyEvent.VK_0};
-
         for (int i = 0; i < 10; i++) {
-            visibilityToggleShortcuts[i] = Shortcut.registerShortcut("subwindow:layers:toggleLayer" + (i+1),
-                    tr("Toggle visibility of layer: {0}", i+1), k[i], Shortcut.ALT);
+            final int i1 = i + 1;
+            /* POSSIBLE SHORTCUTS: 1,2,3,4,5,6,7,8,9,0=10 */
+            visibilityToggleShortcuts[i] = Shortcut.registerShortcut("subwindow:layers:toggleLayer" + i1,
+                    tr("Toggle visibility of layer: {0}", i1), KeyEvent.VK_0 + (i1 % 10), Shortcut.ALT);
             visibilityToggleActions[i] = new ToggleLayerIndexVisibility(i);
             Main.registerActionShortcut(visibilityToggleActions[i], visibilityToggleShortcuts[i]);
         }
@@ -159,6 +157,7 @@ public class LayerListDialog extends ToggleDialog {
 
     /**
      * Creates a layer list and attach it to the given mapView.
+     * @param mapFrame map frame
      */
     protected LayerListDialog(MapFrame mapFrame) {
         super(tr("Layers"), "layerlist", tr("Open a list of all loaded layers."),
@@ -830,6 +829,8 @@ public class LayerListDialog extends ToggleDialog {
 
         /**
          * Constructs a new {@code MergeAction}.
+         * @param layer the layer (null if layer list if specified)
+         * @param layers the layer list (null if a single layer is specified)
          */
         private MergeAction(Layer layer, List<Layer> layers) {
             this.layer = layer;
@@ -1140,7 +1141,6 @@ public class LayerListDialog extends ToggleDialog {
     class PopupMenuHandler extends PopupMenuLauncher {
         @Override
         public void showMenu(MouseEvent evt) {
-            Layer layer = getModel().getLayer(layerList.getSelectedRow());
             menu = new LayerListPopup(getModel().getSelectedLayers());
             super.showMenu(evt);
         }

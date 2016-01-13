@@ -2,6 +2,7 @@
 package org.openstreetmap.josm.data.osm;
 
 import java.awt.geom.Line2D;
+import java.util.Objects;
 
 /**
  * A segment consisting of 2 consecutive nodes out of a way.
@@ -47,6 +48,10 @@ public final class WaySegment implements Comparable<WaySegment> {
 
     /**
      * Determines and returns the way segment for the given way and node pair.
+     * @param way way
+     * @param first first node
+     * @param second second node
+     * @return way segment
      * @throws IllegalArgumentException if the node pair is not part of way
      */
     public static WaySegment forNodePair(Way way, Node first, Node second) {
@@ -74,14 +79,16 @@ public final class WaySegment implements Comparable<WaySegment> {
 
     @Override
     public boolean equals(Object o) {
-        return o instanceof WaySegment
-            && ((WaySegment) o).way == way
-            && ((WaySegment) o).lowerIndex == lowerIndex;
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        WaySegment that = (WaySegment) o;
+        return lowerIndex == that.lowerIndex &&
+                Objects.equals(way, that.way);
     }
 
     @Override
     public int hashCode() {
-        return way.hashCode() ^ lowerIndex;
+        return Objects.hash(way, lowerIndex);
     }
 
     @Override

@@ -5,12 +5,12 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.Component;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.Collection;
 import java.util.LinkedList;
 
@@ -43,7 +43,7 @@ public class PluginDownloadTask extends PleaseWaitRunnable {
     private final Collection<PluginInformation> failed = new LinkedList<>();
     private final Collection<PluginInformation> downloaded = new LinkedList<>();
     private boolean canceled;
-    private HttpClient.Response downloadConnection;
+    private HttpClient downloadConnection;
 
     /**
      * Creates the download task
@@ -123,17 +123,11 @@ public class PluginDownloadTask extends PleaseWaitRunnable {
             URL url = new URL(pi.downloadlink);
             synchronized (this) {
                 downloadConnection = HttpClient.create(url)
-                        .setAccept(PLUGIN_MIME_TYPES)
-                        .connect();
+                        .setAccept(PLUGIN_MIME_TYPES);
+                downloadConnection.connect();
             }
-            try (
-                InputStream in = downloadConnection.getContent();
-                OutputStream out = new FileOutputStream(file)
-            ) {
-                byte[] buffer = new byte[8192];
-                for (int read = in.read(buffer); read != -1; read = in.read(buffer)) {
-                    out.write(buffer, 0, read);
-                }
+            try (InputStream in = downloadConnection.getResponse().getContent()) {
+                Files.copy(in, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
             }
         } catch (MalformedURLException e) {
             String msg = tr("Cannot download plugin ''{0}''. Its download link ''{1}'' is not a valid URL. Skipping download.",

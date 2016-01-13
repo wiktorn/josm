@@ -2,6 +2,7 @@
 package org.openstreetmap.josm.tools;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * A pair of objects.
@@ -33,16 +34,16 @@ public final class Pair<A, B> {
 
     @Override
     public int hashCode() {
-        return a.hashCode() + b.hashCode();
+        return Objects.hash(a, b);
     }
 
     @Override
     public boolean equals(Object other) {
-        if (other instanceof Pair<?, ?>) {
-            Pair<?, ?> o = (Pair<?, ?>) other;
-            return a.equals(o.a) && b.equals(o.b);
-        } else
-            return false;
+        if (this == other) return true;
+        if (other == null || getClass() != other.getClass()) return false;
+        Pair<?, ?> pair = (Pair<?, ?>) other;
+        return Objects.equals(a, pair.a) &&
+                Objects.equals(b, pair.b);
     }
 
     public static <T> List<T> toList(Pair<T, T> p) {
@@ -68,6 +69,8 @@ public final class Pair<A, B> {
 
     /**
      * Convenient constructor method
+     * @param <U> type of first item
+     * @param <V> type of second item
      * @param u The first item
      * @param v The second item
      * @return The newly created Pair(u,v)

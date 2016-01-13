@@ -8,10 +8,11 @@ import java.util.Map;
 
 import oauth.signpost.AbstractOAuthConsumer;
 import oauth.signpost.AbstractOAuthProvider;
+
 import org.openstreetmap.josm.tools.HttpClient;
 
 /**
- * Adapters to make {@link oauth.signpost} work with {@link HttpClient}.
+ * Adapters to make {@code oauth.signpost} work with {@link HttpClient}.
  */
 public final class SignpostAdapters {
 
@@ -38,6 +39,8 @@ public final class SignpostAdapters {
         protected void closeConnection(oauth.signpost.http.HttpRequest request, oauth.signpost.http.HttpResponse response) throws Exception {
             if (response != null) {
                 ((HttpResponse) response).response.disconnect();
+            } else if (request != null) {
+                ((HttpRequest) request).request.disconnect();
             }
         }
     }

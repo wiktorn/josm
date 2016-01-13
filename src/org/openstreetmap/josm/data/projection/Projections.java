@@ -28,11 +28,13 @@ import org.openstreetmap.josm.data.projection.datum.NTV2GridShiftFileWrapper;
 import org.openstreetmap.josm.data.projection.datum.SevenParameterDatum;
 import org.openstreetmap.josm.data.projection.datum.ThreeParameterDatum;
 import org.openstreetmap.josm.data.projection.datum.WGS84Datum;
+import org.openstreetmap.josm.data.projection.proj.AlbersEqualArea;
 import org.openstreetmap.josm.data.projection.proj.ClassProjFactory;
 import org.openstreetmap.josm.data.projection.proj.DoubleStereographic;
 import org.openstreetmap.josm.data.projection.proj.LambertConformalConic;
 import org.openstreetmap.josm.data.projection.proj.LonLat;
 import org.openstreetmap.josm.data.projection.proj.Mercator;
+import org.openstreetmap.josm.data.projection.proj.PolarStereographic;
 import org.openstreetmap.josm.data.projection.proj.Proj;
 import org.openstreetmap.josm.data.projection.proj.ProjFactory;
 import org.openstreetmap.josm.data.projection.proj.SwissObliqueMercator;
@@ -43,8 +45,10 @@ import org.openstreetmap.josm.io.CachedFile;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
- * Class to handle projections
+ * Class to manage projections.
  *
+ * Use this class to query available projection or register new projections
+ * from a plugin.
  */
 public final class Projections {
 
@@ -79,12 +83,14 @@ public final class Projections {
     static final Map<String, ProjectionDefinition> inits;
 
     static {
-        registerBaseProjection("lonlat", LonLat.class, "core");
+        registerBaseProjection("aea", AlbersEqualArea.class, "core");
         registerBaseProjection("josm:smerc", Mercator.class, "core");
         registerBaseProjection("lcc", LambertConformalConic.class, "core");
+        registerBaseProjection("lonlat", LonLat.class, "core");
         registerBaseProjection("somerc", SwissObliqueMercator.class, "core");
-        registerBaseProjection("tmerc", TransverseMercator.class, "core");
+        registerBaseProjection("stere", PolarStereographic.class, "core");
         registerBaseProjection("sterea", DoubleStereographic.class, "core");
+        registerBaseProjection("tmerc", TransverseMercator.class, "core");
 
         ellipsoids.put("airy", Ellipsoid.Airy);
         ellipsoids.put("mod_airy", Ellipsoid.AiryMod);
@@ -156,11 +162,23 @@ public final class Projections {
         // Hide default constructor for utils classes
     }
 
+    /**
+     * Convert from lat/lon to easting/northing using the current projection.
+     *
+     * @param ll the geographical point to convert (in WGS84 lat/lon)
+     * @return the corresponding east/north coordinates
+     */
     public static EastNorth project(LatLon ll) {
         if (ll == null) return null;
         return Main.getProjection().latlon2eastNorth(ll);
     }
 
+    /**
+     * Convert from easting/norting to lat/lon using the current projection.
+     *
+     * @param en the geographical point to convert (in projected coordinates)
+     * @return the corresponding lat/lon (WGS84)
+     */
     public static LatLon inverseProject(EastNorth en) {
         if (en == null) return null;
         return Main.getProjection().eastNorth2latlon(en);
@@ -183,32 +201,55 @@ public final class Projections {
         registerBaseProjection(id, new ClassProjFactory(projClass), origin);
     }
 
+    /**
+     * Get a base projection by id.
+     *
+     * @param id the id, for example "lonlat" or "tmerc"
+     * @return the corresponding base projection if the id is known, null otherwise
+     */
     public static Proj getBaseProjection(String id) {
         ProjFactory fac = projs.get(id);
         if (fac == null) return null;
         return fac.createInstance();
     }
 
+    /**
+     * Get an ellipsoid by id.
+     *
+     * @param id the id, for example "bessel" or "WGS84"
+     * @return the corresponding ellipsoid if the id is known, null otherwise
+     */
     public static Ellipsoid getEllipsoid(String id) {
         return ellipsoids.get(id);
     }
 
+    /**
+     * Get a geodetic datum by id.
+     *
+     * @param id the id, for example "potsdam" or "WGS84"
+     * @return the corresponding datum if the id is known, null otherwise
+     */
     public static Datum getDatum(String id) {
         return datums.get(id);
     }
 
+    /**
+     * Get a NTV2 grid database by id.
+     * @param id the id
+     * @return the corresponding NTV2 grid if the id is known, null otherwise
+     */
     public static NTV2GridShiftFileWrapper getNTV2Grid(String id) {
         return nadgrids.get(id);
     }
 
     /**
-     * Get the projection definition string for the given id.
-     * @param id the id
+     * Get the projection definition string for the given code.
+     * @param code the code
      * @return the string that can be processed by #{link CustomProjection}.
-     * Null, if the id isn't supported.
+     * Null, if the code isn't supported.
      */
-    public static String getInit(String id) {
-        ProjectionDefinition pd = inits.get(id.toUpperCase(Locale.ENGLISH));
+    public static String getInit(String code) {
+        ProjectionDefinition pd = inits.get(code.toUpperCase(Locale.ENGLISH));
         if (pd == null) return null;
         return pd.definition;
     }
@@ -259,6 +300,11 @@ public final class Projections {
         return result;
     }
 
+    /**
+     * Get a projection by code.
+     * @param code the code, e.g. "EPSG:2026"
+     * @return the corresponding projection, if the code is known, null otherwise
+     */
     public static Projection getProjectionByCode(String code) {
         Projection proj = projectionsByCode_cache.get(code);
         if (proj != null) return proj;
@@ -282,8 +328,24 @@ public final class Projections {
         return proj;
     }
 
+    /**
+     * Get a list of all supported projection codes.
+     *
+     * @return all supported projection codes
+     * @see #getProjectionByCode(java.lang.String)
+     */
     public static Collection<String> getAllProjectionCodes() {
         return Collections.unmodifiableCollection(allCodes);
+    }
+
+    /**
+     * Get a list of ids of all registered base projections.
+     *
+     * @return all registered base projection ids
+     * @see #getBaseProjection(java.lang.String)
+     */
+    public static Collection<String> getAllBaseProjectionIds() {
+        return projs.keySet();
     }
 
     private static String listKeys(Map<String, ?> map) {

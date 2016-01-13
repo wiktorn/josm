@@ -443,10 +443,18 @@ public class TagChecker extends TagTest {
                         if (fixedKey != null && !"".equals(fixedKey) && !fixedKey.equals(key)) {
                             // misspelled preset key
                             String i = marktr("Key ''{0}'' looks like ''{1}''.");
-                            errors.add(new FixableTestError(this, Severity.WARNING, tr("Misspelled property key"),
-                                    tr(i, key, fixedKey),
-                                    MessageFormat.format(i, key, fixedKey), MISSPELLED_KEY, p,
-                                    new ChangePropertyKeyCommand(p, key, fixedKey)));
+                            final TestError error;
+                            if (p.hasKey(fixedKey)) {
+                                error = new TestError(this, Severity.WARNING, tr("Misspelled property key"),
+                                        tr(i, key, fixedKey),
+                                        MessageFormat.format(i, key, fixedKey), MISSPELLED_KEY, p);
+                            } else {
+                                error = new FixableTestError(this, Severity.WARNING, tr("Misspelled property key"),
+                                        tr(i, key, fixedKey),
+                                        MessageFormat.format(i, key, fixedKey), MISSPELLED_KEY, p,
+                                        new ChangePropertyKeyCommand(p, key, fixedKey));
+                            }
+                            errors.add(error);
                             withErrors.put(p, "WPK");
                         } else {
                             String i = marktr("Key ''{0}'' not in presets.");
@@ -528,7 +536,7 @@ public class TagChecker extends TagTest {
 
         checkComplex = Main.pref.getBoolean(PREF_CHECK_COMPLEX, true);
         if (isBeforeUpload) {
-            checkComplex = checkValues && Main.pref.getBoolean(PREF_CHECK_COMPLEX_BEFORE_UPLOAD, true);
+            checkComplex = checkComplex && Main.pref.getBoolean(PREF_CHECK_COMPLEX_BEFORE_UPLOAD, true);
         }
 
         checkFixmes = Main.pref.getBoolean(PREF_CHECK_FIXMES, true);

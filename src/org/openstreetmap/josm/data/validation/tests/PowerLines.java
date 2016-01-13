@@ -66,7 +66,7 @@ public class PowerLines extends Test {
                 boolean canFix = false;
                 for (Node n : w.getNodes()) {
                     if (!isPowerTower(n)) {
-                        if (!isPowerAllowed(n)) {
+                        if (!isPowerAllowed(n) && IN_DOWNLOADED_AREA.evaluate(n)) {
                             if (!w.isFirstLastNode(n) || !isPowerStation(n)) {
                                 potentialErrors.add(new PowerLineError(n, w));
                                 erroneous = true;

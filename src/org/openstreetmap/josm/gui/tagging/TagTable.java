@@ -297,8 +297,7 @@ public class TagTable extends JTable  {
                 getCellEditor().stopCellEditing();
             }
             final int rowIdx = model.getRowCount()-1;
-            String key = ((TagModel) model.getValueAt(rowIdx, 0)).getName();
-            if (!key.trim().isEmpty()) {
+            if (rowIdx < 0 || !((TagModel) model.getValueAt(rowIdx, 0)).getName().trim().isEmpty()) {
                 model.appendNewTag();
             }
             requestFocusInCell(model.getRowCount()-1, 0);
@@ -503,6 +502,10 @@ public class TagTable extends JTable  {
             return null;
     }
 
+    /**
+     * Sets the next component to request focus after navigation (with tab or enter).
+     * @param nextFocusComponent next component to request focus after navigation (with tab or enter)
+     */
     public void setNextFocusComponent(Component nextFocusComponent) {
         this.nextFocusComponent = nextFocusComponent;
     }
@@ -511,7 +514,7 @@ public class TagTable extends JTable  {
         return editor;
     }
 
-    public void  addOKAccelatorListener(KeyListener l) {
+    public void addOKAccelatorListener(KeyListener l) {
         addKeyListener(l);
         if (editor != null) {
             editor.getEditor().addKeyListener(l);

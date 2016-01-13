@@ -17,6 +17,7 @@ import javax.xml.datatype.XMLGregorianCalendar;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
+import org.openstreetmap.josm.tools.UncheckedParseException;
 
 /**
  * A static utility class dealing with:
@@ -44,11 +45,13 @@ public final class DateUtils {
      * The shared instance is used because the construction, together
      * with the timezone lookup, is very expensive.
      */
-    private static GregorianCalendar calendar = new GregorianCalendar(TimeZone.getTimeZone("UTC"));
+    private static final GregorianCalendar calendar = new GregorianCalendar(TimeZone.getTimeZone("UTC"));
+    private static final GregorianCalendar calendarLocale = new GregorianCalendar(TimeZone.getDefault());
     private static final DatatypeFactory XML_DATE;
 
     static {
         calendar.setTimeInMillis(0);
+        calendarLocale.setTimeInMillis(0);
 
         DatatypeFactory fact = null;
         try {
@@ -63,8 +66,9 @@ public final class DateUtils {
      * Parses XML date quickly, regardless of current locale.
      * @param str The XML date as string
      * @return The date
+     * @throws UncheckedParseException if the date does not match any of the supported date formats
      */
-    public static synchronized Date fromString(String str) {
+    public static synchronized Date fromString(String str) throws UncheckedParseException {
         return new Date(tsFromString(str));
     }
 
@@ -72,15 +76,18 @@ public final class DateUtils {
      * Parses XML date quickly, regardless of current locale.
      * @param str The XML date as string
      * @return The date in milliseconds since epoch
+     * @throws UncheckedParseException if the date does not match any of the supported date formats
      */
-    public static synchronized long tsFromString(String str) {
+    public static synchronized long tsFromString(String str) throws UncheckedParseException {
         // "2007-07-25T09:26:24{Z|{+|-}01:00}"
         if (checkLayout(str, "xxxx-xx-xxTxx:xx:xxZ") ||
                 checkLayout(str, "xxxx-xx-xxTxx:xx:xx") ||
+                checkLayout(str, "xxxx:xx:xx xx:xx:xx") ||
                 checkLayout(str, "xxxx-xx-xx xx:xx:xx UTC") ||
                 checkLayout(str, "xxxx-xx-xxTxx:xx:xx+xx:00") ||
                 checkLayout(str, "xxxx-xx-xxTxx:xx:xx-xx:00")) {
-            calendar.set(
+            final Calendar c = checkLayout(str, "xxxx:xx:xx xx:xx:xx") ? calendarLocale : calendar; // consider EXIF date in default timezone
+            c.set(
                 parsePart4(str, 0),
                 parsePart2(str, 5)-1,
                 parsePart2(str, 8),
@@ -91,15 +98,17 @@ public final class DateUtils {
             if (str.length() == 25) {
                 int plusHr = parsePart2(str, 20);
                 int mul = str.charAt(19) == '+' ? -3600000 : 3600000;
-                return calendar.getTimeInMillis()+plusHr*mul;
+                return c.getTimeInMillis()+plusHr*mul;
             }
 
-            return calendar.getTimeInMillis();
+            return c.getTimeInMillis();
         } else if (checkLayout(str, "xxxx-xx-xxTxx:xx:xx.xxxZ") ||
                 checkLayout(str, "xxxx-xx-xxTxx:xx:xx.xxx") ||
+                checkLayout(str, "xxxx:xx:xx xx:xx:xx.xxx") ||
                 checkLayout(str, "xxxx-xx-xxTxx:xx:xx.xxx+xx:00") ||
                 checkLayout(str, "xxxx-xx-xxTxx:xx:xx.xxx-xx:00")) {
-            calendar.set(
+            final Calendar c = checkLayout(str, "xxxx:xx:xx xx:xx:xx.xxx") ? calendarLocale : calendar; // consider EXIF date in default timezone
+            c.set(
                 parsePart4(str, 0),
                 parsePart2(str, 5)-1,
                 parsePart2(str, 8),
@@ -111,7 +120,7 @@ public final class DateUtils {
                 millis += parsePart2(str, 24) * (str.charAt(23) == '+' ? -3600000 : 3600000);
             }
 
-            return calendar.getTimeInMillis() + millis;
+            return c.getTimeInMillis() + millis;
         } else {
             // example date format "18-AUG-08 13:33:03"
             SimpleDateFormat f = new SimpleDateFormat("dd-MMM-yy HH:mm:ss");
@@ -123,7 +132,7 @@ public final class DateUtils {
         try {
             return XML_DATE.newXMLGregorianCalendar(str).toGregorianCalendar().getTimeInMillis();
         } catch (Exception ex) {
-            return System.currentTimeMillis();
+            throw new UncheckedParseException("The date string (" + str + ") could not be parsed.");
         }
     }
 
@@ -292,5 +301,13 @@ public final class DateUtils {
     public static String formatDateTime(Date datetime, int dateStyle, int timeStyle) {
         CheckParameterUtil.ensureParameterNotNull(datetime, "datetime");
         return getDateTimeFormat(dateStyle, timeStyle).format(datetime);
+    }
+
+    /**
+     * Allows to override the timezone for unit tests.
+     * @param zone the timezone to use
+     */
+    protected static void setTimeZone(TimeZone zone) {
+        calendarLocale.setTimeZone(zone);
     }
 }

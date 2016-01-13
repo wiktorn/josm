@@ -22,6 +22,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -94,33 +95,16 @@ public class MapCSSTagChecker extends Test.TagTest {
 
         @Override
         public int hashCode() {
-            final int prime = 31;
-            int result = 1;
-            result = prime * result + ((declaration == null) ? 0 : declaration.hashCode());
-            result = prime * result + ((selectors == null) ? 0 : selectors.hashCode());
-            return result;
+            return Objects.hash(selectors, declaration);
         }
 
         @Override
         public boolean equals(Object obj) {
-            if (this == obj)
-                return true;
-            if (obj == null)
-                return false;
-            if (!(obj instanceof GroupedMapCSSRule))
-                return false;
-            GroupedMapCSSRule other = (GroupedMapCSSRule) obj;
-            if (declaration == null) {
-                if (other.declaration != null)
-                    return false;
-            } else if (!declaration.equals(other.declaration))
-                return false;
-            if (selectors == null) {
-                if (other.selectors != null)
-                    return false;
-            } else if (!selectors.equals(other.selectors))
-                return false;
-            return true;
+            if (this == obj) return true;
+            if (obj == null || getClass() != obj.getClass()) return false;
+            GroupedMapCSSRule that = (GroupedMapCSSRule) obj;
+            return Objects.equals(selectors, that.selectors) &&
+                    Objects.equals(declaration, that.declaration);
         }
 
         @Override
@@ -162,6 +146,10 @@ public class MapCSSTagChecker extends Test.TagTest {
 
         /**
          * Evaluates given object as {@link Expression} or {@link String} on the matched {@link OsmPrimitive} and {@code matchingSelector}.
+         * @param obj object to evaluate ({@link Expression} or {@link String})
+         * @param p OSM primitive
+         * @param matchingSelector matching selector
+         * @return result string
          */
         private static String evaluateObject(final Object obj, final OsmPrimitive p, final Selector matchingSelector) {
             final String s;
@@ -177,6 +165,8 @@ public class MapCSSTagChecker extends Test.TagTest {
 
         /**
          * Creates a fixing command which executes a {@link ChangePropertyCommand} on the specified tag.
+         * @param obj object to evaluate ({@link Expression} or {@link String})
+         * @return created fix command
          */
         static FixCommand fixAdd(final Object obj) {
             checkObject(obj);
@@ -192,11 +182,12 @@ public class MapCSSTagChecker extends Test.TagTest {
                     return "fixAdd: " + obj;
                 }
             };
-
         }
 
         /**
          * Creates a fixing command which executes a {@link ChangePropertyCommand} to delete the specified key.
+         * @param obj object to evaluate ({@link Expression} or {@link String})
+         * @return created fix command
          */
         static FixCommand fixRemove(final Object obj) {
             checkObject(obj);
@@ -216,6 +207,9 @@ public class MapCSSTagChecker extends Test.TagTest {
 
         /**
          * Creates a fixing command which executes a {@link ChangePropertyKeyCommand} on the specified keys.
+         * @param oldKey old key
+         * @param newKey new key
+         * @return created fix command
          */
         static FixCommand fixChangeKey(final String oldKey, final String newKey) {
             return new FixCommand() {
@@ -415,6 +409,11 @@ public class MapCSSTagChecker extends Test.TagTest {
         /**
          * Determines the {@code index}-th key/value/tag (depending on {@code type}) of the
          * {@link org.openstreetmap.josm.gui.mappaint.mapcss.Selector.GeneralSelector}.
+         * @param matchingSelector matching selector
+         * @param index index
+         * @param type selector type ("key", "value" or "tag")
+         * @param p OSM primitive
+         * @return argument value, can be {@code null}
          */
         static String determineArgument(Selector.GeneralSelector matchingSelector, int index, String type, OsmPrimitive p) {
             try {
@@ -446,6 +445,10 @@ public class MapCSSTagChecker extends Test.TagTest {
         /**
          * Replaces occurrences of <code>{i.key}</code>, <code>{i.value}</code>, <code>{i.tag}</code> in {@code s} by the corresponding
          * key/value/tag of the {@code index}-th {@link Condition} of {@code matchingSelector}.
+         * @param matchingSelector matching selector
+         * @param s any string
+         * @param p OSM primitive
+         * @return string with arguments inserted
          */
         static String insertArguments(Selector matchingSelector, String s, OsmPrimitive p) {
             if (s != null && matchingSelector instanceof Selector.ChildOrParentSelector) {
@@ -485,7 +488,7 @@ public class MapCSSTagChecker extends Test.TagTest {
             for (FixCommand fixCommand : fixCommands) {
                 cmds.add(fixCommand.createCommand(p, matchingSelector));
             }
-            if (deletion) {
+            if (deletion && !p.isDeleted()) {
                 cmds.add(new DeleteCommand(p));
             }
             return new SequenceCommand(tr("Fix of {0}", getDescriptionForMatchingSelector(p, matchingSelector)), cmds);
@@ -493,6 +496,7 @@ public class MapCSSTagChecker extends Test.TagTest {
 
         /**
          * Constructs a (localized) message for this deprecation check.
+         * @param p OSM primitive
          *
          * @return a message
          */
@@ -512,6 +516,7 @@ public class MapCSSTagChecker extends Test.TagTest {
 
         /**
          * Constructs a (localized) description for this deprecation check.
+         * @param p OSM primitive
          *
          * @return a description (possibly with alternative suggestions)
          * @see #getDescriptionForMatchingSelector
@@ -529,6 +534,8 @@ public class MapCSSTagChecker extends Test.TagTest {
          * Constructs a (localized) description for this deprecation check
          * where any placeholders are replaced by values of the matched selector.
          *
+         * @param matchingSelector matching selector
+         * @param p OSM primitive
          * @return a description (possibly with alternative suggestions)
          */
         String getDescriptionForMatchingSelector(OsmPrimitive p, Selector matchingSelector) {
@@ -636,10 +643,7 @@ public class MapCSSTagChecker extends Test.TagTest {
 
         @Override
         public int hashCode() {
-            final int prime = 31;
-            int result = super.hashCode();
-            result = prime * result + ((rule == null) ? 0 : rule.hashCode());
-            return result;
+            return Objects.hash(super.hashCode(), rule);
         }
 
         @Override
@@ -801,26 +805,15 @@ public class MapCSSTagChecker extends Test.TagTest {
 
     @Override
     public synchronized int hashCode() {
-        final int prime = 31;
-        int result = super.hashCode();
-        result = prime * result + ((checks == null) ? 0 : checks.hashCode());
-        return result;
+        return Objects.hash(super.hashCode(), checks);
     }
 
     @Override
     public synchronized boolean equals(Object obj) {
-        if (this == obj)
-            return true;
-        if (!super.equals(obj))
-            return false;
-        if (!(obj instanceof MapCSSTagChecker))
-            return false;
-        MapCSSTagChecker other = (MapCSSTagChecker) obj;
-        if (checks == null) {
-            if (other.checks != null)
-                return false;
-        } else if (!checks.equals(other.checks))
-            return false;
-        return true;
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        if (!super.equals(obj)) return false;
+        MapCSSTagChecker that = (MapCSSTagChecker) obj;
+        return Objects.equals(checks, that.checks);
     }
 }

@@ -10,7 +10,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -26,8 +25,10 @@ import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.Tag;
 import org.openstreetmap.josm.gui.PleaseWaitRunnable;
-import org.openstreetmap.josm.gui.mappaint.StyleCache.StyleList;
 import org.openstreetmap.josm.gui.mappaint.mapcss.MapCSSStyleSource;
+import org.openstreetmap.josm.gui.mappaint.styleelement.MapImage;
+import org.openstreetmap.josm.gui.mappaint.styleelement.NodeElement;
+import org.openstreetmap.josm.gui.mappaint.styleelement.StyleElement;
 import org.openstreetmap.josm.gui.mappaint.xml.XmlStyleSource;
 import org.openstreetmap.josm.gui.preferences.SourceEntry;
 import org.openstreetmap.josm.gui.preferences.map.MapPaintPreference.MapPaintPrefHelper;
@@ -81,11 +82,9 @@ public final class MapPaintStyles {
     }
 
     /**
-     * IconReference is used to remember the associated style source for
-     * each icon URL.
+     * IconReference is used to remember the associated style source for each icon URL.
      * This is necessary because image URLs can be paths relative
-     * to the source file and we have cascading of properties from different
-     * source files.
+     * to the source file and we have cascading of properties from different source files.
      */
     public static class IconReference {
 
@@ -104,8 +103,7 @@ public final class MapPaintStyles {
     }
 
     /**
-     * Image provider for icon. Note that this is a provider only. A @link{ImageProvider#get()} call may still
-     * fail!
+     * Image provider for icon. Note that this is a provider only. A @link{ImageProvider#get()} call may still fail!
      *
      * @param ref reference to the requested icon
      * @param test if <code>true</code> than the icon is request is tested
@@ -122,7 +120,9 @@ public final class MapPaintStyles {
                 .setInArchiveDir(ref.source.getZipEntryDirName())
                 .setOptional(true);
         if (test && i.get() == null) {
-            Main.warn("Mappaint style \""+namespace+"\" ("+ref.source.getDisplayString()+") icon \"" + ref.iconName + "\" not found.");
+            String msg = "Mappaint style \""+namespace+"\" ("+ref.source.getDisplayString()+") icon \"" + ref.iconName + "\" not found.";
+            ref.source.logWarning(msg);
+            Main.warn(msg);
             return null;
         }
         return i;
@@ -149,6 +149,7 @@ public final class MapPaintStyles {
 
     /**
      * No icon with the given name was found, show a dummy icon instead
+     * @param source style source
      * @return the icon misc/no_icon.png, in descending priority:
      *   - relative to source file
      *   - from user icon paths
@@ -179,7 +180,7 @@ public final class MapPaintStyles {
             DataSet ds = new DataSet();
             Node virtualNode = new Node(LatLon.ZERO);
             virtualNode.put(tag.getKey(), tag.getValue());
-            StyleList styleList;
+            StyleElementList styleList;
             MapCSSStyleSource.STYLE_SOURCE_LOCK.readLock().lock();
             try {
                 // Add primitive to dataset to avoid DataIntegrityProblemException when evaluating selectors
@@ -190,9 +191,9 @@ public final class MapPaintStyles {
                 MapCSSStyleSource.STYLE_SOURCE_LOCK.readLock().unlock();
             }
             if (styleList != null) {
-                for (ElemStyle style : styleList) {
-                    if (style instanceof NodeElemStyle) {
-                        MapImage mapImage = ((NodeElemStyle) style).mapImage;
+                for (StyleElement style : styleList) {
+                    if (style instanceof NodeElement) {
+                        MapImage mapImage = ((NodeElement) style).mapImage;
                         if (mapImage != null) {
                             if (includeDeprecatedIcon || mapImage.name == null || !"misc/deprecated.png".equals(mapImage.name)) {
                                 return new ImageIcon(mapImage.getImage(false));
@@ -266,11 +267,11 @@ public final class MapPaintStyles {
                 Main.error(e);
             }
         }
-        if (Main.isDebugEnabled() || !source.getErrors().isEmpty()) {
+        if (Main.isDebugEnabled() || !source.isValid()) {
             final long elapsedTime = System.currentTimeMillis() - startTime;
             String message = "Initializing map style " + source.url + " completed in " + Utils.getDurationString(elapsedTime);
-            if (!source.getErrors().isEmpty()) {
-                Main.warn(message + " (" + source.getErrors().size() + " errors)");
+            if (!source.isValid()) {
+                Main.warn(message + " (" + source.getErrors().size() + " errors, " + source.getWarnings().size() + " warnings)");
             } else {
                 Main.debug(message);
             }
@@ -441,9 +442,9 @@ public final class MapPaintStyles {
     /**
      * Add a new map paint style.
      * @param entry map paint style
-     * @return list of errors that occured during loading
+     * @return loaded style source, or {@code null}
      */
-    public static Collection<Throwable> addStyle(SourceEntry entry) {
+    public static StyleSource addStyle(SourceEntry entry) {
         StyleSource source = fromSourceEntry(entry);
         if (source != null) {
             styles.add(source);
@@ -454,9 +455,8 @@ public final class MapPaintStyles {
             if (Main.isDisplayingMapView()) {
                 Main.map.mapView.repaint();
             }
-            return source.getErrors();
         }
-        return Collections.emptyList();
+        return source;
     }
 
     /***********************************

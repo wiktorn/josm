@@ -4,7 +4,6 @@ package org.openstreetmap.josm.gui.io;
 import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.Component;
-import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -13,6 +12,8 @@ import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.Enumeration;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -21,6 +22,7 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.gui.PleaseWaitDialog;
 import org.openstreetmap.josm.gui.PleaseWaitRunnable;
 import org.openstreetmap.josm.tools.HttpClient;
+import org.openstreetmap.josm.tools.Utils;
 import org.xml.sax.SAXException;
 
 /**
@@ -66,7 +68,7 @@ public class DownloadFileTask extends PleaseWaitRunnable {
     }
 
     private boolean canceled;
-    private HttpClient.Response downloadConnection;
+    private HttpClient downloadConnection;
 
     private synchronized void closeConnectionIfNeeded() {
         if (downloadConnection != null) {
@@ -100,15 +102,16 @@ public class DownloadFileTask extends PleaseWaitRunnable {
             URL url = new URL(address);
             long size;
             synchronized (this) {
-                downloadConnection = HttpClient.create(url).useCache(false).connect();
-                size = downloadConnection.getContentLength();
+                downloadConnection = HttpClient.create(url).useCache(false);
+                downloadConnection.connect();
+                size = downloadConnection.getResponse().getContentLength();
             }
 
             progressMonitor.setTicksCount(100);
             progressMonitor.subTask(tr("Downloading File {0}: {1} bytes...", file.getName(), size));
 
             try (
-                InputStream in = downloadConnection.getContent();
+                InputStream in = downloadConnection.getResponse().getContent();
                 OutputStream out = new FileOutputStream(file)
             ) {
                 byte[] buffer = new byte[32768];
@@ -130,7 +133,7 @@ public class DownloadFileTask extends PleaseWaitRunnable {
                 if (unpack) {
                     Main.info(tr("Unpacking {0} into {1}", file.getAbsolutePath(), file.getParent()));
                     unzipFileRecursively(file, file.getParent());
-                    file.delete();
+                    Utils.deleteFile(file);
                 }
             }
         } catch (MalformedURLException e) {
@@ -181,15 +184,8 @@ public class DownloadFileTask extends PleaseWaitRunnable {
                 File newFile = new File(dir, ze.getName());
                 if (ze.isDirectory()) {
                     newFile.mkdirs();
-                } else try (
-                    InputStream is = zf.getInputStream(ze);
-                    OutputStream os = new BufferedOutputStream(new FileOutputStream(newFile))
-                ) {
-                    byte[] buffer = new byte[8192];
-                    int read;
-                    while ((read = is.read(buffer)) != -1) {
-                        os.write(buffer, 0, read);
-                    }
+                } else try (InputStream is = zf.getInputStream(ze)) {
+                    Files.copy(is, newFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
                 }
             }
         }

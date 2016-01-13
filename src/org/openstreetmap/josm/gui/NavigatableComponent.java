@@ -207,7 +207,7 @@ public class NavigatableComponent extends JComponent implements Helpful {
 
     /**
      * Get the distance in meter that correspond to 100 px on screen.
-     * 
+     *
      * @return the distance in meter that correspond to 100 px on screen
      */
     public double getDist100Pixel() {
@@ -216,7 +216,7 @@ public class NavigatableComponent extends JComponent implements Helpful {
 
     /**
      * Get the distance in meter that correspond to 100 px on screen.
-     * 
+     *
      * @param alwaysPositive if true, makes sure the return value is always
      * &gt; 0. (Two points 100 px apart can appear to be identical if the user
      * has zoomed out a lot and the projection code does something funny.)
@@ -310,32 +310,20 @@ public class NavigatableComponent extends JComponent implements Helpful {
         return getLatLon((int) x, (int) y);
     }
 
+    public ProjectionBounds getProjectionBounds(Rectangle r) {
+        EastNorth p1 = getEastNorth(r.x, r.y);
+        EastNorth p2 = getEastNorth(r.x + r.width, r.y + r.height);
+        ProjectionBounds pb = new ProjectionBounds(p1);
+        pb.extend(p2);
+        return pb;
+    }
+    
     /**
      * @param r rectangle
      * @return Minimum bounds that will cover rectangle
      */
     public Bounds getLatLonBounds(Rectangle r) {
-        // TODO Maybe this should be (optional) method of Projection implementation
-        EastNorth p1 = getEastNorth(r.x, r.y);
-        EastNorth p2 = getEastNorth(r.x + r.width, r.y + r.height);
-
-        Bounds result = new Bounds(Main.getProjection().eastNorth2latlon(p1));
-
-        double eastMin = Math.min(p1.east(), p2.east());
-        double eastMax = Math.max(p1.east(), p2.east());
-        double northMin = Math.min(p1.north(), p2.north());
-        double northMax = Math.max(p1.north(), p2.north());
-        double deltaEast = (eastMax - eastMin) / 10;
-        double deltaNorth = (northMax - northMin) / 10;
-
-        for (int i = 0; i < 10; i++) {
-            result.extend(Main.getProjection().eastNorth2latlon(new EastNorth(eastMin + i * deltaEast, northMin)));
-            result.extend(Main.getProjection().eastNorth2latlon(new EastNorth(eastMin + i * deltaEast, northMax)));
-            result.extend(Main.getProjection().eastNorth2latlon(new EastNorth(eastMin, northMin  + i * deltaNorth)));
-            result.extend(Main.getProjection().eastNorth2latlon(new EastNorth(eastMax, northMin  + i * deltaNorth)));
-        }
-
-        return result;
+        return Main.getProjection().getLatLonBoundsBox(getProjectionBounds(r));
     }
 
     public AffineTransform getAffineTransform() {
@@ -438,7 +426,7 @@ public class NavigatableComponent extends JComponent implements Helpful {
         // don't zoom in too much, minimum: 100 px = 1 cm
         LatLon ll1 = getLatLon(width / 2 - 50, height / 2);
         LatLon ll2 = getLatLon(width / 2 + 50, height / 2);
-        if (ll1.isValid() && ll1.isValid() && b.contains(ll1) && b.contains(ll2)) {
+        if (ll1.isValid() && ll2.isValid() && b.contains(ll1) && b.contains(ll2)) {
             double d_m = ll1.greatCircleDistance(ll2);
             double d_en = 100 * scale;
             double scaleMin = 0.01 * d_en / d_m / 100;
@@ -497,8 +485,8 @@ public class NavigatableComponent extends JComponent implements Helpful {
     }
 
     /**
-     * Create a thread that moves the viewport to the given center in an
-     * animated fashion.
+     * Create a thread that moves the viewport to the given center in an animated fashion.
+     * @param newCenter new east/north center
      */
     public void smoothScrollTo(EastNorth newCenter) {
         // FIXME make these configurable.
@@ -582,6 +570,7 @@ public class NavigatableComponent extends JComponent implements Helpful {
 
     /**
      * Set the new dimension to the view.
+     * @param box box to zoom to
      */
     public void zoomTo(BoundingXYVisitor box) {
         if (box == null) {
@@ -598,16 +587,16 @@ public class NavigatableComponent extends JComponent implements Helpful {
     }
 
     private class ZoomData {
-        private final LatLon center;
+        private final EastNorth center;
         private final double scale;
 
         ZoomData(EastNorth center, double scale) {
-            this.center = Projections.inverseProject(center);
+            this.center = center;
             this.scale = scale;
         }
 
         public EastNorth getCenterEastNorth() {
-            return getProjection().latlon2eastNorth(center);
+            return center;
         }
 
         public double getScale() {
@@ -661,15 +650,14 @@ public class NavigatableComponent extends JComponent implements Helpful {
     }
 
     /**
-     * The *result* does not depend on the current map selection state,
-     * neither does the result *order*.
+     * The *result* does not depend on the current map selection state, neither does the result *order*.
      * It solely depends on the distance to point p.
+     * @param p point
+     * @param predicate predicate to match
      *
-     * @return a sorted map with the keys representing the distance of
-     *      their associated nodes to point p.
+     * @return a sorted map with the keys representing the distance of their associated nodes to point p.
      */
-    private Map<Double, List<Node>> getNearestNodesImpl(Point p,
-            Predicate<OsmPrimitive> predicate) {
+    private Map<Double, List<Node>> getNearestNodesImpl(Point p, Predicate<OsmPrimitive> predicate) {
         Map<Double, List<Node>> nearestMap = new TreeMap<>();
         DataSet ds = getCurrentDataSet();
 
@@ -767,17 +755,16 @@ public class NavigatableComponent extends JComponent implements Helpful {
      * Else the nearest new/id=0 node within about the same distance
      * as the true nearest node is returned.
      *
-     * If no such node is found either, the true nearest
-     * node to p is returned.
+     * If no such node is found either, the true nearest node to p is returned.
      *
      * Finally, if a node is not found at all, null is returned.
      *
      * @param p the screen point
      * @param predicate this parameter imposes a condition on the returned object, e.g.
      *        give the nearest node that is tagged.
+     * @param useSelected make search depend on selection
      *
-     * @return A node within snap-distance to point p,
-     *      that is chosen by the algorithm described.
+     * @return A node within snap-distance to point p, that is chosen by the algorithm described.
      */
     public final Node getNearestNode(Point p, Predicate<OsmPrimitive> predicate, boolean useSelected) {
         return getNearestNode(p, predicate, useSelected, null);
@@ -794,18 +781,17 @@ public class NavigatableComponent extends JComponent implements Helpful {
      * Else the nearest new/id=0 node within about the same distance
      * as the true nearest node is returned.
      *
-     * If no such node is found either, the true nearest
-     * node to p is returned.
+     * If no such node is found either, the true nearest node to p is returned.
      *
      * Finally, if a node is not found at all, null is returned.
      *
      * @param p the screen point
      * @param predicate this parameter imposes a condition on the returned object, e.g.
      *        give the nearest node that is tagged.
+     * @param useSelected make search depend on selection
      * @param preferredRefs primitives, whose nodes we prefer
      *
-     * @return A node within snap-distance to point p,
-     *      that is chosen by the algorithm described.
+     * @return A node within snap-distance to point p, that is chosen by the algorithm described.
      * @since 6065
      */
     public final Node getNearestNode(Point p, Predicate<OsmPrimitive> predicate,
@@ -871,15 +857,16 @@ public class NavigatableComponent extends JComponent implements Helpful {
     }
 
     /**
-     * The *result* does not depend on the current map selection state,
-     * neither does the result *order*.
+     * The *result* does not depend on the current map selection state, neither does the result *order*.
      * It solely depends on the distance to point p.
+     * @param p the screen point
+     * @param predicate this parameter imposes a condition on the returned object, e.g.
+     *        give the nearest node that is tagged.
      *
      * @return a sorted map with the keys representing the perpendicular
      *      distance of their associated way segments to point p.
      */
-    private Map<Double, List<WaySegment>> getNearestWaySegmentsImpl(Point p,
-            Predicate<OsmPrimitive> predicate) {
+    private Map<Double, List<WaySegment>> getNearestWaySegmentsImpl(Point p, Predicate<OsmPrimitive> predicate) {
         Map<Double, List<WaySegment>> nearestMap = new TreeMap<>();
         DataSet ds = getCurrentDataSet();
 
@@ -1413,17 +1400,25 @@ public class NavigatableComponent extends JComponent implements Helpful {
 
     /**
      * Set new cursor.
+     * @param cursor The new cursor to use.
+     * @param reference A reference object that can be passed to the next set/reset calls to identify the caller.
      */
     public void setNewCursor(Cursor cursor, Object reference) {
         cursorManager.setNewCursor(cursor, reference);
     }
 
+    /**
+     * Set new cursor.
+     * @param cursor the type of predefined cursor
+     * @param reference A reference object that can be passed to the next set/reset calls to identify the caller.
+     */
     public void setNewCursor(int cursor, Object reference) {
         setNewCursor(Cursor.getPredefinedCursor(cursor), reference);
     }
 
     /**
      * Remove the new cursor and reset to previous
+     * @param reference Cursor reference
      */
     public void resetCursor(Object reference) {
         cursorManager.resetCursor(reference);
