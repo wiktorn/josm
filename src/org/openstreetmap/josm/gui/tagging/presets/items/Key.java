@@ -16,7 +16,7 @@ import org.openstreetmap.josm.data.osm.Tag;
 public class Key extends KeyedItem {
 
     /** The hardcoded value for key */
-    public String value;
+    public String value; // NOSONAR
 
     @Override
     public boolean addToPanel(JPanel p, Collection<OsmPrimitive> sel, boolean presetInitiallyMatches) {
@@ -25,7 +25,15 @@ public class Key extends KeyedItem {
 
     @Override
     public void addCommands(List<Tag> changedTags) {
-        changedTags.add(new Tag(key, value));
+        changedTags.add(asTag());
+    }
+
+    /**
+     * Returns the {@link Tag} set by this item
+     * @return the tag
+     */
+    public Tag asTag() {
+        return new Tag(key, value);
     }
 
     @Override

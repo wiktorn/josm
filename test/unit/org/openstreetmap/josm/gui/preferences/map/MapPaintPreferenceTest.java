@@ -6,11 +6,14 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.openstreetmap.josm.JOSMFixture;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles.IconReference;
@@ -29,6 +32,12 @@ import org.openstreetmap.josm.gui.preferences.SourceEditor.ExtendedSourceEntry;
 public class MapPaintPreferenceTest {
 
     /**
+     * Global timeout applied to all test methods.
+     */
+    @Rule
+    public Timeout globalTimeout = Timeout.seconds(10*60);
+
+    /**
      * Setup test.
      */
     @BeforeClass
@@ -41,7 +50,7 @@ public class MapPaintPreferenceTest {
      * @throws IOException if any I/O error occurs
      * @throws ParseException if the config file does not match MapCSS syntax
      */
-    @Test(timeout = 10*60*1000)
+    @Test
     public void testValidityOfAvailableStyles() throws ParseException, IOException {
         Collection<ExtendedSourceEntry> sources = new MapPaintPreference.MapPaintSourceEditor()
                 .loadAndGetAvailableSources();
@@ -70,14 +79,18 @@ public class MapPaintPreferenceTest {
                         }
                     }
                 }
-                System.out.println(style.isValid() ? " => OK" : " => KO");
-                Collection<Throwable> errors = style.getErrors();
-                Collection<String> warnings = style.getWarnings();
-                if (!errors.isEmpty()) {
-                    allErrors.put(source.url, errors);
-                }
-                if (!warnings.isEmpty()) {
-                    allWarnings.put(source.url, warnings);
+                if (style != null) {
+                    System.out.println(style.isValid() ? " => OK" : " => KO");
+                    Collection<Throwable> errors = style.getErrors();
+                    Collection<String> warnings = style.getWarnings();
+                    if (!errors.isEmpty()) {
+                        allErrors.put(source.url, errors);
+                    }
+                    if (!warnings.isEmpty()) {
+                        allWarnings.put(source.url, warnings);
+                    }
+                } else {
+                    allWarnings.put(source.url, Collections.singleton("MapPaintStyles.addStyle() returned null"));
                 }
             }
         }

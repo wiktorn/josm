@@ -320,6 +320,10 @@ node[building=garages] {
     set icon_z17;
     text: auto;
 }
+node[building=transformer_tower] {
+    icon-image: "power/transformer_tower.svg";
+    text: auto;
+}
 node[entrance=yes],
 node[entrance=staircase] {
     icon-image: "misc/entrance-yes.png";
@@ -1129,6 +1133,11 @@ node[piste:type=snow_park] {
 /* power tags */
 /**************/
 
+node[power=portal] {
+    icon-image: "power/portal.svg";
+    set icon_z17;
+    text: auto;
+}
 node[power=tower] {
     icon-image: "power/tower.svg";
     set icon_z17;
@@ -1144,6 +1153,12 @@ node[power=pole][transformer=distribution] {
     set icon_z17;
     text: auto;
 }
+node[power=insulator] {
+    icon-image: "power/insulator.svg";
+    set icon_z17;
+    text: auto;
+}
+way[power=portal],
 way[power=line],
 way[power=minor_line] {
     width: 1;
@@ -1171,7 +1186,7 @@ area[power=converter],
 area[power=generator] {
     fill-color: power#eeeeee;
 }
-node[power=cable_distribution_cabinet] {
+node[man_made=street_cabinet][street_cabinet=power] {
     icon-image: "power/cable_distribution_cabinet.svg";
     set icon_z17;
     text: auto;
@@ -4887,6 +4902,13 @@ node|z19-[setting("shrink_nodes")]:connection   { symbol-size: 6; }
 node[!setting("shrink_nodes")]                  { symbol-size: 4; }
 way > node[!setting("shrink_nodes")]            { symbol-size: 4; }
 node[!setting("shrink_nodes")]:connection       { symbol-size: 6; }
+
+node:selected {
+    symbol-shape: square;
+    symbol-size: 6;
+    symbol-fill-color: node_selected#ff0000;
+    symbol-stroke-color: node_selected#ff0000;
+}
 
 node|z-16[setting("hide_icons")].icon_z17!.icon_z0,
 relation|z-16[type=restriction][setting("hide_icons")] {
