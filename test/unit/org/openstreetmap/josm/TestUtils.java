@@ -3,8 +3,18 @@ package org.openstreetmap.josm;
 
 import static org.junit.Assert.fail;
 
+import java.awt.Component;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Comparator;
+
+import org.openstreetmap.josm.gui.progress.AbstractProgressMonitor;
+import org.openstreetmap.josm.gui.progress.CancelHandler;
+import org.openstreetmap.josm.gui.progress.ProgressMonitor;
+import org.openstreetmap.josm.gui.progress.ProgressTaskId;
+import org.openstreetmap.josm.io.Compression;
 
 /**
  * Various utils, useful for unit tests.
@@ -45,6 +55,17 @@ public final class TestUtils {
      */
     public static String getRegressionDataFile(int ticketid, String filename) {
         return getRegressionDataDir(ticketid) + '/' + filename;
+    }
+
+    /**
+     * Gets input stream to given file in test data directory for given ticket id.
+     * @param ticketid Ticket numeric identifier
+     * @param filename File name
+     * @return path to given file in test data directory for given ticket id
+     * @throws IOException if any I/O error occurs
+     */
+    public static InputStream getRegressionDataStream(int ticketid, String filename) throws IOException {
+        return Compression.getUncompressedFileInputStream(new File(getRegressionDataDir(ticketid) + '/' + filename));
     }
 
     /**
@@ -127,5 +148,54 @@ public final class TestUtils {
         int dashPos = version.indexOf('-');
         return Integer.parseInt(version.substring(0,
                 dotPos > -1 ? dotPos : dashPos > -1 ? dashPos : 1));
+    }
+
+    /**
+     * Returns an instance of {@link AbstractProgressMonitor} which keeps track of the monitor state,
+     * but does not show the progress.
+     * @return a progress monitor
+     */
+    public static ProgressMonitor newTestProgressMonitor() {
+        return new AbstractProgressMonitor(new CancelHandler()) {
+
+            @Override
+            protected void doBeginTask() {
+            }
+
+            @Override
+            protected void doFinishTask() {
+            }
+
+            @Override
+            protected void doSetIntermediate(boolean value) {
+            }
+
+            @Override
+            protected void doSetTitle(String title) {
+            }
+
+            @Override
+            protected void doSetCustomText(String title) {
+            }
+
+            @Override
+            protected void updateProgress(double value) {
+            }
+
+            @Override
+            public void setProgressTaskId(ProgressTaskId taskId) {
+            }
+
+            @Override
+            public ProgressTaskId getProgressTaskId() {
+                return null;
+            }
+
+            @Override
+            public Component getWindowParent() {
+                return null;
+            }
+
+        };
     }
 }

@@ -12,12 +12,16 @@ import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.data.Version;
 import org.openstreetmap.josm.data.osm.Changeset;
+import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.gui.tagging.TagEditorPanel;
 import org.openstreetmap.josm.gui.tagging.TagModel;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 
+/**
+ * Tag settings panel of upload dialog.
+ * @since 2599
+ */
 public class TagSettingsPanel extends JPanel implements TableModelListener {
 
     /** checkbox for selecting whether an atomic upload is to be used  */
@@ -25,13 +29,6 @@ public class TagSettingsPanel extends JPanel implements TableModelListener {
     /** the model for the changeset comment */
     private final transient ChangesetCommentModel changesetCommentModel;
     private final transient ChangesetCommentModel changesetSourceModel;
-    /** tags that applied to uploaded changesets by default*/
-    private final transient Map<String, String> defaultTags = new HashMap<>();
-
-    protected void build() {
-        setLayout(new BorderLayout());
-        add(pnlTagEditor, BorderLayout.CENTER);
-    }
 
     /**
      * Creates a new panel
@@ -51,56 +48,40 @@ public class TagSettingsPanel extends JPanel implements TableModelListener {
         pnlTagEditor.getModel().addTableModelListener(this);
     }
 
+    protected void build() {
+        setLayout(new BorderLayout());
+        add(pnlTagEditor, BorderLayout.CENTER);
+    }
+
     protected void setProperty(String key, String value) {
-        if (value == null) {
-            value = "";
-        }
-        value = value.trim();
+        String val = (value == null ? "" : value).trim();
         String commentInTag = getTagEditorValue(key);
-        if (value.equals(commentInTag))
+        if (val.equals(commentInTag))
             return;
 
-        if (value.isEmpty()) {
+        if (val.isEmpty()) {
             pnlTagEditor.getModel().delete(key);
             return;
         }
         TagModel tag = pnlTagEditor.getModel().get(key);
         if (tag == null) {
-            tag = new TagModel(key, value);
+            tag = new TagModel(key, val);
             pnlTagEditor.getModel().add(tag);
         } else {
-            pnlTagEditor.getModel().updateTagValue(tag, value);
+            pnlTagEditor.getModel().updateTagValue(tag, val);
         }
     }
 
     protected String getTagEditorValue(String key) {
         TagModel tag = pnlTagEditor.getModel().get(key);
-        if (tag == null) return null;
-        return tag.getValue();
+        return tag == null ? null : tag.getValue();
     }
 
     /**
-     * Initialize panel from changeset.
-     * @param cs changeset
+     * Initialize panel from the given tags.
+     * @param tags the tags used to initialize the panel
      */
-    public void initFromChangeset(Changeset cs) {
-        Map<String, String> tags = getDefaultTags();
-        if (cs != null) {
-            tags.putAll(cs.getKeys());
-        }
-        if (tags.get("comment") == null) {
-            tags.put("comment", getTagEditorValue("comment"));
-        }
-        if (tags.get("source") == null) {
-            tags.put("source", getTagEditorValue("source"));
-        }
-        String agent = Version.getInstance().getAgentString(false);
-        String created_by = tags.get("created_by");
-        if (created_by == null || created_by.isEmpty()) {
-            tags.put("created_by", agent);
-        } else if (!created_by.contains(agent)) {
-            tags.put("created_by", created_by + ';' + agent);
-        }
+    public void initFromTags(Map<String, String> tags) {
         pnlTagEditor.getModel().initFromTags(tags);
     }
 
@@ -114,25 +95,26 @@ public class TagSettingsPanel extends JPanel implements TableModelListener {
     }
 
     /**
-     * Replies the map with the default tags.
-     * @return the map with the default tags
+     * @return an empty map
+     * @deprecated No longer supported, returns an empty map
      */
+    @Deprecated
     public Map<String, String> getDefaultTags() {
-        Map<String, String> tags = new HashMap<>();
-        tags.putAll(defaultTags);
-        return tags;
+        return new HashMap<>();
     }
 
     /**
-     * Sets the map with the default tags.
-     * @param tags the map with the default tags
+     * @param tags ignored
+     * @deprecated No longer supported, does nothing; use {@link UploadDialog#setChangesetTags(DataSet)} instead!
      */
+    @Deprecated
     public void setDefaultTags(Map<String, String> tags) {
-        defaultTags.clear();
-        defaultTags.putAll(tags);
-        tableChanged(null);
+        // Deprecated
     }
 
+    /**
+     * Initializes the panel for user input
+     */
     public void startUserInput() {
         pnlTagEditor.initAutoCompletion(Main.main.getEditLayer());
     }
@@ -149,7 +131,6 @@ public class TagSettingsPanel extends JPanel implements TableModelListener {
     /**
      * Observes the changeset comment model and keeps the tag editor in sync
      * with the current changeset comment
-     *
      */
     class ChangesetCommentObserver implements Observer {
 
@@ -161,14 +142,15 @@ public class TagSettingsPanel extends JPanel implements TableModelListener {
 
         @Override
         public void update(Observable o, Object arg) {
-            if (!(o instanceof ChangesetCommentModel)) return;
-            String newValue = (String) arg;
-            String oldValue = getTagEditorValue(key);
-            if (oldValue == null) {
-                oldValue = "";
-            }
-            if (!oldValue.equals(newValue)) {
-                setProperty(key, (String) arg);
+            if (o instanceof ChangesetCommentModel) {
+                String newValue = (String) arg;
+                String oldValue = getTagEditorValue(key);
+                if (oldValue == null) {
+                    oldValue = "";
+                }
+                if (!oldValue.equals(newValue)) {
+                    setProperty(key, (String) arg);
+                }
             }
         }
     }

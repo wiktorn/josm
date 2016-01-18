@@ -310,8 +310,6 @@ public class UploadPrimitivesTask extends AbstractUploadTask {
     }
 
     @Override protected void finish() {
-        if (uploadCanceled)
-            return;
 
         // depending on the success of the upload operation and on the policy for
         // multi changeset uploads this will sent the user back to the appropriate
@@ -329,6 +327,7 @@ public class UploadPrimitivesTask extends AbstractUploadTask {
                 if (changeset != null && changeset.isOpen()) {
                     UploadDialog.getUploadDialog().setSelectedChangesetForNextUpload(changeset);
                 }
+                if (uploadCanceled) return;
                 if (lastException == null) {
                     new Notification(
                             "<h3>" + tr("Upload successful!") + "</h3>")

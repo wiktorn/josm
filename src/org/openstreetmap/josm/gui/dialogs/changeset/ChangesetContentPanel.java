@@ -35,6 +35,7 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.AutoScaleAction;
 import org.openstreetmap.josm.data.osm.Changeset;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
+import org.openstreetmap.josm.data.osm.PrimitiveId;
 import org.openstreetmap.josm.data.osm.history.History;
 import org.openstreetmap.josm.data.osm.history.HistoryDataSet;
 import org.openstreetmap.josm.data.osm.history.HistoryOsmPrimitive;
@@ -44,12 +45,14 @@ import org.openstreetmap.josm.gui.MapView.EditLayerChangeListener;
 import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.history.HistoryBrowserDialogManager;
 import org.openstreetmap.josm.gui.history.HistoryLoadTask;
+import org.openstreetmap.josm.gui.io.DownloadPrimitivesWithReferrersTask;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel;
 import org.openstreetmap.josm.gui.widgets.PopupMenuLauncher;
 import org.openstreetmap.josm.tools.BugReportExceptionHandler;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Utils;
 
 /**
  * The panel which displays the content of a changeset in a scrollable table.
@@ -58,7 +61,7 @@ import org.openstreetmap.josm.tools.ImageProvider;
  * and updates its view accordingly.
  *
  */
-public class ChangesetContentPanel extends JPanel implements PropertyChangeListener {
+public class ChangesetContentPanel extends JPanel implements PropertyChangeListener, ChangesetAware {
 
     private ChangesetContentTableModel model;
     private transient Changeset currentChangeset;
@@ -69,12 +72,17 @@ public class ChangesetContentPanel extends JPanel implements PropertyChangeListe
     private ZoomInCurrentLayerAction actZoomInCurrentLayerAction;
 
     private final HeaderPanel pnlHeader = new HeaderPanel();
+    public DownloadObjectAction actDownloadObjectAction;
 
     protected void buildModels() {
         DefaultListSelectionModel selectionModel = new DefaultListSelectionModel();
         model = new ChangesetContentTableModel(selectionModel);
-        actDownloadContentAction = new DownloadChangesetContentAction();
-        actDownloadContentAction.initProperties(currentChangeset);
+        actDownloadContentAction = new DownloadChangesetContentAction(this);
+        actDownloadContentAction.initProperties();
+
+        actDownloadObjectAction = new DownloadObjectAction();
+        model.getSelectionModel().addListSelectionListener(actDownloadObjectAction);
+
         actShowHistory = new ShowHistoryAction();
         model.getSelectionModel().addListSelectionListener(actShowHistory);
 
@@ -117,7 +125,10 @@ public class ChangesetContentPanel extends JPanel implements PropertyChangeListe
         tb.setFloatable(false);
 
         tb.add(actDownloadContentAction);
+        tb.addSeparator();
+        tb.add(actDownloadObjectAction);
         tb.add(actShowHistory);
+        tb.addSeparator();
         tb.add(actSelectInCurrentLayerAction);
         tb.add(actZoomInCurrentLayerAction);
 
@@ -157,7 +168,7 @@ public class ChangesetContentPanel extends JPanel implements PropertyChangeListe
         } else {
             model.populate(cs.getContent());
         }
-        actDownloadContentAction.initProperties(cs);
+        actDownloadContentAction.initProperties();
         pnlHeader.setChangeset(cs);
     }
 
@@ -186,46 +197,11 @@ public class ChangesetContentPanel extends JPanel implements PropertyChangeListe
         );
     }
 
-    /**
-     * Downloads/Updates the content of the changeset
-     *
-     */
-    class DownloadChangesetContentAction extends AbstractAction {
-        DownloadChangesetContentAction() {
-            putValue(NAME, tr("Download content"));
-            putValue(SMALL_ICON, ChangesetCacheManager.DOWNLOAD_CONTENT_ICON);
-            putValue(SHORT_DESCRIPTION, tr("Download the changeset content from the OSM server"));
-        }
-
-        @Override
-        public void actionPerformed(ActionEvent evt) {
-            if (currentChangeset == null) return;
-            ChangesetContentDownloadTask task = new ChangesetContentDownloadTask(ChangesetContentPanel.this, currentChangeset.getId());
-            ChangesetCacheManager.getInstance().runDownloadTask(task);
-        }
-
-        public void initProperties(Changeset cs) {
-            if (cs == null) {
-                setEnabled(false);
-                return;
-            } else {
-                setEnabled(true);
-            }
-            if (cs.getContent() == null) {
-                putValue(NAME, tr("Download content"));
-                putValue(SMALL_ICON, ChangesetCacheManager.DOWNLOAD_CONTENT_ICON);
-                putValue(SHORT_DESCRIPTION, tr("Download the changeset content from the OSM server"));
-            } else {
-                putValue(NAME, tr("Update content"));
-                putValue(SMALL_ICON, ChangesetCacheManager.UPDATE_CONTENT_ICON);
-                putValue(SHORT_DESCRIPTION, tr("Update the changeset content from the OSM server"));
-            }
-        }
-    }
-
     class ChangesetContentTablePopupMenu extends JPopupMenu {
         ChangesetContentTablePopupMenu() {
             add(actDownloadContentAction);
+            add(new JSeparator());
+            add(actDownloadObjectAction);
             add(actShowHistory);
             add(new JSeparator());
             add(actSelectInCurrentLayerAction);
@@ -316,7 +292,75 @@ public class ChangesetContentPanel extends JPanel implements PropertyChangeListe
         }
     }
 
-    class SelectInCurrentLayerAction extends AbstractAction implements ListSelectionListener, EditLayerChangeListener {
+    class DownloadObjectAction extends AbstractAction implements ListSelectionListener {
+
+        DownloadObjectAction() {
+            putValue(NAME, tr("Download objects"));
+            putValue(SMALL_ICON, ImageProvider.get("downloadprimitive"));
+            putValue(SHORT_DESCRIPTION, tr("Download the current version of the selected objects"));
+            updateEnabledState();
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent arg0) {
+            final List<PrimitiveId> primitiveIds = new ArrayList<>(Utils.transform(
+                    model.getSelectedPrimitives(), new Utils.Function<HistoryOsmPrimitive, PrimitiveId>() {
+                        @Override
+                        public PrimitiveId apply(HistoryOsmPrimitive x) {
+                            return x.getPrimitiveId();
+                        }
+                    }));
+            Main.worker.submit(new DownloadPrimitivesWithReferrersTask(false, primitiveIds, true, true, null, null));
+        }
+
+        protected final void updateEnabledState() {
+            setEnabled(model.hasSelectedPrimitives());
+        }
+
+        @Override
+        public void valueChanged(ListSelectionEvent e) {
+            updateEnabledState();
+        }
+    }
+
+    abstract class SelectionBasedAction extends AbstractAction implements ListSelectionListener, EditLayerChangeListener {
+
+        protected Set<OsmPrimitive> getTarget() {
+            if (!isEnabled() || Main.main == null || !Main.main.hasEditLayer()) {
+                return null;
+            }
+            OsmDataLayer layer = Main.main.getEditLayer();
+            Set<OsmPrimitive> target = new HashSet<>();
+            for (HistoryOsmPrimitive p : model.getSelectedPrimitives()) {
+                OsmPrimitive op = layer.data.getPrimitiveById(p.getPrimitiveId());
+                if (op != null) {
+                    target.add(op);
+                }
+            }
+            return target;
+        }
+
+        public final void updateEnabledState() {
+            if (Main.main == null || !Main.main.hasEditLayer()) {
+                setEnabled(false);
+                return;
+            }
+            setEnabled(model.hasSelectedPrimitives());
+        }
+
+        @Override
+        public void valueChanged(ListSelectionEvent e) {
+            updateEnabledState();
+        }
+
+        @Override
+        public void editLayerChanged(OsmDataLayer oldLayer, OsmDataLayer newLayer) {
+            updateEnabledState();
+        }
+
+    }
+
+    class SelectInCurrentLayerAction extends SelectionBasedAction {
 
         SelectInCurrentLayerAction() {
             putValue(NAME, tr("Select in layer"));
@@ -327,46 +371,19 @@ public class ChangesetContentPanel extends JPanel implements PropertyChangeListe
 
         @Override
         public void actionPerformed(ActionEvent arg0) {
-            if (!isEnabled())
+            final Set<OsmPrimitive> target = getTarget();
+            if (target == null) {
                 return;
-            if (Main.main == null || !Main.main.hasEditLayer()) return;
-            OsmDataLayer layer = Main.main.getEditLayer();
-            Set<HistoryOsmPrimitive> selected = model.getSelectedPrimitives();
-            Set<OsmPrimitive> target = new HashSet<>();
-            for (HistoryOsmPrimitive p : model.getSelectedPrimitives()) {
-                OsmPrimitive op = layer.data.getPrimitiveById(p.getPrimitiveId());
-                if (op != null) {
-                    target.add(op);
-                }
-            }
-            if (target.isEmpty()) {
-                alertNoPrimitivesTo(selected, tr("Nothing to select"),
+            } else if (target.isEmpty()) {
+                alertNoPrimitivesTo(model.getSelectedPrimitives(), tr("Nothing to select"),
                         HelpUtil.ht("/Dialog/ChangesetCacheManager#NothingToSelectInLayer"));
                 return;
             }
-            layer.data.setSelected(target);
-        }
-
-        public final void updateEnabledState() {
-            if (Main.main == null || !Main.main.hasEditLayer()) {
-                setEnabled(false);
-                return;
-            }
-            setEnabled(model.hasSelectedPrimitives());
-        }
-
-        @Override
-        public void valueChanged(ListSelectionEvent e) {
-            updateEnabledState();
-        }
-
-        @Override
-        public void editLayerChanged(OsmDataLayer oldLayer, OsmDataLayer newLayer) {
-            updateEnabledState();
+            Main.main.getEditLayer().data.setSelected(target);
         }
     }
 
-    class ZoomInCurrentLayerAction extends AbstractAction implements ListSelectionListener, EditLayerChangeListener {
+    class ZoomInCurrentLayerAction extends SelectionBasedAction {
 
         ZoomInCurrentLayerAction() {
             putValue(NAME, tr("Zoom to in layer"));
@@ -377,43 +394,16 @@ public class ChangesetContentPanel extends JPanel implements PropertyChangeListe
 
         @Override
         public void actionPerformed(ActionEvent arg0) {
-            if (!isEnabled())
+            final Set<OsmPrimitive> target = getTarget();
+            if (target == null) {
                 return;
-            if (Main.main == null || !Main.main.hasEditLayer()) return;
-            OsmDataLayer layer = Main.main.getEditLayer();
-            Set<HistoryOsmPrimitive> selected = model.getSelectedPrimitives();
-            Set<OsmPrimitive> target = new HashSet<>();
-            for (HistoryOsmPrimitive p : model.getSelectedPrimitives()) {
-                OsmPrimitive op = layer.data.getPrimitiveById(p.getPrimitiveId());
-                if (op != null) {
-                    target.add(op);
-                }
-            }
-            if (target.isEmpty()) {
-                alertNoPrimitivesTo(selected, tr("Nothing to zoom to"),
+            } else if (target.isEmpty()) {
+                alertNoPrimitivesTo(model.getSelectedPrimitives(), tr("Nothing to zoom to"),
                         HelpUtil.ht("/Dialog/ChangesetCacheManager#NothingToZoomTo"));
                 return;
             }
-            layer.data.setSelected(target);
+            Main.main.getEditLayer().data.setSelected(target);
             AutoScaleAction.zoomToSelection();
-        }
-
-        public final void updateEnabledState() {
-            if (Main.main == null || !Main.main.hasEditLayer()) {
-                setEnabled(false);
-                return;
-            }
-            setEnabled(model.hasSelectedPrimitives());
-        }
-
-        @Override
-        public void valueChanged(ListSelectionEvent e) {
-            updateEnabledState();
-        }
-
-        @Override
-        public void editLayerChanged(OsmDataLayer oldLayer, OsmDataLayer newLayer) {
-            updateEnabledState();
         }
     }
 
@@ -455,5 +445,10 @@ public class ChangesetContentPanel extends JPanel implements PropertyChangeListe
                 ChangesetCacheManager.getInstance().runDownloadTask(task);
             }
         }
+    }
+
+    @Override
+    public Changeset getCurrentChangeset() {
+        return currentChangeset;
     }
 }
