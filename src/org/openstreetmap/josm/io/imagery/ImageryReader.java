@@ -44,6 +44,7 @@ public class ImageryReader implements Closeable {
         BOUNDS,
         SHAPE,
         NO_TILE,
+        NO_TILESUM,
         METADATA,
         UNKNOWN,            // element is not recognized in the current context
     }
@@ -92,7 +93,8 @@ public class ImageryReader implements Closeable {
         // language of last element, does only work for simple ENTRY_ATTRIBUTE's
         private String lang;
         private List<String> projections;
-        private Map<String, String> noTileHeaders;
+        private Map<String, List<String>> noTileHeaders;
+        private Map<String, List<String>> noTileChecksums;
         private Map<String, String> metadataHeaders;
 
         @Override
@@ -106,6 +108,7 @@ public class ImageryReader implements Closeable {
             bounds = null;
             projections = null;
             noTileHeaders = null;
+            noTileChecksums = null;
         }
 
         @Override
@@ -124,6 +127,7 @@ public class ImageryReader implements Closeable {
                     skipEntry = false;
                     newState = State.ENTRY;
                     noTileHeaders = new HashMap<>();
+                    noTileChecksums = new HashMap<>();
                     metadataHeaders = new HashMap<>();
                 }
                 break;
@@ -167,8 +171,27 @@ public class ImageryReader implements Closeable {
                     projections = new ArrayList<>();
                     newState = State.PROJECTIONS;
                 } else if ("no-tile-header".equals(qName)) {
-                    noTileHeaders.put(atts.getValue("name"), atts.getValue("value"));
+                    String name = atts.getValue("name");
+                    List<String> l;
+                    if (noTileHeaders.containsKey(name)) {
+                        l = noTileHeaders.get(name);
+                    } else {
+                        l = new ArrayList<String>();
+                        noTileHeaders.put(atts.getValue("name"), l);
+                    }
+                    l.add(atts.getValue("value"));
                     newState = State.NO_TILE;
+                } else if ("no-tile-checksum".equals(qName)) {
+                    String type = atts.getValue("type");
+                    List<String> l;
+                    if (noTileChecksums.containsKey(type)) {
+                        l = noTileChecksums.get(type);
+                    } else {
+                        l = new ArrayList<String>();
+                        noTileChecksums.put(type, l);
+                    }
+                    l.add(atts.getValue("value"));
+                    newState = State.NO_TILESUM;
                 } else if ("metadata-header".equals(qName)) {
                     metadataHeaders.put(atts.getValue("header-name"), atts.getValue("metadata-key"));
                     newState = State.METADATA;
@@ -224,6 +247,8 @@ public class ImageryReader implements Closeable {
                 if ("entry".equals(qName)) {
                     entry.setNoTileHeaders(noTileHeaders);
                     noTileHeaders = null;
+                    entry.setNoTileChecksums(noTileChecksums);
+                    noTileChecksums = null;
                     entry.setMetadataHeaders(metadataHeaders);
                     metadataHeaders = null;
 

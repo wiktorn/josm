@@ -29,8 +29,10 @@ import org.openstreetmap.josm.data.projection.datum.SevenParameterDatum;
 import org.openstreetmap.josm.data.projection.datum.ThreeParameterDatum;
 import org.openstreetmap.josm.data.projection.datum.WGS84Datum;
 import org.openstreetmap.josm.data.projection.proj.AlbersEqualArea;
+import org.openstreetmap.josm.data.projection.proj.CassiniSoldner;
 import org.openstreetmap.josm.data.projection.proj.ClassProjFactory;
 import org.openstreetmap.josm.data.projection.proj.DoubleStereographic;
+import org.openstreetmap.josm.data.projection.proj.LambertAzimuthalEqualArea;
 import org.openstreetmap.josm.data.projection.proj.LambertConformalConic;
 import org.openstreetmap.josm.data.projection.proj.LonLat;
 import org.openstreetmap.josm.data.projection.proj.Mercator;
@@ -85,9 +87,11 @@ public final class Projections {
 
     static {
         registerBaseProjection("aea", AlbersEqualArea.class, "core");
-        registerBaseProjection("josm:smerc", Mercator.class, "core");
+        registerBaseProjection("cass", CassiniSoldner.class, "core");
+        registerBaseProjection("laea", LambertAzimuthalEqualArea.class, "core");
         registerBaseProjection("lcc", LambertConformalConic.class, "core");
         registerBaseProjection("lonlat", LonLat.class, "core");
+        registerBaseProjection("merc", Mercator.class, "core");
         registerBaseProjection("omerc", ObliqueMercator.class, "core");
         registerBaseProjection("somerc", SwissObliqueMercator.class, "core");
         registerBaseProjection("stere", PolarStereographic.class, "core");
@@ -101,7 +105,7 @@ public final class Projections {
         ellipsoids.put("bess_nam", Ellipsoid.BesselNamibia);
         ellipsoids.put("clrk66", Ellipsoid.Clarke1866);
         ellipsoids.put("clrk80", Ellipsoid.Clarke1880);
-        ellipsoids.put("clarkeIGN", Ellipsoid.ClarkeIGN);
+        ellipsoids.put("clrk80ign", Ellipsoid.ClarkeIGN);
         ellipsoids.put("evrstSS", Ellipsoid.EverestSabahSarawak);
         ellipsoids.put("intl", Ellipsoid.Hayford);
         ellipsoids.put("helmert", Ellipsoid.Helmert);
@@ -113,17 +117,16 @@ public final class Projections {
         ellipsoids.put("WGS84", Ellipsoid.WGS84);
 
         datums.put("WGS84", WGS84Datum.INSTANCE);
-        datums.put("GRS80", GRS80Datum.INSTANCE);
         datums.put("NAD83", GRS80Datum.INSTANCE);
         datums.put("carthage", new ThreeParameterDatum(
                 "Carthage 1934 Tunisia", "carthage",
-                Ellipsoid.Clarke1880, -263.0, 6.0, 431.0));
+                Ellipsoid.ClarkeIGN, -263.0, 6.0, 431.0));
         datums.put("GGRS87", new ThreeParameterDatum(
                 "Greek Geodetic Reference System 1987", "GGRS87",
                 Ellipsoid.GRS80, -199.87, 74.79, 246.62));
-        datums.put("hermannskogel", new ThreeParameterDatum(
+        datums.put("hermannskogel", new SevenParameterDatum(
                 "Hermannskogel", "hermannskogel",
-                Ellipsoid.Bessel1841, 653.0, -212.0, 449.0));
+                Ellipsoid.Bessel1841, 577.326, 90.129, 463.919, 5.137, 1.474, 5.297, 2.4232));
         datums.put("ire65", new SevenParameterDatum(
                 "Ireland 1965", "ire65",
                 Ellipsoid.AiryMod, 482.530, -130.596, 564.557, -1.042, -0.214, -0.631, 8.15));

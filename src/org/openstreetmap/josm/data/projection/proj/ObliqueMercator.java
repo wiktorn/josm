@@ -25,13 +25,12 @@ import org.openstreetmap.josm.data.projection.ProjectionConfigurationException;
  * the central line), but some cases allow a separate rotation parameter.
  * <p>
  * There are two forms of the oblique mercator, differing in the origin of their grid coordinates.
- * The {@linkplain HotineObliqueMercator Hotine Oblique Mercator} (EPSG code 9812) has grid
- * coordinates start at the intersection of the central line and the equator of the aposphere.
- * The {@linkplain ObliqueMercator Oblique Mercator} (EPSG code 9815) is the same, except the
- * grid coordinates begin at the central point (where the latitude of center and central line
- * intersect). ESRI separates these two case by appending {@code "Natural_Origin"} (for the
- * {@code "Hotine_Oblique_Mercator"}) and {@code "Center"} (for the {@code "Oblique_Mercator"})
- * to the projection names.
+ * The Hotine Oblique Mercator (EPSG code 9812) has grid coordinates start at the intersection of
+ * the central line and the equator of the aposphere.
+ * The Oblique Mercator (EPSG code 9815) is the same, except the grid coordinates begin at the
+ * central point (where the latitude of center and central line intersect). ESRI separates these
+ * two case by appending {@code "Natural_Origin"} (for the {@code "Hotine_Oblique_Mercator"}) and
+ * {@code "Center"} (for the {@code "Oblique_Mercator"}) to the projection names.
  * <p>
  * Two different methods are used to specify the central line for the oblique mercator:
  * 1) a central point and an azimuth, east of north, describing the central line and
@@ -55,7 +54,7 @@ import org.openstreetmap.josm.data.projection.ProjectionConfigurationException;
  * <p>
  * Azimuth values of 0.0 and &plusmn;90.0 degrees are allowed (and used in Hungary
  * and Switzerland), though these cases would usually use a Mercator or
- * Transverse Mercator projection instead. Azimuth values > 90 degrees cause
+ * Transverse Mercator projection instead. Azimuth values &gt; 90 degrees cause
  * errors in the equations.
  * <p>
  * The oblique mercator is also called the "Rectified Skew Orthomorphic" (RSO). It appears
@@ -114,12 +113,12 @@ import org.openstreetmap.josm.data.projection.ProjectionConfigurationException;
  *       Documentation of revised Oblique Mercator</a></li>
  * </ul>
  *
+ * @author Gerald I. Evenden (for original code in Proj4)
+ * @author  Rueben Schulz
+ *
  * @see <A HREF="http://mathworld.wolfram.com/MercatorProjection.html">Oblique Mercator projection on MathWorld</A>
  * @see <A HREF="http://www.remotesensing.org/geotiff/proj_list/hotine_oblique_mercator.html">"hotine_oblique_mercator" on RemoteSensing.org</A>
  * @see <A HREF="http://www.remotesensing.org/geotiff/proj_list/oblique_mercator.html">"oblique_mercator" on RemoteSensing.org</A>
- *
- * @author Gerald I. Evenden (for original code in Proj4)
- * @author  Rueben Schulz
  */
 public class ObliqueMercator extends AbstractProj implements ICentralMeridianProvider {
 
@@ -288,9 +287,9 @@ public class ObliqueMercator extends AbstractProj implements ICentralMeridianPro
             } else if (diff > Math.PI) {
                 lon2 += 2.0 * Math.PI;
             }
-            centralMeridian = normalizeLon(0.5 * (lon1 + lon2) -
+            centralMeridian = normalizeLonRad(0.5 * (lon1 + lon2) -
                      Math.atan(J * Math.tan(0.5 * B * (lon1 - lon2)) / P) / B);
-            gamma0 = Math.atan(2.0 * Math.sin(B * normalizeLon(lon1 - centralMeridian)) /
+            gamma0 = Math.atan(2.0 * Math.sin(B * normalizeLonRad(lon1 - centralMeridian)) /
                      (Fp - 1.0 / Fp));
             azimuth = Math.asin(D * Math.sin(gamma0));
             rectifiedGridAngle = azimuth;
@@ -306,9 +305,9 @@ public class ObliqueMercator extends AbstractProj implements ICentralMeridianPro
             lonCenter = Math.toRadians(params.lonc);
             azimuth = Math.toRadians(params.alpha);
             if ((azimuth > -1.5*Math.PI && azimuth < -0.5*Math.PI) ||
-                (azimuth >  0.5*Math.PI && azimuth <  1.5*Math.PI))
-            {
-                throw new ProjectionConfigurationException(tr("Illegal value for parameter ''{0}'': {1}", "alpha", Double.toString(params.alpha)));
+                (azimuth >  0.5*Math.PI && azimuth <  1.5*Math.PI)) {
+                throw new ProjectionConfigurationException(
+                        tr("Illegal value for parameter ''{0}'': {1}", "alpha", Double.toString(params.alpha)));
             }
             if (params.gamma != null) {
                 rectifiedGridAngle = Math.toRadians(params.gamma);
@@ -359,9 +358,12 @@ public class ObliqueMercator extends AbstractProj implements ICentralMeridianPro
         }
     }
 
+    private double normalizeLonRad(double a) {
+        return Math.toRadians(LatLon.normalizeLon(Math.toDegrees(a)));
+    }
+
     @Override
     public double[] project(double y, double x) {
-        x = normalizeLon(x);
         double u, v;
         if (Math.abs(Math.abs(y) - Math.PI/2.0) > EPSILON) {
             double Q = E / Math.pow(tsfn(y, Math.sin(y)), B);
@@ -387,7 +389,7 @@ public class ObliqueMercator extends AbstractProj implements ICentralMeridianPro
         u -= u_c;
         x = v * cosrot + u * sinrot;
         y = u * cosrot - v * sinrot;
-        return new double[] {x,y};
+        return new double[] {x, y};
     }
 
     @Override

@@ -111,12 +111,19 @@ public class ProjectionTest {
 
         final double EPS = 1e-6;
         testProj("lonlat", EPS, "");
-        testProj("josm:smerc", EPS, "");
         testProj("lcc", EPS, "+lat_0=34");
         testProj("lcc", EPS, "+lat_1=87 +lat_2=83.6 +lat_0=85.43");
         testProj("somerc", EPS, "+lat_0=47");
+        testProj("tmerc", 1e-5, "+bounds=-2.5,-89,2.5,89");
         testProj("tmerc", 2e-3, "");
         testProj("sterea", EPS, "+lat_0=52");
+        testProj("aea", EPS, "+lat_1=27.5 +lat_2=35 +lat_0=18");
+        testProj("stere", 1e-5, "+lat_0=-90 +lat_ts=-70");
+        testProj("stere", 1e-5, "+lat_0=90 +lat_ts=90");
+        testProj("omerc", EPS, "+lat_0=4 +lonc=115 +alpha=53 +no_uoff +gamma=53.130 +bounds=112,4,116,7");
+        testProj("cass", 1e-3, "+lat_0=11 +bounds=-1.0,-89,1.0,89");
+        testProj("laea", 3e-3, "+lat_0=34");
+        testProj("merc", 1e-5, "");
 
         if (error2) {
             System.err.println(text2);
@@ -136,6 +143,8 @@ public class ProjectionTest {
             throw new RuntimeException(ex);
         }
         Bounds b = p.getWorldBoundsLatLon();
+        double maxDist = 0;
+        LatLon maxLatLon = null;
         for (int i = 0; i < NUM_IT; i++) {
             LatLon ll1 = random(b);
             EastNorth en = p.latlon2eastNorth(ll1);
@@ -144,9 +153,14 @@ public class ProjectionTest {
             double dist = ll1.greatCircleDistance(ll2);
             if (dist > eps) {
                 error2 = true;
-                text2 += id + ": dist " + dist + " at " + ll1 + "\n";
-                return;
+                if (dist > maxDist) {
+                    maxDist = dist;
+                    maxLatLon = ll1;
+                }
             }
+        }
+        if (maxDist > 0) {
+            text2 += id + ": dist " + maxDist + " at " + maxLatLon + "\n";
         }
     }
 }

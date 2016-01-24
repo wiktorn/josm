@@ -1,6 +1,7 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.data.projection.proj;
 
+import org.openstreetmap.josm.data.projection.Ellipsoid;
 import org.openstreetmap.josm.data.projection.ProjectionConfigurationException;
 
 /**
@@ -74,10 +75,17 @@ public abstract class AbstractProj implements Proj {
      */
     protected double e2;
 
+    /**
+     * is ellipsoid spherical?
+     * @see Ellipsoid#spherical
+     */
+    protected boolean spherical;
+
     @Override
     public void initialize(ProjParameters params) throws ProjectionConfigurationException {
         e2 = params.ellps.e2;
         e = params.ellps.e;
+        spherical = params.ellps.spherical;
         //  Compute constants for the mlfn
         double t;
         en0 = C00 - e2  *  (C02 + e2  *
@@ -136,33 +144,11 @@ public abstract class AbstractProj implements Proj {
         }
     }
 
-    /**
-     * Make sure longitude value is within <code>[-PI, PI]</code> range.
-     * @param lon the longitude in radians
-     * @return lon plus/minus multiples of <code>2*PI</code>, as needed to get
-     * in <code>[-PI, PI]</code> range
-     */
-    public static double normalizeLon(double lon) {
-        if (lon >= -Math.PI && lon <= Math.PI)
-            return lon;
-        else {
-            lon = lon % (2 * Math.PI);
-            if (lon > Math.PI) {
-                return lon - 2 * Math.PI;
-            } else if (lon < -Math.PI) {
-                return lon + 2 * Math.PI;
-            }
-            return lon;
-        }
-    }
-
-    /**
-     * Iteratively solve equation (7-9) from Snyder.
-     */
+    // Iteratively solve equation (7-9) from Snyder.
     final double cphi2(final double ts) {
         final double eccnth = 0.5 * e;
         double phi = (Math.PI/2) - 2.0 * Math.atan(ts);
-        for (int i=0; i<MAXIMUM_ITERATIONS; i++) {
+        for (int i = 0; i < MAXIMUM_ITERATIONS; i++) {
             final double con  = e * Math.sin(phi);
             final double dphi = (Math.PI/2) - 2.0*Math.atan(ts * Math.pow((1-con)/(1+con), eccnth)) - phi;
             phi += dphi;
