@@ -57,8 +57,7 @@ public class BookmarkSelection implements DownloadSelection {
      * @return the panel with the action buttons on the left
      */
     protected JPanel buildButtonPanel() {
-        JPanel pnl = new JPanel();
-        pnl.setLayout(new GridBagLayout());
+        JPanel pnl = new JPanel(new GridBagLayout());
         GridBagConstraints gc = new GridBagConstraints();
         gc.gridy = 0;
         RemoveAction removeAction = new RemoveAction();
@@ -79,8 +78,7 @@ public class BookmarkSelection implements DownloadSelection {
     }
 
     protected JPanel buildDownloadAreaAddPanel() {
-        JPanel pnl = new JPanel();
-        pnl.setLayout(new GridBagLayout());
+        JPanel pnl = new JPanel(new GridBagLayout());
 
         GridBagConstraints  gc = new GridBagConstraints();
         gc.anchor = GridBagConstraints.NORTHWEST;
@@ -106,7 +104,8 @@ public class BookmarkSelection implements DownloadSelection {
     @Override
     public void addGui(final DownloadDialog gui) {
         JPanel dlg = new JPanel(new GridBagLayout());
-        gui.addDownloadAreaSelector(dlg, tr("Bookmarks"));
+        if (gui != null)
+            gui.addDownloadAreaSelector(dlg, tr("Bookmarks"));
         GridBagConstraints gc = new GridBagConstraints();
 
         bookmarks = new BookmarkList();
@@ -114,7 +113,7 @@ public class BookmarkSelection implements DownloadSelection {
             @Override
             public void valueChanged(ListSelectionEvent e) {
                 Bookmark b = bookmarks.getSelectedValue();
-                if (b != null) {
+                if (b != null && gui != null) {
                     gui.boundingBoxChanged(b.getArea(), BookmarkSelection.this);
                 }
             }

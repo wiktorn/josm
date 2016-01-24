@@ -33,6 +33,7 @@ import javax.swing.event.DocumentListener;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
+import org.openstreetmap.josm.io.Capabilities;
 import org.openstreetmap.josm.io.OsmApi;
 
 /**
@@ -70,8 +71,7 @@ public class UploadStrategySelectionPanel extends JPanel implements PropertyChan
     }
 
     protected JPanel buildUploadStrategyPanel() {
-        JPanel pnl = new JPanel();
-        pnl.setLayout(new GridBagLayout());
+        JPanel pnl = new JPanel(new GridBagLayout());
         ButtonGroup bgStrategies = new ButtonGroup();
         rbStrategy = new EnumMap<>(UploadStrategy.class);
         lblStrategies = new EnumMap<>(UploadStrategy.class);
@@ -180,8 +180,7 @@ public class UploadStrategySelectionPanel extends JPanel implements PropertyChan
     }
 
     protected JPanel buildMultiChangesetPolicyPanel() {
-        pnlMultiChangesetPolicyPanel = new JPanel();
-        pnlMultiChangesetPolicyPanel.setLayout(new GridBagLayout());
+        pnlMultiChangesetPolicyPanel = new JPanel(new GridBagLayout());
         GridBagConstraints gc = new GridBagConstraints();
         gc.gridx = 0;
         gc.gridy = 0;
@@ -227,7 +226,8 @@ public class UploadStrategySelectionPanel extends JPanel implements PropertyChan
         gc.weighty = 1.0;
         add(new JPanel(), gc);
 
-        int maxChunkSize = OsmApi.getOsmApi().getCapabilities().getMaxChangesetSize();
+        Capabilities capabilities = OsmApi.getOsmApi().getCapabilities();
+        int maxChunkSize = capabilities != null ? capabilities.getMaxChangesetSize() : -1;
         pnlMultiChangesetPolicyPanel.setVisible(
                 maxChunkSize > 0 && numUploadedObjects > maxChunkSize
         );

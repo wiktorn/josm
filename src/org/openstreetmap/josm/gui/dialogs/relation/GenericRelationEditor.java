@@ -164,13 +164,13 @@ public class GenericRelationEditor extends RelationEditor  {
 
         // init the various models
         //
-        memberTableModel = new MemberTableModel(getLayer(), presetHandler);
+        memberTableModel = new MemberTableModel(relation, getLayer(), presetHandler);
         memberTableModel.register();
         selectionTableModel = new SelectionTableModel(getLayer());
         selectionTableModel.register();
         referrerModel = new ReferringRelationsBrowserModel(relation);
 
-        tagEditorPanel = new TagEditorPanel(presetHandler);
+        tagEditorPanel = new TagEditorPanel(relation, presetHandler);
 
         // populate the models
         //
@@ -191,8 +191,7 @@ public class GenericRelationEditor extends RelationEditor  {
         JSplitPane pane = buildSplitPane();
         pane.setPreferredSize(new Dimension(100, 100));
 
-        JPanel pnl = new JPanel();
-        pnl.setLayout(new BorderLayout());
+        JPanel pnl = new JPanel(new BorderLayout());
         pnl.add(pane, BorderLayout.CENTER);
         pnl.setBorder(BorderFactory.createRaisedBevelBorder());
 
@@ -417,8 +416,7 @@ public class GenericRelationEditor extends RelationEditor  {
         gc.weighty = 0.0;
         pnl.add(p3, gc);
 
-        JPanel pnl2 = new JPanel();
-        pnl2.setLayout(new GridBagLayout());
+        JPanel pnl2 = new JPanel(new GridBagLayout());
 
         gc.gridx = 0;
         gc.gridy = 0;
@@ -460,8 +458,7 @@ public class GenericRelationEditor extends RelationEditor  {
             }
         });
 
-        JPanel pnl3 = new JPanel();
-        pnl3.setLayout(new BorderLayout());
+        JPanel pnl3 = new JPanel(new BorderLayout());
         pnl3.add(splitPane, BorderLayout.CENTER);
 
         return pnl3;
@@ -807,7 +804,7 @@ public class GenericRelationEditor extends RelationEditor  {
         CheckParameterUtil.ensureParameterNotNull(orig, "orig");
         try {
             final Collection<TaggingPreset> presets = TaggingPresets.getMatchingPresets(
-                    EnumSet.of(TaggingPresetType.RELATION), orig.getKeys(), false);
+                    EnumSet.of(TaggingPresetType.forPrimitive(orig)), orig.getKeys(), false);
             Relation relation = new Relation(orig);
             boolean modified = false;
             for (OsmPrimitive p : primitivesToAdd) {

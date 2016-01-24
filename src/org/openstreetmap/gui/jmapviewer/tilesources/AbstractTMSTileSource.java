@@ -3,6 +3,8 @@ package org.openstreetmap.gui.jmapviewer.tilesources;
 
 import java.awt.Point;
 import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,7 +27,8 @@ public abstract class AbstractTMSTileSource extends AbstractTileSource {
     protected String name;
     protected String baseUrl;
     protected String id;
-    private final Map<String, String> noTileHeaders;
+    private final Map<String, List<String>> noTileHeaders;
+    private final Map<String, List<String>> noTileChecksums;
     private final Map<String, String> metadataHeaders;
     protected int tileSize;
     protected OsmMercator osmMercator;
@@ -43,6 +46,7 @@ public abstract class AbstractTMSTileSource extends AbstractTileSource {
         }
         this.id = info.getUrl();
         this.noTileHeaders = info.getNoTileHeaders();
+        this.noTileChecksums = info.getNoTileChecksums();
         this.metadataHeaders = info.getMetadataHeaders();
         this.tileSize = info.getTileSize();
         this.osmMercator = new OsmMercator(this.tileSize);
@@ -207,13 +211,41 @@ public abstract class AbstractTMSTileSource extends AbstractTileSource {
     @Override
     public boolean isNoTileAtZoom(Map<String, List<String>> headers, int statusCode, byte[] content) {
         if (noTileHeaders != null && headers != null) {
-            for (Entry<String, String> searchEntry: noTileHeaders.entrySet()) {
+            for (Entry<String, List<String>> searchEntry: noTileHeaders.entrySet()) {
                 List<String> headerVals = headers.get(searchEntry.getKey());
                 if (headerVals != null) {
                     for (String headerValue: headerVals) {
-                        if (headerValue.matches(searchEntry.getValue())) {
-                            return true;
+                        for (String val: searchEntry.getValue()) {
+                            if (headerValue.matches(val)) {
+                                return true;
+                            }
                         }
+                    }
+                }
+            }
+        }
+        if (noTileChecksums != null) {
+            for (Entry<String, List<String>> searchEntry: noTileChecksums.entrySet()) {
+                MessageDigest md = null;
+                try {
+                    md = MessageDigest.getInstance(searchEntry.getKey());
+                } catch (NoSuchAlgorithmException e) {
+                    break;
+                }
+                byte[] byteDigest = md.digest(content);
+                final int len = byteDigest.length;
+
+                char[] hexChars = new char[len * 2];
+                for (int i = 0, j = 0; i < len; i++) {
+                    final int v = byteDigest[i];
+                    int vn = (v & 0xf0) >> 4;
+                    hexChars[j++] = (char) (vn + (vn >= 10 ? 'a'-10 : '0'));
+                    vn = (v & 0xf);
+                    hexChars[j++] = (char) (vn + (vn >= 10 ? 'a'-10 : '0'));
+                }
+                for (String val: searchEntry.getValue()) {
+                    if (new String(hexChars).equalsIgnoreCase(val)) {
+                        return true;
                     }
                 }
             }
