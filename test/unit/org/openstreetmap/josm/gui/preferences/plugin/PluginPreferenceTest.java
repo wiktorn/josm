@@ -13,7 +13,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.openstreetmap.josm.JOSMFixture;
 import org.openstreetmap.josm.TestUtils;
-import org.openstreetmap.josm.gui.preferences.PreferenceTabbedPane;
+import org.openstreetmap.josm.gui.preferences.PreferencesTestUtils;
 import org.openstreetmap.josm.gui.progress.NullProgressMonitor;
 import org.openstreetmap.josm.plugins.PluginDownloadTask;
 import org.openstreetmap.josm.plugins.PluginInformation;
@@ -52,7 +52,8 @@ public class PluginPreferenceTest {
         assertEquals("", PluginPreference.buildDownloadSummary(
                 new PluginDownloadTask(NullProgressMonitor.INSTANCE, Arrays.asList(dummy), "")));
         assertEquals("The following plugin has been downloaded <strong>successfully</strong>:<ul><li>dummy_plugin (31772)</li></ul>"+
-                     "Downloading the following plugin has <strong>failed</strong>:<ul><li>dummy_plugin</li></ul>",
+                     "Downloading the following plugin has <strong>failed</strong>:<ul><li>dummy_plugin</li></ul>"+
+                     "<br>Error message(untranslated): test",
                 PluginPreference.buildDownloadSummary(
                         new PluginDownloadTask(NullProgressMonitor.INSTANCE, Arrays.asList(dummy), "") {
                     @Override
@@ -63,6 +64,11 @@ public class PluginPreferenceTest {
                     @Override
                     public Collection<PluginInformation> getDownloadedPlugins() {
                         return Collections.singleton(dummy);
+                    }
+
+                    @Override
+                    public Exception getLastException() {
+                        return new Exception("test");
                     }
                 }));
     }
@@ -82,6 +88,6 @@ public class PluginPreferenceTest {
      */
     @Test
     public void testAddGui() {
-        new PluginPreference.Factory().createPreferenceSetting().addGui(new PreferenceTabbedPane());
+        PreferencesTestUtils.testPreferenceSettingAddGui(new PluginPreference.Factory(), null);
     }
 }
