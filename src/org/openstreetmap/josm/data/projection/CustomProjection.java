@@ -720,7 +720,7 @@ public class CustomProjection extends AbstractProjection {
      * Like {@link #getMetersPerUnit()}, but has default value 1 for a
      * geographic CRS. I.e. by default, degrees are not converted to meters,
      * but left alone (similar to proj.4 behavior).
-     * @return
+     * @return meters per unit of projection
      */
     public double getMetersPerUnitProj() {
         return metersPerUnitNoDegrees;
