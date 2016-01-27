@@ -279,7 +279,7 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
             }
             XMLStreamReader reader = factory.createXMLStreamReader(new ByteArrayInputStream(data));
 
-            Collection<Layer> ret = null;
+            Collection<Layer> ret = new ArrayList<>();
             for (int event = reader.getEventType(); reader.hasNext(); event = reader.next()) {
                 if (event == XMLStreamReader.START_ELEMENT) {
                     if (new QName(OWS_NS_URL, "OperationsMetadata").equals(reader.getName())) {
