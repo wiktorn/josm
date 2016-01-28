@@ -3,6 +3,7 @@ package org.openstreetmap.josm.gui.dialogs.relation.actions;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
 
+import java.awt.Component;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,7 +22,7 @@ import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane.ButtonSpec;
 import org.openstreetmap.josm.gui.dialogs.relation.MemberTable;
 import org.openstreetmap.josm.gui.dialogs.relation.MemberTableModel;
-import org.openstreetmap.josm.gui.dialogs.relation.RelationAware;
+import org.openstreetmap.josm.gui.dialogs.relation.IRelationEditor;
 import org.openstreetmap.josm.gui.dialogs.relation.RelationDialogManager;
 import org.openstreetmap.josm.gui.dialogs.relation.RelationEditor;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
@@ -39,7 +40,7 @@ abstract class SavingAction extends AbstractRelationEditorAction {
     protected final AutoCompletingTextField tfRole;
 
     protected SavingAction(MemberTable memberTable, MemberTableModel memberTableModel, TagEditorModel tagModel, OsmDataLayer layer,
-            RelationAware editor, AutoCompletingTextField tfRole) {
+            IRelationEditor editor, AutoCompletingTextField tfRole) {
         super(memberTable, memberTableModel, null, layer, editor);
         this.tagModel = tagModel;
         this.tfRole = tfRole;
@@ -110,9 +111,6 @@ abstract class SavingAction extends AbstractRelationEditorAction {
         memberTableModel.applyToRelation(editedRelation);
         Main.main.undoRedo.add(new ChangeCommand(editor.getRelation(), editedRelation));
         layer.data.fireSelectionChanged();
-        // this will refresh the snapshot and update the dialog title
-        //
-        editor.setRelation(editor.getRelation());
     }
 
     protected boolean confirmClosingBecauseOfDirtyState() {
@@ -164,5 +162,38 @@ abstract class SavingAction extends AbstractRelationEditorAction {
     @Override
     protected void updateEnabledState() {
         // Do nothing
+    }
+
+    protected boolean applyChanges() {
+        if (editor.getRelation() == null) {
+            applyNewRelation(tagModel);
+        } else if (isEditorDirty()) {
+            if (editor.isDirtyRelation()) {
+                if (confirmClosingBecauseOfDirtyState()) {
+                    if (layer.getConflicts().hasConflictForMy(editor.getRelation())) {
+                        warnDoubleConflict();
+                        return false;
+                    }
+                    applyExistingConflictingRelation(tagModel);
+                    hideEditor();
+                } else
+                    return false;
+            } else {
+                applyExistingNonConflictingRelation(tagModel);
+            }
+        }
+        editor.setRelation(editor.getRelation());
+        return true;
+    }
+
+    protected void hideEditor() {
+        if (editor instanceof Component) {
+            ((Component) editor).setVisible(false);
+        }
+    }
+
+    protected boolean isEditorDirty() {
+        Relation snapshot = editor.getRelationSnapshot();
+        return (snapshot != null && !memberTableModel.hasSameMembersAs(snapshot)) || tagModel.isDirty();
     }
 }
