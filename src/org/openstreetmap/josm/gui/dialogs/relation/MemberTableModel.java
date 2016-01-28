@@ -234,9 +234,13 @@ implements TableModelListener, SelectionChangedListener, DataSetListener, OsmPri
             return;
         }
         RelationMember member = members.get(rowIndex);
-        RelationMember newMember = new RelationMember(value.toString(), member.getMember());
+        String role = value.toString();
+        if (member.hasRole(role))
+            return;
+        RelationMember newMember = new RelationMember(role, member.getMember());
         members.remove(rowIndex);
         members.add(rowIndex, newMember);
+        fireTableDataChanged();
     }
 
     @Override
@@ -440,7 +444,8 @@ implements TableModelListener, SelectionChangedListener, DataSetListener, OsmPri
     }
 
     RelationMember getRelationMemberForPrimitive(final OsmPrimitive primitive) {
-        final Collection<TaggingPreset> presets = TaggingPresets.getMatchingPresets(EnumSet.of(TaggingPresetType.forPrimitive(relation)),
+        final Collection<TaggingPreset> presets = TaggingPresets.getMatchingPresets(
+                EnumSet.of(relation != null ? TaggingPresetType.forPrimitive(relation) : TaggingPresetType.RELATION),
                 presetHandler.getSelection().iterator().next().getKeys(), false);
         Collection<String> potentialRoles = new TreeSet<>();
         for (TaggingPreset tp : presets) {

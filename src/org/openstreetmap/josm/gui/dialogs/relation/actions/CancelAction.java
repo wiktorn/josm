@@ -3,7 +3,6 @@ package org.openstreetmap.josm.gui.dialogs.relation.actions;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
 
-import java.awt.Component;
 import java.awt.event.ActionEvent;
 
 import javax.swing.JComponent;
@@ -18,7 +17,7 @@ import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane.ButtonSpec;
 import org.openstreetmap.josm.gui.dialogs.relation.MemberTable;
 import org.openstreetmap.josm.gui.dialogs.relation.MemberTableModel;
-import org.openstreetmap.josm.gui.dialogs.relation.RelationAware;
+import org.openstreetmap.josm.gui.dialogs.relation.IRelationEditor;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.tagging.TagEditorModel;
 import org.openstreetmap.josm.gui.tagging.ac.AutoCompletingTextField;
@@ -40,7 +39,7 @@ public class CancelAction extends SavingAction {
      * @param tfRole role text field
      */
     public CancelAction(MemberTable memberTable, MemberTableModel memberTableModel, TagEditorModel tagModel, OsmDataLayer layer,
-            RelationAware editor, AutoCompletingTextField tfRole) {
+            IRelationEditor editor, AutoCompletingTextField tfRole) {
         super(memberTable, memberTableModel, tagModel, layer, editor, tfRole);
         putValue(SHORT_DESCRIPTION, tr("Cancel the updates and close the dialog"));
         putValue(SMALL_ICON, ImageProvider.get("cancel"));
@@ -65,29 +64,13 @@ public class CancelAction extends SavingAction {
             if (ret == 0) { //Yes, save the changes
                 //copied from OKAction.run()
                 Main.pref.put("relation.editor.generic.lastrole", tfRole.getText());
-                if (editor.getRelation() == null) {
-                    applyNewRelation(tagModel);
-                } else if (!memberTableModel.hasSameMembersAs(snapshot) || tagModel.isDirty()) {
-                    if (editor.isDirtyRelation()) {
-                        if (confirmClosingBecauseOfDirtyState()) {
-                            if (layer.getConflicts().hasConflictForMy(editor.getRelation())) {
-                                warnDoubleConflict();
-                                return;
-                            }
-                            applyExistingConflictingRelation(tagModel);
-                        } else
-                            return;
-                    } else {
-                        applyExistingNonConflictingRelation(tagModel);
-                    }
-                }
+                if (!applyChanges())
+                    return;
             } else if (ret == 2 || ret == JOptionPane.CLOSED_OPTION) //Cancel, continue editing
                 return;
             //in case of "No, discard", there is no extra action to be performed here.
         }
-        if (editor instanceof Component) {
-            ((Component) editor).setVisible(false);
-        }
+        hideEditor();
     }
 
     protected int confirmClosingByCancel() {
