@@ -267,6 +267,11 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
 
     private Collection<Layer> getCapabilities() throws IOException {
         XMLInputFactory factory = XMLInputFactory.newFactory();
+        // do not try to load external entities, nor validate the XML
+        factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
+        factory.setProperty(XMLInputFactory.IS_VALIDATING, false);
+        factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
+
         InputStream in = new CachedFile(baseUrl).
                 setHttpHeaders(headers).
                 setMaxAge(7 * CachedFile.DAYS).
