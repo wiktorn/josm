@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -42,7 +43,6 @@ import javax.swing.JScrollPane;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.ExpertToggleAction;
 import org.openstreetmap.josm.actions.RenameLayerAction;
-import org.openstreetmap.josm.actions.SaveActionBase;
 import org.openstreetmap.josm.actions.ToggleUploadDiscouragedLayerAction;
 import org.openstreetmap.josm.data.APIDataSet;
 import org.openstreetmap.josm.data.Bounds;
@@ -74,6 +74,7 @@ import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
 import org.openstreetmap.josm.data.osm.visitor.paint.MapRendererFactory;
 import org.openstreetmap.josm.data.osm.visitor.paint.Rendering;
 import org.openstreetmap.josm.data.osm.visitor.paint.relations.MultipolygonCache;
+import org.openstreetmap.josm.data.preferences.IntegerProperty;
 import org.openstreetmap.josm.data.projection.Projection;
 import org.openstreetmap.josm.data.validation.TestError;
 import org.openstreetmap.josm.gui.ExtendedDialog;
@@ -88,7 +89,9 @@ import org.openstreetmap.josm.gui.layer.markerlayer.MarkerLayer;
 import org.openstreetmap.josm.gui.progress.PleaseWaitProgressMonitor;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
 import org.openstreetmap.josm.gui.util.GuiHelper;
+import org.openstreetmap.josm.gui.widgets.FileChooserManager;
 import org.openstreetmap.josm.gui.widgets.JosmTextArea;
+import org.openstreetmap.josm.io.OsmImporter;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.FilteredCollection;
 import org.openstreetmap.josm.tools.GBC;
@@ -120,6 +123,49 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
      * @since 3669
      */
     public final List<TestError> validationErrors = new ArrayList<>();
+
+    public static final int DEFAULT_RECENT_RELATIONS_NUMBER = 20;
+    public static final IntegerProperty PROPERTY_RECENT_RELATIONS_NUMBER = new IntegerProperty("properties.last-closed-relations-size",
+            DEFAULT_RECENT_RELATIONS_NUMBER);
+
+    /** List of recent relations */
+    private final Map<Relation, Void> recentRelations = new LinkedHashMap<Relation, Void>(PROPERTY_RECENT_RELATIONS_NUMBER.get()+1, 1.1f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<Relation, Void> eldest) {
+            return size() > PROPERTY_RECENT_RELATIONS_NUMBER.get();
+        }
+    };
+
+    /**
+     * Returns list of recently closed relations or null if none.
+     * @return list of recently closed relations or <code>null</code> if none
+     * @since 9668
+     */
+    public ArrayList<Relation> getRecentRelations() {
+        ArrayList<Relation> list = new ArrayList<Relation>(recentRelations.keySet());
+        Collections.reverse(list);
+        return list;
+    }
+
+    /**
+     * Adds recently closed relation.
+     * @param relation new entry for the list of recently closed relations
+     * @since 9668
+     */
+    public void setRecentRelation(Relation relation) {
+        recentRelations.put(relation, null);
+        Main.map.relationListDialog.enableRecentRelations();
+    }
+
+    /**
+     * Remove relation from list of recent relations.
+     * @param relation relation to remove
+     * @since 9668
+     */
+    public void removeRecentRelation(Relation relation) {
+        recentRelations.remove(relation);
+        Main.map.relationListDialog.enableRecentRelations();
+    }
 
     protected void setRequiresSaveToFile(boolean newValue) {
         boolean oldValue = requiresSaveToFile;
@@ -390,8 +436,7 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
     }
 
     /**
-     * merges the primitives in dataset <code>from</code> into the dataset of
-     * this layer
+     * merges the primitives in dataset <code>from</code> into the dataset of this layer
      *
      * @param from  the source data set
      * @param progressMonitor the progress monitor, can be {@code null}
@@ -401,6 +446,7 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
         try {
             visitor.merge(progressMonitor);
         } catch (DataIntegrityProblemException e) {
+            Main.error(e);
             JOptionPane.showMessageDialog(
                     Main.parent,
                     e.getHtmlMessage() != null ? e.getHtmlMessage() : e.getMessage(),
@@ -711,12 +757,10 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
         possibleKeys.add(0, gpxKey);
         for (String key : possibleKeys) {
             String value = p.get(key);
-            if (value != null) {
-                // Sanity checks
-                if (!GpxConstants.PT_FIX.equals(gpxKey) || GpxConstants.FIX_VALUES.contains(value)) {
-                    wpt.put(gpxKey, value);
-                    break;
-                }
+            // Sanity checks
+            if (value != null && (!GpxConstants.PT_FIX.equals(gpxKey) || GpxConstants.FIX_VALUES.contains(value))) {
+                wpt.put(gpxKey, value);
+                break;
             }
         }
     }
@@ -743,15 +787,15 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            final GpxData data = toGpxData();
-            final GpxLayer gpxLayer = new GpxLayer(data, tr("Converted from: {0}", getName()));
+            final GpxData gpxData = toGpxData();
+            final GpxLayer gpxLayer = new GpxLayer(gpxData, tr("Converted from: {0}", getName()));
             if (getAssociatedFile() != null) {
                 final String filename = getAssociatedFile().getName().replaceAll(Pattern.quote(".gpx.osm") + "$", "") + ".gpx";
                 gpxLayer.setAssociatedFile(new File(getAssociatedFile().getParentFile(), filename));
             }
             Main.main.addLayer(gpxLayer);
-            if (Main.pref.getBoolean("marker.makeautomarkers", true) && !data.waypoints.isEmpty()) {
-                Main.main.addLayer(new MarkerLayer(data, tr("Converted from: {0}", getName()), null, gpxLayer));
+            if (Main.pref.getBoolean("marker.makeautomarkers", true) && !gpxData.waypoints.isEmpty()) {
+                Main.main.addLayer(new MarkerLayer(gpxData, tr("Converted from: {0}", getName()), null, gpxLayer));
             }
             Main.main.removeLayer(OsmDataLayer.this);
         }
@@ -768,14 +812,14 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
         if (this.data.dataSources.isEmpty())
             return true;
 
-        boolean layer_bounds_point = false;
+        boolean layerBoundsPoint = false;
         for (DataSource src : this.data.dataSources) {
             if (src.bounds.contains(coor)) {
-                layer_bounds_point = true;
+                layerBoundsPoint = true;
                 break;
             }
         }
-        return layer_bounds_point;
+        return layerBoundsPoint;
     }
 
     /**
@@ -906,43 +950,39 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
 
     @Override
     public boolean checkSaveConditions() {
-        if (isDataSetEmpty()) {
-            if (1 != GuiHelper.runInEDTAndWaitAndReturn(new Callable<Integer>() {
-                @Override
-                public Integer call() {
-                    ExtendedDialog dialog = new ExtendedDialog(
-                            Main.parent,
-                            tr("Empty document"),
-                            new String[] {tr("Save anyway"), tr("Cancel")}
-                    );
-                    dialog.setContent(tr("The document contains no data."));
-                    dialog.setButtonIcons(new String[] {"save", "cancel"});
-                    return dialog.showDialog().getValue();
-                }
-            })) {
-                return false;
+        if (isDataSetEmpty() && 1 != GuiHelper.runInEDTAndWaitAndReturn(new Callable<Integer>() {
+            @Override
+            public Integer call() {
+                ExtendedDialog dialog = new ExtendedDialog(
+                        Main.parent,
+                        tr("Empty document"),
+                        new String[] {tr("Save anyway"), tr("Cancel")}
+                );
+                dialog.setContent(tr("The document contains no data."));
+                dialog.setButtonIcons(new String[] {"save", "cancel"});
+                return dialog.showDialog().getValue();
             }
+        })) {
+            return false;
         }
 
-        ConflictCollection conflicts = getConflicts();
-        if (conflicts != null && !conflicts.isEmpty()) {
-            if (1 != GuiHelper.runInEDTAndWaitAndReturn(new Callable<Integer>() {
-                @Override
-                public Integer call() {
-                    ExtendedDialog dialog = new ExtendedDialog(
-                            Main.parent,
-                            /* I18N: Display title of the window showing conflicts */
-                            tr("Conflicts"),
-                            new String[] {tr("Reject Conflicts and Save"), tr("Cancel")}
-                    );
-                    dialog.setContent(
-                            tr("There are unresolved conflicts. Conflicts will not be saved and handled as if you rejected all. Continue?"));
-                    dialog.setButtonIcons(new String[] {"save", "cancel"});
-                    return dialog.showDialog().getValue();
-                }
-            })) {
-                return false;
+        ConflictCollection conflictsCol = getConflicts();
+        if (conflictsCol != null && !conflictsCol.isEmpty() && 1 != GuiHelper.runInEDTAndWaitAndReturn(new Callable<Integer>() {
+            @Override
+            public Integer call() {
+                ExtendedDialog dialog = new ExtendedDialog(
+                        Main.parent,
+                        /* I18N: Display title of the window showing conflicts */
+                        tr("Conflicts"),
+                        new String[] {tr("Reject Conflicts and Save"), tr("Cancel")}
+                );
+                dialog.setContent(
+                        tr("There are unresolved conflicts. Conflicts will not be saved and handled as if you rejected all. Continue?"));
+                dialog.setButtonIcons(new String[] {"save", "cancel"});
+                return dialog.showDialog().getValue();
             }
+        })) {
+            return false;
         }
         return true;
     }
@@ -967,7 +1007,18 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
     @Override
     public File createAndOpenSaveFileChooser() {
         String extension = Main.pref.get("save.extension.osm", "osm");
-        return SaveActionBase.createAndOpenSaveFileChooser(tr("Save OSM file"), extension);
+        File file = getAssociatedFile();
+        if (file == null && isRenamed()) {
+            String filename = Main.pref.get("lastDirectory") + '/' + getName();
+            if (!OsmImporter.FILE_FILTER.acceptName(filename))
+                filename = filename + '.' + extension;
+            file = new File(filename);
+        }
+        return new FileChooserManager()
+            .title(tr("Save OSM file"))
+            .extension(extension)
+            .file(file)
+            .getFileForSave();
     }
 
     @Override
