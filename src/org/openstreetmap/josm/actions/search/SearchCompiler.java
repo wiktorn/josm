@@ -38,6 +38,7 @@ import org.openstreetmap.josm.gui.mappaint.mapcss.parsergen.ParseException;
 import org.openstreetmap.josm.tools.AlphanumComparator;
 import org.openstreetmap.josm.tools.Geometry;
 import org.openstreetmap.josm.tools.Predicate;
+import org.openstreetmap.josm.tools.UncheckedParseException;
 import org.openstreetmap.josm.tools.Utils;
 import org.openstreetmap.josm.tools.date.DateUtils;
 
@@ -176,10 +177,20 @@ public class SearchCompiler {
                         } else if (rangeA.length == 2) {
                             String rangeA1 = rangeA[0].trim();
                             String rangeA2 = rangeA[1].trim();
-                            // if min timestap is empty: use lowest possible date
-                            long minDate = DateUtils.fromString(rangeA1.isEmpty() ? "1980" : rangeA1).getTime();
-                            // if max timestamp is empty: use "now"
-                            long maxDate = rangeA2.isEmpty() ? System.currentTimeMillis() : DateUtils.fromString(rangeA2).getTime();
+                            final long minDate;
+                            final long maxDate;
+                            try {
+                                // if min timestap is empty: use lowest possible date
+                                minDate = DateUtils.fromString(rangeA1.isEmpty() ? "1980" : rangeA1).getTime();
+                            } catch (UncheckedParseException ex) {
+                                throw new ParseError(tr("Cannot parse timestamp ''{0}''", rangeA1), ex);
+                            }
+                            try {
+                                // if max timestamp is empty: use "now"
+                                maxDate = rangeA2.isEmpty() ? System.currentTimeMillis() : DateUtils.fromString(rangeA2).getTime();
+                            } catch (UncheckedParseException ex) {
+                                throw new ParseError(tr("Cannot parse timestamp ''{0}''", rangeA2), ex);
+                            }
                             return new TimestampRange(minDate, maxDate);
                         } else {
                             throw new ParseError("<html>" + tr("Expecting {0} after {1}", "<i>min</i>/<i>max</i>", "<i>timestamp</i>"));
@@ -1424,14 +1435,14 @@ public class SearchCompiler {
             this.all = all;
         }
 
-        protected abstract Collection<Bounds> getBounds();
+        protected abstract Collection<Bounds> getBounds(OsmPrimitive primitive);
 
         @Override
         public boolean match(OsmPrimitive osm) {
             if (!osm.isUsable())
                 return false;
             else if (osm instanceof Node) {
-                Collection<Bounds> allBounds = getBounds();
+                Collection<Bounds> allBounds = getBounds(osm);
                 if (allBounds != null) {
                     LatLon coor = ((Node) osm).getCoor();
                     for (Bounds bounds: allBounds) {
@@ -1466,9 +1477,8 @@ public class SearchCompiler {
         }
 
         @Override
-        protected Collection<Bounds> getBounds() {
-            return Main.main == null || Main.main.getCurrentDataSet() == null || Main.main.getCurrentDataSet().getDataSourceArea() == null
-                    ? null : Main.main.getCurrentDataSet().getDataSourceBounds();
+        protected Collection<Bounds> getBounds(OsmPrimitive primitive) {
+            return primitive.getDataSet() != null ? primitive.getDataSet().getDataSourceBounds() : null;
         }
 
         @Override
@@ -1479,7 +1489,7 @@ public class SearchCompiler {
 
     /**
      * Matches objects which are not outside the source area ("downloaded area").
-     * Unlink {@link InDataSourceArea} this matches also if no source area is set (e.g., for new layers).
+     * Unlike {@link InDataSourceArea} this matches also if no source area is set (e.g., for new layers).
      */
     public static class NotOutsideDataSourceArea extends InDataSourceArea {
 
@@ -1491,8 +1501,8 @@ public class SearchCompiler {
         }
 
         @Override
-        protected Collection<Bounds> getBounds() {
-            final Collection<Bounds> bounds = super.getBounds();
+        protected Collection<Bounds> getBounds(OsmPrimitive primitive) {
+            final Collection<Bounds> bounds = super.getBounds(primitive);
             return bounds == null || bounds.isEmpty() ? Collections.singleton(Main.getProjection().getWorldBoundsLatLon()) : bounds;
         }
 
@@ -1512,7 +1522,7 @@ public class SearchCompiler {
         }
 
         @Override
-        protected Collection<Bounds> getBounds() {
+        protected Collection<Bounds> getBounds(OsmPrimitive primitive) {
             if (!Main.isDisplayingMapView()) {
                 return null;
             }

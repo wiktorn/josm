@@ -19,7 +19,6 @@ import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.widgets.AbstractFileChooser;
-import org.openstreetmap.josm.gui.widgets.FileChooserManager;
 import org.openstreetmap.josm.io.FileExporter;
 import org.openstreetmap.josm.tools.Shortcut;
 
@@ -198,7 +197,7 @@ public abstract class SaveActionBase extends DiskAccessAction {
             }
             // No filefilter accepts current filename, add default extension
             String fn = file.getPath();
-            if (extension != null) {
+            if (extension != null && ff.accept(new File(fn + '.' + extension))) {
                 fn += '.' + extension;
             } else if (ff instanceof ExtensionFileFilter) {
                 fn += '.' + ((ExtensionFileFilter) ff).getDefaultExtension();
