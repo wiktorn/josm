@@ -24,7 +24,7 @@ import org.openstreetmap.josm.tools.ImageProvider;
  * Button that is usually used in toggle dialogs
  */
 public class SideButton extends JButton implements Destroyable {
-    private static final int iconHeight = ImageProvider.getImageSizes(ImageProvider.ImageSizes.SIDEBUTTON).height;
+    private static final int iconHeight = ImageProvider.ImageSizes.SIDEBUTTON.getImageSize();
 
     private transient PropertyChangeListener propertyChangeListener;
 
@@ -56,7 +56,7 @@ public class SideButton extends JButton implements Destroyable {
             action.addPropertyChangeListener(propertyChangeListener = new PropertyChangeListener() {
                 @Override
                 public void propertyChange(PropertyChangeEvent evt) {
-                    if (evt.getPropertyName() == javax.swing.Action.SMALL_ICON) {
+                    if (javax.swing.Action.SMALL_ICON.equals(evt.getPropertyName())) {
                         fixIcon(null);
                     }
                 }

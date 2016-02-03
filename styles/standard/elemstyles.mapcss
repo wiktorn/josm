@@ -1394,6 +1394,7 @@ area[man_made=bridge],
 area[bridge:support],
 area[man_made=chimney],
 area[man_made=gasometer],
+area[man_made=silo],
 area[man_made=storage_tank],
 area[man_made=bunker_silo],
 area[man_made=lighthouse],
@@ -1428,6 +1429,12 @@ node[man_made=flagpole] {
 }
 node[man_made=gasometer] {
     icon-image: "presets/gasometer.png";
+    icon-width: 16;
+    set icon_z17;
+    text: auto;
+}
+node[man_made=silo] {
+    icon-image: "presets/silo.png";
     icon-width: 16;
     set icon_z17;
     text: auto;
@@ -2027,6 +2034,7 @@ area[shop=hairdresser],
 area[shop=hardware],
 area[shop=hearing_aids],
 area[shop=hifi],
+area[shop=houseware],
 area[shop=jewelry],
 area[shop=kitchen],
 area[shop=mall],
@@ -2267,6 +2275,11 @@ node[shop=hearing_aids] {
 }
 node[shop=hifi] {
     icon-image: "shop/hifi.svg";
+    set icon_z17;
+    text: auto;
+}
+node[shop=houseware] {
+    icon-image: "shop/houseware.svg";
     set icon_z17;
     text: auto;
 }
