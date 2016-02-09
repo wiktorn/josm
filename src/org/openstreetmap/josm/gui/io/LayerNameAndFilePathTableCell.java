@@ -29,6 +29,13 @@ import org.openstreetmap.josm.gui.util.CellEditorSupport;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
 import org.openstreetmap.josm.tools.GBC;
 
+/**
+ * Display and edit layer name and file path in a <code>JTable</code>.
+ * 
+ * Note: Do not use the same object both as <code>TableCellRenderer</code> and
+ * <code>TableCellEditor</code> - this can mess up the current editor component
+ * by subsequent calls to the renderer (#12462).
+ */
 class LayerNameAndFilePathTableCell extends JPanel implements TableCellRenderer, TableCellEditor {
     private static final Color colorError = new Color(255, 197, 197);
     private static final String separator = System.getProperty("file.separator");
@@ -80,11 +87,13 @@ class LayerNameAndFilePathTableCell extends JPanel implements TableCellRenderer,
         SaveLayerInfo info = (SaveLayerInfo) value;
         StringBuilder sb = new StringBuilder();
         sb.append("<html>")
-          .append(addLblLayerName(info))
-          .append("<br>");
-        add(btnFileChooser, GBC.std());
-        sb.append(addLblFilename(info))
-          .append("</html>");
+          .append(addLblLayerName(info));
+        if (info.isSavable()) {
+            add(btnFileChooser, GBC.std());
+            sb.append("<br>")
+              .append(addLblFilename(info));
+        }
+        sb.append("</html>");
         setToolTipText(sb.toString());
         return this;
     }
@@ -98,15 +107,17 @@ class LayerNameAndFilePathTableCell extends JPanel implements TableCellRenderer,
 
         StringBuilder sb = new StringBuilder();
         sb.append("<html>")
-          .append(addLblLayerName(info))
-          .append("<br/>");
+          .append(addLblLayerName(info));
 
-        add(btnFileChooser, GBC.std());
-        add(tfFilename, GBC.eol().fill(GBC.HORIZONTAL).insets(1, 0, 0, 0));
-        tfFilename.selectAll();
+        if (info.isSavable()) {
+            add(btnFileChooser, GBC.std());
+            add(tfFilename, GBC.eol().fill(GBC.HORIZONTAL).insets(1, 0, 0, 0));
+            tfFilename.selectAll();
 
-        sb.append(tfFilename.getToolTipText())
-          .append("</html>");
+            sb.append("<br>")
+              .append(tfFilename.getToolTipText());
+        }
+        sb.append("</html>");
         setToolTipText(sb.toString());
         return this;
     }
