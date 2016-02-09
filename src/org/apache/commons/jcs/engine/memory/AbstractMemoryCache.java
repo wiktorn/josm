@@ -128,7 +128,7 @@ public abstract class AbstractMemoryCache<K, V>
      * Gets multiple items from the cache based on the given set of keys.
      * <p>
      * @param keys
-     * @return a map of K key to ICacheElement<K, V> element, or an empty map if there is no
+     * @return a map of K key to ICacheElement&lt;K, V&gt; element, or an empty map if there is no
      *         data in cache for any of these keys
      * @throws IOException
      */
@@ -176,7 +176,7 @@ public abstract class AbstractMemoryCache<K, V>
                 log.debug( cacheName + ": MemoryCache quiet hit for " + key );
             }
 
-            ce = me.ce;
+            ce = me.getCacheElement();
         }
         else if ( log.isDebugEnabled() )
         {
@@ -269,7 +269,9 @@ public abstract class AbstractMemoryCache<K, V>
     {
         String attributeCacheName = this.cacheAttributes.getCacheName();
         if(attributeCacheName != null)
+        {
             return attributeCacheName;
+        }
         return cacheName;
     }
 
@@ -296,7 +298,7 @@ public abstract class AbstractMemoryCache<K, V>
         for (Map.Entry<K, MemoryElementDescriptor<K, V>> e : map.entrySet())
         {
             MemoryElementDescriptor<K, V> me = e.getValue();
-            log.debug( "dumpMap> key=" + e.getKey() + ", val=" + me.ce.getVal() );
+            log.debug( "dumpMap> key=" + e.getKey() + ", val=" + me.getCacheElement().getVal() );
         }
     }
 

@@ -46,7 +46,9 @@ class SaveLayersTableColumnModel extends DefaultTableColumnModel {
                     sb.append(tr("Layer ''{0}'' has modifications which should be uploaded to the server.", info.getName()));
 
                 } else {
-                    panel.add(pnlEmpty, defaultCellStyle);
+                    if (info.isUploadable()) {
+                        panel.add(pnlEmpty, defaultCellStyle);
+                    }
                     if (info.getLayer().requiresUploadToServer()) {
                         sb.append(tr("Layer ''{0}'' has modifications which are discouraged to be uploaded.", info.getName()));
                     } else {
@@ -60,7 +62,9 @@ class SaveLayersTableColumnModel extends DefaultTableColumnModel {
                     sb.append(tr("Layer ''{0}'' has modifications which should be saved to its associated file ''{1}''.",
                             info.getName(), info.getFile().toString()));
                 } else {
-                    panel.add(pnlEmpty, defaultCellStyle);
+                    if (info.isSavable()) {
+                        panel.add(pnlEmpty, defaultCellStyle);
+                    }
                     sb.append(tr("Layer ''{0}'' has no modifications to be saved.", info.getName()));
                 }
             }
@@ -81,12 +85,13 @@ class SaveLayersTableColumnModel extends DefaultTableColumnModel {
         TableColumn col = null;
 
         // column 0 - layer name, save path editor
-        LayerNameAndFilePathTableCell lnafptc = new LayerNameAndFilePathTableCell();
+        LayerNameAndFilePathTableCell lnfpRenderer = new LayerNameAndFilePathTableCell();
+        LayerNameAndFilePathTableCell lnfpEditor = new LayerNameAndFilePathTableCell();
         col = new TableColumn(0); // keep in sync with SaveLayersModel#columnFilename
         col.setHeaderValue(tr("Layer Name and File Path"));
         col.setResizable(true);
-        col.setCellRenderer(lnafptc);
-        col.setCellEditor(lnafptc);
+        col.setCellRenderer(lnfpRenderer);
+        col.setCellEditor(lnfpEditor);
         col.setPreferredWidth(324);
         addColumn(col);
 

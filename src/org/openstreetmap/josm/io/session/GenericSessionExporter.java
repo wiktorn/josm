@@ -207,7 +207,10 @@ public abstract class GenericSessionExporter<T extends Layer> extends AbstractSe
             addDataFile(support.getOutputStreamZip(zipPath));
         } else {
             try {
-                file.appendChild(support.createTextNode(layer.getAssociatedFile().toURI().toURL().toString()));
+                File f = layer.getAssociatedFile();
+                if (f != null) {
+                    file.appendChild(support.createTextNode(f.toURI().toURL().toString()));
+                }
             } catch (MalformedURLException e) {
                 throw new IOException(e);
             }
@@ -220,5 +223,5 @@ public abstract class GenericSessionExporter<T extends Layer> extends AbstractSe
         return include.isSelected();
     }
 
-    protected abstract void addDataFile(OutputStream out);
+    protected abstract void addDataFile(OutputStream out) throws IOException;
 }
