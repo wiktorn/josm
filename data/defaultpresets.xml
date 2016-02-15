@@ -5269,7 +5269,7 @@
             <key key="amenity" value="hunting_stand" />
             <combo key="height" text="Height" values="low,half,full,5,10,15,20" values_context="height" />
             <check key="shelter" text="Shelter" />
-            <check key="hide" text="Hide" />
+            <check key="hide" text="Hide" text_context="hunting stand" />
             <check key="lock" text="Lock" />
         </item> <!-- Hunting Stand -->
         <separator/>
@@ -6474,7 +6474,7 @@
         </item> <!-- Range -->
     </group> <!-- Military -->
     <group name="Power" icon="styles/standard/power/power.svg">
-        <item name="Power Plant" icon="styles/standard/power/plant.svg" type="closedway,multipolygon" preset_name_label="true">
+        <item name="Power Plant" icon="styles/standard/power/plant.svg" type="closedway,relation,multipolygon" preset_name_label="true">
             <link href="http://wiki.openstreetmap.org/wiki/Tag:power=plant"
                   de.href="http://wiki.openstreetmap.org/wiki/DE:Tag:power=plant"
                   fr.href="http://wiki.openstreetmap.org/wiki/FR:Tag:power=plant"
@@ -9679,7 +9679,7 @@
                 <role key="inner" text="inner segment" requisite="optional" type="way,closedway" />
             </roles>
         </item> <!-- Multipolygon -->
-        <item name="Boundary" icon="presets/boundaries.png" type="relation" preset_name_label="true">
+        <item name="Boundary" icon="presets/boundaries.png" type="relation,multipolygon" preset_name_label="true">
             <link href="http://wiki.openstreetmap.org/wiki/Relation:boundary"
                   de.href="http://wiki.openstreetmap.org/wiki/DE:Relation:boundary"
                   es.href="http://wiki.openstreetmap.org/wiki/ES:Relation:boundary"
