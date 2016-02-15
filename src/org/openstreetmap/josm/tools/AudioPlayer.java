@@ -376,8 +376,11 @@ public final class AudioPlayer extends Thread {
             msg = tr("unspecified reason");
         else
             msg = tr(msg);
-        JOptionPane.showMessageDialog(Main.parent,
-                "<html><p>" + msg + "</p></html>",
-                tr("Error playing sound"), JOptionPane.ERROR_MESSAGE);
+        Main.error(msg);
+        //if (!GraphicsEnvironment.isHeadless()) {
+            JOptionPane.showMessageDialog(Main.parent,
+                    "<html><p>" + msg + "</p></html>",
+                    tr("Error playing sound"), JOptionPane.ERROR_MESSAGE);
+        //}
     }
 }

@@ -14,7 +14,6 @@ import javax.swing.DefaultListCellRenderer;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JList;
-import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.ListCellRenderer;
 import javax.swing.LookAndFeel;
@@ -31,6 +30,7 @@ import org.openstreetmap.josm.gui.preferences.SubPreferenceSetting;
 import org.openstreetmap.josm.gui.preferences.TabPreferenceSetting;
 import org.openstreetmap.josm.gui.widgets.FileChooserManager;
 import org.openstreetmap.josm.gui.widgets.JosmComboBox;
+import org.openstreetmap.josm.gui.widgets.VerticallyScrollablePanel;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.date.DateUtils;
 
@@ -53,7 +53,7 @@ public class LafPreference implements SubPreferenceSetting {
      * ComboBox with all look and feels.
      */
     private JosmComboBox<LookAndFeelInfo> lafCombo;
-    JPanel panel;
+    VerticallyScrollablePanel panel;
     private final JCheckBox showSplashScreen = new JCheckBox(tr("Show splash screen at startup"));
     private final JCheckBox showID = new JCheckBox(tr("Show object ID in selection lists"));
     private final JCheckBox showLocalizedName = new JCheckBox(tr("Show localized name in selection lists"));
@@ -98,7 +98,7 @@ public class LafPreference implements SubPreferenceSetting {
             }
         });
 
-        panel = new JPanel(new GridBagLayout());
+        panel = new VerticallyScrollablePanel(new GridBagLayout());
         panel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
 
         // Show splash screen on startup
@@ -146,7 +146,7 @@ public class LafPreference implements SubPreferenceSetting {
         panel.add(GBC.glue(5, 0), GBC.std().fill(GBC.HORIZONTAL));
         panel.add(lafCombo, GBC.eol().fill(GBC.HORIZONTAL));
 
-        JScrollPane scrollpane = new JScrollPane(panel);
+        JScrollPane scrollpane = panel.getVerticalScrollPane();
         scrollpane.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
         gui.getDisplayPreference().addSubTab(this, tr("Look and Feel"), scrollpane);
     }
