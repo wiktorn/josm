@@ -27,10 +27,10 @@ import org.openstreetmap.josm.gui.MapView;
  * Full specification of the protocol available at:
  * http://www.opengeospatial.org/standards/wmts
  *
- * @author Wiktor Niesiobędzki
+ * @author Wiktor NiesiobÄ™dzki
  *
  */
-public class WMTSLayer extends AbstractCachedTileSourceLayer {
+public class WMTSLayer extends AbstractCachedTileSourceLayer implements NativeScaleLayer {
     /**
      * default setting of autozoom per layer
      */
@@ -81,15 +81,25 @@ public class WMTSLayer extends AbstractCachedTileSourceLayer {
 
     @Override
     protected int getBestZoom() {
-        if (!Main.isDisplayingMapView()) return 1;
-
-        for (int i = getMinZoomLvl() + 1; i <= getMaxZoomLvl(); i++) {
-            double ret = getTileToScreenRatio(i);
-            if (ret < 1) {
-                return i - 1;
+        if (!Main.isDisplayingMapView()) return 0;
+        ScaleList scaleList = getNativeScales();
+        for (int i = scaleList.size()-1; i >= 0; i--) {
+            Scale scale = scaleList.get(i);
+            if (scale.scale >= Main.map.mapView.getScale()) {
+                return i;
             }
         }
-        return getMaxZoomLvl();
+        return 0;
+    }
+
+    @Override
+    protected int getMaxZoomLvl() {
+        return getNativeScales().size()-1;
+    }
+
+    @Override
+    protected int getMinZoomLvl() {
+        return 0;
     }
 
     @Override
@@ -128,5 +138,10 @@ public class WMTSLayer extends AbstractCachedTileSourceLayer {
      */
     public static CacheAccess<String, BufferedImageCacheEntry> getCache() {
         return AbstractCachedTileSourceLayer.getCache(CACHE_REGION_NAME);
+    }
+
+    @Override
+    public ScaleList getNativeScales() {
+        return ((WMTSTileSource) tileSource).getNativeScales();
     }
 }
