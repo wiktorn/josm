@@ -160,7 +160,7 @@ public class NavigatableComponent extends JComponent implements Helpful {
 
     /**
      * Choose a layer that scale will be snap to its native scales.
-     * @param nativeScaleLayer
+     * @param nativeScaleLayer layer to which scale will be snapped
      */
     public void setNativeScaleLayer(NativeScaleLayer nativeScaleLayer) {
         this.nativeScaleLayer = nativeScaleLayer;

@@ -15,12 +15,12 @@ public interface NativeScaleLayer {
      * Get native scales of this layer.
      * @return {@link ScaleList} of native scales
      */
-    public ScaleList getNativeScales();
+    ScaleList getNativeScales();
 
     /**
      * Represents a scale with native flag, used in {@link ScaleList}
      */
-    public static class Scale {
+    class Scale {
         /**
          * Scale factor, same unit as in {@link NavigatableComponent}
          */
@@ -35,7 +35,7 @@ public interface NativeScaleLayer {
 
         /**
          * Constructs a new Scale with given scale, native defaults to true.
-         * @param scale
+         * @param scale as defined in WMTS (scaleDenominator)
          */
         public Scale(double scale) {
             this.scale = scale;
@@ -44,8 +44,8 @@ public interface NativeScaleLayer {
 
         /**
          * Constructs a new Scale with given scale and native values.
-         * @param scale
-         * @param isNative
+         * @param scale as defined in WMTS (scaleDenominator)
+         * @param isNative is this scale native to the source or not
          */
         public Scale(double scale, boolean isNative) {
             this.scale = scale;
@@ -54,9 +54,9 @@ public interface NativeScaleLayer {
 
         /**
          * Constructs a new Scale with given scale, native and index values.
-         * @param scale
-         * @param isNative
-         * @param index
+         * @param scale as defined in WMTS (scaleDenominator)
+         * @param isNative is this scale native to the source or not
+         * @param index zoom index for this scale
          */
         public Scale(double scale, boolean isNative, int index) {
             this.scale = scale;
@@ -82,7 +82,7 @@ public interface NativeScaleLayer {
      * List of scales, may include intermediate steps
      * between native resolutions
      */
-    public static class ScaleList extends ArrayList<Scale> {
+    class ScaleList extends ArrayList<Scale> {
 
         /**
          * Returns a ScaleList that has intermediate steps between native scales.
@@ -99,7 +99,7 @@ public interface NativeScaleLayer {
                     double factor = Math.log(step) / Math.log(ratio);
                     int steps = (int) Math.round(factor);
                     double smallStep = Math.pow(step, 1.0/steps);
-                    for (int j=1; j<steps; j++) {
+                    for (int j = 1; j < steps; j++) {
                         double intermediate = previous.scale / Math.pow(smallStep, j);
                         result.add(new Scale(intermediate, false));
                     }
@@ -141,7 +141,7 @@ public interface NativeScaleLayer {
                 }
             } else {
                 Scale previous = null;
-                for (int i=0; i<size; i++) {
+                for (int i = 0; i < size; i++) {
                     Scale current = this.get(i);
                     if (previous != null) {
                         if (scale <= previous.scale && scale >= current.scale) {
@@ -169,8 +169,8 @@ public interface NativeScaleLayer {
         public Scale scaleZoomTimes(double scale, double ratio, int times) {
             Scale next = getSnapScale(scale, ratio, false);
             int abs = Math.abs(times);
-            for (int i=0; i<abs; i++) {
-                if (times<0) {
+            for (int i = 0; i < abs; i++) {
+                if (times < 0) {
                     next = getNextIn(next, ratio);
                 } else {
                     next = getNextOut(next, ratio);
