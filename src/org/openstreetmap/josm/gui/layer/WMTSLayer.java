@@ -5,20 +5,16 @@ import java.io.IOException;
 import java.util.Set;
 
 import org.apache.commons.jcs.access.CacheAccess;
-import org.openstreetmap.gui.jmapviewer.TileXY;
-import org.openstreetmap.gui.jmapviewer.interfaces.ICoordinate;
 import org.openstreetmap.gui.jmapviewer.interfaces.TileLoader;
 import org.openstreetmap.gui.jmapviewer.tilesources.AbstractTMSTileSource;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.cache.BufferedImageCacheEntry;
-import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.imagery.ImageryInfo;
 import org.openstreetmap.josm.data.imagery.ImageryInfo.ImageryType;
 import org.openstreetmap.josm.data.imagery.WMSCachedTileLoader;
 import org.openstreetmap.josm.data.imagery.WMTSTileSource;
 import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.data.projection.Projection;
-import org.openstreetmap.josm.gui.MapView;
 
 /**
  * WMTS layer based on AbstractTileSourceLayer. Overrides few methods to align WMTS to Tile based computations
@@ -60,23 +56,6 @@ public class WMTSLayer extends AbstractCachedTileSourceLayer implements NativeSc
             Main.warn(e);
             throw new IllegalArgumentException(e);
         }
-    }
-
-    /**
-     * @param zoom level of the tile
-     * @return how many pixels of the screen occupies one pixel of the tile
-     */
-    private double getTileToScreenRatio(int zoom) {
-         MapView mv = Main.map.mapView;
-         LatLon topLeft = mv.getLatLon(0, 0);
-         LatLon botLeft = mv.getLatLon(0, tileSource.getTileSize());
-
-         TileXY topLeftTile = tileSource.latLonToTileXY(topLeft.toCoordinate(), zoom);
-
-         ICoordinate north = tileSource.tileXYToLatLon(topLeftTile.getXIndex(), topLeftTile.getYIndex(), zoom);
-         ICoordinate south = tileSource.tileXYToLatLon(topLeftTile.getXIndex(), topLeftTile.getYIndex() + 1, zoom);
-
-         return Math.abs((north.getLat() - south.getLat()) / (topLeft.lat() - botLeft.lat()));
     }
 
     @Override
