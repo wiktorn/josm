@@ -57,6 +57,7 @@ import org.openstreetmap.josm.data.preferences.ListListSetting;
 import org.openstreetmap.josm.data.preferences.ListSetting;
 import org.openstreetmap.josm.data.preferences.MapListSetting;
 import org.openstreetmap.josm.data.preferences.PreferencesReader;
+import org.openstreetmap.josm.data.preferences.PreferencesWriter;
 import org.openstreetmap.josm.data.preferences.Setting;
 import org.openstreetmap.josm.data.preferences.SettingVisitor;
 import org.openstreetmap.josm.data.preferences.StringSetting;
@@ -65,8 +66,10 @@ import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.io.XmlWriter;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.ColorHelper;
+import org.openstreetmap.josm.tools.FilteredCollection;
 import org.openstreetmap.josm.tools.I18n;
 import org.openstreetmap.josm.tools.MultiMap;
+import org.openstreetmap.josm.tools.Predicate;
 import org.openstreetmap.josm.tools.Utils;
 import org.xml.sax.SAXException;
 
@@ -100,6 +103,8 @@ public class Preferences {
             "mappaint.style.migration.switchedToMapCSS", // was used prior to 8315 for MapCSS switch. To remove end of 2015
             "mappaint.style.migration.changedXmlName" // was used prior to 8315 for MapCSS switch. To remove end of 2015
     };
+
+    private static final long MAX_AGE_DEFAULT_PREFERENCES = 60 * 60 * 24 * 50; // 50 days (in seconds)
 
     /**
      * Internal storage for the preference directory.
@@ -136,6 +141,13 @@ public class Preferences {
      * setting objects can be null.
      */
     protected final SortedMap<String, Setting<?>> defaultsMap = new TreeMap<>();
+
+    private final Predicate<Entry<String, Setting<?>>> NO_DEFAULT_SETTINGS_ENTRY = new Predicate<Entry<String, Setting<?>>>() {
+        @Override
+        public boolean evaluate(Entry<String, Setting<?>> e) {
+            return !e.getValue().equals(defaultsMap.get(e.getKey()));
+        }
+    };
 
     /**
      * Maps color keys to human readable color name
@@ -292,7 +304,7 @@ public class Preferences {
     }
 
     /**
-     * Returns the user preferences file (preferences.xml)
+     * Returns the user preferences file (preferences.xml).
      * @return The user preferences file (preferences.xml)
      */
     public File getPreferenceFile() {
@@ -300,7 +312,15 @@ public class Preferences {
     }
 
     /**
-     * Returns the user plugin directory
+     * Returns the cache file for default preferences.
+     * @return the cache file for default preferences
+     */
+    public File getDefaultsCacheFile() {
+        return new File(getCacheDirectory(), "default_preferences.xml");
+    }
+
+    /**
+     * Returns the user plugin directory.
      * @return The user plugin directory
      */
     public File getPluginsDirectory() {
@@ -492,12 +512,23 @@ public class Preferences {
      * @throws IOException if any I/O error occurs
      */
     public void save() throws IOException {
-        /* currently unused, but may help to fix configuration issues in future */
-        putInteger("josm.version", Version.getInstance().getVersion());
+        save(getPreferenceFile(),
+                new FilteredCollection<>(settingsMap.entrySet(), NO_DEFAULT_SETTINGS_ENTRY), false);
+    }
 
-        updateSystemProperties();
+    public void saveDefaults() throws IOException {
+        save(getDefaultsCacheFile(), defaultsMap.entrySet(), true);
+    }
 
-        File prefFile = getPreferenceFile();
+    public void save(File prefFile, Collection<Entry<String, Setting<?>>> settings, boolean defaults) throws IOException {
+
+        if (!defaults) {
+            /* currently unused, but may help to fix configuration issues in future */
+            putInteger("josm.version", Version.getInstance().getVersion());
+
+            updateSystemProperties();
+        }
+
         File backupFile = new File(prefFile + "_backup");
 
         // Backup old preferences if there are old preferences
@@ -507,7 +538,8 @@ public class Preferences {
 
         try (PrintWriter out = new PrintWriter(new OutputStreamWriter(
                 new FileOutputStream(prefFile + "_tmp"), StandardCharsets.UTF_8), false)) {
-            out.print(toXML(settingsMap, false));
+            PreferencesWriter writer = new PreferencesWriter(out, false, defaults);
+            writer.write(settings);
         }
 
         File tmpFile = new File(prefFile + "_tmp");
@@ -545,8 +577,8 @@ public class Preferences {
     protected void load() throws IOException, SAXException, XMLStreamException {
         File pref = getPreferenceFile();
         PreferencesReader.validateXML(pref);
-        PreferencesReader reader = new PreferencesReader();
-        reader.fromXML(pref);
+        PreferencesReader reader = new PreferencesReader(pref, false);
+        reader.parse();
         settingsMap.clear();
         settingsMap.putAll(reader.getSettings());
         updateSystemProperties();
@@ -554,13 +586,37 @@ public class Preferences {
     }
 
     /**
+     * Loads default preferences from default settings cache file.
+     *
+     * Discards entries older than {@link #MAX_AGE_DEFAULT_PREFERENCES}.
+     *
+     * @throws IOException if any I/O error occurs while reading the file
+     * @throws SAXException if the settings file does not contain valid XML
+     * @throws XMLStreamException if an XML error occurs while parsing the file (after validation)
+     */
+    protected void loadDefaults() throws IOException, XMLStreamException, SAXException {
+        File def = getDefaultsCacheFile();
+        PreferencesReader.validateXML(def);
+        PreferencesReader reader = new PreferencesReader(def, true);
+        reader.parse();
+        defaultsMap.clear();
+        long minTime = System.currentTimeMillis() / 1000 - MAX_AGE_DEFAULT_PREFERENCES;
+        for (Entry<String, Setting<?>> e : reader.getSettings().entrySet()) {
+            if (e.getValue().getTime() >= minTime) {
+                defaultsMap.put(e.getKey(), e.getValue());
+            }
+        }
+    }
+
+    /**
      * Loads preferences from XML reader.
      * @param in XML reader
      * @throws XMLStreamException if any XML stream error occurs
+     * @throws IOException if any I/O error occurs
      */
-    public void fromXML(Reader in) throws XMLStreamException {
-        PreferencesReader reader = new PreferencesReader();
-        reader.fromXML(in);
+    public void fromXML(Reader in) throws XMLStreamException, IOException {
+        PreferencesReader reader = new PreferencesReader(in, false);
+        reader.parse();
         settingsMap.clear();
         settingsMap.putAll(reader.getSettings());
     }
@@ -628,7 +684,7 @@ public class Preferences {
         try {
             load();
             initSuccessful = true;
-        } catch (Exception e) {
+        } catch (IOException | SAXException | XMLStreamException e) {
             Main.error(e);
             File backupFile = new File(prefDir, "preferences.xml.bak");
             JOptionPane.showMessageDialog(
@@ -646,6 +702,19 @@ public class Preferences {
             } catch (IOException e1) {
                 Main.error(e1);
                 Main.warn(tr("Failed to initialize preferences. Failed to reset preference file to default: {0}", getPreferenceFile()));
+            }
+        }
+        File def = getDefaultsCacheFile();
+        if (def.exists()) {
+            try {
+                loadDefaults();
+            } catch (IOException | XMLStreamException | SAXException e) {
+                Main.error(e);
+                Main.warn(tr("Failed to load defaults cache file: {0}", def));
+                defaultsMap.clear();
+                if (!def.delete()) {
+                    Main.warn(tr("Failed to delete faulty defaults cache file: {0}", def));
+                }
             }
         }
     }
@@ -879,11 +948,14 @@ public class Preferences {
         CheckParameterUtil.ensureParameterNotNull(key);
         CheckParameterUtil.ensureParameterNotNull(def);
         Setting<?> oldDef = defaultsMap.get(key);
-        if (oldDef != null && oldDef.getValue() != null && def.getValue() != null && !def.equals(oldDef)) {
+        if (oldDef != null && oldDef.isNew() && oldDef.getValue() != null && def.getValue() != null && !def.equals(oldDef)) {
             Main.info("Defaults for " + key + " differ: " + def + " != " + defaultsMap.get(key));
         }
         if (def.getValue() != null || oldDef == null) {
-            defaultsMap.put(key, def.copy());
+            Setting<?> defCopy = def.copy();
+            defCopy.setTime(System.currentTimeMillis() / 1000);
+            defCopy.setNew(true);
+            defaultsMap.put(key, defCopy);
         }
         Setting<?> prop = settingsMap.get(key);
         if (klass.isInstance(prop)) {
@@ -1329,104 +1401,31 @@ public class Preferences {
         putCollection("pluginmanager.sites", sites);
     }
 
-    private class SettingToXml implements SettingVisitor {
-        private final StringBuilder b;
-        private final boolean noPassword;
-        private String key;
-
-        SettingToXml(StringBuilder b, boolean noPassword) {
-            this.b = b;
-            this.noPassword = noPassword;
-        }
-
-        public void setKey(String key) {
-            this.key = key;
-        }
-
-        @Override
-        public void visit(StringSetting setting) {
-            if (noPassword && "osm-server.password".equals(key))
-                return; // do not store plain password.
-            /* don't save default values */
-            if (setting.equals(defaultsMap.get(key)))
-                return;
-            b.append("  <tag key='");
-            b.append(XmlWriter.encode(key));
-            b.append("' value='");
-            b.append(XmlWriter.encode(setting.getValue()));
-            b.append("'/>\n");
-        }
-
-        @Override
-        public void visit(ListSetting setting) {
-            /* don't save default values */
-            if (setting.equals(defaultsMap.get(key)))
-                return;
-            b.append("  <list key='").append(XmlWriter.encode(key)).append("'>\n");
-            for (String s : setting.getValue()) {
-                b.append("    <entry value='").append(XmlWriter.encode(s)).append("'/>\n");
-            }
-            b.append("  </list>\n");
-        }
-
-        @Override
-        public void visit(ListListSetting setting) {
-            /* don't save default values */
-            if (setting.equals(defaultsMap.get(key)))
-                return;
-            b.append("  <lists key='").append(XmlWriter.encode(key)).append("'>\n");
-            for (List<String> list : setting.getValue()) {
-                b.append("    <list>\n");
-                for (String s : list) {
-                    b.append("      <entry value='").append(XmlWriter.encode(s)).append("'/>\n");
-                }
-                b.append("    </list>\n");
-            }
-            b.append("  </lists>\n");
-        }
-
-        @Override
-        public void visit(MapListSetting setting) {
-            b.append("  <maps key='").append(XmlWriter.encode(key)).append("'>\n");
-            for (Map<String, String> struct : setting.getValue()) {
-                b.append("    <map>\n");
-                for (Entry<String, String> e : struct.entrySet()) {
-                    b.append("      <tag key='").append(XmlWriter.encode(e.getKey()))
-                     .append("' value='").append(XmlWriter.encode(e.getValue())).append("'/>\n");
-                }
-                b.append("    </map>\n");
-            }
-            b.append("  </maps>\n");
-        }
-    }
-
     /**
      * Returns XML describing these preferences.
      * @param nopass if password must be excluded
      * @return XML
      */
     public String toXML(boolean nopass) {
-        return toXML(settingsMap, nopass);
+        return toXML(settingsMap.entrySet(), nopass, false);
     }
 
     /**
      * Returns XML describing the given preferences.
      * @param settings preferences settings
      * @param nopass if password must be excluded
+     * @param defaults true, if default values are converted to XML, false for
+     * regular preferences
      * @return XML
      */
-    public String toXML(Map<String, Setting<?>> settings, boolean nopass) {
-        StringBuilder b = new StringBuilder(
-                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<preferences xmlns=\"")
-                .append(Main.getXMLBase()).append("/preferences-1.0\" version=\"")
-                .append(Version.getInstance().getVersion()).append("\">\n");
-        SettingToXml toXml = new SettingToXml(b, nopass);
-        for (Entry<String, Setting<?>> e : settings.entrySet()) {
-            toXml.setKey(e.getKey());
-            e.getValue().visit(toXml);
-        }
-        b.append("</preferences>\n");
-        return b.toString();
+    public String toXML(Collection<Entry<String, Setting<?>>> settings, boolean nopass, boolean defaults) {
+        StringWriter sw = new StringWriter();
+        PrintWriter pw = new PrintWriter(sw);
+        PreferencesWriter prefWriter = new PreferencesWriter(pw, nopass, defaults);
+        prefWriter.write(settings);
+        sw.flush();
+        StringBuffer sb = sw.getBuffer();
+        return sb.toString();
     }
 
     /**
