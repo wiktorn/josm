@@ -59,11 +59,9 @@ import org.openstreetmap.josm.data.preferences.MapListSetting;
 import org.openstreetmap.josm.data.preferences.PreferencesReader;
 import org.openstreetmap.josm.data.preferences.PreferencesWriter;
 import org.openstreetmap.josm.data.preferences.Setting;
-import org.openstreetmap.josm.data.preferences.SettingVisitor;
 import org.openstreetmap.josm.data.preferences.StringSetting;
 import org.openstreetmap.josm.io.OfflineAccessException;
 import org.openstreetmap.josm.io.OnlineResource;
-import org.openstreetmap.josm.io.XmlWriter;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.ColorHelper;
 import org.openstreetmap.josm.tools.FilteredCollection;
@@ -1419,13 +1417,17 @@ public class Preferences {
      * @return XML
      */
     public String toXML(Collection<Entry<String, Setting<?>>> settings, boolean nopass, boolean defaults) {
-        StringWriter sw = new StringWriter();
-        PrintWriter pw = new PrintWriter(sw);
-        PreferencesWriter prefWriter = new PreferencesWriter(pw, nopass, defaults);
-        prefWriter.write(settings);
-        sw.flush();
-        StringBuffer sb = sw.getBuffer();
-        return sb.toString();
+        try (
+            StringWriter sw = new StringWriter();
+            PreferencesWriter prefWriter = new PreferencesWriter(new PrintWriter(sw), nopass, defaults);
+        ) {
+            prefWriter.write(settings);
+            sw.flush();
+            return sw.toString();
+        } catch (IOException e) {
+            Main.error(e);
+            return null;
+        }
     }
 
     /**
