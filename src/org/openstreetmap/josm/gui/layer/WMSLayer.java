@@ -127,8 +127,8 @@ public class WMSLayer extends AbstractCachedTileSourceLayer {
         String appendix = "";
 
         if (isReprojectionPossible()) {
-            appendix = ". " + tr("<p>JOSM will use EPSG:4326 to query the server, but results may vary "
-                    + "depending on the WMS server</p>");
+            appendix = ". <p>" + tr("JOSM will use EPSG:4326 to query the server, but results may vary "
+                    + "depending on the WMS server") + "</p>";
         }
         return ret.substring(0, ret.length()-2) + appendix;
     }
