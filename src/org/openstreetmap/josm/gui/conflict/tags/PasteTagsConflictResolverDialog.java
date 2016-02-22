@@ -32,19 +32,18 @@ import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.UIManager;
-import javax.swing.table.DefaultTableColumnModel;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
-import javax.swing.table.TableColumn;
 
 import org.openstreetmap.josm.data.osm.OsmPrimitiveType;
 import org.openstreetmap.josm.data.osm.TagCollection;
 import org.openstreetmap.josm.gui.SideButton;
+import org.openstreetmap.josm.gui.tagging.TagTableColumnModelBuilder;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.WindowGeometry;
 
 public class PasteTagsConflictResolverDialog extends JDialog  implements PropertyChangeListener {
-    private static final Map<OsmPrimitiveType, String> PANE_TITLES;
+    static final Map<OsmPrimitiveType, String> PANE_TITLES;
     static {
         PANE_TITLES = new EnumMap<>(OsmPrimitiveType.class);
         PANE_TITLES.put(OsmPrimitiveType.NODE, tr("Tags from nodes"));
@@ -52,7 +51,7 @@ public class PasteTagsConflictResolverDialog extends JDialog  implements Propert
         PANE_TITLES.put(OsmPrimitiveType.RELATION, tr("Tags from relations"));
     }
 
-    private enum Mode {
+    enum Mode {
         RESOLVING_ONE_TAGCOLLECTION_ONLY,
         RESOLVING_TYPED_TAGCOLLECTIONS
     }
@@ -356,52 +355,20 @@ public class PasteTagsConflictResolverDialog extends JDialog  implements Propert
         }
     }
 
-    private static final class StatisticsInfo {
+    static final class StatisticsInfo {
         public int numTags;
         public final Map<OsmPrimitiveType, Integer> sourceInfo;
         public final Map<OsmPrimitiveType, Integer> targetInfo;
 
-        private StatisticsInfo() {
+        StatisticsInfo() {
             sourceInfo = new EnumMap<>(OsmPrimitiveType.class);
             targetInfo = new EnumMap<>(OsmPrimitiveType.class);
         }
     }
 
-    private static final class StatisticsTableColumnModel extends DefaultTableColumnModel {
-        private StatisticsTableColumnModel() {
-            TableCellRenderer renderer = new StatisticsInfoRenderer();
-            TableColumn col = null;
-
-            // column 0 - Paste
-            col = new TableColumn(0);
-            col.setHeaderValue(tr("Paste ..."));
-            col.setResizable(true);
-            col.setCellRenderer(renderer);
-            addColumn(col);
-
-            // column 1 - From
-            col = new TableColumn(1);
-            col.setHeaderValue(tr("From ..."));
-            col.setResizable(true);
-            col.setCellRenderer(renderer);
-            addColumn(col);
-
-            // column 2 - To
-            col = new TableColumn(2);
-            col.setHeaderValue(tr("To ..."));
-            col.setResizable(true);
-            col.setCellRenderer(renderer);
-            addColumn(col);
-        }
-    }
-
-    private static final class StatisticsTableModel extends DefaultTableModel {
+    static final class StatisticsTableModel extends DefaultTableModel {
         private static final String[] HEADERS = new String[] {tr("Paste ..."), tr("From ..."), tr("To ...") };
-        private final transient List<StatisticsInfo> data;
-
-        private StatisticsTableModel() {
-            data = new ArrayList<>();
-        }
+        private final transient List<StatisticsInfo> data = new ArrayList<>();
 
         @Override
         public Object getValueAt(int row, int column) {
@@ -420,8 +387,7 @@ public class PasteTagsConflictResolverDialog extends JDialog  implements Propert
 
         @Override
         public int getRowCount() {
-            if (data == null) return 1;
-            return data.size() + 1;
+            return data == null ? 1 : data.size() + 1;
         }
 
         public void reset() {
@@ -434,7 +400,7 @@ public class PasteTagsConflictResolverDialog extends JDialog  implements Propert
         }
     }
 
-    private static class StatisticsInfoRenderer extends JLabel implements TableCellRenderer {
+    static final class StatisticsInfoRenderer extends JLabel implements TableCellRenderer {
         protected void reset() {
             setIcon(null);
             setText("");
@@ -506,10 +472,11 @@ public class PasteTagsConflictResolverDialog extends JDialog  implements Propert
         }
     }
 
-    private static final class StatisticsInfoTable extends JPanel {
+    static final class StatisticsInfoTable extends JPanel {
 
-        private StatisticsInfoTable(StatisticsTableModel model) {
-            JTable infoTable = new JTable(model, new StatisticsTableColumnModel());
+        StatisticsInfoTable(StatisticsTableModel model) {
+            JTable infoTable = new JTable(model,
+                    new TagTableColumnModelBuilder(new StatisticsInfoRenderer(), tr("Paste ..."), tr("From ..."), tr("To ...")).build());
             infoTable.setShowHorizontalLines(true);
             infoTable.setShowVerticalLines(false);
             infoTable.setEnabled(false);
