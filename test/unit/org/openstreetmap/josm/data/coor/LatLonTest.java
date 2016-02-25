@@ -3,12 +3,9 @@ package org.openstreetmap.josm.data.coor;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.Locale;
-
 import org.junit.Before;
 import org.junit.Test;
-import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.data.projection.Projections;
+import org.openstreetmap.josm.JOSMFixture;
 
 /**
  * Unit tests for class {@link LatLon}.
@@ -20,9 +17,7 @@ public class LatLonTest {
      */
     @Before
     public void setUp() {
-        Locale.setDefault(Locale.GERMAN);
-        Main.initApplicationPreferences();
-        Main.setProjection(Projections.getProjectionByCode("EPSG:3857")); // Mercator
+        JOSMFixture.createUnitTestFixture().init();
     }
 
     private static final double EPSILON = 1e-6;
@@ -166,10 +161,10 @@ public class LatLonTest {
         LatLon c = new LatLon(47.000000, 19.000000);
         assertEquals("47.0", c.latToString(CoordinateFormat.DECIMAL_DEGREES));
         assertEquals("19.0", c.lonToString(CoordinateFormat.DECIMAL_DEGREES));
-        assertEquals("47°00'00,0\"N", c.latToString(CoordinateFormat.DEGREES_MINUTES_SECONDS));
-        assertEquals("19°00'00,0\"E", c.lonToString(CoordinateFormat.DEGREES_MINUTES_SECONDS));
-        assertEquals("47°00,000'N", c.latToString(CoordinateFormat.NAUTICAL));
-        assertEquals("19°00,000'E", c.lonToString(CoordinateFormat.NAUTICAL));
+        assertEquals("47°00'00.0\"N", c.latToString(CoordinateFormat.DEGREES_MINUTES_SECONDS));
+        assertEquals("19°00'00.0\"E", c.lonToString(CoordinateFormat.DEGREES_MINUTES_SECONDS));
+        assertEquals("47°00.000'N", c.latToString(CoordinateFormat.NAUTICAL));
+        assertEquals("19°00.000'E", c.lonToString(CoordinateFormat.NAUTICAL));
         assertEquals("5942074.0724311", c.latToString(CoordinateFormat.EAST_NORTH));
         assertEquals("2115070.3250722", c.lonToString(CoordinateFormat.EAST_NORTH));
     }
