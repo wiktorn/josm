@@ -258,8 +258,7 @@ public class OsmOAuthAuthorizationClient {
         try {
             final URL url = new URL(oauthProviderParameters.getOsmLoginUrl() + "?cookie_test=true");
             synchronized (this) {
-                connection = HttpClient.create(url);
-                connection.useCache(false);
+                connection = HttpClient.create(url).useCache(false);
                 connection.connect();
             }
             SessionId sessionId = extractOsmSession();
@@ -289,8 +288,8 @@ public class OsmOAuthAuthorizationClient {
             URL url = new URL(getAuthoriseUrl(requestToken));
             synchronized (this) {
                 connection = HttpClient.create(url)
+                        .useCache(false)
                         .setHeader("Cookie", "_osm_session=" + sessionId.id + "; _osm_username=" + sessionId.userName);
-                connection.useCache(false);
                 connection.connect();
             }
             sessionId.token = extractToken();
