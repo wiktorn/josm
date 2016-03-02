@@ -17,11 +17,6 @@ import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import oauth.signpost.OAuth;
-import oauth.signpost.OAuthConsumer;
-import oauth.signpost.OAuthProvider;
-import oauth.signpost.exception.OAuthException;
-
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.oauth.OAuthParameters;
 import org.openstreetmap.josm.data.oauth.OAuthToken;
@@ -32,6 +27,11 @@ import org.openstreetmap.josm.io.OsmTransferCanceledException;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.HttpClient;
 import org.openstreetmap.josm.tools.Utils;
+
+import oauth.signpost.OAuth;
+import oauth.signpost.OAuthConsumer;
+import oauth.signpost.OAuthProvider;
+import oauth.signpost.exception.OAuthException;
 
 /**
  * An OAuth 1.0 authorization client.
@@ -256,6 +256,7 @@ public class OsmOAuthAuthorizationClient {
             final URL url = new URL(oauthProviderParameters.getOsmLoginUrl() + "?cookie_test=true");
             synchronized (this) {
                 connection = HttpClient.create(url);
+                connection.useCache(false);
                 connection.connect();
             }
             SessionId sessionId = extractOsmSession();
@@ -286,6 +287,7 @@ public class OsmOAuthAuthorizationClient {
             synchronized (this) {
                 connection = HttpClient.create(url)
                         .setHeader("Cookie", "_osm_session=" + sessionId.id + "; _osm_username=" + sessionId.userName);
+                connection.useCache(false);
                 connection.connect();
             }
             sessionId.token = extractToken();
