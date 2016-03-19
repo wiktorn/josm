@@ -223,7 +223,7 @@ public class TaggingPreset extends AbstractAction implements MapView.LayerChange
     public void setName_template_filter(String filter) throws SAXException {
         try {
             this.nameTemplateFilter = SearchCompiler.compile(filter);
-        } catch (org.openstreetmap.josm.actions.search.SearchCompiler.ParseError e) {
+        } catch (SearchCompiler.ParseError e) {
             Main.error("Error while parsing" + filter + ": " + e.getMessage());
             throw new SAXException(e);
         }
@@ -543,7 +543,7 @@ public class TaggingPreset extends AbstractAction implements MapView.LayerChange
      * @param p the primitive
      * @return {@code true} if this preset matches the primitive
      */
-     @Override
+    @Override
     public boolean evaluate(OsmPrimitive p) {
         return matches(EnumSet.of(TaggingPresetType.forPrimitive(p)), p.getKeys(), false);
     }

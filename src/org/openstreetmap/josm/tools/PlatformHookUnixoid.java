@@ -65,13 +65,15 @@ public class PlatformHookUnixoid implements PlatformHook {
         /**
          * Platform font name.
          */
-        @pref @writeExplicitly
+        @pref
+        @writeExplicitly
         public String name = "";
 
         /**
          * File name.
          */
-        @pref @writeExplicitly
+        @pref
+        @writeExplicitly
         public String file = "";
 
         /**
@@ -155,10 +157,9 @@ public class PlatformHookUnixoid implements PlatformHook {
         StringBuilder result = new StringBuilder();
         result.append("<html>").append(name);
         if (sc != null && !sc.getKeyText().isEmpty()) {
-            result.append(' ')
-                  .append("<font size='-2'>")
-                  .append('(').append(sc.getKeyText()).append(')')
-                  .append("</font>");
+            result.append(" <font size='-2'>(")
+                  .append(sc.getKeyText())
+                  .append(")</font>");
         }
         return result.append("&nbsp;</html>").toString();
     }

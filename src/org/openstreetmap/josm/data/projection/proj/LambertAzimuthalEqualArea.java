@@ -53,10 +53,10 @@ public class LambertAzimuthalEqualArea extends AbstractProj {
     private Mode mode;
 
     /** Constant parameters. */
-    private double sinb1, cosb1, xmf, ymf, mmf, qp, dd, rq;
+    private double sinb1, cosb1, xmf, ymf, qp, dd, rq;
 
     /** Coefficients for authalic latitude. */
-    private double APA0, APA1, APA2;
+    private double aPA0, aPA1, aPA2;
 
     private double latitudeOfOrigin;
 
@@ -94,14 +94,13 @@ public class LambertAzimuthalEqualArea extends AbstractProj {
          */
         final double es2 = e2 * e2;
         final double es3 = e2 * es2;
-        APA0 = P02 * es3 + P01 * es2 + P00 * e2;
-        APA1 = P11 * es3 + P10 * es2;
-        APA2 = P20 * es3;
+        aPA0 = P02 * es3 + P01 * es2 + P00 * e2;
+        aPA1 = P11 * es3 + P10 * es2;
+        aPA2 = P20 * es3;
 
         final double sinphi;
         qp     = qsfn(1);
         rq     = Math.sqrt(0.5 * qp);
-        mmf    = 0.5 / (1 - e2);
         sinphi = Math.sin(latitudeOfOrigin);
         sinb1 = qsfn(sinphi) / qp;
         cosb1 = Math.sqrt(1.0 - sinb1 * sinb1);
@@ -257,8 +256,8 @@ public class LambertAzimuthalEqualArea extends AbstractProj {
     private double qsfn(final double sinphi) {
         if (e >= EPSILON) {
             final double con = e * sinphi;
-            return ((1.0 - e2) * (sinphi / (1.0 - con*con) -
-                    (0.5 / e) * Math.log((1.0 - con) / (1.0 + con))));
+            return (1.0 - e2) * (sinphi / (1.0 - con*con) -
+                    (0.5 / e) * Math.log((1.0 - con) / (1.0 + con)));
         } else {
             return sinphi + sinphi;
         }
@@ -271,7 +270,7 @@ public class LambertAzimuthalEqualArea extends AbstractProj {
      */
     private double authlat(final double beta) {
         final double t = beta + beta;
-        return beta + APA0 * Math.sin(t) + APA1 * Math.sin(t+t) + APA2 * Math.sin(t+t+t);
+        return beta + aPA0 * Math.sin(t) + aPA1 * Math.sin(t+t) + aPA2 * Math.sin(t+t+t);
     }
 
     @Override

@@ -107,7 +107,6 @@ public class CoordinateInfoViewer extends JPanel {
         gc.fill = GridBagConstraints.BOTH;
         gc.weightx = 1.0;
         gc.weighty = 1.0;
-        gc.insets = new Insets(5, 5, 5, 5);
         add(mapViewer = new MapViewer(model), gc);
         mapViewer.setZoomContolsVisible(false);
     }
@@ -190,7 +189,7 @@ public class CoordinateInfoViewer extends JPanel {
     }
 
     private static class Updater {
-        private final transient HistoryBrowserModel model;
+        private final HistoryBrowserModel model;
         private final PointInTimeType role;
 
         protected Updater(HistoryBrowserModel model, PointInTimeType role) {

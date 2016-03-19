@@ -266,7 +266,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
     }
 
     /* can be set by tests, if detailed benchmark data is requested */
-    public BenchmarkData benchmarkData = null;
+    public BenchmarkData benchmarkData;
 
     private static Map<Font, Boolean> IS_GLYPH_VECTOR_DOUBLE_TRANSLATION_BUG = new HashMap<>();
 
@@ -390,7 +390,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         }
     }
 
-    private Polygon buildPolygon(Point center, int radius, int sides) {
+    private static Polygon buildPolygon(Point center, int radius, int sides) {
         return buildPolygon(center, radius, sides, 0.0);
     }
 
@@ -651,7 +651,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
                     continue;
                 }
                 if (extent != null) {
-                    if (!usePartialFill(pd.getAreaAndPerimeter(), extent, extentThreshold)) {
+                    if (!usePartialFill(pd.getAreaAndPerimeter(null), extent, extentThreshold)) {
                         extent = null;
                     } else if (!pd.isClosed()) {
                         pfClip = getPFClip(pd, extent * scale);

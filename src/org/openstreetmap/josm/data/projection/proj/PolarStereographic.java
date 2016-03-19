@@ -78,11 +78,6 @@ public class PolarStereographic extends AbstractProj {
     private double k0;
 
     /**
-     * Latitude of true scale, in radians
-     */
-    private double latitudeTrueScale;
-
-    /**
      * {@code true} if this projection is for the south pole, or {@code false}
      * if it is for the north pole.
      */
@@ -106,6 +101,8 @@ public class PolarStereographic extends AbstractProj {
         if (params.lat0 != 90.0 && params.lat0 != -90.0)
             throw new ProjectionConfigurationException(
                     tr("Polar Stereographic: Parameter ''{0}'' must be 90 or -90.", "lat_0"));
+        // Latitude of true scale, in radians;
+        double latitudeTrueScale;
         if (params.lat_ts == null) {
             latitudeTrueScale = (params.lat0 < 0) ? -Math.PI/2 : Math.PI/2;
         } else {
@@ -160,7 +157,7 @@ public class PolarStereographic extends AbstractProj {
             final double phi = (Math.PI/2) - 2.0*Math.atan(t*Math.pow((1-esinphi)/(1+esinphi), halfe));
             if (Math.abs(phi-phi0) < ITERATION_TOLERANCE) {
                 x = (Math.abs(rho) < EPSILON) ? 0.0 : Math.atan2(x, -y);
-                y = (southPole) ? -phi : phi;
+                y = southPole ? -phi : phi;
                 break;
             }
             phi0 = phi;
@@ -173,11 +170,11 @@ public class PolarStereographic extends AbstractProj {
 
     @Override
     public Bounds getAlgorithmBounds() {
-        final double CUT = 60;
+        final double cut = 60;
         if (southPole) {
-            return new Bounds(-90, -180, CUT, 180, false);
+            return new Bounds(-90, -180, cut, 180, false);
         } else {
-            return new Bounds(-CUT, -180, 90, 180, false);
+            return new Bounds(-cut, -180, 90, 180, false);
         }
     }
 }

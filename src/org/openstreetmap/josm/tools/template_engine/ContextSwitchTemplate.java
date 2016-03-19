@@ -39,13 +39,13 @@ public class ContextSwitchTemplate implements TemplateEntry {
         }
     };
 
-    private abstract class ContextProvider extends Match {
+    private abstract static class ContextProvider extends Match {
         protected Match condition;
 
         abstract List<OsmPrimitive> getPrimitives(OsmPrimitive root);
     }
 
-    private class ParentSet extends ContextProvider {
+    private static class ParentSet extends ContextProvider {
         private final Match childCondition;
 
         ParentSet(Match child) {
@@ -80,7 +80,7 @@ public class ContextSwitchTemplate implements TemplateEntry {
         }
     }
 
-    private class ChildSet extends ContextProvider {
+    private static class ChildSet extends ContextProvider {
         private final Match parentCondition;
 
         ChildSet(Match parentCondition) {
@@ -123,7 +123,7 @@ public class ContextSwitchTemplate implements TemplateEntry {
         }
     }
 
-    private class OrSet extends ContextProvider {
+    private static class OrSet extends ContextProvider {
         private final ContextProvider lhs;
         private final ContextProvider rhs;
 
@@ -154,7 +154,7 @@ public class ContextSwitchTemplate implements TemplateEntry {
         }
     }
 
-    private class AndSet extends ContextProvider {
+    private static class AndSet extends ContextProvider {
         private final ContextProvider lhs;
         private final ContextProvider rhs;
 

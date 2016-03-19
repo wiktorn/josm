@@ -33,7 +33,6 @@ import javax.swing.border.Border;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.OpenFileAction;
-import org.openstreetmap.josm.gui.FileDrop.TransferableObject;
 
 // CHECKSTYLE.OFF: HideUtilityClassConstructor
 
@@ -83,9 +82,6 @@ public class FileDrop {
     private Border normalBorder;
     private DropTargetListener dropListener;
 
-    /** Discover if the running JVM is modern enough to have drag and drop. */
-    private static Boolean supportsDnD;
-
     // Default border color
     private static Color defaultBorderColor = new Color(0f, 0f, 1f, 0.25f);
 
@@ -128,29 +124,11 @@ public class FileDrop {
             final boolean recursive,
             final Listener listener) {
 
-        if (supportsDnD()) {
-            // Make a drop listener
-            dropListener = new DropListener(listener, dragBorder, c);
+        // Make a drop listener
+        dropListener = new DropListener(listener, dragBorder, c);
 
-            // Make the component (and possibly children) drop targets
-            makeDropTarget(c, recursive);
-        } else {
-            Main.info("FileDrop: Drag and drop is not supported with this JVM");
-        }
-    }
-
-    private static synchronized boolean supportsDnD() {
-        if (supportsDnD == null) {
-            boolean support = false;
-            try {
-                Class.forName("java.awt.dnd.DnDConstants");
-                support = true;
-            } catch (Exception e) {
-                support = false;
-            }
-            supportsDnD = support;
-        }
-        return supportsDnD.booleanValue();
+        // Make the component (and possibly children) drop targets
+        makeDropTarget(c, recursive);
     }
 
     // BEGIN 2007-09-12 Nathan Blomquist -- Linux (KDE/Gnome) support added.
@@ -285,17 +263,13 @@ public class FileDrop {
      * @return {@code true} if at least one item has been removed, {@code false} otherwise
      */
     public static boolean remove(Component c, boolean recursive) {
-        // Make sure we support dnd.
-        if (supportsDnD()) {
-            Main.trace("FileDrop: Removing drag-and-drop hooks.");
-            c.setDropTarget(null);
-            if (recursive && (c instanceof Container)) {
-                for (Component comp : ((Container) c).getComponents()) {
-                    remove(comp, recursive);
-                }
-                return true;
-            } else
-                return false;
+        Main.trace("FileDrop: Removing drag-and-drop hooks.");
+        c.setDropTarget(null);
+        if (recursive && (c instanceof Container)) {
+            for (Component comp : ((Container) c).getComponents()) {
+                remove(comp, recursive);
+            }
+            return true;
         } else
             return false;
     }

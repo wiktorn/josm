@@ -534,7 +534,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
                 // Ok we know now that we'll insert a line segment, but will it connect to an
                 // existing way or make a new way of its own? The "alt" modifier means that the
                 // user wants a new way.
-                Way way = alt ? null : (selectedWay != null) ? selectedWay : getWayForNode(n0);
+                Way way = alt ? null : (selectedWay != null ? selectedWay : getWayForNode(n0));
                 Way wayToSelect;
 
                 // Don't allow creation of self-overlapping ways
@@ -998,13 +998,13 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
             // This computes the intersection between the two segments and adjusts the node position.
             Iterator<Pair<Node, Node>> i = segs.iterator();
             Pair<Node, Node> seg = i.next();
-            EastNorth A = seg.a.getEastNorth();
-            EastNorth B = seg.b.getEastNorth();
+            EastNorth pA = seg.a.getEastNorth();
+            EastNorth pB = seg.b.getEastNorth();
             seg = i.next();
-            EastNorth C = seg.a.getEastNorth();
-            EastNorth D = seg.b.getEastNorth();
+            EastNorth pC = seg.a.getEastNorth();
+            EastNorth pD = seg.b.getEastNorth();
 
-            double u = det(B.east() - A.east(), B.north() - A.north(), C.east() - D.east(), C.north() - D.north());
+            double u = det(pB.east() - pA.east(), pB.north() - pA.north(), pC.east() - pD.east(), pC.north() - pD.north());
 
             // Check for parallel segments and do nothing if they are
             // In practice this will probably only happen when a way has been duplicated
@@ -1016,10 +1016,10 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
             // It is the point in the segment where the intersection occurs
             // if the segment is scaled to lenght 1
 
-            double q = det(B.north() - C.north(), B.east() - C.east(), D.north() - C.north(), D.east() - C.east()) / u;
+            double q = det(pB.north() - pC.north(), pB.east() - pC.east(), pD.north() - pC.north(), pD.east() - pC.east()) / u;
             EastNorth intersection = new EastNorth(
-                    B.east() + q * (A.east() - B.east()),
-                    B.north() + q * (A.north() - B.north()));
+                    pB.east() + q * (pA.east() - pB.east()),
+                    pB.north() + q * (pA.north() - pB.north()));
 
 
             // only adjust to intersection if within snapToIntersectionThreshold pixel of mouse click; otherwise
@@ -1030,15 +1030,15 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
                 return;
             }
         default:
-            EastNorth P = n.getEastNorth();
+            EastNorth p = n.getEastNorth();
             seg = segs.iterator().next();
-            A = seg.a.getEastNorth();
-            B = seg.b.getEastNorth();
-            double a = P.distanceSq(B);
-            double b = P.distanceSq(A);
-            double c = A.distanceSq(B);
+            pA = seg.a.getEastNorth();
+            pB = seg.b.getEastNorth();
+            double a = p.distanceSq(pB);
+            double b = p.distanceSq(pA);
+            double c = pA.distanceSq(pB);
             q = (a - b + c) / (2*c);
-            n.setEastNorth(new EastNorth(B.east() + q * (A.east() - B.east()), B.north() + q * (A.north() - B.north())));
+            n.setEastNorth(new EastNorth(pB.east() + q * (pA.east() - pB.east()), pB.north() + q * (pA.north() - pB.north())));
         }
     }
 
@@ -1564,7 +1564,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
                     double phi;
                     e0 = p0.east();
                     n0 = p0.north();
-                    buildLabelText((nearestAngle <= 180) ? nearestAngle : nearestAngle-360);
+                    buildLabelText((nearestAngle <= 180) ? nearestAngle : (nearestAngle-360));
 
                     phi = (nearestAngle + activeBaseHeading) * Math.PI / 180;
                     // (pe,pn) - direction of snapping line

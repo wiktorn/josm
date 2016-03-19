@@ -20,7 +20,7 @@ public final class StyleCache {
     private static final int SELECTED = 1;
 
     @SuppressWarnings("unchecked")
-    private final DividedScale<StyleElementList>[] states = (DividedScale<StyleElementList>[]) new DividedScale[2];
+    private final DividedScale<StyleElementList>[] states = new DividedScale[2];
 
     private StyleCache(StyleCache sc) {
         states[0] = sc.states[0];
@@ -52,7 +52,7 @@ public final class StyleCache {
         return states[idx].getWithRange(scale);
     }
 
-    private int getIndex(boolean selected) {
+    private static int getIndex(boolean selected) {
         return selected ? SELECTED : PLAIN;
     }
 

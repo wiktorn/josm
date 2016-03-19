@@ -409,7 +409,7 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
 
         // We don't want to change to draw tool if the user tries to (de)select
         // stuff but accidentally clicks in an empty area when selection is empty
-        cancelDrawMode = (shift || ctrl);
+        cancelDrawMode = shift || ctrl;
         didMouseDrag = false;
         initialMoveThresholdExceeded = false;
         mouseDownTime = System.currentTimeMillis();
@@ -666,6 +666,7 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
 
     @Override
     public void doKeyReleased(KeyEvent e) {
+        // Do nothing
     }
 
     /**
@@ -1151,7 +1152,7 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
                     }
                 } else {
                     // setup for iterating a sel group again or a new, different one..
-                    nxt = (cycleList.contains(cycleStart)) ? cycleStart : first;
+                    nxt = cycleList.contains(cycleStart) ? cycleStart : first;
                     cycleStart = nxt;
                 }
             } else {
