@@ -155,9 +155,6 @@ public class UrlValidator extends AbstractValidator {
 
     private static final int PARSE_AUTHORITY_HOST_IP = 2; // excludes userinfo, if present
 
-    // Not needed, because it is validated by AUTHORITY_REGEX
-//    private static final int PARSE_AUTHORITY_PORT = 3;
-
     /**
      * Should always be empty. The code currently allows spaces.
      */
@@ -538,10 +535,5 @@ public class UrlValidator extends AbstractValidator {
      */
     private boolean isOff(long flag) {
         return (options & flag) == 0;
-    }
-
-    // Unit test access to pattern matcher
-    Matcher matchURL(String value) {
-        return URL_PATTERN.matcher(value);
     }
 }

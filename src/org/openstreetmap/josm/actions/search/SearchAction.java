@@ -66,7 +66,14 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
     private static final String SEARCH_EXPRESSION = "searchExpression";
 
     public enum SearchMode {
-        replace('R'), add('A'), remove('D'), in_selection('S');
+        /** replace selection */
+        replace('R'),
+        /** add to selection */
+        add('A'),
+        /** remove from selection */
+        remove('D'),
+        /** find in selection */
+        in_selection('S');
 
         private final char code;
 
@@ -74,10 +81,19 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
             this.code = code;
         }
 
+        /**
+         * Returns the unique character code of this mode.
+         * @return the unique character code of this mode
+         */
         public char getCode() {
             return code;
         }
 
+        /**
+         * Returns the search mode matching the given character code.
+         * @param code character code
+         * @return search mode matching the given character code
+         */
         public static SearchMode fromCode(char code) {
             for (SearchMode mode: values()) {
                 if (mode.getCode() == code)
@@ -243,12 +259,12 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
         JRadioButton replace = new JRadioButton(tr("replace selection"), initialValues.mode == SearchMode.replace);
         JRadioButton add = new JRadioButton(tr("add to selection"), initialValues.mode == SearchMode.add);
         JRadioButton remove = new JRadioButton(tr("remove from selection"), initialValues.mode == SearchMode.remove);
-        JRadioButton in_selection = new JRadioButton(tr("find in selection"), initialValues.mode == SearchMode.in_selection);
+        JRadioButton inSelection = new JRadioButton(tr("find in selection"), initialValues.mode == SearchMode.in_selection);
         ButtonGroup bg = new ButtonGroup();
         bg.add(replace);
         bg.add(add);
         bg.add(remove);
-        bg.add(in_selection);
+        bg.add(inSelection);
 
         final JCheckBox caseSensitive = new JCheckBox(tr("case sensitive"), initialValues.caseSensitive);
         JCheckBox allElements = new JCheckBox(tr("all objects"), initialValues.allElements);
@@ -269,7 +285,7 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
         left.add(replace, GBC.eol());
         left.add(add, GBC.eol());
         left.add(remove, GBC.eol());
-        left.add(in_selection, GBC.eop());
+        left.add(inSelection, GBC.eop());
         left.add(caseSensitive, GBC.eol());
         if (Main.pref.getBoolean("expert", false)) {
             left.add(allElements, GBC.eol());
@@ -636,8 +652,8 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
     }
 
     public static class SearchSetting {
-        public String text = "";
-        public SearchMode mode = SearchMode.replace;
+        public String text;
+        public SearchMode mode;
         public boolean caseSensitive;
         public boolean regexSearch;
         public boolean mapCSSSearch;
@@ -647,6 +663,8 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
          * Constructs a new {@code SearchSetting}.
          */
         public SearchSetting() {
+            text = "";
+            mode = SearchMode.replace;
         }
 
         /**

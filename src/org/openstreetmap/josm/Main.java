@@ -677,10 +677,12 @@ public abstract class Main {
 
                         @Override
                         public void flush() {
+                            // Do nothing
                         }
 
                         @Override
                         public void close() {
+                            // Do nothing
                         }
                     });
                 }
@@ -1263,8 +1265,7 @@ public abstract class Main {
         }
     }
 
-    private static class WindowPositionSizeListener extends WindowAdapter implements
-    ComponentListener {
+    private static class WindowPositionSizeListener extends WindowAdapter implements ComponentListener {
         @Override
         public void windowStateChanged(WindowEvent e) {
             Main.windowState = e.getNewState();
@@ -1272,6 +1273,7 @@ public abstract class Main {
 
         @Override
         public void componentHidden(ComponentEvent e) {
+            // Do nothing
         }
 
         @Override
@@ -1286,6 +1288,7 @@ public abstract class Main {
 
         @Override
         public void componentShown(ComponentEvent e) {
+            // Do nothing
         }
 
         private static void handleComponentEvent(ComponentEvent e) {
@@ -1341,10 +1344,10 @@ public abstract class Main {
                 gbc.weightx = 1.0;
                 panel.add(ho, gbc);
                 panel.add(link, gbc);
-                final String EXIT = tr("Exit JOSM");
-                final String CONTINUE = tr("Continue, try anyway");
+                final String exitStr = tr("Exit JOSM");
+                final String continueStr = tr("Continue, try anyway");
                 int ret = JOptionPane.showOptionDialog(null, panel, tr("Error"), JOptionPane.YES_NO_OPTION,
-                        JOptionPane.ERROR_MESSAGE, null, new String[] {EXIT, CONTINUE}, EXIT);
+                        JOptionPane.ERROR_MESSAGE, null, new String[] {exitStr, continueStr}, exitStr);
                 if (ret == 0) {
                     System.exit(0);
                 }

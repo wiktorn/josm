@@ -48,7 +48,7 @@ import org.openstreetmap.josm.tools.ImageProvider;
  * @see ListMergeModel
  * @since 1631
  */
-public abstract class ListMerger<T extends PrimitiveId> extends JPanel implements PropertyChangeListener, Observer {
+public abstract class ListMerger<T extends PrimitiveId> extends JPanel implements PropertyChangeListener, Observer, IConflictResolver {
     protected OsmPrimitivesTable myEntriesTable;
     protected OsmPrimitivesTable mergedEntriesTable;
     protected OsmPrimitivesTable theirEntriesTable;
@@ -415,15 +415,15 @@ public abstract class ListMerger<T extends PrimitiveId> extends JPanel implement
     /**
      * Base class of all other Copy* inner classes.
      */
-    abstract class CopyAction extends AbstractAction implements ListSelectionListener {
+    abstract static class CopyAction extends AbstractAction implements ListSelectionListener {
 
-        protected CopyAction(String icon_name, String action_name, String short_description) {
-            ImageIcon icon = ImageProvider.get("dialogs/conflict", icon_name);
+        protected CopyAction(String iconName, String actionName, String shortDescription) {
+            ImageIcon icon = ImageProvider.get("dialogs/conflict", iconName);
             putValue(Action.SMALL_ICON, icon);
             if (icon == null) {
-                putValue(Action.NAME, action_name);
+                putValue(Action.NAME, actionName);
             }
-            putValue(Action.SHORT_DESCRIPTION, short_description);
+            putValue(Action.SHORT_DESCRIPTION, shortDescription);
             setEnabled(false);
         }
     }

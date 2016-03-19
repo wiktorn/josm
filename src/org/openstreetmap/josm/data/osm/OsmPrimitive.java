@@ -291,7 +291,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      */
     protected OsmPrimitive(long id, int version, boolean allowNegativeId) {
         this(id, allowNegativeId);
-        this.version = (id > 0 ? version : 0);
+        this.version = id > 0 ? version : 0;
         setIncomplete(id > 0 && version == 0);
     }
 
@@ -1236,14 +1236,16 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      * @param other other primitive to compare
      * @return true if this primitive and other are equal with respect to their semantic attributes.
      */
-    public boolean hasEqualSemanticAttributes(OsmPrimitive other) {
+    public final boolean hasEqualSemanticAttributes(OsmPrimitive other) {
+        return hasEqualSemanticAttributes(other, true);
+    }
+
+    boolean hasEqualSemanticAttributes(final OsmPrimitive other, final boolean testInterestingTagsOnly) {
         if (!isNew() &&  id != other.id)
             return false;
         if (isIncomplete() ^ other.isIncomplete()) // exclusive or operator for performance (see #7159)
             return false;
-        // can't do an equals check on the internal keys array because it is not ordered
-        //
-        return hasSameInterestingTags(other);
+        return testInterestingTagsOnly ? hasSameInterestingTags(other) : getKeys().equals(other.getKeys());
     }
 
     /**

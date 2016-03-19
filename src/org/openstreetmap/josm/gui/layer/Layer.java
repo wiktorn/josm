@@ -49,13 +49,35 @@ import org.openstreetmap.josm.tools.Utils;
  */
 public abstract class Layer implements Destroyable, MapViewPaintable, ProjectionChangeListener {
 
+    /**
+     * Action related to a single layer.
+     */
     public interface LayerAction {
+
+        /**
+         * Determines if this action supports a given list of layers.
+         * @param layers list of layers
+         * @return {@code true} if this action supports the given list of layers, {@code false} otherwise
+         */
         boolean supportLayers(List<Layer> layers);
 
+        /**
+         * Creates and return the menu component.
+         * @return the menu component
+         */
         Component createMenuComponent();
     }
 
+    /**
+     * Action related to several layers.
+     */
     public interface MultiLayerAction {
+
+        /**
+         * Returns the action for a given list of layers.
+         * @param layers list of layers
+         * @return the action for the given list of layers
+         */
         Action getMultiLayerAction(List<Layer> layers);
     }
 
@@ -63,6 +85,7 @@ public abstract class Layer implements Destroyable, MapViewPaintable, Projection
      * Special class that can be returned by getMenuEntries when JSeparator needs to be created
      */
     public static class SeparatorLayerAction extends AbstractAction implements LayerAction {
+        /** Unique instance */
         public static final SeparatorLayerAction INSTANCE = new SeparatorLayerAction();
 
         @Override
@@ -85,8 +108,6 @@ public abstract class Layer implements Destroyable, MapViewPaintable, Projection
     public static final String OPACITY_PROP = Layer.class.getName() + ".opacity";
     public static final String NAME_PROP = Layer.class.getName() + ".name";
     public static final String FILTER_STATE_PROP = Layer.class.getName() + ".filterstate";
-
-    public static final int ICON_SIZE = 16;
 
     /**
      * keeps track of property change listeners
@@ -116,7 +137,7 @@ public abstract class Layer implements Destroyable, MapViewPaintable, Projection
     /**
      * This is set if user renamed this layer.
      */
-    private boolean renamed = false;
+    private boolean renamed;
 
     /**
      * If a file is associated with this layer, this variable should be set to it.
@@ -339,10 +360,19 @@ public abstract class Layer implements Destroyable, MapViewPaintable, Projection
         return visible && opacity != 0;
     }
 
+    /**
+     * Gets the opacity of the layer, in range 0...1
+     * @return The opacity
+     */
     public double getOpacity() {
         return opacity;
     }
 
+    /**
+     * Sets the opacity of the layer, in range 0...1
+     * @param opacity The opacity
+     * @throws IllegalArgumentException if the opacity is out of range
+     */
     public void setOpacity(double opacity) {
         if (!(opacity >= 0 && opacity <= 1))
             throw new IllegalArgumentException("Opacity value must be between 0 and 1");
@@ -558,5 +588,18 @@ public abstract class Layer implements Destroyable, MapViewPaintable, Projection
      */
     protected long estimateMemoryUsage() {
         return 0;
+    }
+
+    /**
+     * Gets the strategy that specifies where this layer should be inserted in a layer list.
+     * @return That strategy.
+     * @since 10008
+     */
+    public LayerPositionStrategy getDefaultLayerPosition() {
+        if (isBackgroundLayer()) {
+            return LayerPositionStrategy.BEFORE_FIRST_BACKGROUND_LAYER;
+        } else {
+            return LayerPositionStrategy.AFTER_LAST_VALIDATION_LAYER;
+        }
     }
 }

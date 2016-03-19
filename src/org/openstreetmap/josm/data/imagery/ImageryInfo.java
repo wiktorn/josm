@@ -187,11 +187,11 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
     /** country code of the imagery (for country specific imagery) */
     private String countryCode = "";
     /** mirrors of different type for this entry */
-    private List<ImageryInfo> mirrors = null;
+    private List<ImageryInfo> mirrors;
     /** icon used in menu */
     private String icon;
-    private boolean isGeoreferenceValid = false;
-    private boolean isEpsg4326To3857Supported = false;
+    private boolean isGeoreferenceValid;
+    private boolean isEpsg4326To3857Supported;
     // when adding a field, also adapt the ImageryInfo(ImageryInfo)
     // and ImageryInfo(ImageryPreferenceEntry) constructor, equals method, and ImageryPreferenceEntry
 
@@ -231,6 +231,7 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
          * Constructs a new empty WMS {@code ImageryPreferenceEntry}.
          */
         public ImageryPreferenceEntry() {
+            // Do nothing
         }
 
         /**
@@ -295,7 +296,6 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
 
             valid_georeference = i.isGeoreferenceValid();
             supports_epsg_4326_to_3857_conversion = i.isEpsg4326To3857Supported();
-
         }
 
         @Override

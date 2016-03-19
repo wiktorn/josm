@@ -309,12 +309,12 @@ public class TagEditHelper {
             } catch (SearchCompiler.ParseError parseError) {
                 warnAboutParseError(parseError);
                 tagsToIgnore = new SearchAction.SearchSetting();
-                recentTags.setTagsToIgnore(new SearchCompiler.Never());
+                recentTags.setTagsToIgnore(SearchCompiler.Never.INSTANCE);
             }
         }
     }
 
-    private void warnAboutParseError(SearchCompiler.ParseError parseError) {
+    private static void warnAboutParseError(SearchCompiler.ParseError parseError) {
         Main.warn(parseError);
         JOptionPane.showMessageDialog(
                 Main.parent,

@@ -47,7 +47,6 @@ public class LatLon extends Coordinate {
      */
     public static final double MAX_SERVER_PRECISION = 1e-7;
     public static final double MAX_SERVER_INV_PRECISION = 1e7;
-    public static final int    MAX_SERVER_DIGITS = 7;
 
     /**
      * The (0,0) coordinates.
@@ -62,8 +61,10 @@ public class LatLon extends Coordinate {
     public static final LatLon SOUTH_POLE = new LatLon(-90, 0);
 
     private static DecimalFormat cDmsMinuteFormatter = new DecimalFormat("00");
-    private static DecimalFormat cDmsSecondFormatter = new DecimalFormat(Main.pref.get("latlon.dms.decimal-format", "00.0"));
-    private static DecimalFormat cDmMinuteFormatter = new DecimalFormat(Main.pref.get("latlon.dm.decimal-format", "00.000"));
+    private static DecimalFormat cDmsSecondFormatter = new DecimalFormat(
+            Main.pref == null ? "00.0" : Main.pref.get("latlon.dms.decimal-format", "00.0"));
+    private static DecimalFormat cDmMinuteFormatter = new DecimalFormat(
+            Main.pref == null ? "00.000" : Main.pref.get("latlon.dm.decimal-format", "00.000"));
     public static final DecimalFormat cDdFormatter;
     public static final DecimalFormat cDdHighPecisionFormatter;
     static {

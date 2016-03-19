@@ -990,7 +990,7 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
             if (rowCount > rows.length) {
                 if (nextKeyIndex == rows[rows.length-1]) {
                     // no gap found, pick next or previous key in list
-                    nextKeyIndex = (nextKeyIndex + 1 < rowCount ? nextKeyIndex + 1 : rows[0] - 1);
+                    nextKeyIndex = nextKeyIndex + 1 < rowCount ? nextKeyIndex + 1 : rows[0] - 1;
                 } else {
                     // gap found
                     nextKeyIndex++;
@@ -1400,7 +1400,7 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
             }
             String token = new StringBuilder(t).append(val).toString();
             if (consideredTokens.add(token)) {
-                s.append(sep).append('(').append(t).append(SearchCompiler.buildSearchStringForTag(key, val)).append(")");
+                s.append(sep).append('(').append(t).append(SearchCompiler.buildSearchStringForTag(key, val)).append(')');
                 sep = " OR ";
             }
         }

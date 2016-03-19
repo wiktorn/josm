@@ -70,16 +70,6 @@ public class AlbersEqualArea extends AbstractProj {
      */
     private double ec;
 
-    /**
-     * Standards parallel 1 in radians.
-     */
-    private double phi1;
-
-    /**
-     * Standards parallel 2 in radians.
-     */
-    private double phi2;
-
     @Override
     public String getName() {
         return tr("Albers Equal Area");
@@ -99,8 +89,9 @@ public class AlbersEqualArea extends AbstractProj {
             throw new ProjectionConfigurationException(tr("Parameter ''{0}'' required.", "lat_1"));
 
         double lat0 = Math.toRadians(params.lat0);
-        phi1 = Math.toRadians(params.lat1);
-        phi2 = params.lat2 == null ? phi1 : Math.toRadians(params.lat2);
+        // Standards parallels in radians.
+        double phi1 = Math.toRadians(params.lat1);
+        double phi2 = params.lat2 == null ? phi1 : Math.toRadians(params.lat2);
 
         // Compute Constants
         if (Math.abs(phi1 + phi2) < EPSILON) {
@@ -109,7 +100,7 @@ public class AlbersEqualArea extends AbstractProj {
         double  sinphi = Math.sin(phi1);
         double  cosphi = Math.cos(phi1);
         double  n      = sinphi;
-        boolean secant = (Math.abs(phi1 - phi2) >= EPSILON);
+        boolean secant = Math.abs(phi1 - phi2) >= EPSILON;
         double m1 = msfn(sinphi, cosphi);
         double q1 = qsfn(sinphi);
         if (secant) { // secant cone
@@ -175,7 +166,7 @@ public class AlbersEqualArea extends AbstractProj {
      * @return the latitude
      */
     public double phi1(final double qs) {
-        final double tone_es = 1 - e2;
+        final double toneEs = 1 - e2;
         double phi = Math.asin(0.5 * qs);
         if (e < EPSILON) {
             return phi;
@@ -186,7 +177,7 @@ public class AlbersEqualArea extends AbstractProj {
             final double con   = e * sinpi;
             final double com   = 1.0 - con*con;
             final double dphi  = 0.5 * com*com / cospi *
-                    (qs/tone_es - sinpi / com + 0.5/e * Math.log((1. - con) / (1. + con)));
+                    (qs/toneEs - sinpi / com + 0.5/e * Math.log((1. - con) / (1. + con)));
             phi += dphi;
             if (Math.abs(dphi) <= ITERATION_TOLERANCE) {
                 return phi;
@@ -202,11 +193,11 @@ public class AlbersEqualArea extends AbstractProj {
      * @return q from Snyder equation (3-12)
      */
     private double qsfn(final double sinphi) {
-        final double one_es = 1 - e2;
+        final double oneEs = 1 - e2;
         if (e >= EPSILON) {
             final double con = e * sinphi;
-            return (one_es * (sinphi / (1. - con*con) -
-                    (0.5/e) * Math.log((1.-con) / (1.+con))));
+            return oneEs * (sinphi / (1. - con*con) -
+                    (0.5/e) * Math.log((1.-con) / (1.+con)));
         } else {
             return sinphi + sinphi;
         }
