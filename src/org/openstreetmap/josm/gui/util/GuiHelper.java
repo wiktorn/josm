@@ -11,6 +11,7 @@ import java.awt.Dialog;
 import java.awt.Dimension;
 import java.awt.DisplayMode;
 import java.awt.Font;
+import java.awt.Frame;
 import java.awt.GraphicsDevice;
 import java.awt.GraphicsEnvironment;
 import java.awt.GridBagLayout;
@@ -23,6 +24,8 @@ import java.awt.event.ActionListener;
 import java.awt.event.HierarchyEvent;
 import java.awt.event.HierarchyListener;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.image.FilteredImageSource;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Enumeration;
@@ -42,6 +45,7 @@ import javax.swing.JScrollPane;
 import javax.swing.Scrollable;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+import javax.swing.ToolTipManager;
 import javax.swing.UIManager;
 import javax.swing.plaf.FontUIResource;
 
@@ -473,5 +477,53 @@ public final class GuiHelper {
      */
     public static Window getWindowAncestorFor(EventObject e) {
         return e != null && e.getSource() instanceof Component ? SwingUtilities.getWindowAncestor((Component) e.getSource()) : null;
+    }
+
+    /**
+     * Extends tooltip dismiss delay to a default value of 1 minute for the given component.
+     * @param c component
+     * @since 10024
+     */
+    public static void extendTooltipDelay(Component c) {
+        extendTooltipDelay(c, 60000);
+    }
+
+    /**
+     * Extends tooltip dismiss delay to the specified value for the given component.
+     * @param c component
+     * @param delay tooltip dismiss delay in milliseconds
+     * @see <a href="http://stackoverflow.com/a/6517902/2257172">http://stackoverflow.com/a/6517902/2257172</a>
+     * @since 10024
+     */
+    public static void extendTooltipDelay(Component c, final int delay) {
+        final int defaultDismissTimeout = ToolTipManager.sharedInstance().getDismissDelay();
+        c.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent me) {
+                ToolTipManager.sharedInstance().setDismissDelay(delay);
+            }
+
+            @Override
+            public void mouseExited(MouseEvent me) {
+                ToolTipManager.sharedInstance().setDismissDelay(defaultDismissTimeout);
+            }
+        });
+    }
+
+    /**
+     * Returns the specified component's <code>Frame</code> without throwing exception in headless mode.
+     *
+     * @param parentComponent the <code>Component</code> to check for a <code>Frame</code>
+     * @return the <code>Frame</code> that contains the component, or <code>getRootFrame</code>
+     *         if the component is <code>null</code>, or does not have a valid <code>Frame</code> parent
+     * @see JOptionPane#getFrameForComponent
+     * @see GraphicsEnvironment#isHeadless
+     * @since 10035
+     */
+    public static Frame getFrameForComponent(Component parentComponent) {
+        if (parentComponent == null && GraphicsEnvironment.isHeadless()) {
+            return null;
+        }
+        return JOptionPane.getFrameForComponent(parentComponent);
     }
 }

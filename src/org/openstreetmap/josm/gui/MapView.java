@@ -54,11 +54,14 @@ import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.visitor.paint.PaintColors;
 import org.openstreetmap.josm.data.osm.visitor.paint.Rendering;
 import org.openstreetmap.josm.data.osm.visitor.paint.relations.MultipolygonCache;
+import org.openstreetmap.josm.gui.layer.AbstractMapViewPaintable;
 import org.openstreetmap.josm.gui.layer.GpxLayer;
 import org.openstreetmap.josm.gui.layer.ImageryLayer;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.LayerPositionStrategy;
 import org.openstreetmap.josm.gui.layer.MapViewPaintable;
+import org.openstreetmap.josm.gui.layer.MapViewPaintable.PaintableInvalidationEvent;
+import org.openstreetmap.josm.gui.layer.MapViewPaintable.PaintableInvalidationListener;
 import org.openstreetmap.josm.gui.layer.NativeScaleLayer;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.layer.geoimage.GeoImageLayer;
@@ -66,9 +69,9 @@ import org.openstreetmap.josm.gui.layer.markerlayer.MarkerLayer;
 import org.openstreetmap.josm.gui.layer.markerlayer.PlayHeadMarker;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.tools.AudioPlayer;
-import org.openstreetmap.josm.tools.BugReportExceptionHandler;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.Utils;
+import org.openstreetmap.josm.tools.bugreport.BugReportExceptionHandler;
 
 /**
  * This is a component used in the {@link MapFrame} for browsing the map. It use is to
@@ -122,6 +125,50 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
          * @param newLayer The current (new) edit layer
          */
         void editLayerChanged(OsmDataLayer oldLayer, OsmDataLayer newLayer);
+    }
+
+    /**
+     * An invalidation listener that simply calls repaint() for now.
+     * @author Michael Zangl
+     */
+    private class LayerInvalidatedListener implements PaintableInvalidationListener {
+        private boolean ignoreRepaint;
+        @Override
+        public void paintablInvalidated(PaintableInvalidationEvent event) {
+            ignoreRepaint = true;
+            repaint();
+        }
+
+        /**
+         * Temporary until all {@link MapViewPaintable}s support this.
+         * @param p The paintable.
+         */
+        public void addTo(MapViewPaintable p) {
+            if (p instanceof AbstractMapViewPaintable) {
+                ((AbstractMapViewPaintable) p).addInvalidationListener(this);
+            }
+        }
+
+        /**
+         * Temporary until all {@link MapViewPaintable}s support this.
+         * @param p The paintable.
+         */
+        public void removeFrom(MapViewPaintable p) {
+            if (p instanceof AbstractMapViewPaintable) {
+                ((AbstractMapViewPaintable) p).removeInvalidationListener(this);
+            }
+        }
+
+        /**
+         * Attempts to trace repaints that did not originate from this listener. Good to find missed {@link MapView#repaint()}s in code.
+         */
+        protected synchronized void traceRandomRepaint() {
+            if (!ignoreRepaint) {
+                System.err.println("Repaint:");
+                Thread.dumpStack();
+            }
+            ignoreRepaint = false;
+        }
     }
 
     public boolean viewportFollowing;
@@ -268,6 +315,11 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
     private transient MapMover mapMover;
 
     /**
+     * The listener that listens to invalidations of all layers.
+     */
+    private final LayerInvalidatedListener invalidatedListener = new LayerInvalidatedListener();
+
+    /**
      * Constructs a new {@code MapView}.
      * @param contentPane The content pane used to register shortcuts in its
      * {@link InputMap} and {@link ActionMap}
@@ -381,6 +433,7 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
             }
 
             layer.addPropertyChangeListener(this);
+            invalidatedListener.addTo(layer);
             Main.addProjectionChangeListener(layer);
             AudioPlayer.reset();
         }
@@ -505,6 +558,7 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
             layers.remove(layer);
             Main.removeProjectionChangeListener(layer);
             layer.removePropertyChangeListener(this);
+            invalidatedListener.removeFrom(layer);
             layer.destroy();
             AudioPlayer.reset();
         }
@@ -1034,7 +1088,11 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
      */
     public boolean addTemporaryLayer(MapViewPaintable mvp) {
         synchronized (temporaryLayers) {
-            return temporaryLayers.add(mvp);
+            boolean added = temporaryLayers.add(mvp);
+            if (added) {
+                invalidatedListener.addTo(mvp);
+            }
+            return added;
         }
     }
 
@@ -1045,7 +1103,11 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
      */
     public boolean removeTemporaryLayer(MapViewPaintable mvp) {
         synchronized (temporaryLayers) {
-            return temporaryLayers.remove(mvp);
+            boolean removed = temporaryLayers.remove(mvp);
+            if (removed) {
+                invalidatedListener.removeFrom(mvp);
+            }
+            return removed;
         }
     }
 
@@ -1204,5 +1266,13 @@ implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.Layer
             }
         }
         super.repaint(tm, x, y, width, height);
+    }
+
+    @Override
+    public void repaint() {
+        if (Main.isTraceEnabled()) {
+            invalidatedListener.traceRandomRepaint();
+        }
+        super.repaint();
     }
 }

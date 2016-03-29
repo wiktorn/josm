@@ -18,8 +18,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-
-import javax.swing.JScrollPane;
+import java.util.TreeSet;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Version;
@@ -27,11 +26,17 @@ import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.DatasetConsistencyTest;
 import org.openstreetmap.josm.data.preferences.Setting;
 import org.openstreetmap.josm.gui.ExtendedDialog;
-import org.openstreetmap.josm.gui.widgets.JosmTextArea;
+import org.openstreetmap.josm.gui.preferences.SourceEditor;
+import org.openstreetmap.josm.gui.preferences.SourceEditor.ExtendedSourceEntry;
+import org.openstreetmap.josm.gui.preferences.SourceEntry;
+import org.openstreetmap.josm.gui.preferences.map.MapPaintPreference;
+import org.openstreetmap.josm.gui.preferences.map.TaggingPresetPreference;
+import org.openstreetmap.josm.gui.preferences.validator.ValidatorTagCheckerRulesPreference;
 import org.openstreetmap.josm.plugins.PluginHandler;
 import org.openstreetmap.josm.tools.PlatformHookUnixoid;
 import org.openstreetmap.josm.tools.Shortcut;
-import org.openstreetmap.josm.tools.Utils;
+import org.openstreetmap.josm.tools.bugreport.BugReportSender;
+import org.openstreetmap.josm.tools.bugreport.DebugTextDisplay;
 
 /**
  * @author xeen
@@ -63,6 +68,15 @@ public final class ShowStatusReportAction extends JosmAction {
         }
     }
 
+    private static boolean isRunningJavaWebStart() {
+        try {
+            // See http://stackoverflow.com/a/16200769/2257172
+            return Class.forName("javax.jnlp.ServiceManager") != null;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
+
     /**
      * Replies the report header (software and system info)
      * @return The report header (software and system info)
@@ -91,7 +105,7 @@ public final class ShowStatusReportAction extends JosmAction {
                     .append('\n');
             }
             // Add WebStart package details if run from JNLP
-            if (Package.getPackage("javax.jnlp") != null) {
+            if (isRunningJavaWebStart()) {
                 String webStartDetails = ((PlatformHookUnixoid) Main.platform).getWebStartPackageDetails();
                 if (webStartDetails != null) {
                     text.append("WebStart package: ")
@@ -150,16 +164,33 @@ public final class ShowStatusReportAction extends JosmAction {
         }
         text.append('\n').append(PluginHandler.getBugReportText()).append('\n');
 
-        Collection<String> errorsWarnings = Main.getLastErrorAndWarnings();
-        if (!errorsWarnings.isEmpty()) {
-            text.append("Last errors/warnings:\n");
-            for (String s : errorsWarnings) {
-                text.append("- ").append(s).append('\n');
+        appendCollection(text, "Tagging presets", getCustomUrls(TaggingPresetPreference.PresetPrefHelper.INSTANCE));
+        appendCollection(text, "Map paint styles", getCustomUrls(MapPaintPreference.MapPaintPrefHelper.INSTANCE));
+        appendCollection(text, "Validator rules", getCustomUrls(ValidatorTagCheckerRulesPreference.RulePrefHelper.INSTANCE));
+        appendCollection(text, "Last errors/warnings", Main.getLastErrorAndWarnings());
+
+        return text.toString();
+    }
+
+    protected static Collection<String> getCustomUrls(SourceEditor.SourcePrefHelper helper) {
+        Set<String> set = new TreeSet<>();
+        for (SourceEntry entry : helper.get()) {
+            set.add(entry.url);
+        }
+        for (ExtendedSourceEntry def : helper.getDefault()) {
+            set.remove(def.url);
+        }
+        return set;
+    }
+
+    protected static <T> void appendCollection(StringBuilder text, String label, Collection<T> col) {
+        if (!col.isEmpty()) {
+            text.append(label+":\n");
+            for (T o : col) {
+                text.append("- ").append(o.toString()).append('\n');
             }
             text.append('\n');
         }
-
-        return text.toString();
     }
 
     @Override
@@ -183,23 +214,19 @@ public final class ShowStatusReportAction extends JosmAction {
             Main.error(x);
         }
 
-        JosmTextArea ta = new JosmTextArea(text.toString());
-        ta.setWrapStyleWord(true);
-        ta.setLineWrap(true);
-        ta.setEditable(false);
-        JScrollPane sp = new JScrollPane(ta);
+        DebugTextDisplay ta = new DebugTextDisplay(text.toString());
 
         ExtendedDialog ed = new ExtendedDialog(Main.parent,
                 tr("Status Report"),
                 new String[] {tr("Copy to clipboard and close"), tr("Report bug"), tr("Close") });
         ed.setButtonIcons(new String[] {"copy", "bug", "cancel" });
-        ed.setContent(sp, false);
+        ed.setContent(ta, false);
         ed.setMinimumSize(new Dimension(380, 200));
         ed.setPreferredSize(new Dimension(700, Main.parent.getHeight()-50));
 
         switch (ed.showDialog().getValue()) {
-            case 1: Utils.copyToClipboard(text.toString()); break;
-            case 2: ReportBugAction.reportBug(reportHeader); break;
+            case 1: ta.copyToClippboard(); break;
+            case 2: BugReportSender.reportBug(reportHeader); break;
         }
     }
 }
