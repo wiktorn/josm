@@ -39,7 +39,6 @@ import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JRadioButtonMenuItem;
@@ -446,7 +445,7 @@ public class ToggleDialog extends JPanel implements ShowHideButtonListener, Help
         destroyComponents(this, false);
     }
 
-    private void destroyComponents(Component component, boolean destroyItself) {
+    private static void destroyComponents(Component component, boolean destroyItself) {
         if (component instanceof Container) {
             for (Component c: ((Container) component).getComponents()) {
                 destroyComponents(c, true);
@@ -664,7 +663,7 @@ public class ToggleDialog extends JPanel implements ShowHideButtonListener, Help
      */
     private class DetachedDialog extends JDialog {
         DetachedDialog() {
-            super(JOptionPane.getFrameForComponent(Main.parent));
+            super(GuiHelper.getFrameForComponent(Main.parent));
             getContentPane().add(ToggleDialog.this);
             addWindowListener(new WindowAdapter() {
                 @Override public void windowClosing(WindowEvent e) {

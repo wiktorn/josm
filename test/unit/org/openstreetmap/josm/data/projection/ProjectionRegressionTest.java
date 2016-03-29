@@ -43,17 +43,12 @@ import org.openstreetmap.josm.tools.Pair;
 public class ProjectionRegressionTest {
 
     private static final String PROJECTION_DATA_FILE = "data_nodist/projection/projection-regression-test-data";
-    private static final String PROJECTION_DATA_FILE_JAVA_9 = "data_nodist/projection/projection-regression-test-data-java9";
 
     private static class TestData {
         public String code;
         public LatLon ll;
         public EastNorth en;
         public LatLon ll2;
-    }
-
-    private static String getProjectionDataFile() {
-        return TestUtils.getJavaVersion() >= 9 ? PROJECTION_DATA_FILE_JAVA_9 : PROJECTION_DATA_FILE;
     }
 
     /**
@@ -70,7 +65,7 @@ public class ProjectionRegressionTest {
         }
 
         List<TestData> prevData = new ArrayList<>();
-        if (new File(getProjectionDataFile()).exists()) {
+        if (new File(PROJECTION_DATA_FILE).exists()) {
             prevData = readData();
         }
         Map<String, TestData> prevCodesMap = new HashMap<>();
@@ -92,7 +87,7 @@ public class ProjectionRegressionTest {
 
         Random rand = new Random();
         try (BufferedWriter out = new BufferedWriter(new OutputStreamWriter(
-                new FileOutputStream(getProjectionDataFile()), StandardCharsets.UTF_8))) {
+                new FileOutputStream(PROJECTION_DATA_FILE), StandardCharsets.UTF_8))) {
             out.write("# Data for test/unit/org/openstreetmap/josm/data/projection/ProjectionRegressionTest.java\n");
             out.write("# Format: 1. Projection code; 2. lat/lon; 3. lat/lon projected -> east/north; 4. east/north (3.) inverse projected\n");
             for (String code : codesToWrite) {
@@ -116,8 +111,12 @@ public class ProjectionRegressionTest {
         System.out.println("Update successful.");
     }
 
+    private static EastNorth getRoundedToOsmPrecision(double east, double north) {
+        return new EastNorth(LatLon.roundToOsmPrecision(east), LatLon.roundToOsmPrecision(north));
+    }
+
     private static List<TestData> readData() throws IOException, FileNotFoundException {
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(getProjectionDataFile()),
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream(PROJECTION_DATA_FILE),
                 StandardCharsets.UTF_8))) {
             List<TestData> result = new ArrayList<>();
             String line;
@@ -186,6 +185,13 @@ public class ProjectionRegressionTest {
                 continue;
             }
             EastNorth en = proj.latlon2eastNorth(data.ll);
+            LatLon ll2 = proj.eastNorth2latlon(data.en);
+            if (TestUtils.getJavaVersion() >= 9) {
+                en = getRoundedToOsmPrecision(en.east(), en.north());
+                ll2 = ll2.getRoundedToOsmPrecision();
+                data.en = getRoundedToOsmPrecision(data.en.east(), data.en.north());
+                data.ll2 = data.ll2.getRoundedToOsmPrecision();
+            }
             if (!en.equals(data.en)) {
                 String error = String.format("%s (%s): Projecting latlon(%s,%s):%n" +
                         "        expected: eastnorth(%s,%s),%n" +
@@ -193,7 +199,6 @@ public class ProjectionRegressionTest {
                         proj.toString(), data.code, data.ll.lat(), data.ll.lon(), data.en.east(), data.en.north(), en.east(), en.north());
                 fail.append(error);
             }
-            LatLon ll2 = proj.eastNorth2latlon(data.en);
             if (!ll2.equals(data.ll2)) {
                 String error = String.format("%s (%s): Inverse projecting eastnorth(%s,%s):%n" +
                         "        expected: latlon(%s,%s),%n" +

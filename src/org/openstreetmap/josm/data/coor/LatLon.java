@@ -8,6 +8,7 @@ import static java.lang.Math.cos;
 import static java.lang.Math.sin;
 import static java.lang.Math.sqrt;
 import static java.lang.Math.toRadians;
+import static org.openstreetmap.josm.data.projection.Ellipsoid.WGS84;
 import static org.openstreetmap.josm.tools.I18n.trc;
 
 import java.awt.geom.Area;
@@ -324,10 +325,9 @@ public class LatLon extends Coordinate {
      * @return distance in metres.
      */
     public double greatCircleDistance(LatLon other) {
-        double R = 6378135;
         double sinHalfLat = sin(toRadians(other.lat() - this.lat()) / 2);
         double sinHalfLon = sin(toRadians(other.lon() - this.lon()) / 2);
-        double d = 2 * R * asin(
+        double d = 2 * WGS84.a * asin(
                 sqrt(sinHalfLat*sinHalfLat +
                         cos(toRadians(this.lat()))*cos(toRadians(other.lat()))*sinHalfLon*sinHalfLon));
         // For points opposite to each other on the sphere,
@@ -335,7 +335,7 @@ public class LatLon extends Coordinate {
         // (This should almost never happen.)
         if (java.lang.Double.isNaN(d)) {
             Main.error("NaN in greatCircleDistance");
-            d = PI * R;
+            d = PI * WGS84.a;
         }
         return d;
     }
@@ -457,7 +457,7 @@ public class LatLon extends Coordinate {
     }
 
     /**
-     * Returns the value rounded to OSM precisions, i.e. to {@link LatLon#MAX_SERVER_PRECISION}.
+     * Returns the value rounded to OSM precisions, i.e. to {@link #MAX_SERVER_PRECISION}.
      * @param value lat/lon value
      *
      * @return rounded value
@@ -467,21 +467,7 @@ public class LatLon extends Coordinate {
     }
 
     /**
-     * Returns the value rounded to OSM precision. This function is now the same as
-     * {@link #roundToOsmPrecision(double)}, since the rounding error has been fixed.
-     * @param value lat/lon value
-     *
-     * @return rounded value
-     * @deprecated Use {@link #roundToOsmPrecision(double)} instead
-     */
-    @Deprecated
-    public static double roundToOsmPrecisionStrict(double value) {
-        return roundToOsmPrecision(value);
-    }
-
-    /**
-     * Replies a clone of this lat LatLon, rounded to OSM precisions, i.e. to
-     * MAX_SERVER_PRECISION
+     * Replies a clone of this lat LatLon, rounded to OSM precisions, i.e. to {@link #MAX_SERVER_PRECISION}
      *
      * @return a clone of this lat LatLon
      */
@@ -490,18 +476,6 @@ public class LatLon extends Coordinate {
                 roundToOsmPrecision(lat()),
                 roundToOsmPrecision(lon())
                 );
-    }
-
-    /**
-     * Replies a clone of this lat LatLon, rounded to OSM precisions, i.e. to
-     * MAX_SERVER_PRECISION
-     *
-     * @return a clone of this lat LatLon
-     * @deprecated Use {@link #getRoundedToOsmPrecision()} instead
-     */
-    @Deprecated
-    public LatLon getRoundedToOsmPrecisionStrict() {
-        return getRoundedToOsmPrecision();
     }
 
     @Override
