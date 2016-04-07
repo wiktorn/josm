@@ -196,6 +196,11 @@ public class SplashScreen extends JFrame implements ChangeListener {
         private final List<Task> tasks = new CopyOnWriteArrayList<>();
         private SplashProgressMonitor latestSubtask;
 
+        /**
+         * Constructs a new {@code SplashProgressMonitor}.
+         * @param name name
+         * @param listener change listener
+         */
         public SplashProgressMonitor(String name, ChangeListener listener) {
             this.name = name;
             this.listener = listener;
@@ -247,6 +252,9 @@ public class SplashScreen extends JFrame implements ChangeListener {
 
         @Override
         public void subTask(String title) {
+            if (Main.isDebugEnabled()) {
+                Main.debug(title);
+            }
             latestSubtask = new SplashProgressMonitor(title, listener);
             tasks.add(latestSubtask);
             listener.stateChanged(null);

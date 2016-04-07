@@ -2,17 +2,30 @@
 package org.openstreetmap.josm.tools.date;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
 
+import java.text.DateFormat;
 import java.util.Date;
 import java.util.TimeZone;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
+import org.openstreetmap.josm.JOSMFixture;
 import org.openstreetmap.josm.tools.UncheckedParseException;
 
 /**
  * Unit tests of {@link DateUtils} class.
  */
 public class DateUtilsTest {
+
+    /**
+     * Setup test.
+     */
+    @BeforeClass
+    public static void setUp() {
+        JOSMFixture.createUnitTestFixture().init();
+    }
 
     /**
      * Allows to override the timezone used in {@link DateUtils} for unit tests.
@@ -84,5 +97,93 @@ public class DateUtilsTest {
         assertEquals(1453694709000L, DateUtils.fromString("2016-01-25T04:05:09.000Z").getTime());
         assertEquals(1453694709200L, DateUtils.fromString("2016-01-25T04:05:09.200Z").getTime());
         assertEquals(1453694709400L, DateUtils.fromString("2016-01-25T04:05:09.400Z").getTime());
+    }
+
+    /**
+     * Unit test of {@link DateUtils#fromTimestamp} method.
+     */
+    @Test
+    public void testFromTimestamp() {
+        assertEquals("1970-01-01T00:00:00Z", DateUtils.fromTimestamp(0));
+        assertEquals("2001-09-09T01:46:40Z", DateUtils.fromTimestamp(1000000000));
+        assertEquals("2038-01-19T03:14:07Z", DateUtils.fromTimestamp(Integer.MAX_VALUE));
+    }
+
+    /**
+     * Unit test of {@link DateUtils#formatTime} method.
+     */
+    @Test
+    public void testFormatTime() {
+        assertEquals("1:00 AM", DateUtils.formatTime(new Date(123), DateFormat.SHORT));
+        assertEquals("1:00:00 AM CET", DateUtils.formatTime(new Date(123), DateFormat.LONG));
+    }
+
+    /**
+     * Unit test of {@link DateUtils#formatDate} method.
+     */
+    @Test
+    public void testFormatDate() {
+        assertEquals("1/1/70", DateUtils.formatDate(new Date(123), DateFormat.SHORT));
+        assertEquals("January 1, 1970", DateUtils.formatDate(new Date(123), DateFormat.LONG));
+    }
+
+    /**
+     * Unit test of {@link DateUtils#tsFromString} method.
+     */
+    @Test
+    public void testTsFromString() {
+        // UTC times
+        assertEquals(1459695600000L, DateUtils.tsFromString("2016-04-03T15:00:00Z"));
+        assertEquals(1459695600000L, DateUtils.tsFromString("2016-04-03T15:00:00"));
+        assertEquals(1459695600000L, DateUtils.tsFromString("2016-04-03 15:00:00 UTC"));
+        assertEquals(1459695600000L, DateUtils.tsFromString("2016-04-03T15:00:00+00"));
+        assertEquals(1459695600000L, DateUtils.tsFromString("2016-04-03T15:00:00-00"));
+        assertEquals(1459695600000L, DateUtils.tsFromString("2016-04-03T15:00:00+00:00"));
+        assertEquals(1459695600000L, DateUtils.tsFromString("2016-04-03T15:00:00-00:00"));
+
+        // UTC times with millis
+        assertEquals(1459695600000L, DateUtils.tsFromString("2016-04-03T15:00:00.000Z"));
+        assertEquals(1459695600000L, DateUtils.tsFromString("2016-04-03T15:00:00.000"));
+        assertEquals(1459695600000L, DateUtils.tsFromString("2016-04-03T15:00:00.000+00:00"));
+        assertEquals(1459695600000L, DateUtils.tsFromString("2016-04-03T15:00:00.000-00:00"));
+
+        // Local time
+        assertEquals(1459688400000L, DateUtils.tsFromString("03-APR-16 15:00:00"));
+    }
+
+    /**
+     * Unit test of {@link DateUtils#getDateFormat} method.
+     */
+    @Test
+    public void testGetDateFormat() {
+        Boolean iso = DateUtils.PROP_ISO_DATES.get();
+        try {
+            DateFormat f1 = DateUtils.getDateFormat(DateFormat.SHORT);
+            assertNotNull(f1);
+            DateUtils.PROP_ISO_DATES.put(!iso);
+            DateFormat f2 = DateUtils.getDateFormat(DateFormat.SHORT);
+            assertNotNull(f1);
+            assertNotEquals(f1, f2);
+        } finally {
+            DateUtils.PROP_ISO_DATES.put(iso);
+        }
+    }
+
+    /**
+     * Unit test of {@link DateUtils#getTimeFormat} method.
+     */
+    @Test
+    public void testTimeFormat() {
+        Boolean iso = DateUtils.PROP_ISO_DATES.get();
+        try {
+            DateFormat f1 = DateUtils.getTimeFormat(DateFormat.SHORT);
+            assertNotNull(f1);
+            DateUtils.PROP_ISO_DATES.put(!iso);
+            DateFormat f2 = DateUtils.getTimeFormat(DateFormat.SHORT);
+            assertNotNull(f1);
+            assertNotEquals(f1, f2);
+        } finally {
+            DateUtils.PROP_ISO_DATES.put(iso);
+        }
     }
 }

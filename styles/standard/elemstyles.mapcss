@@ -2502,15 +2502,10 @@ node[amenity=sanitary_dump_station] {
     icon-image: "service/recycling/sanitary_dump_station.svg";
     set icon_z17;
 }
-area[amenity=public_building],
 area[amenity=townhall],
 area[amenity=embassy],
 area[amenity=community_centre] {
     fill-color: amenity_light#f7efb7;
-}
-node[amenity=public_building] {
-    icon-image: "service.png";
-    set icon_z17;
 }
 node[amenity=townhall] {
     icon-image: "presets/townhall.png";
@@ -3388,17 +3383,19 @@ way[railway=rail] {
     dashes: 9,9;
     dashes-background-color: raildashed#ffffff;
 }
+way[railway=rail][service=crossover],
 way[railway=rail][service=siding] {
     width: 1;
 }
 way[railway=rail][service=yard],
 way[railway=rail][service=spur] {
     width: 1;
-    color: railyard#552200
+    color: railyard#552200;
 }
 /* draw tram on top of other way (highway=*) or
    as a standalone style */
-way[highway][railway=tram]::core_railway, way[!highway][railway=tram] {
+way[highway][railway=tram]::core_railway,
+way[!highway][railway=tram] {
     object-z-index: 1;
     modifier: false; /* don't draw default way if there is no line on default layer */
     width: 1;
@@ -3409,6 +3406,18 @@ way[highway][railway=tram]::core_railway, way[!highway][railway=tram] {
     casing-linecap: round;
     casing-dashes: 9,9;
 }
+way[highway][railway=tram][service=crossover]::core_railway,
+way[!highway][railway=tram][service=crossover],
+way[highway][railway=tram][service=siding]::core_railway,
+way[!highway][railway=tram][service=siding],
+way[highway][railway=tram][service=yard]::core_railway,
+way[!highway][railway=tram][service=yard],
+way[highway][railway=tram][service=spur]::core_railway,
+way[!highway][railway=tram][service=spur] {
+    dashes: 6,6;
+    casing-dashes: 6,6;
+}
+
 way[railway=light_rail] {
     width: 2;
     color: otherrail#808080;
@@ -3423,6 +3432,20 @@ way[railway=preserved] {
     width: 1;
     color: oldrail#404040;
     dashes: 9,9;
+}
+way[railway=light_rail][service=crossover],
+way[railway=light_rail][service=siding],
+way[railway=light_rail][service=yard],
+way[railway=light_rail][service=spur],
+way[railway=subway][service=crossover],
+way[railway=subway][service=siding],
+way[railway=subway][service=yard],
+way[railway=subway][service=spur],
+way[railway=preserved][service=crossover],
+way[railway=preserved][service=siding],
+way[railway=preserved][service=yard],
+way[railway=preserved][service=spur] {
+    dashes: 6,6;
 }
 /* disused often appears together with highway=xy */
 /* -> draw on separate layer with higher z-index, but use */
@@ -3443,6 +3466,16 @@ way[railway=monorail] {
     width: 1;
     color: rail#404040;
     dashes: 9,9;
+}
+way[railway=narrow_gauge][service=crossover],
+way[railway=narrow_gauge][service=siding],
+way[railway=narrow_gauge][service=yard],
+way[railway=narrow_gauge][service=spur],
+way[railway=monorail][service=crossover],
+way[railway=monorail][service=siding],
+way[railway=monorail][service=yard],
+way[railway=monorail][service=spur] {
+    dashes: 6,6;
 }
 area[railway=turntable] {
     fill-color: rail#404040;
@@ -4031,6 +4064,10 @@ area[natural=wetland] {
 area[natural=water] {
     fill-color: water#0000ff;
 }
+way[natural=water][intermittent=yes] {
+    width: 2;
+    dashes: 15, 5;
+}
 way[natural=coastline] {
     width: 2;
     color: water#0000ff;
@@ -4136,9 +4173,18 @@ way[waterway=stream] {
     width: 1;
     color: stream#6600cc;
 }
-way[waterway=ditch], way[waterway=drain] {
+way[waterway=ditch],
+way[waterway=drain] {
     width: 1;
     color: water#0000ff;
+}
+way[waterway=river][intermittent=yes],
+way[waterway=riverbank][intermittent=yes],
+way[waterway=canal][intermittent=yes],
+way[waterway=stream][intermittent=yes],
+way[waterway=ditch][intermittent=yes],
+way[waterway=drain][intermittent=yes] {
+    dashes: 15, 5;
 }
 area[waterway=dock] {
     fill-color: dock#0000cf;
