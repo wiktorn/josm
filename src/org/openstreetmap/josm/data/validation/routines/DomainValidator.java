@@ -289,7 +289,7 @@ public final class DomainValidator extends AbstractValidator {
 
     // WARNING: this array MUST be sorted, otherwise it cannot be searched reliably using binary search
     private static final String[] GENERIC_TLDS = new String[] {
-        // Taken from Version 2016032600, Last Updated Sat Mar 26 07:07:01 2016 UTC
+        // Taken from Version 2016040501, Last Updated Wed Apr  6 07:07:01 2016 UTC
         "aaa", // aaa American Automobile Association, Inc.
         "aarp", // aarp AARP
         "abb", // abb ABB Ltd
@@ -321,6 +321,7 @@ public final class DomainValidator extends AbstractValidator {
         "amsterdam", // amsterdam Gemeente Amsterdam
         "analytics", // analytics Campus IP LLC
         "android", // android Charleston Road Registry Inc.
+        "anquan", // anquan QIHOO 360 TECHNOLOGY CO. LTD.
         "apartments", // apartments June Maple, LLC
         "app", // app Charleston Road Registry Inc.
         "apple", // apple Apple Inc.
@@ -672,6 +673,7 @@ public final class DomainValidator extends AbstractValidator {
         "house", // house Sugar Park, LLC
         "how", // how Charleston Road Registry Inc.
         "hsbc", // hsbc HSBC Holdings PLC
+        "htc", // htc HTC corporation
         "hyundai", // hyundai Hyundai Motor Company
         "ibm", // ibm International Business Machines Corporation
         "icbc", // icbc Industrial and Commercial Bank of China Limited
@@ -702,6 +704,7 @@ public final class DomainValidator extends AbstractValidator {
         "jaguar", // jaguar Jaguar Land Rover Ltd
         "java", // java Oracle Corporation
         "jcb", // jcb JCB Co., Ltd.
+        "jcp", // jcp JCP Media, Inc.
         "jetzt", // jetzt New TLD Company AB
         "jewelry", // jewelry Wild Bloom, LLC
         "jlc", // jlc Richemont DNS Inc.
@@ -727,6 +730,7 @@ public final class DomainValidator extends AbstractValidator {
         "kiwi", // kiwi DOT KIWI LIMITED
         "koeln", // koeln NetCologne Gesellschaft für Telekommunikation mbH
         "komatsu", // komatsu Komatsu Ltd.
+        "kpmg", // kpmg KPMG International Cooperative (KPMG International Genossenschaft)
         "kpn", // kpn Koninklijke KPN N.V.
         "krd", // krd KRG Department of Information Technology
         "kred", // kred KredTLD Pty Ltd
@@ -824,6 +828,7 @@ public final class DomainValidator extends AbstractValidator {
         "mtpc", // mtpc Mitsubishi Tanabe Pharma Corporation
         "mtr", // mtr MTR Corporation Limited
         "museum", // museum Museum Domain Management Association
+        "mutual", // mutual Northwestern Mutual MU TLD Registry, LLC
         "mutuelle", // mutuelle Fédération Nationale de la Mutualité Française
         "nadex", // nadex Nadex Domains, Inc
         "nagoya", // nagoya GMO Registry, Inc.
@@ -844,6 +849,7 @@ public final class DomainValidator extends AbstractValidator {
         "nikon", // nikon NIKON CORPORATION
         "ninja", // ninja United TLD Holdco Ltd.
         "nissan", // nissan NISSAN MOTOR CO., LTD.
+        "nissay", // nissay Nippon Life Insurance Company
         "nokia", // nokia Nokia Corporation
         "norton", // norton Symantec Corporation
         "nowruz", // nowruz Asia Green IT System Bilgisayar San. ve Tic. Ltd. Sti.
@@ -997,8 +1003,10 @@ public final class DomainValidator extends AbstractValidator {
         "shia", // shia Asia Green IT System Bilgisayar San. ve Tic. Ltd. Sti.
         "shiksha", // shiksha Afilias Limited
         "shoes", // shoes Binky Galley, LLC
+        "shouji", // shouji QIHOO 360 TECHNOLOGY CO. LTD.
         "show", // show Snow Beach, LLC
         "shriram", // shriram Shriram Capital Ltd.
+        "sina", // sina Sina Corporation
         "singles", // singles Fern Madison, LLC
         "site", // site DotSite Inc.
         "ski", // ski STARTING DOT LIMITED
@@ -1161,6 +1169,7 @@ public final class DomainValidator extends AbstractValidator {
         "wtf", // wtf Hidden Way, LLC
         "xbox", // xbox Microsoft Corporation
         "xerox", // xerox Xerox DNHC LLC
+        "xihuan", // xihuan QIHOO 360 TECHNOLOGY CO. LTD.
         "xin", // xin Elegant Leader Limited
         "xn--11b4c3d", // कॉम VeriSign Sarl
         "xn--1ck2e1b", // セール Amazon Registry Services, Inc.
@@ -1254,6 +1263,7 @@ public final class DomainValidator extends AbstractValidator {
         "yokohama", // yokohama GMO Registry, Inc.
         "you", // you Amazon Registry Services, Inc.
         "youtube", // youtube Charleston Road Registry Inc.
+        "yun", // yun QIHOO 360 TECHNOLOGY CO. LTD.
         "zara", // zara Industria de Diseño Textil, S.A. (INDITEX, S.A.)
         "zero", // zero Amazon Registry Services, Inc.
         "zip", // zip Charleston Road Registry Inc.
