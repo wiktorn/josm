@@ -6,6 +6,7 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 import java.awt.Component;
 import java.awt.MouseInfo;
 import java.awt.Point;
+import java.awt.PointerInfo;
 import java.awt.event.ActionEvent;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -93,8 +94,11 @@ public class TaggingPresetMenu extends TaggingPreset {
             for (Component c : menu.getMenuComponents()) {
                 pm.add(copyMenuComponent(c));
             }
-            Point p = MouseInfo.getPointerInfo().getLocation();
-            pm.show(Main.parent, p.x-Main.parent.getX(), p.y-Main.parent.getY());
+            PointerInfo pointerInfo = MouseInfo.getPointerInfo();
+            if (pointerInfo != null) {
+                Point p = pointerInfo.getLocation();
+                pm.show(Main.parent, p.x-Main.parent.getX(), p.y-Main.parent.getY());
+            }
         }
     }
 
@@ -122,37 +126,30 @@ public class TaggingPresetMenu extends TaggingPreset {
             if (item instanceof JMenuItem) {
                 sortarray.add((JMenuItem) item);
                 if (i == items.length-1) {
-                    Collections.sort(sortarray, comp);
-                    int pos = 0;
-                    for (JMenuItem menuItem : sortarray) {
-                        int oldPos;
-                        if (lastSeparator == 0) {
-                            oldPos = pos;
-                        } else {
-                            oldPos = pos+lastSeparator+1;
-                        }
-                        menu.add(menuItem, oldPos);
-                        pos++;
-                    }
+                    handleMenuItem(menu, comp, sortarray, lastSeparator);
                     sortarray = new ArrayList<>();
                     lastSeparator = 0;
                 }
             } else if (item instanceof JSeparator) {
-                Collections.sort(sortarray, comp);
-                int pos = 0;
-                for (JMenuItem menuItem : sortarray) {
-                    int oldPos;
-                    if (lastSeparator == 0) {
-                        oldPos = pos;
-                    } else {
-                        oldPos = pos+lastSeparator+1;
-                    }
-                    menu.add(menuItem, oldPos);
-                    pos++;
-                }
+                handleMenuItem(menu, comp, sortarray, lastSeparator);
                 sortarray = new ArrayList<>();
                 lastSeparator = i;
             }
+        }
+    }
+
+    private static void handleMenuItem(JMenu menu, PresetTextComparator comp, List<JMenuItem> sortarray, int lastSeparator) {
+        Collections.sort(sortarray, comp);
+        int pos = 0;
+        for (JMenuItem menuItem : sortarray) {
+            int oldPos;
+            if (lastSeparator == 0) {
+                oldPos = pos;
+            } else {
+                oldPos = pos+lastSeparator+1;
+            }
+            menu.add(menuItem, oldPos);
+            pos++;
         }
     }
 }
