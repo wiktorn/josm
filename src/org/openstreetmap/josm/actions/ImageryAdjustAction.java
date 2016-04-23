@@ -14,8 +14,6 @@ import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.Formatter;
@@ -39,7 +37,7 @@ import org.openstreetmap.josm.tools.ImageProvider;
  * Adjust the position of an imagery layer.
  * @since 3715
  */
-public class ImageryAdjustAction extends MapMode implements MouseListener, MouseMotionListener, AWTEventListener {
+public class ImageryAdjustAction extends MapMode implements AWTEventListener {
     private static volatile ImageryOffsetDialog offsetDialog;
     private static Cursor cursor = ImageProvider.getCursor("normal", "move");
 
@@ -294,15 +292,19 @@ public class ImageryAdjustAction extends MapMode implements MouseListener, Mouse
         @Override
         public void setVisible(boolean visible) {
             super.setVisible(visible);
-            if (visible) return;
+            if (visible)
+                return;
             offsetDialog = null;
-            if (getValue() != 1) {
-                layer.setOffset(oldDx, oldDy);
-            } else if (tBookmarkName.getText() != null && !tBookmarkName.getText().isEmpty()) {
-                OffsetBookmark.bookmarkOffset(tBookmarkName.getText(), layer);
+            if (layer != null) {
+                if (getValue() != 1) {
+                    layer.setOffset(oldDx, oldDy);
+                } else if (tBookmarkName.getText() != null && !tBookmarkName.getText().isEmpty()) {
+                    OffsetBookmark.bookmarkOffset(tBookmarkName.getText(), layer);
+                }
             }
             Main.main.menu.imageryMenu.refreshOffsetMenu();
-            if (Main.map == null) return;
+            if (Main.map == null)
+                return;
             if (oldMapMode != null) {
                 Main.map.selectMapMode(oldMapMode);
                 oldMapMode = null;

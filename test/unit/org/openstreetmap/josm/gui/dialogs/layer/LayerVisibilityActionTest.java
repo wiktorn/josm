@@ -1,5 +1,5 @@
 // License: GPL. For details, see LICENSE file.
-package org.openstreetmap.josm.gui.dialogs;
+package org.openstreetmap.josm.gui.dialogs.layer;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -9,15 +9,15 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.openstreetmap.josm.JOSMFixture;
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.gui.dialogs.LayerListDialog;
 import org.openstreetmap.josm.gui.dialogs.LayerListDialog.LayerListModel;
-import org.openstreetmap.josm.gui.dialogs.LayerListDialog.LayerVisibilityAction;
 import org.openstreetmap.josm.gui.layer.TMSLayer;
 import org.openstreetmap.josm.gui.layer.TMSLayerTest;
 
 /**
- * Unit tests of {@link LayerListDialog} class.
+ * Unit tests of {@link LayerVisibilityAction} class.
  */
-public class LayerListDialogTest {
+public class LayerVisibilityActionTest {
 
     /**
      * Setup tests
@@ -46,32 +46,31 @@ public class LayerListDialogTest {
 
             // now check values
             action.updateValues();
-            assertEquals(1.0, action.readOpacityValue(), 1e-15);
-            assertEquals(1.0, action.readGammaValue(), 1e-15);
+            assertEquals(1.0, action.opacitySlider.getRealValue(), 1e-15);
 
-            action.setOpacityValue(.5, false);
-            action.setGammaValue(1.5);
+            action.opacitySlider.setRealValue(.5);
             action.updateValues();
 
-            assertEquals(0.5, action.readOpacityValue(), 1e-15);
-            assertEquals(1.5, action.readGammaValue(), 1e-15);
+            assertEquals(0.5, action.opacitySlider.getRealValue(), 1e-15);
 
-            action.setVisible(false);
+            action.setVisibleFlag(false);
             action.updateValues();
             assertFalse(layer.isVisible());
 
-            action.setVisible(true);
+            action.setVisibleFlag(true);
             action.updateValues();
             assertTrue(layer.isVisible());
 
             // layer stays visible during adjust
-            action.setOpacityValue(0, true);
+            action.opacitySlider.setValueIsAdjusting(true);
+            action.opacitySlider.setRealValue(0);
             assertEquals(0, layer.getOpacity(), 1e-15);
             layer.setOpacity(.1); // to make layer.isVisible work
             assertTrue(layer.isVisible());
             layer.setOpacity(0);
 
-            action.setOpacityValue(0, false);
+            action.opacitySlider.setValueIsAdjusting(false);
+            action.opacitySlider.setRealValue(0);
             assertEquals(0, layer.getOpacity(), 1e-15);
             layer.setOpacity(.1); // to make layer.isVisible work
             assertFalse(layer.isVisible());
@@ -79,9 +78,9 @@ public class LayerListDialogTest {
             action.updateValues();
 
             // Opacity reset when it was 0 and user set layer to visible.
-            action.setVisible(true);
+            action.setVisibleFlag(true);
             action.updateValues();
-            assertEquals(1.0, action.readOpacityValue(), 1e-15);
+            assertEquals(1.0, action.opacitySlider.getRealValue(), 1e-15);
             assertEquals(1.0, layer.getOpacity(), 1e-15);
 
         } finally {
