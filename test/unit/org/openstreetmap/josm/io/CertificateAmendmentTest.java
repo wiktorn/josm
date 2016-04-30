@@ -41,10 +41,13 @@ public class CertificateAmendmentTest {
      */
     @Test
     public void testLetsEncrypt() throws IOException {
-        // signed by letsencrypt
-        connect("https://helloworld.letsencrypt.org", true);
-        // signed by LE's cross-sign CA
+        // signed by letsencrypt's own ISRG root
+        // (not included yet)
+        connect("https://helloworld.letsencrypt.org", false);
+        // signed by letsencrypt's cross-sign CA
         connect("https://letsencrypt.org", true);
+        // signed by letsencrypt's cross-sign CA, requires SNI
+        connect("https://acme-v01.api.letsencrypt.org", true);
     }
 
     /**
