@@ -2,3 +2,7 @@
 /build/
 /dist/
 /bin2/
+/build2/
+/src/org/openstreetmap/josm/gui/mappaint/mapcss/parsergen/
+/test/build/
+/test/report/
