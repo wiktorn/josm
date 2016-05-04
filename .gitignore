@@ -4,7 +4,11 @@
 /bin2/
 /build2/
 /data/projection/custom-epsg
+/foobar/
 /src/org/openstreetmap/josm/gui/mappaint/mapcss/parsergen/
 /test/build/
 /test/config/
+/test/jacoco.exec
 /test/report/
+/checkstyle-josm.xml
+/findbugs-josm.xml
