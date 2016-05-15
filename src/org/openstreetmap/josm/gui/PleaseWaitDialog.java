@@ -7,8 +7,8 @@ import java.awt.Component;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.event.ActionListener;
+import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
-import java.awt.event.ComponentListener;
 
 import javax.swing.BorderFactory;
 import javax.swing.BoundedRangeModel;
@@ -38,7 +38,7 @@ public class PleaseWaitDialog extends JDialog implements ProgressMonitorDialog {
     private JButton btnInBackground;
     /** the text area and the scroll pane for the log */
     private final JosmTextArea taLog = new JosmTextArea(5, 50);
-    private  JScrollPane spLog;
+    private final JScrollPane spLog = new JScrollPane(taLog);
 
     private void initDialog() {
         setLayout(new GridBagLayout());
@@ -59,21 +59,12 @@ public class PleaseWaitDialog extends JDialog implements ProgressMonitorDialog {
         GridBagConstraints gc = GBC.eol().fill(GBC.BOTH);
         gc.weighty = 1.0;
         gc.weightx = 1.0;
-        pane.add(spLog = new JScrollPane(taLog), gc);
+        pane.add(spLog, gc);
         spLog.setVisible(false);
         setContentPane(pane);
         setCustomText("");
         setLocationRelativeTo(getParent());
-        addComponentListener(new ComponentListener() {
-            @Override
-            public void componentHidden(ComponentEvent e) {}
-
-            @Override
-            public void componentMoved(ComponentEvent e) {}
-
-            @Override
-            public void componentShown(ComponentEvent e) {}
-
+        addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent ev) {
                 int w = getWidth();

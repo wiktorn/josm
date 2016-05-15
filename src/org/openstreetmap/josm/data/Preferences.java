@@ -98,7 +98,7 @@ public class Preferences {
     private static final String[] OBSOLETE_PREF_KEYS = {
     };
 
-    private static final long MAX_AGE_DEFAULT_PREFERENCES = 60 * 60 * 24 * 50; // 50 days (in seconds)
+    private static final long MAX_AGE_DEFAULT_PREFERENCES = 60L * 60L * 24L * 50L; // 50 days (in seconds)
 
     /**
      * Internal storage for the preference directory.
@@ -730,21 +730,13 @@ public class Preferences {
 
     /* only for preferences */
     public synchronized String getColorName(String o) {
-        try {
-            Matcher m = Pattern.compile("mappaint\\.(.+?)\\.(.+)").matcher(o);
-            if (m.matches()) {
-                return tr("Paint style {0}: {1}", tr(I18n.escape(m.group(1))), tr(I18n.escape(m.group(2))));
-            }
-        } catch (Exception e) {
-            Main.warn(e);
+        Matcher m = Pattern.compile("mappaint\\.(.+?)\\.(.+)").matcher(o);
+        if (m.matches()) {
+            return tr("Paint style {0}: {1}", tr(I18n.escape(m.group(1))), tr(I18n.escape(m.group(2))));
         }
-        try {
-            Matcher m = Pattern.compile("layer (.+)").matcher(o);
-            if (m.matches()) {
-                return tr("Layer: {0}", tr(I18n.escape(m.group(1))));
-            }
-        } catch (Exception e) {
-            Main.warn(e);
+        m = Pattern.compile("layer (.+)").matcher(o);
+        if (m.matches()) {
+            return tr("Layer: {0}", tr(I18n.escape(m.group(1))));
         }
         return tr(I18n.escape(colornames.containsKey(o) ? colornames.get(o) : o));
     }
@@ -1208,8 +1200,8 @@ public class Preferences {
     public static <T> Map<String, String> serializeStruct(T struct, Class<T> klass) {
         T structPrototype;
         try {
-            structPrototype = klass.newInstance();
-        } catch (InstantiationException | IllegalAccessException ex) {
+            structPrototype = klass.getConstructor().newInstance();
+        } catch (ReflectiveOperationException ex) {
             throw new RuntimeException(ex);
         }
 
@@ -1257,12 +1249,12 @@ public class Preferences {
     public static <T> T deserializeStruct(Map<String, String> hash, Class<T> klass) {
         T struct = null;
         try {
-            struct = klass.newInstance();
-        } catch (InstantiationException | IllegalAccessException ex) {
+            struct = klass.getConstructor().newInstance();
+        } catch (ReflectiveOperationException ex) {
             throw new RuntimeException(ex);
         }
         for (Entry<String, String> key_value : hash.entrySet()) {
-            Object value = null;
+            Object value;
             Field f;
             try {
                 f = klass.getDeclaredField(key_value.getKey().replace('-', '_'));
@@ -1335,10 +1327,7 @@ public class Preferences {
                 Field field = Toolkit.class.getDeclaredField("resources");
                 field.setAccessible(true);
                 field.set(null, ResourceBundle.getBundle("sun.awt.resources.awt"));
-            } catch (Exception | InternalError e) {
-                // Ignore all exceptions, including internal error raised by Java 9 Jigsaw EA:
-                // java.lang.InternalError: legacy getBundle can't be used to find sun.awt.resources.awt in module java.desktop
-                // InternalError catch to remove when https://bugs.openjdk.java.net/browse/JDK-8136804 is resolved
+            } catch (ReflectiveOperationException e) {
                 if (Main.isTraceEnabled()) {
                     Main.trace(e.getMessage());
                 }

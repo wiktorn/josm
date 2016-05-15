@@ -4,10 +4,10 @@ package org.openstreetmap.josm.data.cache;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
+import java.security.SecureRandom;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -25,6 +25,8 @@ import org.openstreetmap.josm.data.cache.ICachedLoaderListener.LoadResult;
 import org.openstreetmap.josm.data.preferences.IntegerProperty;
 import org.openstreetmap.josm.tools.HttpClient;
 import org.openstreetmap.josm.tools.Utils;
+
+import sun.net.www.protocol.http.HttpURLConnection;
 
 /**
  * @author Wiktor Niesiobędzki
@@ -294,7 +296,6 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
     /**
      * @return true if object was successfully downloaded, false, if there was a loading failure
      */
-
     private boolean loadObject() {
         if (attributes == null) {
             attributes = new CacheEntryAttributes();
@@ -339,18 +340,17 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
                 useHead.put(serverKey, Boolean.TRUE);
             }
 
-
             attributes = parseHeaders(urlConn);
 
             for (int i = 0; i < 5; ++i) {
-                if (urlConn.getResponseCode() == 503) {
-                    Thread.sleep(5000+(new Random()).nextInt(5000));
+                if (urlConn.getResponseCode() == HttpURLConnection.HTTP_UNAVAILABLE) {
+                    Thread.sleep(5000L+new SecureRandom().nextInt(5000));
                     continue;
                 }
 
                 attributes.setResponseCode(urlConn.getResponseCode());
                 byte[] raw;
-                if (urlConn.getResponseCode() == 200) {
+                if (urlConn.getResponseCode() == HttpURLConnection.HTTP_OK) {
                     raw = Utils.readBytesFromStream(urlConn.getContent());
                 } else {
                     raw = new byte[]{};
@@ -394,14 +394,13 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
                 cache.put(getCacheKey(), createCacheEntry(new byte[]{}), attributes);
             }
             return doCache;
-        } catch (Exception e) {
+        } catch (InterruptedException e) {
             attributes.setErrorMessage(e.toString());
             log.log(Level.WARNING, "JCS - Exception during download {0}",  getUrlNoException());
             Main.warn(e);
         }
         log.log(Level.WARNING, "JCS - Silent failure during download: {0}", getUrlNoException());
         return false;
-
     }
 
     /**

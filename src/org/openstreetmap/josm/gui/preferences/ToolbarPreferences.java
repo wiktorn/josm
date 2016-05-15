@@ -461,10 +461,14 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
                 }
 
                 @Override
-                public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {}
+                public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {
+                    // Do nothing
+                }
 
                 @Override
-                public void popupMenuCanceled(PopupMenuEvent e) {}
+                public void popupMenuCanceled(PopupMenuEvent e) {
+                    // Do nothing
+                }
             });
             add(remove);
             add(configure);
@@ -570,7 +574,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
                     selectedList.setSelectedIndices(indices);
                     movingComponent = "";
                     return true;
-                } catch (Exception e) {
+                } catch (IOException | UnsupportedFlavorException e) {
                     Main.error(e);
                 }
                 return false;
@@ -589,7 +593,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
                                 selected.remove(indices[i]);
                             }
                         }
-                    } catch (Exception e) {
+                    } catch (IOException | UnsupportedFlavorException e) {
                         Main.error(e);
                     }
                     movingComponent = "";
@@ -677,13 +681,17 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
         private final JTable actionParametersTable = new JTable(actionParametersModel);
         private JPanel actionParametersPanel;
 
-        private JButton upButton;
-        private JButton downButton;
-        private JButton removeButton;
-        private JButton addButton;
+        private final JButton upButton = createButton("up");
+        private final JButton downButton = createButton("down");
+        private final JButton removeButton = createButton(">");
+        private final JButton addButton = createButton("<");
 
         private String movingComponent;
 
+        /**
+         * Constructs a new {@code Settings}.
+         * @param rootActionsNode root actions node
+         */
         public Settings(DefaultMutableTreeNode rootActionsNode) {
             super(/* ICON(preferences/) */ "toolbar", tr("Toolbar customization"), tr("Customize the elements on the toolbar."));
             actionsTreeModel = new DefaultTreeModel(rootActionsNode);
@@ -810,19 +818,23 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
             right.add(new JScrollPane(actionsTree), GBC.eol().fill(GBC.BOTH));
 
             final JPanel buttons = new JPanel(new GridLayout(6, 1));
-            buttons.add(upButton = createButton("up"));
-            buttons.add(addButton = createButton("<"));
-            buttons.add(removeButton = createButton(">"));
-            buttons.add(downButton = createButton("down"));
+            buttons.add(upButton);
+            buttons.add(addButton);
+            buttons.add(removeButton);
+            buttons.add(downButton);
             updateEnabledState();
 
             final JPanel p = new JPanel();
             p.setLayout(new LayoutManager() {
                 @Override
-                public void addLayoutComponent(String name, Component comp) {}
+                public void addLayoutComponent(String name, Component comp) {
+                    // Do nothing
+                }
 
                 @Override
-                public void removeLayoutComponent(Component comp) {}
+                public void removeLayoutComponent(Component comp) {
+                    // Do nothing
+                }
 
                 @Override
                 public Dimension minimumLayoutSize(Container parent) {

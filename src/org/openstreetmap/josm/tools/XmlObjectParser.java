@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
@@ -82,8 +83,8 @@ public class XmlObjectParser implements Iterable<Object> {
             if (mapping.containsKey(qname)) {
                 Class<?> klass = mapping.get(qname).klass;
                 try {
-                    current.push(klass.newInstance());
-                } catch (Exception e) {
+                    current.push(klass.getConstructor().newInstance());
+                } catch (ReflectiveOperationException e) {
                     throwException(e);
                 }
                 for (int i = 0; i < a.getLength(); ++i) {
@@ -155,7 +156,7 @@ public class XmlObjectParser implements Iterable<Object> {
                         m.invoke(c, new Object[]{getValueForClass(m.getParameterTypes()[0], value)});
                     }
                 }
-            } catch (Exception e) {
+            } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
                 Main.error(e); // SAXException does not dump inner exceptions.
                 throwException(e);
             }

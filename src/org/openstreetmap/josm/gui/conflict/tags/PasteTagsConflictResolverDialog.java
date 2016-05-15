@@ -56,16 +56,16 @@ public class PasteTagsConflictResolverDialog extends JDialog  implements Propert
         RESOLVING_TYPED_TAGCOLLECTIONS
     }
 
-    private TagConflictResolver allPrimitivesResolver;
-    private transient Map<OsmPrimitiveType, TagConflictResolver> resolvers;
-    private JTabbedPane tpResolvers;
+    private final TagConflictResolver allPrimitivesResolver = new TagConflictResolver();
+    private final transient Map<OsmPrimitiveType, TagConflictResolver> resolvers = new EnumMap<>(OsmPrimitiveType.class);
+    private final JTabbedPane tpResolvers = new JTabbedPane();
     private Mode mode;
     private boolean canceled;
 
-    private final ImageIcon iconResolved;
-    private final ImageIcon iconUnresolved;
-    private StatisticsTableModel statisticsModel;
-    private JPanel pnlTagResolver;
+    private final ImageIcon iconResolved = ImageProvider.get("dialogs/conflict", "tagconflictresolved");
+    private final ImageIcon iconUnresolved = ImageProvider.get("dialogs/conflict", "tagconflictunresolved");
+    private final StatisticsTableModel statisticsModel = new StatisticsTableModel();
+    private final JPanel pnlTagResolver = new JPanel(new BorderLayout());
 
     /**
      * Constructs a new {@code PasteTagsConflictResolverDialog}.
@@ -74,19 +74,14 @@ public class PasteTagsConflictResolverDialog extends JDialog  implements Propert
     public PasteTagsConflictResolverDialog(Component owner) {
         super(GuiHelper.getFrameForComponent(owner), ModalityType.DOCUMENT_MODAL);
         build();
-        iconResolved = ImageProvider.get("dialogs/conflict", "tagconflictresolved");
-        iconUnresolved = ImageProvider.get("dialogs/conflict", "tagconflictunresolved");
     }
 
     protected final void build() {
         setTitle(tr("Conflicts in pasted tags"));
-        allPrimitivesResolver = new TagConflictResolver();
-        resolvers = new EnumMap<>(OsmPrimitiveType.class);
         for (OsmPrimitiveType type: OsmPrimitiveType.dataValues()) {
             resolvers.put(type, new TagConflictResolver());
             resolvers.get(type).getModel().addPropertyChangeListener(this);
         }
-        tpResolvers = new JTabbedPane();
         getContentPane().setLayout(new GridBagLayout());
         mode = null;
         GridBagConstraints gc = new GridBagConstraints();
@@ -101,7 +96,7 @@ public class PasteTagsConflictResolverDialog extends JDialog  implements Propert
         gc.fill = GridBagConstraints.BOTH;
         gc.weightx = 1.0;
         gc.weighty = 1.0;
-        getContentPane().add(pnlTagResolver = new JPanel(new BorderLayout()), gc);
+        getContentPane().add(pnlTagResolver, gc);
         gc.gridx = 0;
         gc.gridy = 2;
         gc.fill = GridBagConstraints.HORIZONTAL;
@@ -130,7 +125,6 @@ public class PasteTagsConflictResolverDialog extends JDialog  implements Propert
 
     protected JPanel buildSourceAndTargetInfoPanel() {
         JPanel pnl = new JPanel(new BorderLayout());
-        statisticsModel = new StatisticsTableModel();
         pnl.add(new StatisticsInfoTable(statisticsModel), BorderLayout.CENTER);
         return pnl;
     }
@@ -330,6 +324,10 @@ public class PasteTagsConflictResolverDialog extends JDialog  implements Propert
         super.setVisible(visible);
     }
 
+    /**
+     * Returns conflict resolution.
+     * @return conflict resolution
+     */
     public TagCollection getResolution() {
         return allPrimitivesResolver.getModel().getResolution();
     }
@@ -356,9 +354,9 @@ public class PasteTagsConflictResolverDialog extends JDialog  implements Propert
     }
 
     static final class StatisticsInfo {
-        public int numTags;
-        public final Map<OsmPrimitiveType, Integer> sourceInfo;
-        public final Map<OsmPrimitiveType, Integer> targetInfo;
+        int numTags;
+        final Map<OsmPrimitiveType, Integer> sourceInfo;
+        final Map<OsmPrimitiveType, Integer> targetInfo;
 
         StatisticsInfo() {
             sourceInfo = new EnumMap<>(OsmPrimitiveType.class);
@@ -390,29 +388,29 @@ public class PasteTagsConflictResolverDialog extends JDialog  implements Propert
             return data == null ? 1 : data.size() + 1;
         }
 
-        public void reset() {
+        void reset() {
             data.clear();
         }
 
-        public void append(StatisticsInfo info) {
+        void append(StatisticsInfo info) {
             data.add(info);
             fireTableDataChanged();
         }
     }
 
     static final class StatisticsInfoRenderer extends JLabel implements TableCellRenderer {
-        protected void reset() {
+        private void reset() {
             setIcon(null);
             setText("");
             setFont(UIManager.getFont("Table.font"));
         }
 
-        protected void renderNumTags(StatisticsInfo info) {
+        private void renderNumTags(StatisticsInfo info) {
             if (info == null) return;
             setText(trn("{0} tag", "{0} tags", info.numTags, info.numTags));
         }
 
-        protected void renderStatistics(Map<OsmPrimitiveType, Integer> stat) {
+        private void renderStatistics(Map<OsmPrimitiveType, Integer> stat) {
             if (stat == null) return;
             if (stat.isEmpty()) return;
             if (stat.size() == 1) {
@@ -427,11 +425,12 @@ public class PasteTagsConflictResolverDialog extends JDialog  implements Propert
                 if (numPrimitives == 0) {
                     continue;
                 }
-                String msg = "";
+                String msg;
                 switch(type) {
                 case NODE: msg = trn("{0} node", "{0} nodes", numPrimitives, numPrimitives); break;
                 case WAY: msg = trn("{0} way", "{0} ways", numPrimitives, numPrimitives); break;
                 case RELATION: msg = trn("{0} relation", "{0} relations", numPrimitives, numPrimitives); break;
+                default: throw new AssertionError();
                 }
                 if (text.length() > 0) {
                     text.append(", ");
@@ -441,11 +440,11 @@ public class PasteTagsConflictResolverDialog extends JDialog  implements Propert
             setText(text.toString());
         }
 
-        protected void renderFrom(StatisticsInfo info) {
+        private void renderFrom(StatisticsInfo info) {
             renderStatistics(info.sourceInfo);
         }
 
-        protected void renderTo(StatisticsInfo info) {
+        private void renderTo(StatisticsInfo info) {
             renderStatistics(info.targetInfo);
         }
 
@@ -466,6 +465,7 @@ public class PasteTagsConflictResolverDialog extends JDialog  implements Propert
                 case 0: renderNumTags(info); break;
                 case 1: renderFrom(info); break;
                 case 2: renderTo(info); break;
+                default: // Do nothing
                 }
             }
             return this;

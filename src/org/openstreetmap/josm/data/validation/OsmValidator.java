@@ -135,8 +135,8 @@ public class OsmValidator implements LayerChangeListener {
         allTestsMap = new HashMap<>();
         for (Class<Test> testClass : allAvailableTests) {
             try {
-                allTestsMap.put(testClass.getName(), testClass.newInstance());
-            } catch (Exception e) {
+                allTestsMap.put(testClass.getName(), testClass.getConstructor().newInstance());
+            } catch (ReflectiveOperationException e) {
                 Main.error(e);
             }
         }
@@ -161,16 +161,12 @@ public class OsmValidator implements LayerChangeListener {
     }
 
     /**
-     * Check if plugin directory exists (store ignored errors file)
+     * Check if validator directory exists (store ignored errors file)
      */
     private static void checkValidatorDir() {
-        try {
-            File pathDir = new File(getValidatorDir());
-            if (!pathDir.exists()) {
-                Utils.mkDirs(pathDir);
-            }
-        } catch (Exception e) {
-            Main.error(e);
+        File pathDir = new File(getValidatorDir());
+        if (!pathDir.exists()) {
+            Utils.mkDirs(pathDir);
         }
     }
 
@@ -209,7 +205,7 @@ public class OsmValidator implements LayerChangeListener {
         }
     }
 
-    public static void initializeErrorLayer() {
+    public static synchronized void initializeErrorLayer() {
         if (!Main.pref.getBoolean(ValidatorPreference.PREF_LAYER, true))
             return;
         if (errorLayer == null) {

@@ -124,6 +124,7 @@ public class MultiFetchServerObjectReader extends OsmServerReader {
         case NODE: nodes.add(id.getUniqueId()); break;
         case WAY: ways.add(id.getUniqueId()); break;
         case RELATION: relations.add(id.getUniqueId()); break;
+        default: throw new AssertionError();
         }
     }
 
@@ -309,12 +310,13 @@ public class MultiFetchServerObjectReader extends OsmServerReader {
      * @throws OsmTransferException if an error occurs while communicating with the API server
      */
     protected void fetchPrimitives(Set<Long> ids, OsmPrimitiveType type, ProgressMonitor progressMonitor) throws OsmTransferException {
-        String msg = "";
+        String msg;
         final String baseUrl = getBaseUrl();
         switch (type) {
             case NODE:     msg = tr("Fetching a package of nodes from ''{0}''",     baseUrl); break;
             case WAY:      msg = tr("Fetching a package of ways from ''{0}''",      baseUrl); break;
             case RELATION: msg = tr("Fetching a package of relations from ''{0}''", baseUrl); break;
+            default: throw new AssertionError();
         }
         progressMonitor.setTicksCount(ids.size());
         progressMonitor.setTicks(0);
@@ -521,7 +523,7 @@ public class MultiFetchServerObjectReader extends OsmServerReader {
                 progressMonitor.subTask(tr("Downloading OSM data..."));
                 try {
                     result = new FetchResult(OsmReader.parseDataSet(in, progressMonitor.createSubTaskMonitor(pkg.size(), false)), null);
-                } catch (Exception e) {
+                } catch (IllegalDataException e) {
                     throw new OsmTransferException(e);
                 }
             } catch (IOException ex) {
@@ -549,7 +551,7 @@ public class MultiFetchServerObjectReader extends OsmServerReader {
                 progressMonitor.subTask(tr("Downloading OSM data..."));
                 try {
                     result = OsmReader.parseDataSet(in, progressMonitor.createSubTaskMonitor(1, false));
-                } catch (Exception e) {
+                } catch (IllegalDataException e) {
                     throw new OsmTransferException(e);
                 }
             } catch (IOException ex) {
@@ -579,11 +581,12 @@ public class MultiFetchServerObjectReader extends OsmServerReader {
             String baseUrl = OsmApi.getOsmApi().getBaseUrl();
             for (long id : pkg) {
                 try {
-                    String msg = "";
+                    String msg;
                     switch (type) {
                         case NODE:     msg = tr("Fetching node with id {0} from ''{1}''",     id, baseUrl); break;
                         case WAY:      msg = tr("Fetching way with id {0} from ''{1}''",      id, baseUrl); break;
                         case RELATION: msg = tr("Fetching relation with id {0} from ''{1}''", id, baseUrl); break;
+                        default: throw new AssertionError();
                     }
                     progressMonitor.setCustomText(msg);
                     result.dataSet.mergeFrom(singleGetId(type, id, progressMonitor));

@@ -17,9 +17,9 @@ import org.openstreetmap.josm.tools.ImageProvider;
  * @since 5965
  */
 public class ImageLabel extends JPanel {
-    private final JLabel imgLabel;
-    private final JLabel tf;
-    private final int charCount;
+    private final JLabel imgLabel = new JLabel();
+    private final JLabel tf = new JLabel();
+    private int charCount;
 
     /**
      * Constructs a new {@code ImageLabel}.
@@ -31,11 +31,11 @@ public class ImageLabel extends JPanel {
     public ImageLabel(String img, String tooltip, int charCount, Color background) {
         setLayout(new GridBagLayout());
         setBackground(background);
-        add(imgLabel = new JLabel(), GBC.std().anchor(GBC.WEST).insets(0, 1, 1, 0));
+        add(imgLabel, GBC.std().anchor(GBC.WEST).insets(0, 1, 1, 0));
         setIcon(img);
-        add(tf = new JLabel(), GBC.std().fill(GBC.BOTH).anchor(GBC.WEST).insets(2, 1, 1, 0));
+        add(tf, GBC.std().fill(GBC.BOTH).anchor(GBC.WEST).insets(2, 1, 1, 0));
         setToolTipText(tooltip);
-        this.charCount = charCount;
+        setCharCount(charCount);
     }
 
     /**
@@ -62,5 +62,23 @@ public class ImageLabel extends JPanel {
     @Override
     public Dimension getMinimumSize() {
         return new Dimension(25 + charCount*tf.getFontMetrics(tf.getFont()).charWidth('0'), super.getMinimumSize().height);
+    }
+
+    /**
+     * Returns the preferred char count.
+     * @return the preferred char count
+     * @since 10191
+     */
+    public final int getCharCount() {
+        return charCount;
+    }
+
+    /**
+     * Sets the preferred char count.
+     * @param charCount the preferred char count
+     * @since 10191
+     */
+    public final void setCharCount(int charCount) {
+        this.charCount = charCount;
     }
 }

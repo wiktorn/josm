@@ -20,6 +20,7 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.List;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -64,15 +65,26 @@ public class SaveLayersDialog extends JDialog implements TableModelListener {
         CANCEL
     }
 
-    private SaveLayersModel model;
+    private final SaveLayersModel model = new SaveLayersModel();
     private UserAction action = UserAction.CANCEL;
-    private UploadAndSaveProgressRenderer pnlUploadLayers;
+    private final UploadAndSaveProgressRenderer pnlUploadLayers = new UploadAndSaveProgressRenderer();
 
-    private SaveAndProceedAction saveAndProceedAction;
-    private SaveSessionAction saveSessionAction;
-    private DiscardAndProceedAction discardAndProceedAction;
-    private CancelAction cancelAction;
+    private final SaveAndProceedAction saveAndProceedAction = new SaveAndProceedAction();
+    private final SaveSessionAction saveSessionAction = new SaveSessionAction();
+    private final DiscardAndProceedAction discardAndProceedAction = new DiscardAndProceedAction();
+    private final CancelAction cancelAction = new CancelAction();
     private transient SaveAndUploadTask saveAndUploadTask;
+
+    private final JButton saveAndProceedActionButton = new JButton(saveAndProceedAction);
+
+    /**
+     * Constructs a new {@code SaveLayersDialog}.
+     * @param parent parent component
+     */
+    public SaveLayersDialog(Component parent) {
+        super(GuiHelper.getFrameForComponent(parent), ModalityType.DOCUMENT_MODAL);
+        build();
+    }
 
     /**
      * builds the GUI
@@ -82,7 +94,6 @@ public class SaveLayersDialog extends JDialog implements TableModelListener {
         geometry.applySafe(this);
         getContentPane().setLayout(new BorderLayout());
 
-        model = new SaveLayersModel();
         SaveLayersTable table = new SaveLayersTable(model);
         JScrollPane pane = new JScrollPane(table);
         model.addPropertyChangeListener(table);
@@ -95,8 +106,6 @@ public class SaveLayersDialog extends JDialog implements TableModelListener {
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
     }
 
-    private JButton saveAndProceedActionButton;
-
     /**
      * builds the button row
      *
@@ -105,22 +114,18 @@ public class SaveLayersDialog extends JDialog implements TableModelListener {
     protected JPanel buildButtonRow() {
         JPanel pnl = new JPanel(new GridBagLayout());
 
-        saveAndProceedAction = new SaveAndProceedAction();
         model.addPropertyChangeListener(saveAndProceedAction);
-        pnl.add(saveAndProceedActionButton = new JButton(saveAndProceedAction), GBC.std(0, 0).insets(5, 5, 0, 0).fill(GBC.HORIZONTAL));
+        pnl.add(saveAndProceedActionButton, GBC.std(0, 0).insets(5, 5, 0, 0).fill(GBC.HORIZONTAL));
 
-        saveSessionAction = new SaveSessionAction();
         pnl.add(new JButton(saveSessionAction), GBC.std(1, 0).insets(5, 5, 5, 0).fill(GBC.HORIZONTAL));
 
-        discardAndProceedAction = new DiscardAndProceedAction();
         model.addPropertyChangeListener(discardAndProceedAction);
         pnl.add(new JButton(discardAndProceedAction), GBC.std(0, 1).insets(5, 5, 0, 5).fill(GBC.HORIZONTAL));
 
-        cancelAction = new CancelAction();
         pnl.add(new JButton(cancelAction), GBC.std(1, 1).insets(5, 5, 5, 5).fill(GBC.HORIZONTAL));
 
         JPanel pnl2 = new JPanel(new BorderLayout());
-        pnl2.add(pnlUploadLayers = new UploadAndSaveProgressRenderer(), BorderLayout.CENTER);
+        pnl2.add(pnlUploadLayers, BorderLayout.CENTER);
         model.addPropertyChangeListener(pnlUploadLayers);
         pnl2.add(pnl, BorderLayout.SOUTH);
         return pnl2;
@@ -136,11 +141,6 @@ public class SaveLayersDialog extends JDialog implements TableModelListener {
         setTitle(tr("Unsaved changes - Save/Upload before deleting?"));
         this.saveAndProceedAction.initForSaveAndDelete();
         this.discardAndProceedAction.initForDiscardAndDelete();
-    }
-
-    public SaveLayersDialog(Component parent) {
-        super(GuiHelper.getFrameForComponent(parent), ModalityType.DOCUMENT_MODAL);
-        build();
     }
 
     public UserAction getUserAction() {
@@ -310,8 +310,10 @@ public class SaveLayersDialog extends JDialog implements TableModelListener {
 
         public void cancel() {
             switch(model.getMode()) {
-            case EDITING_DATA: cancelWhenInEditingModel(); break;
-            case UPLOADING_AND_SAVING: cancelSafeAndUploadTask(); break;
+            case EDITING_DATA: cancelWhenInEditingModel();
+                break;
+            case UPLOADING_AND_SAVING: cancelSafeAndUploadTask();
+                break;
             }
         }
 
@@ -349,8 +351,10 @@ public class SaveLayersDialog extends JDialog implements TableModelListener {
             if (evt.getPropertyName().equals(SaveLayersModel.MODE_PROP)) {
                 Mode mode = (Mode) evt.getNewValue();
                 switch(mode) {
-                case EDITING_DATA: setEnabled(true); break;
-                case UPLOADING_AND_SAVING: setEnabled(false); break;
+                case EDITING_DATA: setEnabled(true);
+                    break;
+                case UPLOADING_AND_SAVING: setEnabled(false);
+                    break;
                 }
             }
         }
@@ -406,18 +410,13 @@ public class SaveLayersDialog extends JDialog implements TableModelListener {
         }
 
         public void redrawIcon() {
-            try { // Can fail if model is not yet setup properly
-                Image base = ((ImageIcon) getValue(BASE_ICON)).getImage();
-                BufferedImage newIco = new BufferedImage(ICON_SIZE*3, ICON_SIZE, BufferedImage.TYPE_4BYTE_ABGR);
-                Graphics2D g = newIco.createGraphics();
-                g.drawImage(model.getLayersToUpload().isEmpty() ? upldDis : upld, ICON_SIZE*0, 0, ICON_SIZE, ICON_SIZE, null);
-                g.drawImage(model.getLayersToSave().isEmpty()   ? saveDis : save, ICON_SIZE*1, 0, ICON_SIZE, ICON_SIZE, null);
-                g.drawImage(base,                                                 ICON_SIZE*2, 0, ICON_SIZE, ICON_SIZE, null);
-                putValue(SMALL_ICON, new ImageIcon(newIco));
-            } catch (Exception e) {
-                Main.warn(e);
-                putValue(SMALL_ICON, getValue(BASE_ICON));
-            }
+            Image base = ((ImageIcon) getValue(BASE_ICON)).getImage();
+            BufferedImage newIco = new BufferedImage(ICON_SIZE*3, ICON_SIZE, BufferedImage.TYPE_4BYTE_ABGR);
+            Graphics2D g = newIco.createGraphics();
+            g.drawImage(model.getLayersToUpload().isEmpty() ? upldDis : upld, ICON_SIZE*0, 0, ICON_SIZE, ICON_SIZE, null);
+            g.drawImage(model.getLayersToSave().isEmpty()   ? saveDis : save, ICON_SIZE*1, 0, ICON_SIZE, ICON_SIZE, null);
+            g.drawImage(base,                                                 ICON_SIZE*2, 0, ICON_SIZE, ICON_SIZE, null);
+            putValue(SMALL_ICON, new ImageIcon(newIco));
         }
 
         @Override
@@ -432,8 +431,10 @@ public class SaveLayersDialog extends JDialog implements TableModelListener {
             if (evt.getPropertyName().equals(SaveLayersModel.MODE_PROP)) {
                 SaveLayersModel.Mode mode = (SaveLayersModel.Mode) evt.getNewValue();
                 switch(mode) {
-                case EDITING_DATA: setEnabled(true); break;
-                case UPLOADING_AND_SAVING: setEnabled(false); break;
+                case EDITING_DATA: setEnabled(true);
+                    break;
+                case UPLOADING_AND_SAVING: setEnabled(false);
+                    break;
                 }
             }
         }
@@ -495,7 +496,7 @@ public class SaveLayersDialog extends JDialog implements TableModelListener {
                     currentFuture.get();
                 } catch (CancellationException e) {
                     model.setUploadState(layer, UploadOrSaveState.CANCELED);
-                } catch (Exception e) {
+                } catch (InterruptedException | ExecutionException e) {
                     Main.error(e);
                     model.setUploadState(layer, UploadOrSaveState.FAILED);
                     ExceptionDialogUtil.explainException(e);
@@ -536,7 +537,7 @@ public class SaveLayersDialog extends JDialog implements TableModelListener {
                     currentFuture.get();
                 } catch (CancellationException e) {
                     model.setSaveState(layerInfo.getLayer(), UploadOrSaveState.CANCELED);
-                } catch (Exception e) {
+                } catch (InterruptedException | ExecutionException e) {
                     Main.error(e);
                     model.setSaveState(layerInfo.getLayer(), UploadOrSaveState.FAILED);
                     ExceptionDialogUtil.explainException(e);
@@ -559,7 +560,8 @@ public class SaveLayersDialog extends JDialog implements TableModelListener {
 
         protected void warnBecauseOfUnsavedData() {
             int numProblems = model.getNumCancel() + model.getNumFailed();
-            if (numProblems == 0) return;
+            if (numProblems == 0)
+                return;
             Main.warn(numProblems + " problems occured during upload/save");
             String msg = trn(
                     "<html>An upload and/or save operation of one layer with modifications<br>"

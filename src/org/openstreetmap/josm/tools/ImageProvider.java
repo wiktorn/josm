@@ -57,6 +57,7 @@ import javax.swing.ImageIcon;
 import javax.xml.bind.DatatypeConverter;
 
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.OsmPrimitiveType;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
@@ -81,8 +82,8 @@ import org.xml.sax.helpers.DefaultHandler;
 import org.xml.sax.helpers.XMLReaderFactory;
 
 import com.kitfox.svg.SVGDiagram;
+import com.kitfox.svg.SVGException;
 import com.kitfox.svg.SVGUniverse;
-import org.openstreetmap.josm.data.osm.DataSet;
 
 /**
  * Helper class to support the application with images.
@@ -985,7 +986,7 @@ public class ImageProvider {
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (IOException e) {
             Main.warn(tr("Failed to handle zip file ''{0}''. Exception was: {1}", archive.getName(), e.toString()));
         }
         return null;
@@ -1152,7 +1153,7 @@ public class ImageProvider {
             cf.close();
         } catch (SAXReturnException r) {
             return r.getResult();
-        } catch (Exception e) {
+        } catch (IOException | SAXException e) {
             Main.warn("Parsing " + base + fn + " failed:\n" + e);
             return null;
         }
@@ -1228,7 +1229,8 @@ public class ImageProvider {
         synchronized (ROTATE_CACHE) {
             Map<Long, ImageResource> cacheByAngle = ROTATE_CACHE.get(img);
             if (cacheByAngle == null) {
-                ROTATE_CACHE.put(img, cacheByAngle = new HashMap<>());
+                cacheByAngle = new HashMap<>();
+                ROTATE_CACHE.put(img, cacheByAngle);
             }
 
             imageResource = cacheByAngle.get(originalAngle);
@@ -1256,7 +1258,8 @@ public class ImageProvider {
                     h = (int) (ih * Math.sin(radian) + iw * Math.sin(DEGREE_90 - radian));
                 }
                 Image image = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
-                cacheByAngle.put(originalAngle, imageResource = new ImageResource(image));
+                imageResource = new ImageResource(image);
+                cacheByAngle.put(originalAngle, imageResource);
                 Graphics g = image.getGraphics();
                 Graphics2D g2d = (Graphics2D) g.create();
 
@@ -1424,7 +1427,7 @@ public class ImageProvider {
             synchronized (getSvgUniverse()) {
                 svg.render(g);
             }
-        } catch (Exception ex) {
+        } catch (SVGException ex) {
             Main.error("Unable to load svg: {0}", ex.getMessage());
             return null;
         }

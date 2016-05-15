@@ -236,7 +236,12 @@ public class MainApplication extends Main {
         }
     }
 
-    private static Map<Option, Collection<String>> buildCommandLineArgumentMap(String[] args) {
+    /**
+     * Builds the command-line argument map.
+     * @param args command-line arguments array
+     * @return command-line argument map
+     */
+    public static Map<Option, Collection<String>> buildCommandLineArgumentMap(String[] args) {
 
         List<LongOpt> los = new ArrayList<>();
         for (Option o : Option.values()) {
@@ -249,7 +254,7 @@ public class MainApplication extends Main {
 
         int c;
         while ((c = g.getopt()) != -1) {
-            Option opt = null;
+            Option opt;
             switch (c) {
                 case 'h':
                     opt = Option.HELP;
@@ -260,6 +265,8 @@ public class MainApplication extends Main {
                 case 0:
                     opt = Option.values()[g.getLongind()];
                     break;
+                default:
+                    opt = null;
             }
             if (opt != null) {
                 Collection<String> values = argMap.get(opt);
@@ -397,7 +404,7 @@ public class MainApplication extends Main {
                 info("Reading preferences from " + i);
                 try (InputStream is = HttpClient.create(new URL(i)).connect().getContent()) {
                     config.openAndReadXML(is);
-                } catch (Exception ex) {
+                } catch (IOException ex) {
                     throw new RuntimeException(ex);
                 }
             }

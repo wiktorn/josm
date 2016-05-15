@@ -18,6 +18,8 @@ import java.util.Date;
 import java.util.List;
 
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.SystemOfMeasurement;
+import org.openstreetmap.josm.data.SystemOfMeasurement.SoMChangeListener;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.gpx.GpxConstants;
 import org.openstreetmap.josm.data.gpx.GpxData;
@@ -29,7 +31,7 @@ import org.openstreetmap.josm.tools.ColorScale;
  * Class that helps to draw large set of GPS tracks with different colors and options
  * @since 7319
  */
-public class GpxDrawHelper {
+public class GpxDrawHelper implements SoMChangeListener {
     private final GpxData data;
 
     // draw lines between points belonging to different segments
@@ -96,11 +98,21 @@ public class GpxDrawHelper {
 
     private void setupColors() {
         hdopAlpha = Main.pref.getInteger("hdop.color.alpha", -1);
-        velocityScale = ColorScale.createHSBScale(256).addTitle(tr("Velocity, km/h"));
+        velocityScale = ColorScale.createHSBScale(256);
         /** Colors (without custom alpha channel, if given) for HDOP painting. **/
-        hdopScale = ColorScale.createHSBScale(256).makeReversed().addTitle(tr("HDOP, m"));
+        hdopScale = ColorScale.createHSBScale(256).makeReversed().addTitle(tr("HDOP"));
         dateScale = ColorScale.createHSBScale(256).addTitle(tr("Time"));
         directionScale = ColorScale.createCyclicScale(256).setIntervalCount(4).addTitle(tr("Direction"));
+        systemOfMeasurementChanged(null, null);
+    }
+
+    @Override
+    public void systemOfMeasurementChanged(String oldSoM, String newSoM) {
+        SystemOfMeasurement som = SystemOfMeasurement.getSystemOfMeasurement();
+        velocityScale.addTitle(tr("Velocity, {0}", som.speedName));
+        if (Main.isDisplayingMapView() && oldSoM != null && newSoM != null) {
+            Main.map.mapView.repaint();
+        }
     }
 
     /**
@@ -151,7 +163,7 @@ public class GpxDrawHelper {
         try {
             int i = Main.pref.getInteger("draw.rawgps.colors", specName(layerName), 0);
             return ColorMode.fromIndex(i);
-        } catch (Exception e) {
+        } catch (IndexOutOfBoundsException e) {
             Main.warn(e);
         }
         return ColorMode.NONE;
@@ -345,6 +357,7 @@ public class GpxDrawHelper {
                             color = dateScale.getNoDataColor();
                         }
                         break;
+                    default: // Do nothing
                     }
                     if (!noDraw && (maxLineLength == -1 || dist <= maxLineLength)) {
                         trkPnt.drawLine = true;
@@ -405,7 +418,7 @@ public class GpxDrawHelper {
                             && (oldA == null || screen.x < oldA.x - delta || screen.x > oldA.x + delta
                             || screen.y < oldA.y - delta || screen.y > oldA.y + delta)) {
                         g.setColor(trkPnt.customColoring);
-                        double t = Math.atan2(screen.y - old.y, screen.x - old.x) + Math.PI;
+                        double t = Math.atan2((double) screen.y - old.y, (double) screen.x - old.x) + Math.PI;
                         g.drawLine(screen.x, screen.y, (int) (screen.x + 10 * Math.cos(t - PHI)),
                                 (int) (screen.y + 10 * Math.sin(t - PHI)));
                         g.drawLine(screen.x, screen.y, (int) (screen.x + 10 * Math.cos(t + PHI)),
@@ -556,7 +569,8 @@ public class GpxDrawHelper {
         if (colored == ColorMode.HDOP) {
             hdopScale.drawColorBar(g, w-30, 50, 20, 100, 1.0);
         } else if (colored == ColorMode.VELOCITY) {
-            velocityScale.drawColorBar(g, w-30, 50, 20, 100, 3.6);
+            SystemOfMeasurement som = SystemOfMeasurement.getSystemOfMeasurement();
+            velocityScale.drawColorBar(g, w-30, 50, 20, 100, som.speedValue);
         } else if (colored == ColorMode.DIRECTION) {
             directionScale.drawColorBar(g, w-30, 50, 20, 100, 180.0/Math.PI);
         }

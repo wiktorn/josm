@@ -15,12 +15,11 @@ import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
-import java.util.Observable;
-import java.util.Observer;
 
 import javax.swing.AbstractAction;
 import javax.swing.JButton;
@@ -34,6 +33,8 @@ import javax.swing.JSeparator;
 import javax.swing.JToolBar;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.event.HyperlinkListener;
 import javax.swing.text.AttributeSet;
@@ -154,7 +155,7 @@ public class HelpBrowser extends JDialog implements IHelpBrowser {
                 css.append(line);
                 css.append('\n');
             }
-        } catch (Exception e) {
+        } catch (IOException e) {
             Main.error(tr("Failed to read CSS file ''help-browser.css''. Exception is: {0}", e.toString()));
             Main.error(e);
             return ss;
@@ -238,7 +239,7 @@ public class HelpBrowser extends JDialog implements IHelpBrowser {
         Document document = help.getEditorKit().createDefaultDocument();
         try {
             help.getEditorKit().read(new StringReader(content), document, 0);
-        } catch (Exception e) {
+        } catch (IOException | BadLocationException e) {
             Main.error(e);
         }
         help.setDocument(document);
@@ -375,7 +376,7 @@ public class HelpBrowser extends JDialog implements IHelpBrowser {
                 loadTopic(content);
                 history.setCurrentUrl(url);
                 this.url = url;
-            } catch (Exception e) {
+            } catch (HelpContentReaderException e) {
                 Main.warn(e);
                 HelpAwareOptionPane.showOptionDialog(
                         Main.parent,
@@ -494,7 +495,7 @@ public class HelpBrowser extends JDialog implements IHelpBrowser {
         }
     }
 
-    static class BackAction extends AbstractBrowserAction implements Observer {
+    static class BackAction extends AbstractBrowserAction implements ChangeListener {
 
         /**
          * Constructs a new {@code BackAction}.
@@ -502,7 +503,7 @@ public class HelpBrowser extends JDialog implements IHelpBrowser {
          */
         BackAction(IHelpBrowser browser) {
             super(browser);
-            browser.getHistory().addObserver(this);
+            browser.getHistory().addChangeListener(this);
             putValue(SHORT_DESCRIPTION, tr("Go to the previous page"));
             putValue(SMALL_ICON, ImageProvider.get("help", "previous"));
             setEnabled(browser.getHistory().canGoBack());
@@ -514,12 +515,12 @@ public class HelpBrowser extends JDialog implements IHelpBrowser {
         }
 
         @Override
-        public void update(Observable o, Object arg) {
+        public void stateChanged(ChangeEvent e) {
             setEnabled(browser.getHistory().canGoBack());
         }
     }
 
-    static class ForwardAction extends AbstractBrowserAction implements Observer {
+    static class ForwardAction extends AbstractBrowserAction implements ChangeListener {
 
         /**
          * Constructs a new {@code ForwardAction}.
@@ -527,7 +528,7 @@ public class HelpBrowser extends JDialog implements IHelpBrowser {
          */
         ForwardAction(IHelpBrowser browser) {
             super(browser);
-            browser.getHistory().addObserver(this);
+            browser.getHistory().addChangeListener(this);
             putValue(SHORT_DESCRIPTION, tr("Go to the next page"));
             putValue(SMALL_ICON, ImageProvider.get("help", "next"));
             setEnabled(browser.getHistory().canGoForward());
@@ -539,7 +540,7 @@ public class HelpBrowser extends JDialog implements IHelpBrowser {
         }
 
         @Override
-        public void update(Observable o, Object arg) {
+        public void stateChanged(ChangeEvent e) {
             setEnabled(browser.getHistory().canGoForward());
         }
     }
