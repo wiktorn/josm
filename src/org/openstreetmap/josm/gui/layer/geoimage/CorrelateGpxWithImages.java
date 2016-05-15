@@ -53,6 +53,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 import javax.swing.JSlider;
 import javax.swing.ListSelectionModel;
+import javax.swing.MutableComboBoxModel;
 import javax.swing.SwingConstants;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
@@ -309,11 +310,15 @@ public class CorrelateGpxWithImages extends AbstractAction {
                     return;
                 }
 
+                MutableComboBoxModel<GpxDataWrapper> model = (MutableComboBoxModel<GpxDataWrapper>) cbGpx.getModel();
                 loadedGpxData.add(data);
                 if (gpxLst.get(0).file == null) {
                     gpxLst.remove(0);
+                    model.removeElementAt(0);
                 }
-                gpxLst.add(new GpxDataWrapper(sel.getName(), data, sel));
+                GpxDataWrapper elem = new GpxDataWrapper(sel.getName(), data, sel);
+                gpxLst.add(elem);
+                model.addElement(elem);
                 cbGpx.setSelectedIndex(cbGpx.getItemCount() - 1);
             } finally {
                 outerPanel.setCursor(Cursor.getDefaultCursor());
@@ -459,12 +464,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
                 @Override
                 public void valueChanged(ListSelectionEvent arg0) {
                     int index = imgList.getSelectedIndex();
-                    Integer orientation = null;
-                    try {
-                        orientation = ExifReader.readOrientation(yLayer.data.get(index).getFile());
-                    } catch (Exception e) {
-                        Main.warn(e);
-                    }
+                    Integer orientation = ExifReader.readOrientation(yLayer.data.get(index).getFile());
                     imgDisp.setImage(yLayer.data.get(index).getFile(), orientation);
                     Date date = yLayer.data.get(index).getExifTime();
                     if (date != null) {
@@ -494,20 +494,10 @@ public class CorrelateGpxWithImages extends AbstractAction {
                         return;
                     File sel = fc.getSelectedFile();
 
-                    Integer orientation = null;
-                    try {
-                        orientation = ExifReader.readOrientation(sel);
-                    } catch (Exception e) {
-                        Main.warn(e);
-                    }
+                    Integer orientation = ExifReader.readOrientation(sel);
                     imgDisp.setImage(sel, orientation);
 
-                    Date date = null;
-                    try {
-                        date = ExifReader.readTime(sel);
-                    } catch (Exception e) {
-                        Main.warn(e);
-                    }
+                    Date date = ExifReader.readTime(sel);
                     if (date != null) {
                         lbExifTime.setText(DateUtils.getDateTimeFormat(DateFormat.SHORT, DateFormat.MEDIUM).format(date));
                         tfGpsTime.setText(DateUtils.getDateFormat(DateFormat.SHORT).format(date)+' ');
@@ -792,6 +782,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
 
         @Override
         public void changedUpdate(DocumentEvent ev) {
+            // Do nothing
         }
 
         @Override
@@ -918,7 +909,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
 
                     lblTimezone.setText(tr("Timezone: {0}", timezone.formatTimezone()));
                     lblMinutes.setText(tr("Minutes: {0}", sldMinutes.getValue()));
-                    lblSeconds.setText(tr("Seconds: {0}", Offset.milliseconds(100 * sldSeconds.getValue()).formatOffset()));
+                    lblSeconds.setText(tr("Seconds: {0}", Offset.milliseconds(100L * sldSeconds.getValue()).formatOffset()));
 
                     delta = Offset.milliseconds(100 * sldSeconds.getValue()
                             + 1000L * 60 * sldMinutes.getValue()
@@ -960,7 +951,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
                 sldMinutes.setValue((int) (timezoneOffsetPair.b.getSeconds() / 60));
                 final long deciSeconds = timezoneOffsetPair.b.getMilliseconds() / 100;
                 sldSeconds.setValue((int) (deciSeconds % 60));
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 JOptionPane.showMessageDialog(Main.parent,
                         tr("An error occurred while trying to match the photos to the GPX track."
                                 +" You can adjust the sliders to manually match the photos."),
@@ -1008,14 +999,10 @@ public class CorrelateGpxWithImages extends AbstractAction {
         outer: for (GpxTrack trk : gpx.tracks) {
             for (GpxTrackSegment segment : trk.getSegments()) {
                 for (WayPoint curWp : segment.getWayPoints()) {
-                    try {
-                        final Date parsedTime = curWp.setTimeFromAttribute();
-                        if (parsedTime != null) {
-                            firstGPXDate = parsedTime.getTime();
-                            break outer;
-                        }
-                    } catch (Exception e) {
-                        Main.warn(e);
+                    final Date parsedTime = curWp.setTimeFromAttribute();
+                    if (parsedTime != null) {
+                        firstGPXDate = parsedTime.getTime();
+                        break outer;
                     }
                 }
             }
@@ -1143,18 +1130,14 @@ public class CorrelateGpxWithImages extends AbstractAction {
                 WayPoint prevWp = null;
 
                 for (WayPoint curWp : segment.getWayPoints()) {
-                    try {
-                        final Date parsedTime = curWp.setTimeFromAttribute();
-                        if (parsedTime != null) {
-                            final long curWpTime = parsedTime.getTime() + offset;
-                            ret += matchPoints(images, prevWp, prevWpTime, curWp, curWpTime, offset);
+                    final Date parsedTime = curWp.setTimeFromAttribute();
+                    if (parsedTime != null) {
+                        final long curWpTime = parsedTime.getTime() + offset;
+                        ret += matchPoints(images, prevWp, prevWpTime, curWp, curWpTime, offset);
 
-                            prevWp = curWp;
-                            prevWpTime = curWpTime;
-                            continue;
-                        }
-                    } catch (Exception e) {
-                        Main.warn(e);
+                        prevWp = curWp;
+                        prevWpTime = curWpTime;
+                        continue;
                     }
                     prevWp = null;
                     prevWpTime = 0;
@@ -1168,7 +1151,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
         String value = wp.getString(GpxConstants.PT_ELE);
         if (value != null && !value.isEmpty()) {
             try {
-                return new Double(value);
+                return Double.valueOf(value);
             } catch (NumberFormatException e) {
                 Main.warn(e);
             }

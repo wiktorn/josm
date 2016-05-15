@@ -7,6 +7,7 @@ import static org.openstreetmap.josm.tools.I18n.trn;
 
 import java.awt.GridBagLayout;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -26,6 +27,7 @@ import javax.swing.JPanel;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.SplitWayAction;
+import org.openstreetmap.josm.actions.SplitWayAction.SplitWayResult;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.OsmPrimitiveType;
@@ -157,8 +159,8 @@ public class DeleteCommand extends Command {
         // Do nothing
     }
 
-    private Set<OsmPrimitiveType> getTypesToDelete() {
-        Set<OsmPrimitiveType> typesToDelete = EnumSet.noneOf(OsmPrimitiveType.class);
+    private EnumSet<OsmPrimitiveType> getTypesToDelete() {
+        EnumSet<OsmPrimitiveType> typesToDelete = EnumSet.noneOf(OsmPrimitiveType.class);
         for (OsmPrimitive osm : toDelete) {
             typesToDelete.add(OsmPrimitiveType.from(osm));
         }
@@ -169,17 +171,18 @@ public class DeleteCommand extends Command {
     public String getDescriptionText() {
         if (toDelete.size() == 1) {
             OsmPrimitive primitive = toDelete.iterator().next();
-            String msg = "";
+            String msg;
             switch(OsmPrimitiveType.from(primitive)) {
             case NODE: msg = marktr("Delete node {0}"); break;
             case WAY: msg = marktr("Delete way {0}"); break;
             case RELATION:msg = marktr("Delete relation {0}"); break;
+            default: throw new AssertionError();
             }
 
             return tr(msg, primitive.getDisplayName(DefaultNameFormatter.getInstance()));
         } else {
             Set<OsmPrimitiveType> typesToDelete = getTypesToDelete();
-            String msg = "";
+            String msg;
             if (typesToDelete.size() > 1) {
                 msg = trn("Delete {0} object", "Delete {0} objects", toDelete.size(), toDelete.size());
             } else {
@@ -188,6 +191,7 @@ public class DeleteCommand extends Command {
                 case NODE: msg = trn("Delete {0} node", "Delete {0} nodes", toDelete.size(), toDelete.size()); break;
                 case WAY: msg = trn("Delete {0} way", "Delete {0} ways", toDelete.size(), toDelete.size()); break;
                 case RELATION: msg = trn("Delete {0} relation", "Delete {0} relations", toDelete.size(), toDelete.size()); break;
+                default: throw new AssertionError();
                 }
             }
             return msg;
@@ -469,10 +473,8 @@ public class DeleteCommand extends Command {
             wnew.setNodes(n1);
             return new ChangeCommand(ws.way, wnew);
         } else {
-            List<List<Node>> chunks = new ArrayList<>(2);
-            chunks.add(n1);
-            chunks.add(n2);
-            return SplitWayAction.splitWay(layer, ws.way, chunks, Collections.<OsmPrimitive>emptyList()).getCommand();
+            SplitWayResult split = SplitWayAction.splitWay(layer, ws.way, Arrays.asList(n1, n2), Collections.<OsmPrimitive>emptyList());
+            return split != null ? split.getCommand() : null;
         }
     }
 

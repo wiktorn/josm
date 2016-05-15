@@ -191,7 +191,7 @@ public class BoundingBoxDownloader extends OsmServerReader {
             return ds;
         } catch (OsmTransferException e) {
             throw e;
-        } catch (Exception e) {
+        } catch (IllegalDataException | IOException e) {
             throw new OsmTransferException(e);
         } finally {
             progressMonitor.finishTask();
@@ -236,10 +236,14 @@ public class BoundingBoxDownloader extends OsmServerReader {
          */
         public final int limit;
 
+        /**
+         * Constructs a {@code MoreNotesException}.
+         * @param notes downloaded notes
+         * @param limit download limit sent to the server
+         */
         public MoreNotesException(List<Note> notes, int limit) {
             this.notes = notes;
             this.limit = limit;
         }
     }
-
 }

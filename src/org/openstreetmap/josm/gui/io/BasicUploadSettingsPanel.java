@@ -9,19 +9,19 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
+import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Observable;
-import java.util.Observer;
 
 import javax.swing.Action;
 import javax.swing.BorderFactory;
 import javax.swing.JEditorPane;
 import javax.swing.JPanel;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import javax.swing.event.HyperlinkEvent;
 import javax.swing.event.HyperlinkListener;
 
@@ -121,8 +121,8 @@ public class BasicUploadSettingsPanel extends JPanel {
         CheckParameterUtil.ensureParameterNotNull(changesetSourceModel, "changesetSourceModel");
         this.changesetCommentModel = changesetCommentModel;
         this.changesetSourceModel = changesetSourceModel;
-        changesetCommentModel.addObserver(new ChangesetCommentObserver(hcbUploadComment));
-        changesetSourceModel.addObserver(new ChangesetCommentObserver(hcbUploadSource));
+        changesetCommentModel.addChangeListener(new ChangesetCommentChangeListener(hcbUploadComment));
+        changesetSourceModel.addChangeListener(new ChangesetCommentChangeListener(hcbUploadSource));
         build();
     }
 
@@ -134,22 +134,12 @@ public class BasicUploadSettingsPanel extends JPanel {
     public void setHistoryComboBoxDownFocusTraversalHandler(final Action handler, final HistoryComboBox hcb) {
         hcb.getEditor().addActionListener(handler);
         hcb.getEditorComponent().addKeyListener(
-                new KeyListener() {
+                new KeyAdapter() {
                     @Override
                     public void keyTyped(KeyEvent e) {
                         if (e.getKeyCode() == KeyEvent.VK_TAB) {
                             handler.actionPerformed(new ActionEvent(hcb, 0, "focusDown"));
                         }
-                    }
-
-                    @Override
-                    public void keyReleased(KeyEvent e) {
-                        // Do nothing
-                    }
-
-                    @Override
-                    public void keyPressed(KeyEvent e) {
-                        // Do nothing
                     }
                 }
         );
@@ -224,18 +214,18 @@ public class BasicUploadSettingsPanel extends JPanel {
      * Observes the changeset comment model and keeps the comment input field
      * in sync with the current changeset comment
      */
-    static class ChangesetCommentObserver implements Observer {
+    static class ChangesetCommentChangeListener implements ChangeListener {
 
         private final HistoryComboBox destination;
 
-        ChangesetCommentObserver(HistoryComboBox destination) {
+        ChangesetCommentChangeListener(HistoryComboBox destination) {
             this.destination = destination;
         }
 
         @Override
-        public void update(Observable o, Object arg) {
-            if (!(o instanceof ChangesetCommentModel)) return;
-            String newComment = (String) arg;
+        public void stateChanged(ChangeEvent e) {
+            if (!(e.getSource() instanceof ChangesetCommentModel)) return;
+            String newComment = ((ChangesetCommentModel) e.getSource()).getComment();
             if (!destination.getText().equals(newComment)) {
                 destination.setText(newComment);
             }

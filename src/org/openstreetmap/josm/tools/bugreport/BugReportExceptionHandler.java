@@ -143,7 +143,7 @@ public final class BugReportExceptionHandler implements Thread.UncaughtException
                 try {
                     JPanel p = buildPanel(e);
                     JOptionPane.showMessageDialog(Main.parent, p, tr("You have encountered a bug in JOSM"), JOptionPane.ERROR_MESSAGE);
-                } catch (Exception ex) {
+                } catch (RuntimeException ex) {
                     Main.error(ex);
                 }
             }
@@ -165,7 +165,7 @@ public final class BugReportExceptionHandler implements Thread.UncaughtException
      * Handles the given exception
      * @param e the exception
      */
-    public static void handleException(final Throwable e) {
+    public static synchronized void handleException(final Throwable e) {
         if (handlingInProgress || suppressExceptionDialogs)
             return;                  // we do not handle secondary exceptions, this gets too messy
         if (bugReporterThread != null && bugReporterThread.isAlive())

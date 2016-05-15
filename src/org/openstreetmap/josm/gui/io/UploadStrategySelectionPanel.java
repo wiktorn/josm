@@ -11,8 +11,8 @@ import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
-import java.awt.event.FocusListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.beans.PropertyChangeEvent;
@@ -55,10 +55,12 @@ public class UploadStrategySelectionPanel extends JPanel implements PropertyChan
     private transient Map<UploadStrategy, JRadioButton> rbStrategy;
     private transient Map<UploadStrategy, JLabel> lblNumRequests;
     private transient Map<UploadStrategy, JMultilineLabel> lblStrategies;
-    private JosmTextField tfChunkSize;
-    private JPanel pnlMultiChangesetPolicyPanel;
-    private JRadioButton rbFillOneChangeset;
-    private JRadioButton rbUseMultipleChangesets;
+    private final JosmTextField tfChunkSize = new JosmTextField(4);
+    private final JPanel pnlMultiChangesetPolicyPanel = new JPanel(new GridBagLayout());
+    private final JRadioButton rbFillOneChangeset = new JRadioButton(
+            tr("Fill up one changeset and return to the Upload Dialog"));
+    private final JRadioButton rbUseMultipleChangesets = new JRadioButton(
+            tr("Open and use as many new changesets as necessary"));
     private JMultilineLabel lblMultiChangesetPoliciesHeader;
 
     private long numUploadedObjects;
@@ -137,7 +139,7 @@ public class UploadStrategySelectionPanel extends JPanel implements PropertyChan
         gc.weightx = 0.0;
         gc.weighty = 0.0;
         gc.gridwidth = 1;
-        pnl.add(tfChunkSize = new JosmTextField(4), gc);
+        pnl.add(tfChunkSize, gc);
         gc.gridx = 3;
         gc.gridy = 2;
         gc.weightx = 0.0;
@@ -180,23 +182,21 @@ public class UploadStrategySelectionPanel extends JPanel implements PropertyChan
     }
 
     protected JPanel buildMultiChangesetPolicyPanel() {
-        pnlMultiChangesetPolicyPanel = new JPanel(new GridBagLayout());
         GridBagConstraints gc = new GridBagConstraints();
         gc.gridx = 0;
         gc.gridy = 0;
         gc.fill = GridBagConstraints.HORIZONTAL;
         gc.anchor = GridBagConstraints.FIRST_LINE_START;
         gc.weightx = 1.0;
-        pnlMultiChangesetPolicyPanel.add(lblMultiChangesetPoliciesHeader = new JMultilineLabel(
+        lblMultiChangesetPoliciesHeader = new JMultilineLabel(
                 tr("<html>There are <strong>multiple changesets</strong> necessary in order to upload {0} objects. " +
                    "Which strategy do you want to use?</html>",
-                        numUploadedObjects)), gc);
+                        numUploadedObjects));
+        pnlMultiChangesetPolicyPanel.add(lblMultiChangesetPoliciesHeader, gc);
         gc.gridy = 1;
-        pnlMultiChangesetPolicyPanel.add(rbFillOneChangeset = new JRadioButton(
-                tr("Fill up one changeset and return to the Upload Dialog")), gc);
+        pnlMultiChangesetPolicyPanel.add(rbFillOneChangeset, gc);
         gc.gridy = 2;
-        pnlMultiChangesetPolicyPanel.add(rbUseMultipleChangesets = new JRadioButton(
-                tr("Open and use as many new changesets as necessary")), gc);
+        pnlMultiChangesetPolicyPanel.add(rbUseMultipleChangesets, gc);
 
         ButtonGroup bgMultiChangesetPolicies = new ButtonGroup();
         bgMultiChangesetPolicies.add(rbFillOneChangeset);
@@ -254,16 +254,16 @@ public class UploadStrategySelectionPanel extends JPanel implements PropertyChan
 
     public UploadStrategySpecification getUploadStrategySpecification() {
         UploadStrategy strategy = getUploadStrategy();
-        int chunkSize = getChunkSize();
         UploadStrategySpecification spec = new UploadStrategySpecification();
         if (strategy != null) {
             switch(strategy) {
+            case CHUNKED_DATASET_STRATEGY:
+                spec.setStrategy(strategy).setChunkSize(getChunkSize());
+                break;
             case INDIVIDUAL_OBJECTS_STRATEGY:
             case SINGLE_REQUEST_STRATEGY:
+            default:
                 spec.setStrategy(strategy);
-                break;
-            case CHUNKED_DATASET_STRATEGY:
-                spec.setStrategy(strategy).setChunkSize(chunkSize);
                 break;
             }
         }
@@ -388,7 +388,7 @@ public class UploadStrategySelectionPanel extends JPanel implements PropertyChan
         }
     }
 
-    static class TextFieldFocusHandler implements FocusListener {
+    static class TextFieldFocusHandler extends FocusAdapter {
         @Override
         public void focusGained(FocusEvent e) {
             Component c = e.getComponent();
@@ -397,9 +397,6 @@ public class UploadStrategySelectionPanel extends JPanel implements PropertyChan
                 tf.selectAll();
             }
         }
-
-        @Override
-        public void focusLost(FocusEvent e) {}
     }
 
     class ChunkSizeInputVerifier implements DocumentListener, PropertyChangeListener {
@@ -466,7 +463,7 @@ public class UploadStrategySelectionPanel extends JPanel implements PropertyChan
         }
     }
 
-    class StrategyChangeListener implements ItemListener, FocusListener, ActionListener {
+    class StrategyChangeListener extends FocusAdapter implements ItemListener, ActionListener {
 
         protected void notifyStrategy() {
             firePropertyChange(UPLOAD_STRATEGY_SPECIFICATION_PROP, null, getUploadStrategySpecification());
@@ -475,7 +472,8 @@ public class UploadStrategySelectionPanel extends JPanel implements PropertyChan
         @Override
         public void itemStateChanged(ItemEvent e) {
             UploadStrategy strategy = getUploadStrategy();
-            if (strategy == null) return;
+            if (strategy == null)
+                return;
             switch(strategy) {
             case CHUNKED_DATASET_STRATEGY:
                 tfChunkSize.setEnabled(true);
@@ -486,9 +484,6 @@ public class UploadStrategySelectionPanel extends JPanel implements PropertyChan
             }
             notifyStrategy();
         }
-
-        @Override
-        public void focusGained(FocusEvent arg0) {}
 
         @Override
         public void focusLost(FocusEvent arg0) {

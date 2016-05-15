@@ -14,6 +14,7 @@ import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.io.File;
 import java.io.FilenameFilter;
+import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.security.AccessController;
@@ -449,6 +450,7 @@ public final class PluginHandler {
             case 1:
                 Main.pref.put(togglePreferenceKey, "never");
                 break;
+            default: // Do nothing
             }
         } else {
             Main.pref.put(togglePreferenceKey, "ask");
@@ -722,7 +724,7 @@ public final class PluginHandler {
                 msg = tr("<html>Could not load plugin {0} because the plugin<br>main class ''{1}'' was not found.<br>"
                         + "Delete from preferences?</html>", plugin.name, plugin.className);
             }
-        }  catch (Exception e) {
+        }  catch (RuntimeException e) {
             pluginLoadingExceptions.put(plugin.name, e);
             Main.error(e);
         }
@@ -1192,7 +1194,7 @@ public final class PluginHandler {
             try {
                 // Check the plugin is a valid and accessible JAR file before installing it (fix #7754)
                 new JarFile(updatedPlugin).close();
-            } catch (Exception e) {
+            } catch (IOException e) {
                 if (dowarn) {
                     Main.warn(tr("Failed to install plugin ''{0}'' from temporary download file ''{1}''. {2}",
                             plugin.toString(), updatedPlugin.toString(), e.getLocalizedMessage()));
@@ -1220,7 +1222,7 @@ public final class PluginHandler {
         if (jar != null && jar.exists() && jar.canRead()) {
             try {
                 new JarFile(jar).close();
-            } catch (Exception e) {
+            } catch (IOException e) {
                 Main.warn(e);
                 return false;
             }
@@ -1492,8 +1494,13 @@ public final class PluginHandler {
     }
 
     private static class UpdatePluginsMessagePanel extends JPanel {
-        private JMultilineLabel lblMessage;
-        private JCheckBox cbDontShowAgain;
+        private final JMultilineLabel lblMessage = new JMultilineLabel("");
+        private final JCheckBox cbDontShowAgain = new JCheckBox(
+                tr("Do not ask again and remember my decision (go to Preferences->Plugins to change it later)"));
+
+        UpdatePluginsMessagePanel() {
+            build();
+        }
 
         protected final void build() {
             setLayout(new GridBagLayout());
@@ -1503,19 +1510,14 @@ public final class PluginHandler {
             gc.weightx = 1.0;
             gc.weighty = 1.0;
             gc.insets = new Insets(5, 5, 5, 5);
-            add(lblMessage = new JMultilineLabel(""), gc);
+            add(lblMessage, gc);
             lblMessage.setFont(lblMessage.getFont().deriveFont(Font.PLAIN));
 
             gc.gridy = 1;
             gc.fill = GridBagConstraints.HORIZONTAL;
             gc.weighty = 0.0;
-            add(cbDontShowAgain = new JCheckBox(
-                    tr("Do not ask again and remember my decision (go to Preferences->Plugins to change it later)")), gc);
+            add(cbDontShowAgain, gc);
             cbDontShowAgain.setFont(cbDontShowAgain.getFont().deriveFont(Font.PLAIN));
-        }
-
-        UpdatePluginsMessagePanel() {
-            build();
         }
 
         public void setMessage(String message) {

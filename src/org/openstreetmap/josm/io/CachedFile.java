@@ -75,7 +75,7 @@ public class CachedFile implements Closeable {
     protected boolean initialized;
 
     public static final long DEFAULT_MAXTIME = -1L;
-    public static final long DAYS = 24*60*60; // factor to get caching time in days
+    public static final long DAYS = 24L*60L*60L; // factor to get caching time in days
 
     private final Map<String, String> httpHeaders = new ConcurrentHashMap<>();
 
@@ -175,6 +175,12 @@ public class CachedFile implements Closeable {
         return name;
     }
 
+    /**
+     * Returns maximum age of cache file. Only applies to URLs.
+     * When this time has passed after the last download of the file, the
+     * cache is considered stale and a new download will be attempted.
+     * @return the maximum cache age in seconds
+     */
     public long getMaxAge() {
         return maxAge;
     }
@@ -345,7 +351,7 @@ public class CachedFile implements Closeable {
             } else {
                 Utils.close(zipFile);
             }
-        } catch (Exception e) {
+        } catch (IOException e) {
             if (file.getName().endsWith(".zip")) {
                 Main.warn(tr("Failed to open file with extension ''{2}'' and namepart ''{3}'' in zip file ''{0}''. Exception was: {1}",
                         file.getName(), e.toString(), extension, namepart));

@@ -18,6 +18,7 @@ import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Bounds;
@@ -53,14 +54,26 @@ public class WMSImagery {
     private URL serviceUrl;
     private List<String> formats;
 
+    /**
+     * Returns the list of layers.
+     * @return the list of layers
+     */
     public List<LayerDetails> getLayers() {
         return layers;
     }
 
+    /**
+     * Returns the service URL.
+     * @return the service URL
+     */
     public URL getServiceUrl() {
         return serviceUrl;
     }
 
+    /**
+     * Returns the list of supported formats.
+     * @return the list of supported formats
+     */
     public List<String> getFormats() {
         return Collections.unmodifiableList(formats);
     }
@@ -141,8 +154,7 @@ public class WMSImagery {
             DocumentBuilderFactory builderFactory = DocumentBuilderFactory.newInstance();
             builderFactory.setValidating(false);
             builderFactory.setNamespaceAware(true);
-            DocumentBuilder builder = null;
-            builder = builderFactory.newDocumentBuilder();
+            DocumentBuilder builder = builderFactory.newDocumentBuilder();
             builder.setEntityResolver(new EntityResolver() {
                 @Override
                 public InputSource resolveEntity(String publicId, String systemId) throws SAXException, IOException {
@@ -150,8 +162,7 @@ public class WMSImagery {
                     return new InputSource(new StringReader(""));
                 }
             });
-            Document document = null;
-            document = builder.parse(new InputSource(new StringReader(incomingData)));
+            Document document = builder.parse(new InputSource(new StringReader(incomingData)));
 
             // Some WMS service URLs specify a different base URL for their GetMap service
             Element child = getChild(document.getDocumentElement(), "Capability");
@@ -192,7 +203,7 @@ public class WMSImagery {
             Element capabilityElem = getChild(document.getDocumentElement(), "Capability");
             List<Element> children = getChildren(capabilityElem, "Layer");
             layers = parseLayers(children, new HashSet<String>());
-        } catch (Exception e) {
+        } catch (MalformedURLException | ParserConfigurationException | SAXException e) {
             throw new WMSGetCapabilitiesException(e, incomingData);
         }
     }
@@ -311,6 +322,7 @@ public class WMSImagery {
                 case Node.TEXT_NODE:
                     content.append(node.getNodeValue());
                     break;
+                default: // Do nothing
             }
         }
         return content.toString().trim();
@@ -371,6 +383,5 @@ public class WMSImagery {
             else
                 return this.name;
         }
-
     }
 }

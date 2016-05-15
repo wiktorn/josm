@@ -12,8 +12,8 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
+import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
-import java.awt.event.ComponentListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.KeyEvent;
@@ -63,7 +63,7 @@ public class OAuthAuthorizationWizard extends JDialog {
     private boolean canceled;
     private final String apiUrl;
 
-    private AuthorizationProcedureComboBox cbAuthorisationProcedure;
+    private final AuthorizationProcedureComboBox cbAuthorisationProcedure = new AuthorizationProcedureComboBox();
     private FullyAutomaticAuthorizationUI pnlFullyAutomaticAuthorisationUI;
     private SemiAutomaticAuthorizationUI pnlSemiAutomaticAuthorisationUI;
     private ManualAuthorizationUI pnlManualAuthorisationUI;
@@ -149,7 +149,7 @@ public class OAuthAuthorizationWizard extends JDialog {
         gc.gridx = 1;
         gc.gridwidth = 1;
         gc.weightx = 1.0;
-        pnl.add(cbAuthorisationProcedure = new AuthorizationProcedureComboBox(), gc);
+        pnl.add(cbAuthorisationProcedure, gc);
         cbAuthorisationProcedure.addItemListener(new AuthorisationProcedureChangeListener());
         lbl.setLabelFor(cbAuthorisationProcedure);
 
@@ -215,7 +215,7 @@ public class OAuthAuthorizationWizard extends JDialog {
 
         spAuthorisationProcedureUI = GuiHelper.embedInVerticalScrollPane(new JPanel());
         spAuthorisationProcedureUI.getVerticalScrollBar().addComponentListener(
-                new ComponentListener() {
+                new ComponentAdapter() {
                     @Override
                     public void componentShown(ComponentEvent e) {
                         spAuthorisationProcedureUI.setBorder(UIManager.getBorder("ScrollPane.border"));
@@ -225,12 +225,6 @@ public class OAuthAuthorizationWizard extends JDialog {
                     public void componentHidden(ComponentEvent e) {
                         spAuthorisationProcedureUI.setBorder(null);
                     }
-
-                    @Override
-                    public void componentResized(ComponentEvent e) {}
-
-                    @Override
-                    public void componentMoved(ComponentEvent e) {}
                 }
         );
         getContentPane().add(spAuthorisationProcedureUI, BorderLayout.CENTER);

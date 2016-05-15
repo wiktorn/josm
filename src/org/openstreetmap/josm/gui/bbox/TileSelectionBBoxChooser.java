@@ -44,7 +44,6 @@ import org.openstreetmap.gui.jmapviewer.MapMarkerDot;
 import org.openstreetmap.gui.jmapviewer.OsmTileLoader;
 import org.openstreetmap.gui.jmapviewer.interfaces.MapMarker;
 import org.openstreetmap.gui.jmapviewer.interfaces.TileLoader;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.Version;
 import org.openstreetmap.josm.data.coor.LatLon;
@@ -84,13 +83,11 @@ public class TileSelectionBBoxChooser extends JPanel implements BBoxChooser {
     /** the current bounding box */
     private transient Bounds bbox;
     /** the map viewer showing the selected bounding box */
-    private TileBoundsMapView mapViewer;
+    private final TileBoundsMapView mapViewer = new TileBoundsMapView();
     /** a panel for entering a bounding box given by a  tile grid and a zoom level */
-    private TileGridInputPanel pnlTileGrid;
-    /** a panel for entering a bounding box given by the address of an individual OSM tile at
-     *  a given zoom level
-     */
-    private TileAddressInputPanel pnlTileAddress;
+    private final TileGridInputPanel pnlTileGrid = new TileGridInputPanel();
+    /** a panel for entering a bounding box given by the address of an individual OSM tile at a given zoom level */
+    private final TileAddressInputPanel pnlTileAddress = new TileAddressInputPanel();
 
     /**
      * builds the UI
@@ -102,10 +99,10 @@ public class TileSelectionBBoxChooser extends JPanel implements BBoxChooser {
         gc.weightx = 0.5;
         gc.fill = GridBagConstraints.HORIZONTAL;
         gc.anchor = GridBagConstraints.NORTHWEST;
-        add(pnlTileGrid = new TileGridInputPanel(), gc);
+        add(pnlTileGrid, gc);
 
         gc.gridx = 1;
-        add(pnlTileAddress = new TileAddressInputPanel(), gc);
+        add(pnlTileAddress, gc);
 
         gc.gridx = 0;
         gc.gridy = 1;
@@ -114,7 +111,7 @@ public class TileSelectionBBoxChooser extends JPanel implements BBoxChooser {
         gc.weighty = 1.0;
         gc.fill = GridBagConstraints.BOTH;
         gc.insets = new Insets(2, 2, 2, 2);
-        add(mapViewer = new TileBoundsMapView(), gc);
+        add(mapViewer, gc);
         mapViewer.setFocusable(false);
         mapViewer.setZoomContolsVisible(false);
         mapViewer.setMapMarkerVisible(false);
@@ -216,15 +213,15 @@ public class TileSelectionBBoxChooser extends JPanel implements BBoxChooser {
     private static class TileGridInputPanel extends JPanel implements PropertyChangeListener {
         public static final String TILE_BOUNDS_PROP = TileGridInputPanel.class.getName() + ".tileBounds";
 
-        private JosmTextField tfMaxY;
-        private JosmTextField tfMinY;
-        private JosmTextField tfMaxX;
-        private JosmTextField tfMinX;
+        private final JosmTextField tfMaxY = new JosmTextField();
+        private final JosmTextField tfMinY = new JosmTextField();
+        private final JosmTextField tfMaxX = new JosmTextField();
+        private final JosmTextField tfMinX = new JosmTextField();
         private transient TileCoordinateValidator valMaxY;
         private transient TileCoordinateValidator valMinY;
         private transient TileCoordinateValidator valMaxX;
         private transient TileCoordinateValidator valMinX;
-        private JSpinner spZoomLevel;
+        private final JSpinner spZoomLevel = new JSpinner(new SpinnerNumberModel(0, 0, 18, 1));
         private final transient TileBoundsBuilder tileBoundsBuilder = new TileBoundsBuilder();
         private boolean doFireTileBoundChanged = true;
 
@@ -239,7 +236,7 @@ public class TileSelectionBBoxChooser extends JPanel implements BBoxChooser {
         protected JPanel buildZoomLevelPanel() {
             JPanel pnl = new JPanel(new FlowLayout(FlowLayout.LEFT));
             pnl.add(new JLabel(tr("Zoom level:")));
-            pnl.add(spZoomLevel = new JSpinner(new SpinnerNumberModel(0, 0, 18, 1)));
+            pnl.add(spZoomLevel);
             spZoomLevel.addChangeListener(new ZomeLevelChangeHandler());
             spZoomLevel.addChangeListener(tileBoundsBuilder);
             return pnl;
@@ -273,7 +270,7 @@ public class TileSelectionBBoxChooser extends JPanel implements BBoxChooser {
 
             gc.gridx = 1;
             gc.weightx = 0.5;
-            pnl.add(tfMinX = new JosmTextField(), gc);
+            pnl.add(tfMinX, gc);
             valMinX = new TileCoordinateValidator(tfMinX);
             SelectAllOnFocusGainedDecorator.decorate(tfMinX);
             tfMinX.addActionListener(tileBoundsBuilder);
@@ -281,7 +278,7 @@ public class TileSelectionBBoxChooser extends JPanel implements BBoxChooser {
 
             gc.gridx = 2;
             gc.weightx = 0.5;
-            pnl.add(tfMaxX = new JosmTextField(), gc);
+            pnl.add(tfMaxX, gc);
             valMaxX = new TileCoordinateValidator(tfMaxX);
             SelectAllOnFocusGainedDecorator.decorate(tfMaxX);
             tfMaxX.addActionListener(tileBoundsBuilder);
@@ -294,7 +291,7 @@ public class TileSelectionBBoxChooser extends JPanel implements BBoxChooser {
 
             gc.gridx = 1;
             gc.weightx = 0.5;
-            pnl.add(tfMinY = new JosmTextField(), gc);
+            pnl.add(tfMinY, gc);
             valMinY = new TileCoordinateValidator(tfMinY);
             SelectAllOnFocusGainedDecorator.decorate(tfMinY);
             tfMinY.addActionListener(tileBoundsBuilder);
@@ -302,7 +299,7 @@ public class TileSelectionBBoxChooser extends JPanel implements BBoxChooser {
 
             gc.gridx = 2;
             gc.weightx = 0.5;
-            pnl.add(tfMaxY = new JosmTextField(), gc);
+            pnl.add(tfMaxY, gc);
             valMaxY = new TileCoordinateValidator(tfMaxY);
             SelectAllOnFocusGainedDecorator.decorate(tfMaxY);
             tfMaxY.addActionListener(tileBoundsBuilder);
@@ -695,26 +692,22 @@ public class TileSelectionBBoxChooser extends JPanel implements BBoxChooser {
          */
         @Override
         public void paint(Graphics g) {
-            try {
-                super.paint(g);
-                if (min == null || max == null) return;
-                int zoomDiff = MAX_ZOOM - zoom;
-                Point tlc = getTopLeftCoordinates();
-                int xMin = (min.x >> zoomDiff) - tlc.x;
-                int yMin = (min.y >> zoomDiff) - tlc.y;
-                int xMax = (max.x >> zoomDiff) - tlc.x;
-                int yMax = (max.y >> zoomDiff) - tlc.y;
+            super.paint(g);
+            if (min == null || max == null) return;
+            int zoomDiff = MAX_ZOOM - zoom;
+            Point tlc = getTopLeftCoordinates();
+            int xMin = (min.x >> zoomDiff) - tlc.x;
+            int yMin = (min.y >> zoomDiff) - tlc.y;
+            int xMax = (max.x >> zoomDiff) - tlc.x;
+            int yMax = (max.y >> zoomDiff) - tlc.y;
 
-                int w = xMax - xMin;
-                int h = yMax - yMin;
-                g.setColor(new Color(0.9f, 0.7f, 0.7f, 0.6f));
-                g.fillRect(xMin, yMin, w, h);
+            int w = xMax - xMin;
+            int h = yMax - yMin;
+            g.setColor(new Color(0.9f, 0.7f, 0.7f, 0.6f));
+            g.fillRect(xMin, yMin, w, h);
 
-                g.setColor(Color.BLACK);
-                g.drawRect(xMin, yMin, w, h);
-            } catch (Exception e) {
-                Main.error(e);
-            }
+            g.setColor(Color.BLACK);
+            g.drawRect(xMin, yMin, w, h);
         }
     }
 }

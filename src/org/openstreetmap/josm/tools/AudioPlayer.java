@@ -206,7 +206,7 @@ public final class AudioPlayer extends Thread {
         try {
             audioPlayer = new AudioPlayer();
             return audioPlayer;
-        } catch (Exception ex) {
+        } catch (RuntimeException ex) {
             Main.error(ex);
             return null;
         }
@@ -248,7 +248,7 @@ public final class AudioPlayer extends Thread {
         playingUrl = null;
         AudioInputStream audioInputStream = null;
         SourceDataLine audioOutputLine = null;
-        AudioFormat audioFormat = null;
+        AudioFormat audioFormat;
         byte[] abData = new byte[(int) chunk];
 
         for (;;) {
@@ -265,7 +265,7 @@ public final class AudioPlayer extends Thread {
                     case PLAYING:
                         command.possiblyInterrupt();
                         for (;;) {
-                            int nBytesRead = 0;
+                            int nBytesRead;
                             nBytesRead = audioInputStream.read(abData, 0, abData.length);
                             position += nBytesRead / bytesPerSecond;
                             command.possiblyInterrupt();
@@ -285,6 +285,7 @@ public final class AudioPlayer extends Thread {
                         state = State.NOTPLAYING;
                         command.possiblyInterrupt();
                         break;
+                    default: // Do nothing
                 }
             } catch (InterruptedException e) {
                 interrupted(); // just in case we get an interrupt
@@ -354,6 +355,7 @@ public final class AudioPlayer extends Thread {
                         case PAUSE:
                             stateChange = State.PAUSED;
                             break;
+                        default: // Do nothing
                     }
                     command.ok(stateChange);
                 } catch (LineUnavailableException | IOException | UnsupportedAudioFileException |
@@ -361,8 +363,9 @@ public final class AudioPlayer extends Thread {
                     Main.error(startPlayingException);
                     command.failed(startPlayingException); // sets state
                 }
-            } catch (Exception e) {
+            } catch (IOException e) {
                 state = State.NOTPLAYING;
+                Main.error(e);
             }
         }
     }
