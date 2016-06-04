@@ -23,6 +23,9 @@ import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
+import org.openstreetmap.josm.tools.Utils;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Unit tests for class {@link SelectAction}.
@@ -32,7 +35,7 @@ public class SelectActionTest {
     /**
      * Override some configuration variables without change in preferences.xml
      */
-    class PreferencesMock extends Preferences {
+    static class PreferencesMock extends Preferences {
         @Override
         public synchronized int getInteger(String key, int def) {
             if ("edit.initial-move-delay".equals(key)) {
@@ -50,9 +53,9 @@ public class SelectActionTest {
             super(mapFrame);
             try {
                 Field mv = SelectAction.class.getDeclaredField("mv");
-                mv.setAccessible(true);
+                Utils.setObjectsAccessible(mv);
                 mv.set(this, new MapViewMock(dataSet, layer));
-            } catch (Exception e) {
+            } catch (ReflectiveOperationException e) {
                 e.printStackTrace();
                 fail("Can't setup testing environnement");
             }
@@ -81,6 +84,7 @@ public class SelectActionTest {
      * see #10748
      */
     @Test
+    @SuppressFBWarnings(value = "ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD")
     public void test10748() {
         DataSet dataSet = new DataSet();
         OsmDataLayer layer = new OsmDataLayer(dataSet, OsmDataLayer.createNewName(), null);
@@ -136,11 +140,11 @@ public class SelectActionTest {
 
             // As result of test, we must find a 2 nodes way, from EN(0, 0) to EN(100, 0)
             assertTrue("Nodes are not merged", nodesMerged);
-            assertSame(String.format("Expect exactly one way, found %d\n", dataSet.getWays().size()),
+            assertSame(String.format("Expect exactly one way, found %d%n", dataSet.getWays().size()),
                        dataSet.getWays().size(), 1);
             Way rw = dataSet.getWays().iterator().next();
             assertFalse("Way shouldn't be deleted\n", rw.isDeleted());
-            assertSame(String.format("Way shouldn't have 2 nodes, %d found\n", w.getNodesCount()),
+            assertSame(String.format("Way shouldn't have 2 nodes, %d found%n", w.getNodesCount()),
                        rw.getNodesCount(), 2);
             Node r1 = rw.firstNode();
             Node r2 = rw.lastNode();
@@ -149,9 +153,9 @@ public class SelectActionTest {
                 r1 = r2;
                 r2 = tmp;
             }
-            assertSame(String.format("East should be 0, found %f\n", r1.getEastNorth().east()),
+            assertSame(String.format("East should be 0, found %f%n", r1.getEastNorth().east()),
                        Double.compare(r1.getEastNorth().east(), 0), 0);
-            assertSame(String.format("East should be 100, found %f\n", r2.getEastNorth().east()),
+            assertSame(String.format("East should be 100, found %f%n", r2.getEastNorth().east()),
                        Double.compare(r2.getEastNorth().east(), 100), 0);
         } finally {
             // Ensure we clean the place before leaving, even if test fails.

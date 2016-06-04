@@ -655,7 +655,7 @@ public class TagEditHelper {
     protected class AddTagsDialog extends AbstractTagsDialog {
         private final List<JosmAction> recentTagsActions = new ArrayList<>();
         protected final transient FocusAdapter focus;
-        private JPanel mainPanel;
+        private final JPanel mainPanel;
         private JPanel recentTagsPanel;
 
         // Counter of added commands for possible undo
@@ -811,13 +811,13 @@ public class TagEditHelper {
             List<String> lines = new ArrayList<>();
             Shortcut sc = Shortcut.findShortcut(KeyEvent.VK_1, commandDownMask);
             if (sc != null) {
-                lines.add(sc.getKeyText() + " " + tr("to apply first suggestion"));
+                lines.add(sc.getKeyText() + ' ' + tr("to apply first suggestion"));
             }
-            lines.add(KeyEvent.getKeyModifiersText(KeyEvent.SHIFT_MASK)+'+'+KeyEvent.getKeyText(KeyEvent.VK_ENTER) + " "
+            lines.add(KeyEvent.getKeyModifiersText(KeyEvent.SHIFT_MASK)+'+'+KeyEvent.getKeyText(KeyEvent.VK_ENTER) + ' '
                     +tr("to add without closing the dialog"));
             sc = Shortcut.findShortcut(KeyEvent.VK_1, commandDownMask | KeyEvent.SHIFT_DOWN_MASK);
             if (sc != null) {
-                lines.add(sc.getKeyText() + " " + tr("to add first suggestion without closing the dialog"));
+                lines.add(sc.getKeyText() + ' ' + tr("to add first suggestion without closing the dialog"));
             }
             final JLabel helpLabel = new JLabel("<html>" + Utils.join("<br>", lines) + "</html>");
             helpLabel.setFont(helpLabel.getFont().deriveFont(Font.PLAIN));
@@ -999,7 +999,7 @@ public class TagEditHelper {
         }
 
         class IgnoreTagAction extends AbstractAction {
-            final Tag tag;
+            final transient Tag tag;
 
             IgnoreTagAction(String name, Tag tag) {
                 super(name);
@@ -1009,8 +1009,10 @@ public class TagEditHelper {
             @Override
             public void actionPerformed(ActionEvent e) {
                 try {
-                    recentTags.ignoreTag(tag, tagsToIgnore);
-                    PROPERTY_TAGS_TO_IGNORE.put(tagsToIgnore.writeToString());
+                    if (tagsToIgnore != null) {
+                        recentTags.ignoreTag(tag, tagsToIgnore);
+                        PROPERTY_TAGS_TO_IGNORE.put(tagsToIgnore.writeToString());
+                    }
                 } catch (SearchCompiler.ParseError parseError) {
                     throw new IllegalStateException(parseError);
                 }

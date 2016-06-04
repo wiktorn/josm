@@ -50,7 +50,7 @@ public class DownloadTaskList {
     private final List<Future<?>> taskFutures = new LinkedList<>();
     private ProgressMonitor progressMonitor;
 
-    private void addDownloadTask(DownloadTask dt, Rectangle2D td, int i, int n) {
+    private void addDownloadTask(ProgressMonitor progressMonitor, DownloadTask dt, Rectangle2D td, int i, int n) {
         ProgressMonitor childProgress = progressMonitor.createSubTaskMonitor(1, false);
         childProgress.setCustomText(tr("Download {0} of {1} ({2} left)", i, n, n - i));
         Future<?> future = dt.download(false, new Bounds(td), childProgress);
@@ -72,7 +72,7 @@ public class DownloadTaskList {
         if (newLayer) {
             Layer l = new OsmDataLayer(new DataSet(), OsmDataLayer.createNewName(), null);
             Main.main.addLayer(l);
-            Main.map.mapView.setActiveLayer(l);
+            Main.getLayerManager().setActiveLayer(l);
         }
 
         int n = (osmData && gpxData ? 2 : 1)*rects.size();
@@ -81,10 +81,10 @@ public class DownloadTaskList {
         for (Rectangle2D td : rects) {
             i++;
             if (osmData) {
-                addDownloadTask(new DownloadOsmTask(), td, i, n);
+                addDownloadTask(progressMonitor, new DownloadOsmTask(), td, i, n);
             }
             if (gpxData) {
-                addDownloadTask(new DownloadGpsTask(), td, i, n);
+                addDownloadTask(progressMonitor, new DownloadGpsTask(), td, i, n);
             }
         }
         progressMonitor.addCancelListener(new CancelListener() {
@@ -273,7 +273,7 @@ public class DownloadTaskList {
                     @Override
                     public void run() {
                         if (items.size() == 1 && tr("No data found in this area.").equals(items.iterator().next())) {
-                            new Notification(items.iterator().next().toString()).setIcon(JOptionPane.WARNING_MESSAGE).show();
+                            new Notification(items.iterator().next()).setIcon(JOptionPane.WARNING_MESSAGE).show();
                         } else {
                             JOptionPane.showMessageDialog(Main.parent, "<html>"
                                     + tr("The following errors occurred during mass download: {0}",

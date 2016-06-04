@@ -397,9 +397,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
         Collection<OsmPrimitive> selection = new ArrayList<>(ds.getSelected());
 
         boolean newNode = false;
-        Node n = null;
-
-        n = Main.map.mapView.getNearestNode(mousePos, OsmPrimitive.isSelectablePredicate);
+        Node n = Main.map.mapView.getNearestNode(mousePos, OsmPrimitive.isSelectablePredicate);
         if (ctrl) {
             Iterator<Way> it = getCurrentDataSet().getSelectedWays().iterator();
             if (it.hasNext()) {
@@ -895,8 +893,8 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
     }
 
     /**
-     * if one of the ends of {@code way} is given {@code  node},
-     * then set  currentBaseNode = node and previousNode = adjacent node of way
+     * if one of the ends of {@code way} is given {@code node},
+     * then set currentBaseNode = node and previousNode = adjacent node of way
      * @param way way to continue
      * @param node starting node
      */
@@ -1482,7 +1480,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
                 b = new GeneralPath();
                 if (absoluteFix) {
                     b.moveTo(p2.x, p2.y);
-                    b.lineTo(2f*p1.x-p2.x, 2f*p1.y-p2.y); // bi-directional line
+                    b.lineTo(2d*p1.x-p2.x, 2d*p1.y-p2.y); // bi-directional line
                 } else {
                     b.moveTo(p2.x, p2.y);
                     b.lineTo(p3.x, p3.y);
@@ -1691,23 +1689,6 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
             customBaseHeading = hdg;
         }
 
-        private void nextSnapMode() {
-            if (snapOn) {
-                // turn off snapping if we are in fixed mode or no actile snapping line exist
-                if (fixed || !active) {
-                    snapOn = false;
-                    unsetFixedMode();
-                } else {
-                    setFixedMode();
-                }
-            } else {
-                snapOn = true;
-                unsetFixedMode();
-            }
-            checkBox.setState(snapOn);
-            customBaseHeading = -1;
-        }
-
         private void enableSnapping() {
             snapOn = true;
             checkBox.setState(snapOn);
@@ -1728,18 +1709,18 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
             }
         }
 
-        public  void unsetFixedMode() {
+        public void unsetFixedMode() {
             fixed = false;
             absoluteFix = false;
             lastAngle = 0;
             active = false;
         }
 
-        public  boolean isActive() {
+        public boolean isActive() {
             return active;
         }
 
-        public  boolean isSnapOn() {
+        public boolean isSnapOn() {
             return snapOn;
         }
 

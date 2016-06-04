@@ -158,7 +158,9 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
      */
     public void setRecentRelation(Relation relation) {
         recentRelations.put(relation, null);
-        Main.map.relationListDialog.enableRecentRelations();
+        if (Main.map != null && Main.map.relationListDialog != null) {
+            Main.map.relationListDialog.enableRecentRelations();
+        }
     }
 
     /**
@@ -168,7 +170,9 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
      */
     public void removeRecentRelation(Relation relation) {
         recentRelations.remove(relation);
-        Main.map.relationListDialog.enableRecentRelations();
+        if (Main.map != null && Main.map.relationListDialog != null) {
+            Main.map.relationListDialog.enableRecentRelations();
+        }
     }
 
     protected void setRequiresSaveToFile(boolean newValue) {
@@ -799,7 +803,7 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
             final GpxData gpxData = toGpxData();
             final GpxLayer gpxLayer = new GpxLayer(gpxData, tr("Converted from: {0}", getName()));
             if (getAssociatedFile() != null) {
-                final String filename = getAssociatedFile().getName().replaceAll(Pattern.quote(".gpx.osm") + "$", "") + ".gpx";
+                String filename = getAssociatedFile().getName().replaceAll(Pattern.quote(".gpx.osm") + '$', "") + ".gpx";
                 gpxLayer.setAssociatedFile(new File(getAssociatedFile().getParentFile(), filename));
             }
             Main.main.addLayer(gpxLayer);

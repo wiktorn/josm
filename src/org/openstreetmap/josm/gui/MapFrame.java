@@ -75,6 +75,7 @@ import org.openstreetmap.josm.gui.dialogs.UserListDialog;
 import org.openstreetmap.josm.gui.dialogs.ValidatorDialog;
 import org.openstreetmap.josm.gui.dialogs.properties.PropertiesDialog;
 import org.openstreetmap.josm.gui.layer.Layer;
+import org.openstreetmap.josm.gui.layer.LayerManager;
 import org.openstreetmap.josm.gui.util.AdvancedKeyPressDetector;
 import org.openstreetmap.josm.tools.Destroyable;
 import org.openstreetmap.josm.tools.GBC;
@@ -97,6 +98,8 @@ public class MapFrame extends JPanel implements Destroyable, LayerChangeListener
 
     /**
      * The view control displayed.
+     * <p>
+     * Accessing this is discouraged. Use the {@link LayerManager} to access map data.
      */
     public final MapView mapView;
 
@@ -189,7 +192,7 @@ public class MapFrame extends JPanel implements Destroyable, LayerChangeListener
         setSize(400, 400);
         setLayout(new BorderLayout());
 
-        mapView = new MapView(contentPane, viewportData);
+        mapView = new MapView(Main.getLayerManager(), contentPane, viewportData);
         if (!GraphicsEnvironment.isHeadless()) {
             new FileDrop(mapView);
         }
@@ -245,7 +248,7 @@ public class MapFrame extends JPanel implements Destroyable, LayerChangeListener
         addMapMode(new IconToggleButton(mapModeSelect));
         addMapMode(new IconToggleButton(mapModeSelectLasso, true));
         addMapMode(new IconToggleButton(mapModeDraw));
-        addMapMode(new IconToggleButton(mapModeZoom));
+        addMapMode(new IconToggleButton(mapModeZoom, true));
         addMapMode(new IconToggleButton(new DeleteAction(this), true));
         addMapMode(new IconToggleButton(new ParallelWayAction(this), true));
         addMapMode(new IconToggleButton(new ExtrudeAction(this), true));
@@ -619,8 +622,10 @@ public class MapFrame extends JPanel implements Destroyable, LayerChangeListener
                     }
                 }));
             }
-            Rectangle bounds = button.getBounds();
-            menu.show(button, bounds.x + bounds.width, 0);
+            if (button != null) {
+                Rectangle bounds = button.getBounds();
+                menu.show(button, bounds.x + bounds.width, 0);
+            }
         }
     }
 
@@ -772,7 +777,7 @@ public class MapFrame extends JPanel implements Destroyable, LayerChangeListener
                 mapMode.enterMode();
             }
             // invalidate repaint cache
-            Main.map.mapView.preferenceChanged(null);
+            mapView.preferenceChanged(null);
         }
 
         // After all listeners notice new layer, some buttons will be disabled/enabled

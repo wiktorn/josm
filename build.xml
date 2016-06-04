@@ -387,7 +387,10 @@ Build-Date: ${build.tstamp}
             <jacoco:coverage destfile="${test.dir}/jacoco@{testITsuffix}.exec">
                 <junit printsummary="yes" fork="true" forkmode="once">
                     <jvmarg value="-Dfile.encoding=UTF-8"/>
-                    <jvmarg value="-XaddExports:java.base/sun.security.util=ALL-UNNAMED,java.base/sun.security.x509=ALL-UNNAMED" if:set="isJava9" />
+                    <jvmarg line="-addmods java.xml.bind" if:set="isJava9" />
+                    <jvmarg value="-XaddExports:java.base/sun.security.util=ALL-UNNAMED" if:set="isJava9" />
+                    <jvmarg value="-XaddExports:java.base/sun.security.x509=ALL-UNNAMED" if:set="isJava9" />
+                    <jvmarg value="-XaddExports:java.xml.bind/javax.xml.bind=ALL-UNNAMED" if:set="isJava9" />
                     <sysproperty key="josm.home" value="${test.dir}/config/@{testfamily}-josm.home"/>
                     <sysproperty key="josm.test.data" value="${test.dir}/data"/>
                     <sysproperty key="java.awt.headless" value="true"/>
@@ -652,7 +655,7 @@ Build-Date: ${build.tstamp}
 
     <target name="checkstyle" depends="init-properties">
         <taskdef resource="com/puppycrawl/tools/checkstyle/ant/checkstyle-ant-task.properties"
-             classpath="tools/checkstyle/checkstyle-6.18-all.jar"/>
+             classpath="tools/checkstyle/checkstyle-6.19-all.jar"/>
         <checkstyle config="tools/checkstyle/josm_checks.xml">
             <fileset dir="${base.dir}/src/org/openstreetmap/josm" includes="**/*.java"
                 excludes="gui/mappaint/mapcss/parsergen/*.java"/>
@@ -675,6 +678,7 @@ Build-Date: ${build.tstamp}
                 pluginList=""
                 excludeFilter="tools/findbugs/josm-filter.xml"
                 effort="max"
+                reportLevel="low"
                 >
             <sourcePath path="${base.dir}/src" />
             <class location="${dist.dir}/josm-custom.jar" />
@@ -705,7 +709,7 @@ Build-Date: ${build.tstamp}
     -->
     <target name="epsg" depends="epsg-compile">
         <touch file="${epsg.output}"/>
-        <java classname="BuildProjectionDefinitions" failonerror="true">
+        <java classname="BuildProjectionDefinitions" failonerror="true" fork="true">
             <sysproperty key="java.awt.headless" value="true"/>
             <classpath>
                 <pathelement path="${base.dir}"/>

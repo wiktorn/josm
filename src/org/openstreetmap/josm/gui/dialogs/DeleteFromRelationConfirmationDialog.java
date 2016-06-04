@@ -113,7 +113,7 @@ public class DeleteFromRelationConfirmationDialog extends JDialog implements Tab
                 "{0} relations are affected.",
                 numParentRelations, numParentRelations);
         @I18n.QuirkyPluralString
-        final String msg = "<html>" + msg1 + " " + msg2 + "</html>";
+        final String msg = "<html>" + msg1 + ' ' + msg2 + "</html>";
         htmlPanel.getEditorPane().setText(msg);
         invalidate();
     }
@@ -274,10 +274,9 @@ public class DeleteFromRelationConfirmationDialog extends JDialog implements Tab
     private static class RelationMemberTableColumnModel extends DefaultTableColumnModel {
 
         protected final void createColumns() {
-            TableColumn col = null;
 
             // column 0 - To Delete
-            col = new TableColumn(0);
+            TableColumn col = new TableColumn(0);
             col.setHeaderValue(tr("To delete"));
             col.setResizable(true);
             col.setWidth(100);

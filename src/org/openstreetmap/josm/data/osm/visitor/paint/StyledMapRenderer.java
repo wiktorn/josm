@@ -621,8 +621,8 @@ public class StyledMapRenderer extends AbstractMapRenderer {
                     int y = (int) (centeredNBounds.getMinY() - nb.getMinY());
                     displayText(null, name, x, y, osm.isDisabled(), text);
                     g.setFont(defaultFont);
-                } else if (Main.isDebugEnabled()) {
-                    Main.debug("Couldn't find a correct label placement for "+osm+" / "+name);
+                } else if (Main.isTraceEnabled()) {
+                    Main.trace("Couldn't find a correct label placement for "+osm+" / "+name);
                 }
             }
         }
@@ -658,7 +658,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
                     }
                 }
                 drawArea(r, p,
-                        pd.selected ? paintSettings.getRelationSelectedColor(color.getAlpha()) : color,
+                        pd.isSelected() ? paintSettings.getRelationSelectedColor(color.getAlpha()) : color,
                         fillImage, extent, pfClip, disabled, text);
             }
         }
@@ -1502,7 +1502,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
 
                             while (dist < segmentLength) {
                                 for (int i = 0; i < 2; ++i) {
-                                    float onewaySize = i == 0 ? 3f : 2f;
+                                    double onewaySize = i == 0 ? 3d : 2d;
                                     GeneralPath onewayPath = i == 0 ? onewayArrowsCasing : onewayArrows;
 
                                     // scale such that border is 1 px
@@ -1793,10 +1793,10 @@ public class StyledMapRenderer extends AbstractMapRenderer {
     }
 
     private class ComputeStyleListWorker extends RecursiveTask<List<StyleRecord>> implements Visitor {
-        private final List<? extends OsmPrimitive> input;
-        private final List<StyleRecord> output;
+        private final transient List<? extends OsmPrimitive> input;
+        private final transient List<StyleRecord> output;
 
-        private final ElemStyles styles = MapPaintStyles.getStyles();
+        private final transient ElemStyles styles = MapPaintStyles.getStyles();
         private final int directExecutionTaskSize;
 
         private final boolean drawArea = circum <= Main.pref.getInteger("mappaint.fillareas", 10000000);

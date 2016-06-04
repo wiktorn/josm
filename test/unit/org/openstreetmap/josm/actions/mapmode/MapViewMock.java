@@ -5,6 +5,7 @@ import java.awt.Cursor;
 import java.awt.event.MouseListener;
 import java.awt.geom.Point2D;
 
+import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.gui.MapView;
@@ -12,11 +13,11 @@ import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 
 class MapViewMock extends MapView {
-    private final OsmDataLayer layer;
-    private final DataSet currentDataSet;
+    private final transient OsmDataLayer layer;
+    private final transient DataSet currentDataSet;
 
     MapViewMock(DataSet dataSet, OsmDataLayer layer) {
-        super(null, null);
+        super(Main.getLayerManager(), null, null);
         this.layer = layer;
         this.currentDataSet = dataSet;
     }

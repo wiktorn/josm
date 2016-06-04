@@ -22,6 +22,7 @@ import org.openstreetmap.josm.gui.mappaint.StyleElementList;
 import org.openstreetmap.josm.gui.mappaint.styleelement.BoxTextElement.BoxProvider;
 import org.openstreetmap.josm.gui.mappaint.styleelement.BoxTextElement.SimpleBoxProvider;
 import org.openstreetmap.josm.gui.util.RotationAngle;
+import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -77,6 +78,8 @@ public class NodeElement extends StyleElement {
                     (fillColor != null ? " fillColor=" + fillColor : "");
         }
     }
+
+    private static final String[] ICON_KEYS = {ICON_IMAGE, ICON_WIDTH, ICON_HEIGHT, ICON_OPACITY, ICON_OFFSET_X, ICON_OFFSET_Y};
 
     public static final NodeElement SIMPLE_NODE_ELEMSTYLE;
     public static final BoxProvider SIMPLE_NODE_ELEMSTYLE_BOXPROVIDER;
@@ -141,6 +144,9 @@ public class NodeElement extends StyleElement {
     }
 
     public static MapImage createIcon(final Environment env, final String[] keys) {
+        CheckParameterUtil.ensureParameterNotNull(env, "env");
+        CheckParameterUtil.ensureParameterNotNull(keys, "keys");
+
         Cascade c = env.mc.getCascade(env.layer);
 
         final IconReference iconRef = c.get(keys[ICON_IMAGE_IDX], null, IconReference.class, true);
@@ -367,15 +373,13 @@ public class NodeElement extends StyleElement {
         if (!super.equals(obj)) return false;
         NodeElement that = (NodeElement) obj;
         return Objects.equals(mapImage, that.mapImage) &&
-                Objects.equals(mapImageAngle, that.mapImageAngle) &&
-                Objects.equals(symbol, that.symbol);
+               Objects.equals(mapImageAngle, that.mapImageAngle) &&
+               Objects.equals(symbol, that.symbol);
     }
 
     @Override
-
     public String toString() {
-        StringBuilder s = new StringBuilder("NodeElemStyle{");
-        s.append(super.toString());
+        StringBuilder s = new StringBuilder(64).append("NodeElemStyle{").append(super.toString());
         if (mapImage != null) {
             s.append(" icon=[" + mapImage + ']');
         }

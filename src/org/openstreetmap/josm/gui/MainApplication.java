@@ -21,6 +21,7 @@ import java.net.Socket;
 import java.net.URL;
 import java.security.AllPermission;
 import java.security.CodeSource;
+import java.security.GeneralSecurityException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PermissionCollection;
@@ -412,8 +413,8 @@ public class MainApplication extends Main {
 
         try {
             CertificateAmendment.addMissingCertificates();
-        } catch (IOException ex) {
-            ex.printStackTrace();
+        } catch (IOException | GeneralSecurityException ex) {
+            Main.warn(ex);
             Main.warn(getErrorMessage(Utils.getRootCause(ex)));
         }
         Authenticator.setDefault(DefaultAuthenticator.getInstance());
@@ -571,6 +572,7 @@ public class MainApplication extends Main {
     private static void checkIPv6() {
         if ("auto".equals(Main.pref.get("prefer.ipv6", "auto"))) {
              new Thread(new Runnable() { /* this may take some time (DNS, Connect) */
+                @Override
                 public void run() {
                     boolean hasv6 = false;
                     boolean wasv6 = Main.pref.getBoolean("validated.ipv6", false);

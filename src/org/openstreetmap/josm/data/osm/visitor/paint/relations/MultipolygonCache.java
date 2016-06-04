@@ -96,7 +96,7 @@ public final class MultipolygonCache implements DataSetListener, LayerChangeList
                 multipolygon = new Multipolygon(r);
                 map2.put(r, multipolygon);
                 for (PolyData pd : multipolygon.getCombinedPolygons()) {
-                    if (pd.selected) {
+                    if (pd.isSelected()) {
                         selectedPolyData.add(pd);
                     }
                 }
@@ -113,7 +113,6 @@ public final class MultipolygonCache implements DataSetListener, LayerChangeList
         Map<DataSet, Map<Relation, Multipolygon>> map = cache.remove(nc);
         if (map != null) {
             map.clear();
-            map = null;
         }
     }
 
@@ -126,7 +125,6 @@ public final class MultipolygonCache implements DataSetListener, LayerChangeList
             Map<Relation, Multipolygon> map2 = map1.remove(ds);
             if (map2 != null) {
                 map2.clear();
-                map2 = null;
             }
         }
     }
@@ -312,7 +310,7 @@ public final class MultipolygonCache implements DataSetListener, LayerChangeList
     public void selectionChanged(Collection<? extends OsmPrimitive> newSelection) {
 
         for (Iterator<PolyData> it = selectedPolyData.iterator(); it.hasNext();) {
-            it.next().selected = false;
+            it.next().setSelected(false);
             it.remove();
         }
 
@@ -333,7 +331,7 @@ public final class MultipolygonCache implements DataSetListener, LayerChangeList
                             if (multipolygon != null) {
                                 for (PolyData pd : multipolygon.getCombinedPolygons()) {
                                     if (pd.getWayIds().contains(p.getUniqueId())) {
-                                        pd.selected = true;
+                                        pd.setSelected(true);
                                         selectedPolyData.add(pd);
                                     }
                                 }

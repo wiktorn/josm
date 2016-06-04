@@ -17,29 +17,44 @@ import org.openstreetmap.josm.gui.widgets.MultiSplitPane;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.Destroyable;
 
+/**
+ * This is the panel displayed on the right side of JOSM. It displays a list of panels.
+ */
 public class DialogsPanel extends JPanel implements Destroyable {
-    protected List<ToggleDialog> allDialogs = new ArrayList<>();
-    protected MultiSplitPane mSpltPane = new MultiSplitPane();
-    protected static final int DIVIDER_SIZE = 5;
+    private final List<ToggleDialog> allDialogs = new ArrayList<>();
+    private final MultiSplitPane mSpltPane = new MultiSplitPane();
+    private static final int DIVIDER_SIZE = 5;
 
     /**
      * Panels that are added to the multisplitpane.
      */
     private final List<JPanel> panels = new ArrayList<>();
 
+    /**
+     * If {@link #initialize(List)} was called. read only from outside
+     */
+    public boolean initialized;
+
     private final JSplitPane parent;
 
+    /**
+     * Creates a new {@link DialogsPanel}.
+     * @param parent The parent split pane that allows this panel to change it's size.
+     */
     public DialogsPanel(JSplitPane parent) {
         this.parent = parent;
     }
 
-    public boolean initialized; // read only from outside
-
+    /**
+     * Initializes this panel
+     * @param pAllDialogs The list of dialogs this panel should contain on start.
+     */
     public void initialize(List<ToggleDialog> pAllDialogs) {
-        if (initialized)
-            throw new IllegalStateException();
+        if (initialized) {
+            throw new IllegalStateException("Panel can only be initialized once.");
+        }
         initialized = true;
-        allDialogs = new ArrayList<>();
+        allDialogs.clear();
 
         for (ToggleDialog dialog: pAllDialogs) {
             add(dialog, false);
@@ -49,13 +64,21 @@ public class DialogsPanel extends JPanel implements Destroyable {
         reconstruct(Action.ELEMENT_SHRINKS, null);
     }
 
+    /**
+     * Add a new {@link ToggleDialog} to the list of known dialogs and trigger reconstruct.
+     * @param dlg The dialog to add
+     */
     public void add(ToggleDialog dlg) {
         add(dlg, true);
     }
 
+    /**
+     * Add a new {@link ToggleDialog} to the list of known dialogs.
+     * @param dlg The dialog to add
+     * @param doReconstruct <code>true</code> if reconstruction should be triggered.
+     */
     public void add(ToggleDialog dlg, boolean doReconstruct) {
         allDialogs.add(dlg);
-        int i = allDialogs.size() - 1;
         dlg.setDialogsPanel(this);
         dlg.setVisible(false);
         final JPanel p = new JPanel() {
@@ -71,7 +94,8 @@ public class DialogsPanel extends JPanel implements Destroyable {
         p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
         p.setVisible(false);
 
-        mSpltPane.add(p, "L"+i);
+        int dialogIndex = allDialogs.size() - 1;
+        mSpltPane.add(p, 'L'+Integer.toString(dialogIndex));
         panels.add(p);
 
         if (dlg.isDialogShowing()) {
@@ -93,10 +117,19 @@ public class DialogsPanel extends JPanel implements Destroyable {
      * What action was performed to trigger the reconstruction
      */
     public enum Action {
+        /**
+         * The panel was invisible previously
+         */
         INVISIBLE_TO_DEFAULT,
+        /**
+         * The panel was collapsed by the user.
+         */
         COLLAPSED_TO_DEFAULT,
         /*  INVISIBLE_TO_COLLAPSED,    does not happen */
-        ELEMENT_SHRINKS         /* else. (Remaining elements have more space.) */
+        /**
+         * else. (Remaining elements have more space.)
+         */
+        ELEMENT_SHRINKS
     }
 
     /**
@@ -235,12 +268,7 @@ public class DialogsPanel extends JPanel implements Destroyable {
                         int hn = Math.min(ha, he);
                         dlg.setPreferredSize(new Dimension(Integer.MAX_VALUE, hn));
                     } else {
-                        int d;
-                        try {
-                            d = (h0-he) * dm / dp;
-                        } catch (ArithmeticException e) { /* D_p may be zero - nothing wrong with that. */
-                            d = 0;
-                        }
+                        int d = dp == 0 ? 0 : ((h0-he) * dm / dp);
                         dlg.setPreferredSize(new Dimension(Integer.MAX_VALUE, h0 - d));
                     }
                 }
@@ -256,7 +284,7 @@ public class DialogsPanel extends JPanel implements Destroyable {
             if (i != k) {
                 ch.add(new Divider());
             }
-            Leaf l = new Leaf("L"+i);
+            Leaf l = new Leaf('L'+Integer.toString(i));
             l.setWeight(1.0 / numPanels);
             ch.add(l);
         }

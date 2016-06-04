@@ -117,6 +117,12 @@ way[junction                   ][!highway][junction!=yes],
 }
 
 /* {0.tag} without {1.key} (warning level) */
+relation[route=bicycle][!network][type=route],
+relation[route=hiking][!network][type=route],
+relation[route=foot][!network][type=route],
+relation[route=horse][!network][type=route],
+relation[route=piste][!piste:type][type=route],
+relation[route=ski][!piste:type][type=route],
 *[tourism=information][!information],
 *[aeroway=terminal][!building],
 *[power=generator][!generator:source],
@@ -230,7 +236,7 @@ way[waterway][bridge=yes] {
   throwWarning: tr("incomplete object: only {0} and {1}", "{0.key}", "{1.key}");
 }
 
-/* see #9811, #11491 */
+/* see #9811, #11491, #12865 */
 *[place][place!=farm][/^addr:/],
 *[boundary][/^addr:/],
 *[highway][/^addr:/][highway!=services][highway!=rest_area][!"addr:postcode"] {
@@ -249,7 +255,7 @@ way[highway][postal_code]["addr:postcode"][postal_code=*"addr:postcode"] {
 way[highway][postal_code]["addr:postcode"][postal_code!=*"addr:postcode"] {
   throwWarning: tr("{0} together with {1} and conflicting values", "{1.key}", "{2.key}");
 }
-way[highway][!postal_code]["addr:postcode"] {
+way[highway][highway!=services][highway!=rest_area][!postal_code]["addr:postcode"] {
   throwWarning: tr("{0} together with {1}", "{0.key}", "{2.key}");
   suggestAlternative: "postal_code";
   fixChangeKey: "addr:postcode=>postal_code";

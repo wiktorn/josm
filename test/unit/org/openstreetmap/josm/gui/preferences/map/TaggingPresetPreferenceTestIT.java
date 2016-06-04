@@ -21,6 +21,8 @@ import org.openstreetmap.josm.gui.tagging.presets.TaggingPreset;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetReader;
 import org.xml.sax.SAXException;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * Integration tests of {@link TaggingPresetPreference} class.
  */
@@ -30,6 +32,7 @@ public class TaggingPresetPreferenceTestIT {
      * Global timeout applied to all test methods.
      */
     @Rule
+    @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
     public Timeout globalTimeout = Timeout.seconds(10*60);
 
     /**
@@ -42,9 +45,10 @@ public class TaggingPresetPreferenceTestIT {
 
     /**
      * Test that available tagging presets are valid.
+     * @throws Exception in case of error
      */
     @Test
-    public void testValidityOfAvailablePresets() {
+    public void testValidityOfAvailablePresets() throws Exception {
         Collection<ExtendedSourceEntry> sources = new TaggingPresetPreference.TaggingPresetSourceEditor()
                 .loadAndGetAvailableSources();
         assertFalse(sources.isEmpty());
