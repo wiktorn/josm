@@ -10,6 +10,7 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -93,11 +94,11 @@ public class OsmReader extends AbstractReader {
     }
 
     protected void throwException(String msg, Throwable th) throws XMLStreamException {
-        throw new OsmParsingException(msg, parser.getLocation(), th);
+        throw new XmlStreamParsingException(msg, parser.getLocation(), th);
     }
 
     protected void throwException(String msg) throws XMLStreamException {
-        throw new OsmParsingException(msg, parser.getLocation());
+        throw new XmlStreamParsingException(msg, parser.getLocation());
     }
 
     protected void parse() throws XMLStreamException {
@@ -314,7 +315,6 @@ public class OsmReader extends AbstractReader {
     }
 
     private RelationMemberData parseRelationMember(Relation r) throws XMLStreamException {
-        String role = null;
         OsmPrimitiveType type = null;
         long id = 0;
         String value = parser.getAttributeValue(null, "ref");
@@ -337,8 +337,7 @@ public class OsmReader extends AbstractReader {
             throwException(tr("Illegal value for attribute ''type'' on member {0} in relation {1}. Got {2}.",
                     Long.toString(id), Long.toString(r.getUniqueId()), value), e);
         }
-        value = parser.getAttributeValue(null, "role");
-        role = value;
+        String role = parser.getAttributeValue(null, "role");
 
         if (id == 0) {
             throwException(tr("Incomplete <member> specification with ref=0"));
@@ -354,7 +353,7 @@ public class OsmReader extends AbstractReader {
             id = getLong("id");
         }
         // Read changeset info if neither upload-changeset nor id are set, or if they are both set to the same value
-        if (id == uploadChangesetId || (id != null && id.equals(uploadChangesetId))) {
+        if (Objects.equals(id, uploadChangesetId)) {
             uploadChangeset = new Changeset(id != null ? id.intValue() : 0);
             while (true) {
                 int event = parser.next();
@@ -558,39 +557,10 @@ public class OsmReader extends AbstractReader {
         return 0; // should not happen
     }
 
-    private static class OsmParsingException extends XMLStreamException {
-
-        OsmParsingException(String msg, Location location) {
-            super(msg); /* cannot use super(msg, location) because it messes with the message preventing localization */
-            this.location = location;
-        }
-
-        OsmParsingException(String msg, Location location, Throwable th) {
-            super(msg, th);
-            this.location = location;
-        }
-
-        @Override
-        public String getMessage() {
-            String msg = super.getMessage();
-            if (msg == null) {
-                msg = getClass().getName();
-            }
-            if (getLocation() == null)
-                return msg;
-            msg += ' ' + tr("(at line {0}, column {1})", getLocation().getLineNumber(), getLocation().getColumnNumber());
-            int offset = getLocation().getCharacterOffset();
-            if (offset > -1) {
-                msg += ". "+ tr("{0} bytes have been read", offset);
-            }
-            return msg;
-        }
-    }
-
     /**
      * Exception thrown after user cancelation.
      */
-    private static final class OsmParsingCanceledException extends OsmParsingException implements ImportCancelException {
+    private static final class OsmParsingCanceledException extends XmlStreamParsingException implements ImportCancelException {
         /**
          * Constructs a new {@code OsmParsingCanceledException}.
          * @param msg The error message
@@ -637,7 +607,7 @@ public class OsmReader extends AbstractReader {
             return getDataSet();
         } catch (IllegalDataException e) {
             throw e;
-        } catch (OsmParsingException e) {
+        } catch (XmlStreamParsingException e) {
             throw new IllegalDataException(e.getMessage(), e);
         } catch (XMLStreamException e) {
             String msg = e.getMessage();

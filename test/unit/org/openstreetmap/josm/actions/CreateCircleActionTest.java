@@ -29,6 +29,7 @@ import org.openstreetmap.josm.tools.GeoPropertyIndex;
 import org.openstreetmap.josm.tools.GeoPropertyIndex.GeoProperty;
 import org.openstreetmap.josm.tools.Geometry;
 import org.openstreetmap.josm.tools.RightAndLefthandTraffic;
+import org.openstreetmap.josm.tools.Utils;
 
 /**
  * Unit tests for class {@link CreateCircleAction}.
@@ -58,9 +59,9 @@ public final class CreateCircleActionTest {
             Method method = ds.getClass()
                 .getDeclaredMethod("addSelected",
                                    new Class<?>[] {Collection.class, boolean.class});
-            method.setAccessible(true);
+            Utils.setObjectsAccessible(method);
             method.invoke(ds, Collections.singleton(p), false);
-        } catch (Exception e) {
+        } catch (ReflectiveOperationException e) {
             e.printStackTrace();
             fail("Can't add OsmPrimitive to dataset: " + e.getMessage());
         }
@@ -156,13 +157,11 @@ public final class CreateCircleActionTest {
         try {
             Field leftHandTrafficPolygons = RightAndLefthandTraffic.class
                 .getDeclaredField("leftHandTrafficPolygons");
-            leftHandTrafficPolygons.setAccessible(true);
-            leftHandTrafficPolygons.set(null, new ArrayList<Area>());
             Field rlCache = RightAndLefthandTraffic.class.getDeclaredField("rlCache");
-            rlCache.setAccessible(true);
-            ConstantTrafficHand trafficHand = new ConstantTrafficHand(true);
-            rlCache.set(null, new GeoPropertyIndex<Boolean>(trafficHand, 24));
-        } catch (Exception e) {
+            Utils.setObjectsAccessible(leftHandTrafficPolygons, rlCache);
+            leftHandTrafficPolygons.set(null, new ArrayList<Area>());
+            rlCache.set(null, new GeoPropertyIndex<>(new ConstantTrafficHand(true), 24));
+        } catch (ReflectiveOperationException e) {
             e.printStackTrace();
             fail("Impossible to mock left/right hand database: " + e.getMessage());
         }

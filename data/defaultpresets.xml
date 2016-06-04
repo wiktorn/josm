@@ -13,7 +13,7 @@
 
     <!-- Item chunks -->
     <chunk id="surface">
-        <combo key="surface" text="Surface" values="paved,unpaved,asphalt,concrete,metal,wood,paving_stones,cobblestone,gravel,pebblestone,compacted,grass_paver,grass,sand,ground,sett" />
+        <combo key="surface" text="Surface" values="paved,unpaved,asphalt,concrete,concrete:plates,concrete:lanes,paving_stones,sett,cobblestone,grass_paver,compacted,fine_gravel,gravel,pebblestone,ground,mud,sand,grass,wood,metal" />
     </chunk>
     <chunk id="surface_smoothness">
         <reference ref="surface" />
@@ -230,6 +230,8 @@
         <text key="website" text="Website" />
     </chunk>
     <chunk id="route_hikebike_optionals">
+        <text key="ref" text="Reference" />
+        <text key="operator" text="Operator" />
         <text key="distance" text="Distance (km)"/>
         <text key="ascent" text="Ascent (m)"/>
         <text key="descent" text="Descent (m)"/>
@@ -1304,6 +1306,7 @@
             <combo key="crossing" text="Pedestrian crossing type" values="uncontrolled,traffic_signals,island,unmarked,no" />
             <combo key="crossing_ref" text="Crossing type name (UK)" values="zebra,pelican,toucan,puffin,pegasus,tiger" values_searchable="true" />
             <combo key="supervised" text="Crossing attendant" delimiter="|" values="yes|no|06:00-20:00|Mo-Fr 09:00-18:00,Sa 08:00-14:00|May-Sep 09:30-12:30,14:15-19:30" />
+            <combo key="tactile_paving" text="Tactile Paving" values="yes,no,incorrect" />
             <check key="bicycle" text="Cross by bicycle" />
             <check key="horse" text="Cross on horseback" />
             <label text="In case of traffic signals:" />
@@ -1748,6 +1751,7 @@
             <key key="barrier" value="kerb" />
             <reference ref="optional_height" />
             <reference ref="wheelchair" />
+            <combo key="tactile_paving" text="Tactile paving" values="yes,no,incorrect" />
         </item> <!-- Kerb -->
         <separator/> <!-- *** Access *** -->
         <item name="Entrance (Barrier Opening)" icon="styles/standard/vehicle/entrance.png" type="node" preset_name_label="true">
@@ -3173,6 +3177,7 @@
                 <text key="uic_name" text="UIC name" />
                 <text key="operator" text="Operator" />
                 <text key="network" text="Network" />
+                <combo key="tactile_paving" text="Tactile Paving" values="yes,no,incorrect" />
             </optional>
             <check key="bus" text="Bus" />
             <check key="highway" value_on="bus_stop" value_off="" text="Bus stop (legacy)" />
@@ -3199,6 +3204,7 @@
             <check key="bin" text="Waste Basket/Trash Can" />
             <check key="covered" text="Covered" />
             <reference ref="wheelchair" />
+            <combo key="tactile_paving" text="Tactile Paving" values="yes,no,incorrect" />
             <optional>
                 <text key="ref" text="Reference" />
                 <text key="uic_ref" text="UIC reference" />
@@ -3381,6 +3387,7 @@
             <text key="ref" text="Reference (track number)" />
             <text key="width" text="Width (meters)" />
             <check key="area" text="Area" />
+            <combo key="tactile_paving" text="Tactile Paving" values="yes,no,incorrect" />
         </item> <!-- Bus Platform -->
     </group> <!-- Public Transport -->
     <item name="Taxi" icon="presets/taxi.png" type="node,closedway,multipolygon" preset_name_label="true">
@@ -5458,6 +5465,7 @@
             <key key="leisure" value="track" />
             <text key="name" text="Name" />
             <combo key="sport" text="Sport" values="athletics,cycling,dog_racing,equestrian,horse_racing,running,roller_skating,ice_skating" values_context="sport" />
+            <combo key="surface" text="Surface" values="artificial_turf,asphalt,clay,concrete,decoturf,grass,sand,tartan,ground" />
         </item> <!-- Racetrack -->
         <group name="Golf" icon="styles/standard/sport/golf/golf.svg">
                 <item name="Golf Course" icon="styles/standard/sport/golf/golf.svg" type="node,closedway,multipolygon" preset_name_label="true">
@@ -9849,8 +9857,8 @@
                 <space/>
                 <key key="type" value="route"/>
                 <key key="route" value="bicycle"/>
-                <combo key="network" text="Network" values="icn,ncn,rcn,lcn" match="keyvalue!" />
-                <reference ref="name_ref_operator"/>
+                <text key="name" text="Name" />
+                <combo key="network" text="Network" values="icn,ncn,rcn,lcn" />
                 <optional>
                     <reference ref="route_hikebike_optionals" />
                 </optional>
@@ -9873,7 +9881,7 @@
                 <space/>
                 <key key="type" value="route"/>
                 <key key="route" value="mtb"/>
-                <reference ref="name_ref_operator"/>
+                <text key="name" text="Name" />
                 <optional>
                     <reference ref="route_hikebike_optionals" />
                 </optional>
@@ -9896,8 +9904,8 @@
                 <space/>
                 <key key="type" value="route"/>
                 <key key="route" value="hiking"/>
-                <combo key="network" text="Network" values="iwn,nwn,rwn,lwn" match="keyvalue!" />
-                <reference ref="name_ref_operator"/>
+                <text key="name" text="Name" />
+                <combo key="network" text="Network" values="iwn,nwn,rwn,lwn" />
                 <optional>
                     <reference ref="route_hikebike_optionals" />
                 </optional>
@@ -9912,8 +9920,8 @@
                 <space/>
                 <key key="type" value="route"/>
                 <key key="route" value="foot"/>
-                <combo key="network" text="Network" values="rwn,lwn" match="keyvalue!" />
-                <reference ref="name_ref_operator"/>
+                <text key="name" text="Name" />
+                <combo key="network" text="Network" values="rwn,lwn" />
                 <optional>
                     <reference ref="route_hikebike_optionals" />
                 </optional>
@@ -9928,8 +9936,8 @@
                 <space/>
                 <key key="type" value="route"/>
                 <key key="route" value="horse"/>
-                <combo key="network" text="Network" values="ihn,nhn,rhn,lhn" match="keyvalue!" />
-                <reference ref="name_ref_operator"/>
+                <text key="name" text="Name" />
+                <combo key="network" text="Network" values="ihn,nhn,rhn,lhn" />
                 <optional>
                     <reference ref="route_hikebike_optionals" />
                 </optional>
@@ -9946,8 +9954,8 @@
                 <space/>
                 <key key="type" value="route"/>
                 <key key="route" value="piste"/>
-                <combo key="piste:type" text="Piste type" values="downhill,nordic,skitour,snow_park" match="keyvalue!" />
-                <reference ref="name_ref_operator"/>
+                <text key="name" text="Name" />
+                <combo key="piste:type" text="Piste type" values="downhill,nordic,skitour,snow_park" />
                 <optional>
                     <reference ref="route_hikebike_optionals" />
                 </optional>
@@ -9966,9 +9974,9 @@
                   de.href="http://wiki.openstreetmap.org/wiki/DE:Tag:route=ski" />
                 <space/>
                 <key key="type" value="route"/>
-                <key key="route" value="piste"/>
-                <combo key="piste:type" text="Piste type" values="nordic,alpine" match="keyvalue!" />
-                <reference ref="name_ref_operator"/>
+                <key key="route" value="ski"/>
+                <text key="name" text="Name" />
+                <combo key="piste:type" text="Piste type" values="nordic,alpine" />
                 <optional>
                     <reference ref="route_hikebike_optionals" />
                 </optional>
@@ -9989,8 +9997,9 @@
                 <space/>
                 <key key="type" value="route"/>
                 <key key="route" value="detour"/>
-                <reference ref="name_ref_operator"/>
+                <reference ref="name_ref"/>
                 <optional>
+                    <text key="operator" text="Operator" />
                     <text key="destination" text="Destination"/>
                     <text key="detour" text="Ref of the way this is a detour to"/>
                 </optional>

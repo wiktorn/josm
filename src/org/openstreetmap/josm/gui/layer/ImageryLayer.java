@@ -303,6 +303,11 @@ public abstract class ImageryLayer extends Layer {
             to.getGraphics().drawImage(image, 0, 0, null);
             return process(to);
         }
+
+        @Override
+        public String toString() {
+            return "GammaImageProcessor [gamma=" + gamma + ']';
+        }
     }
 
     /**
@@ -315,7 +320,7 @@ public abstract class ImageryLayer extends Layer {
      * @author Michael Zangl
      */
     public static class SharpenImageProcessor implements ImageProcessor {
-        private float sharpenLevel = 0;
+        private float sharpenLevel;
         private ConvolveOp op;
 
         private static float[] KERNEL_IDENTITY = new float[] {
@@ -386,7 +391,7 @@ public abstract class ImageryLayer extends Layer {
 
         @Override
         public String toString() {
-            return "SharpenImageProcessor [sharpenLevel=" + sharpenLevel + "]";
+            return "SharpenImageProcessor [sharpenLevel=" + sharpenLevel + ']';
         }
     }
 
@@ -396,7 +401,7 @@ public abstract class ImageryLayer extends Layer {
      * @author Michael Zangl
      */
     public static class ColorfulImageProcessor implements ImageProcessor {
-        private ColorfulFilter op = null;
+        private ColorfulFilter op;
         private double colorfulness = 1;
 
         /**
@@ -436,7 +441,7 @@ public abstract class ImageryLayer extends Layer {
 
         @Override
         public String toString() {
-            return "ColorfulImageProcessor [colorfulness=" + colorfulness + "]";
+            return "ColorfulImageProcessor [colorfulness=" + colorfulness + ']';
         }
     }
 
@@ -469,7 +474,7 @@ public abstract class ImageryLayer extends Layer {
 
             int type = src.getType();
             if (type != dest.getType()) {
-                Main.trace("Cannot apply color filter: Src / Dest differ in type (" + type + "/" + dest.getType() + ")");
+                Main.trace("Cannot apply color filter: Src / Dest differ in type (" + type + '/' + dest.getType() + ')');
                 return src;
             }
             int redOffset, greenOffset, blueOffset, alphaOffset = 0;
@@ -514,7 +519,7 @@ public abstract class ImageryLayer extends Layer {
                 int r = srcPixels[i + redOffset] & 0xff;
                 int g = srcPixels[i + greenOffset] & 0xff;
                 int b = srcPixels[i + blueOffset] & 0xff;
-                float luminosity = r * .21f + g * .72f + b * .07f;
+                double luminosity = r * .21d + g * .72d + b * .07d;
                 destPixels[i + redOffset] = mix(r, luminosity);
                 destPixels[i + greenOffset] = mix(g, luminosity);
                 destPixels[i + blueOffset] = mix(b, luminosity);
@@ -524,7 +529,7 @@ public abstract class ImageryLayer extends Layer {
             }
         }
 
-        private byte mix(int color, float luminosity) {
+        private byte mix(int color, double luminosity) {
             int val = (int) (colorfulness * color +  (1 - colorfulness) * luminosity);
             if (val < 0) {
                 return 0;

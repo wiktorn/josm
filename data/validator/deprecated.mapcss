@@ -375,14 +375,16 @@
   fixAdd: "park_ride=yes";
 }
 
-/* see #10661, #10837, #11737 */
+/* see #10661, #10837, #11737, #12771 */
 *[traffic_calming=yes],
 *[access=restricted],
 *[barrier=yes],
 *[aerialway=yes][!public_transport],
 *[amenity=yes],
+*[leisure=yes],
 *[shop="*"],
 *[craft=yes],
+*[service=yes],
 *[place=yes] {
   throwWarning: tr("{0}={1} is unspecific. Please replace ''{1}'' by a specific value.", "{0.key}", "{0.value}");
 }
@@ -832,4 +834,18 @@ way[barrier=wall][type=noise_barrier][wall][wall!=noise_barrier] {
   throwWarning: tr("{0} is deprecated", "{0.tag}");
   suggestAlternative: "vending=newspapers";
   fixAdd: "vending=newspapers";
+}
+
+/* #12771 */
+*[service=drive_through] {
+  throwWarning: tr("{0} is deprecated", "{0.tag}");
+  suggestAlternative: "service=drive-through";
+  fixAdd: "service=drive-through";
+}
+
+/* #12771 */
+way[highway=service][service][service !~ /^(alley|drive-through|drive_through|driveway|emergency_access|parking_aisle|rest_area|yes)$/], /* drive_through and yes have special warnings */
+way[railway=rail][service][service !~ /^(crossover|siding|spur|yard)$/],
+way[waterway=canal][service][service !~ /^(irrigation|transportation|water_power)$/] {
+  throwWarning: tr("The key {0} has an uncommon value.", "{1.key}");
 }

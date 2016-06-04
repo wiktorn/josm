@@ -95,7 +95,7 @@ public class TaggingPreset extends AbstractAction implements MapView.LayerChange
     /**
      * The types as preparsed collection.
      */
-    public Set<TaggingPresetType> types;
+    public transient Set<TaggingPresetType> types;
     public final transient List<TaggingPresetItem> data = new LinkedList<>();
     public transient Roles roles;
     public transient TemplateEntry nameTemplate;
@@ -529,7 +529,7 @@ public class TaggingPreset extends AbstractAction implements MapView.LayerChange
 
     @Override
     public String toString() {
-        return (types == null ? "" : types) + " " + name;
+        return (types == null ? "" : types.toString()) + ' ' + name;
     }
 
     public boolean typeMatches(Collection<TaggingPresetType> t) {

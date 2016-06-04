@@ -98,7 +98,7 @@ public class AddTagsDialog extends ExtendedDialog {
         }
 
         private String getToolTip() {
-            StringBuilder sb = new StringBuilder();
+            StringBuilder sb = new StringBuilder(64);
             sb.append("<html>")
               .append(tr("Old values of"))
               .append(" <b>")
@@ -271,10 +271,8 @@ public class AddTagsDialog extends ExtendedDialog {
 
                 @Override
                 public void run() {
-                    String[] tags = null;
-                    tags = Utils.decodeUrl(args.get("addtags")).split("\\|");
                     Set<String> tagSet = new HashSet<>();
-                    for (String tag : tags) {
+                    for (String tag : Utils.decodeUrl(args.get("addtags")).split("\\|")) {
                         if (!tag.trim().isEmpty() && tag.contains("=")) {
                             tagSet.add(tag.trim());
                         }

@@ -720,7 +720,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
 
         gbc = GBC.eol();
         gbc.gridx = 0;
-        gbc.gridy = y++;
+        gbc.gridy = y;
         panelTf.add(cbShowThumbs, gbc);
 
         final JPanel statusBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
@@ -911,7 +911,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
                     lblMinutes.setText(tr("Minutes: {0}", sldMinutes.getValue()));
                     lblSeconds.setText(tr("Seconds: {0}", Offset.milliseconds(100L * sldSeconds.getValue()).formatOffset()));
 
-                    delta = Offset.milliseconds(100 * sldSeconds.getValue()
+                    delta = Offset.milliseconds(100L * sldSeconds.getValue()
                             + 1000L * 60 * sldMinutes.getValue()
                             + 1000L * 60 * 60 * 24 * dayOffset);
 
@@ -1248,7 +1248,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
             return lstSize-1;
 
         // The searched index is somewhere in the middle, do a binary search from the beginning
-        int curIndex = 0;
+        int curIndex;
         int startIndex = 0;
         int endIndex = lstSize-1;
         while (endIndex - startIndex > 1) {

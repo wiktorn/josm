@@ -718,7 +718,7 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
         Collections.sort(sortedRelations, new Comparator<Relation>() {
             @Override
             public int compare(Relation o1, Relation o2) {
-                int comp = Boolean.valueOf(o1.isDisabledAndHidden()).compareTo(o2.isDisabledAndHidden());
+                int comp = Boolean.compare(o1.isDisabledAndHidden(), o2.isDisabledAndHidden());
                 return comp != 0 ? comp : DefaultNameFormatter.getInstance().getRelationComparator().compare(o1, o2);
             }
         });
@@ -1229,7 +1229,7 @@ implements SelectionChangedListener, MapView.EditLayerChangeListener, DataSetLis
 
     class TaginfoAction extends JosmAction {
 
-        final StringProperty TAGINFO_URL_PROP = new StringProperty("taginfo.url", "https://taginfo.openstreetmap.org/");
+        final transient StringProperty TAGINFO_URL_PROP = new StringProperty("taginfo.url", "https://taginfo.openstreetmap.org/");
 
         TaginfoAction() {
             super(tr("Go to Taginfo"), "dialogs/taginfo", tr("Launch browser with Taginfo statistics for selected object"), null, false);

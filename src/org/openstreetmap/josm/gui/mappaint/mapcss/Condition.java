@@ -118,7 +118,7 @@ public abstract class Condition {
         /** The value needs to contain the reference string. */
         CONTAINS;
 
-        protected static final Set<Op> NEGATED_OPS = EnumSet.of(NEQ, NREGEX);
+        static final Set<Op> NEGATED_OPS = EnumSet.of(NEQ, NREGEX);
 
         /**
          * Evaluates a value against a reference string.
@@ -742,6 +742,10 @@ public abstract class Condition {
 
         private final Expression e;
 
+        /**
+         * Constructs a new {@code ExpressionFactory}
+         * @param e expression
+         */
         public ExpressionCondition(Expression e) {
             this.e = e;
         }
@@ -754,7 +758,7 @@ public abstract class Condition {
 
         @Override
         public String toString() {
-            return "[" + e + ']';
+            return '[' + e.toString() + ']';
         }
     }
 }

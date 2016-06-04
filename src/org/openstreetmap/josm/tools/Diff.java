@@ -103,15 +103,6 @@ public class Diff {
      sibling file. */
     private int equivMax = 1;
 
-    /** When set to true, the comparison uses a heuristic to speed it up.
-    With this heuristic, for files with a constant small density
-    of changes, the algorithm is linear in the file size.  */
-    public boolean heuristic;
-
-    /** When set to true, the algorithm returns a guarranteed minimal
-      set of changes.  This makes things slower, sometimes much slower. */
-    public boolean noDiscards;
-
     private int[] xvec, yvec; /* Vectors being compared. */
     private int[] fdiag;      /* Vector, indexed by diagonal, containing
                    the X coordinate of the point furthest
@@ -124,8 +115,6 @@ public class Diff {
     private int fdiagoff, bdiagoff;
     private final FileData[] filevec;
     private int cost;
-    /** Snakes bigger than this are considered "big". */
-    private static final int SNAKE_LIMIT = 20;
 
     /**
      * Find the midpoint of the shortest edit script for a specified
@@ -176,7 +165,6 @@ public class Diff {
 
         for (int c = 1;; ++c) {
             int d;          /* Active diagonal. */
-            boolean bigSnake = false;
 
             /* Extend the top-down search by an edit step in each diagonal. */
             if (fmin > dmin) {
@@ -190,20 +178,16 @@ public class Diff {
                 --fmax;
             }
             for (d = fmax; d >= fmin; d -= 2) {
-                int x, y, oldx, tlo = fd[fdiagoff + d - 1], thi = fd[fdiagoff + d + 1];
+                int x, y, tlo = fd[fdiagoff + d - 1], thi = fd[fdiagoff + d + 1];
 
                 if (tlo >= thi) {
                     x = tlo + 1;
                 } else {
                     x = thi;
                 }
-                oldx = x;
                 y = x - d;
                 while (x < xlim && y < ylim && xv[x] == yv[y]) {
                     ++x; ++y;
-                }
-                if (x - oldx > SNAKE_LIMIT) {
-                    bigSnake = true;
                 }
                 fd[fdiagoff + d] = x;
                 if (odd && bmin <= d && d <= bmax && bd[bdiagoff + d] <= fd[fdiagoff + d]) {
@@ -224,95 +208,21 @@ public class Diff {
                 --bmax;
             }
             for (d = bmax; d >= bmin; d -= 2) {
-                int x, y, oldx, tlo = bd[bdiagoff + d - 1], thi = bd[bdiagoff + d + 1];
+                int x, y, tlo = bd[bdiagoff + d - 1], thi = bd[bdiagoff + d + 1];
 
                 if (tlo < thi) {
                     x = tlo;
                 } else {
                     x = thi - 1;
                 }
-                oldx = x;
                 y = x - d;
                 while (x > xoff && y > yoff && xv[x - 1] == yv[y - 1]) {
                     --x; --y;
-                }
-                if (oldx - x > SNAKE_LIMIT) {
-                    bigSnake = true;
                 }
                 bd[bdiagoff + d] = x;
                 if (!odd && fmin <= d && d <= fmax && bd[bdiagoff + d] <= fd[fdiagoff + d]) {
                     cost = 2 * c;
                     return d;
-                }
-            }
-
-            /* Heuristic: check occasionally for a diagonal that has made
-       lots of progress compared with the edit distance.
-       If we have any such, find the one that has made the most
-       progress and return it as if it had succeeded.
-
-       With this heuristic, for files with a constant small density
-       of changes, the algorithm is linear in the file size.  */
-
-            if (c > 200 && bigSnake && heuristic) {
-                int best = 0;
-                int bestpos = -1;
-
-                for (d = fmax; d >= fmin; d -= 2) {
-                    int dd = d - fmid;
-                    int x = fd[fdiagoff + d];
-                    int y = x - d;
-                    int v = (x - xoff) * 2 - dd;
-                    if (v > 12 * (c + (dd < 0 ? -dd : dd))) {
-                        if (v > best
-                                && xoff + SNAKE_LIMIT <= x && x < xlim
-                                && yoff + SNAKE_LIMIT <= y && y < ylim) {
-                            /* We have a good enough best diagonal.
-                               now insist that it end with a significant snake.  */
-                            int k;
-
-                            for (k = 1; xvec[x - k] == yvec[y - k]; k++) {
-                                if (k == SNAKE_LIMIT) {
-                                    best = v;
-                                    bestpos = d;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-                if (best > 0) {
-                    cost = 2 * c - 1;
-                    return bestpos;
-                }
-
-                best = 0;
-                for (d = bmax; d >= bmin; d -= 2) {
-                    int dd = d - bmid;
-                    int x = bd[bdiagoff + d];
-                    int y = x - d;
-                    int v = (xlim - x) * 2 + dd;
-                    if (v > 12 * (c + (dd < 0 ? -dd : dd))) {
-                        if (v > best
-                                && xoff < x && x <= xlim - SNAKE_LIMIT
-                                && yoff < y && y <= ylim - SNAKE_LIMIT) {
-                            /* We have a good enough best diagonal.
-                               now insist that it end with a significant snake.  */
-                            int k;
-
-                            for (k = 0; xvec[x + k] == yvec[y + k]; k++) {
-                                if (k == SNAKE_LIMIT) {
-                                    best = v;
-                                    bestpos = d;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-                if (best > 0) {
-                    cost = 2 * c - 1;
-                    return bestpos;
                 }
             }
         }
@@ -385,14 +295,10 @@ public class Diff {
         filevec[1].discard_confusing_lines(filevec[0]);
     }
 
-    private boolean inhibit;
-
     /**
      * Adjust inserts/deletes of blank lines to join changes as much as possible.
      */
     private void shift_boundaries() {
-        if (inhibit)
-            return;
         filevec[0].shift_boundaries(filevec[1]);
         filevec[1].shift_boundaries(filevec[0]);
     }
@@ -808,7 +714,7 @@ public class Diff {
             final int end = bufferedLines;
             int j = 0;
             for (int i = 0; i < end; ++i) {
-                if (noDiscards || discards[i] == 0) {
+                if (discards[i] == 0) {
                     undiscarded[j] = equivs[i];
                     realindexes[j++] = i;
                 } else {

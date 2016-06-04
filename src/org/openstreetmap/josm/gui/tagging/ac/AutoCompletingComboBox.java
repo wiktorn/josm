@@ -39,6 +39,8 @@ public class AutoCompletingComboBox extends JosmComboBox<AutoCompletionListItem>
     private int maxTextLength = -1;
     private boolean useFixedLocale;
 
+    private final transient InputContext privateInputContext = InputContext.getInstance();
+
     /**
      * Auto-complete a JosmComboBox.
      * <br>
@@ -98,7 +100,7 @@ public class AutoCompletingComboBox extends JosmComboBox<AutoCompletionListItem>
             String curText = getText(0, size);
 
             // item for lookup and selection
-            Object item = null;
+            Object item;
             // if the text is a number we don't autocomplete
             if (Main.pref.getBoolean("autocomplete.dont_complete_numbers", true)) {
                 try {
@@ -333,8 +335,6 @@ public class AutoCompletingComboBox extends JosmComboBox<AutoCompletionListItem>
             }
         }
     }
-
-    private final InputContext privateInputContext = InputContext.getInstance();
 
     @Override
     public InputContext getInputContext() {

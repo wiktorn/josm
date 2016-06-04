@@ -86,7 +86,7 @@ public class ProjectionPreference implements SubPreferenceSetting {
     /**
      * Lambert conic conform 4 zones using the French geodetic system NTF.
      *
-     * This newer version uses the grid translation NTF<->RGF93 provided by IGN for a submillimetric accuracy.
+     * This newer version uses the grid translation NTF&lt;-&gt;RGF93 provided by IGN for a submillimetric accuracy.
      * (RGF93 is the French geodetic system similar to WGS84 but not mathematically equal)
      *
      * Source: http://geodesie.ign.fr/contenu/fichiers/Changement_systeme_geodesique.pdf
@@ -299,8 +299,8 @@ public class ProjectionPreference implements SubPreferenceSetting {
     private JPanel projSubPrefPanel;
     private final JPanel projSubPrefPanelWrapper = new JPanel(new GridBagLayout());
 
-    private JLabel projectionCodeLabel = new JLabel(tr("Projection code"));
-    private Component projectionCodeGlue = GBC.glue(5, 0);
+    private final JLabel projectionCodeLabel = new JLabel(tr("Projection code"));
+    private final Component projectionCodeGlue = GBC.glue(5, 0);
     private final JLabel projectionCode = new JLabel();
     private final JLabel projectionNameLabel = new JLabel(tr("Projection name"));
     private final Component projectionNameGlue = GBC.glue(5, 0);

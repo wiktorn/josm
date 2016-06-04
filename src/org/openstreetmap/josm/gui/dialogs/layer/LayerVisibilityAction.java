@@ -38,13 +38,13 @@ import org.openstreetmap.josm.tools.Utils;
  * @author Michael Zangl
  */
 public final class LayerVisibilityAction extends AbstractAction implements IEnabledStateUpdating, LayerAction {
-    protected static final int SLIDER_STEPS = 100;
+    private static final int SLIDER_STEPS = 100;
     private static final double MAX_SHARPNESS_FACTOR = 2;
     private static final double MAX_COLORFUL_FACTOR = 2;
     private final LayerListModel model;
     private final JPopupMenu popup;
     private SideButton sideButton;
-    private JCheckBox visibilityCheckbox;
+    private final JCheckBox visibilityCheckbox;
     final OpacitySlider opacitySlider = new OpacitySlider();
     private final ArrayList<FilterSlider<?>> sliders = new ArrayList<>();
 
@@ -298,7 +298,7 @@ public final class LayerVisibilityAction extends AbstractAction implements IEnab
 
         @Override
         public String toString() {
-            return "OpacitySlider [getRealValue()=" + getRealValue() + "]";
+            return "OpacitySlider [getRealValue()=" + getRealValue() + ']';
         }
     }
 

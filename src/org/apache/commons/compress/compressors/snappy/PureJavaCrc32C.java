@@ -32,14 +32,14 @@ import java.util.zip.Checksum;
  * @NotThreadSafe
  * @since 1.7
  */
-class PureJavaCrc32C implements Checksum {
+final class PureJavaCrc32C implements Checksum {
 
   /** the current CRC value, bit-flipped */
   private int crc;
 
   /** Create a new PureJavaCrc32 object. */
   public PureJavaCrc32C() {
-    reset();
+    reset(); // non-private, but the class is now final
   }
 
   @Override
@@ -49,6 +49,7 @@ class PureJavaCrc32C implements Checksum {
   }
 
   @Override
+  // called by ctor but the class is final so this is safe
   public void reset() {
     crc = 0xffffffff;
   }
