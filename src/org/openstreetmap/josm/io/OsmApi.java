@@ -89,9 +89,13 @@ public class OsmApi extends OsmConnection {
         OsmApi api = instances.get(serverUrl);
         if (api == null) {
             api = new OsmApi(serverUrl);
-            instances.put(serverUrl, api);
+            cacheInstance(api);
         }
         return api;
+    }
+
+    protected static void cacheInstance(OsmApi api) {
+        instances.put(api.getServerUrl(), api);
     }
 
     private static String getServerUrlFromPref() {
@@ -128,7 +132,7 @@ public class OsmApi extends OsmConnection {
      * @param serverUrl the server URL. Must not be null
      * @throws IllegalArgumentException if serverUrl is null
      */
-    protected OsmApi(String serverUrl)  {
+    protected OsmApi(String serverUrl) {
         CheckParameterUtil.ensureParameterNotNull(serverUrl, "serverUrl");
         this.serverUrl = serverUrl;
     }
@@ -248,7 +252,7 @@ public class OsmApi extends OsmConnection {
              * to load the layers in the first place because they would have
              * been disabled! */
             if (Main.isDisplayingMapView()) {
-                for (Layer l : Main.map.mapView.getLayersOfType(ImageryLayer.class)) {
+                for (Layer l : Main.getLayerManager().getLayersOfType(ImageryLayer.class)) {
                     if (((ImageryLayer) l).getInfo().isBlacklisted()) {
                         Main.info(tr("Removed layer {0} because it is not allowed by the configured API.", l.getName()));
                         Main.main.removeLayer(l);

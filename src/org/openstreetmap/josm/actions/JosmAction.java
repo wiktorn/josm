@@ -15,12 +15,15 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.SelectionChangedListener;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
-import org.openstreetmap.josm.gui.MapView;
-import org.openstreetmap.josm.gui.MapView.LayerChangeListener;
-import org.openstreetmap.josm.gui.layer.Layer;
+import org.openstreetmap.josm.gui.layer.LayerManager.LayerAddEvent;
+import org.openstreetmap.josm.gui.layer.LayerManager.LayerChangeListener;
+import org.openstreetmap.josm.gui.layer.LayerManager.LayerOrderChangeEvent;
+import org.openstreetmap.josm.gui.layer.LayerManager.LayerRemoveEvent;
+import org.openstreetmap.josm.gui.layer.MainLayerManager;
+import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeEvent;
+import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeListener;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.progress.PleaseWaitProgressMonitor;
-import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.tools.Destroyable;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Shortcut;
@@ -28,7 +31,10 @@ import org.openstreetmap.josm.tools.Shortcut;
 /**
  * Base class helper for all Actions in JOSM. Just to make the life easier.
  *
- * A JosmAction is a {@link LayerChangeListener} and a {@link SelectionChangedListener}. Upon
+ * This action allows you to set up an icon, a tooltip text, a globally registered shortcut, register it in the main toolbar and set up
+ * layer/selection listeners that call {@link #updateEnabledState()} whenever the global context is changed.
+ *
+ * A JosmAction can register a {@link LayerChangeListener} and a {@link SelectionChangedListener}. Upon
  * a layer change event or a selection change event it invokes {@link #updateEnabledState()}.
  * Subclasses can override {@link #updateEnabledState()} in order to update the {@link #isEnabled()}-state
  * of a JosmAction depending on the {@link #getCurrentDataSet()} and the current layers
@@ -44,21 +50,8 @@ public abstract class JosmAction extends AbstractAction implements Destroyable {
 
     protected transient Shortcut sc;
     private transient LayerChangeAdapter layerChangeAdapter;
+    private transient ActiveLayerChangeAdapter activeLayerChangeAdapter;
     private transient SelectionChangeAdapter selectionChangeAdapter;
-
-    /**
-     * Returns the shortcut for this action.
-     * @return the shortcut for this action, or "No shortcut" if none is defined
-     */
-    public Shortcut getShortcut() {
-        if (sc == null) {
-            sc = Shortcut.registerShortcut("core:none", tr("No Shortcut"), KeyEvent.CHAR_UNDEFINED, Shortcut.NONE);
-            // as this shortcut is shared by all action that don't want to have a shortcut,
-            // we shouldn't allow the user to change it...
-            // this is handled by special name "core:none"
-        }
-        return sc;
-    }
 
     /**
      * Constructs a {@code JosmAction}.
@@ -79,7 +72,7 @@ public abstract class JosmAction extends AbstractAction implements Destroyable {
             String toolbarId, boolean installAdapters) {
         super(name);
         if (icon != null)
-            icon.getResource().getImageIcon(this);
+            icon.getResource().attachImageIcon(this);
         setHelpId();
         sc = shortcut;
         if (sc != null) {
@@ -177,14 +170,59 @@ public abstract class JosmAction extends AbstractAction implements Destroyable {
             installAdapters();
         }
     }
+    
+    /**
+     * Installs the listeners to this action.
+     * <p>
+     * This should either never be called or only called in the constructor of this action.
+     * <p>
+     * All registered adapters should be removed in {@link #destroy()}
+     */
+    protected void installAdapters() {
+        // make this action listen to layer change and selection change events
+        if (listenToLayerChange()) {
+            layerChangeAdapter = new LayerChangeAdapter();
+            activeLayerChangeAdapter = new ActiveLayerChangeAdapter();
+            getLayerManager().addLayerChangeListener(layerChangeAdapter);
+            getLayerManager().addActiveLayerChangeListener(activeLayerChangeAdapter);
+        }
+        if (listenToSelectionChange()) {
+            selectionChangeAdapter = new SelectionChangeAdapter();
+            DataSet.addSelectionListener(selectionChangeAdapter);
+        }
+        initEnabledState();
+    }
+
+    /**
+     * Overwrite this if {@link #updateEnabledState()} should be called when the active / availabe layers change. Default is true.
+     * @return <code>true</code> if a {@link LayerChangeListener} and a {@link ActiveLayerChangeListener} should be registered.
+     * @since 10353
+     */
+    protected boolean listenToLayerChange() {
+        return true;
+    }
+
+    /**
+     * Overwrite this if {@link #updateEnabledState()} should be called when the selection changed. Default is true.
+     * @return <code>true</code> if a {@link SelectionChangedListener} should be registered.
+     * @since 10353
+     */
+    protected boolean listenToSelectionChange() {
+        return true;
+    }
 
     @Override
     public void destroy() {
         if (sc != null) {
             Main.unregisterActionShortcut(this);
         }
-        MapView.removeLayerChangeListener(layerChangeAdapter);
-        DataSet.removeSelectionListener(selectionChangeAdapter);
+        if (layerChangeAdapter != null) {
+            getLayerManager().removeLayerChangeListener(layerChangeAdapter);
+            getLayerManager().removeActiveLayerChangeListener(activeLayerChangeAdapter);
+        }
+        if (selectionChangeAdapter != null) {
+            DataSet.removeSelectionListener(selectionChangeAdapter);
+        }
     }
 
     private void setHelpId() {
@@ -193,6 +231,20 @@ public abstract class JosmAction extends AbstractAction implements Destroyable {
             helpId = helpId.substring(0, helpId.length()-6);
         }
         putValue("help", helpId);
+    }
+
+    /**
+     * Returns the shortcut for this action.
+     * @return the shortcut for this action, or "No shortcut" if none is defined
+     */
+    public Shortcut getShortcut() {
+        if (sc == null) {
+            sc = Shortcut.registerShortcut("core:none", tr("No Shortcut"), KeyEvent.CHAR_UNDEFINED, Shortcut.NONE);
+            // as this shortcut is shared by all action that don't want to have a shortcut,
+            // we shouldn't allow the user to change it...
+            // this is handled by special name "core:none"
+        }
+        return sc;
     }
 
     /**
@@ -206,31 +258,37 @@ public abstract class JosmAction extends AbstractAction implements Destroyable {
     }
 
     /**
+     * Gets the layer manager used for this action. Defaults to the main layer manager but you can overwrite this.
+     * <p>
+     * The layer manager must be available when {@link #installAdapters()} is called and must not change.
+     *
+     * @return The layer manager.
+     * @since 10353
+     */
+    public MainLayerManager getLayerManager() {
+        return Main.getLayerManager();
+    }
+
+    /**
      * Replies the current edit layer
      *
      * @return the current edit layer. null, if no edit layer exists
+     * @deprecated Use {@link #getLayerManager()}.getEditLayer() instead. To be removed in end of 2016.
      */
+    @Deprecated
     public static OsmDataLayer getEditLayer() {
-        return Main.main != null ? Main.main.getEditLayer() : null;
+        return Main.getLayerManager().getEditLayer();
     }
 
     /**
      * Replies the current dataset.
      *
      * @return the current dataset. null, if no current dataset exists
+     * @deprecated Use {@link #getLayerManager()}.getEditDataSet() instead. To be removed in end of 2016.
      */
+    @Deprecated
     public static DataSet getCurrentDataSet() {
-        return Main.main != null ? Main.main.getCurrentDataSet() : null;
-    }
-
-    protected void installAdapters() {
-        // make this action listen to layer change and selection change events
-        //
-        layerChangeAdapter = new LayerChangeAdapter();
-        selectionChangeAdapter = new SelectionChangeAdapter();
-        MapView.addLayerChangeListener(layerChangeAdapter);
-        DataSet.addSelectionListener(selectionChangeAdapter);
-        initEnabledState();
+        return Main.getLayerManager().getEditDataSet();
     }
 
     protected static void waitFuture(final Future<?> future, final PleaseWaitProgressMonitor monitor) {
@@ -272,6 +330,7 @@ public abstract class JosmAction extends AbstractAction implements Destroyable {
      *
      * @see #updateEnabledState(Collection)
      * @see #initEnabledState()
+     * @see #listenToLayerChange()
      */
     protected void updateEnabledState() {
     }
@@ -285,46 +344,63 @@ public abstract class JosmAction extends AbstractAction implements Destroyable {
      *
      * @see #updateEnabledState()
      * @see #initEnabledState()
+     * @see #listenToSelectionChange()
      */
     protected void updateEnabledState(Collection<? extends OsmPrimitive> selection) {
     }
 
     /**
-     * Adapter for layer change events
-     *
+     * Adapter for layer change events. Runs updateEnabledState() whenever the active layer changed.
      */
-    protected class LayerChangeAdapter implements MapView.LayerChangeListener {
-        private void updateEnabledStateInEDT() {
-            GuiHelper.runInEDT(new Runnable() {
-                @Override public void run() {
-                    updateEnabledState();
-                }
-            });
+    protected class LayerChangeAdapter implements LayerChangeListener {
+        @Override
+        public void layerAdded(LayerAddEvent e) {
+            updateEnabledState();
         }
 
         @Override
-        public void activeLayerChange(Layer oldLayer, Layer newLayer) {
-            updateEnabledStateInEDT();
+        public void layerRemoving(LayerRemoveEvent e) {
+            updateEnabledState();
         }
 
         @Override
-        public void layerAdded(Layer newLayer) {
-            updateEnabledStateInEDT();
+        public void layerOrderChanged(LayerOrderChangeEvent e) {
+            updateEnabledState();
         }
 
         @Override
-        public void layerRemoved(Layer oldLayer) {
-            updateEnabledStateInEDT();
+        public String toString() {
+            return "LayerChangeAdapter [" + JosmAction.this.toString() + ']';
         }
     }
 
     /**
-     * Adapter for selection change events
+     * Adapter for layer change events. Runs updateEnabledState() whenever the active layer changed.
+     */
+    protected class ActiveLayerChangeAdapter implements ActiveLayerChangeListener {
+        @Override
+        public void activeOrEditLayerChanged(ActiveLayerChangeEvent e) {
+            updateEnabledState();
+        }
+
+        @Override
+        public String toString() {
+            return "ActiveLayerChangeAdapter [" + JosmAction.this.toString() + ']';
+        }
+    }
+
+    /**
+     * Adapter for selection change events. Runs updateEnabledState() whenever the selection changed.
      */
     protected class SelectionChangeAdapter implements SelectionChangedListener {
         @Override
         public void selectionChanged(Collection<? extends OsmPrimitive> newSelection) {
             updateEnabledState(newSelection);
+        }
+
+        @Override
+        public String toString() {
+            return "SelectionChangeAdapter [" + JosmAction.this.toString() + ']';
         }
     }
 }

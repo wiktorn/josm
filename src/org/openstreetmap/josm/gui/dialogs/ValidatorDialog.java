@@ -41,13 +41,12 @@ import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
 import org.openstreetmap.josm.data.validation.OsmValidator;
 import org.openstreetmap.josm.data.validation.TestError;
 import org.openstreetmap.josm.data.validation.ValidatorVisitor;
-import org.openstreetmap.josm.gui.MapView;
-import org.openstreetmap.josm.gui.MapView.LayerChangeListener;
 import org.openstreetmap.josm.gui.PleaseWaitRunnable;
 import org.openstreetmap.josm.gui.PopupMenuHandler;
 import org.openstreetmap.josm.gui.SideButton;
 import org.openstreetmap.josm.gui.dialogs.validator.ValidatorTreePanel;
-import org.openstreetmap.josm.gui.layer.Layer;
+import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeEvent;
+import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeListener;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.preferences.validator.ValidatorPreference;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
@@ -65,7 +64,7 @@ import org.xml.sax.SAXException;
  *
  * @author frsantos
  */
-public class ValidatorDialog extends ToggleDialog implements SelectionChangedListener, LayerChangeListener {
+public class ValidatorDialog extends ToggleDialog implements SelectionChangedListener, ActiveLayerChangeListener {
 
     /** The display tree */
     public ValidatorTreePanel tree;
@@ -120,7 +119,7 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
             {
                 putValue(NAME, tr("Lookup"));
                 putValue(SHORT_DESCRIPTION, tr("Looks up the selected primitives in the error list."));
-                putValue(SMALL_ICON, ImageProvider.get("dialogs", "search"));
+                new ImageProvider("dialogs", "search").getResource().attachImageIcon(this, true);
             }
 
             @Override
@@ -140,8 +139,8 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
         fixButton = new SideButton(new AbstractAction() {
             {
                 putValue(NAME, tr("Fix"));
-                putValue(SHORT_DESCRIPTION,  tr("Fix the selected issue."));
-                putValue(SMALL_ICON, ImageProvider.get("dialogs", "fix"));
+                putValue(SHORT_DESCRIPTION, tr("Fix the selected issue."));
+                new ImageProvider("dialogs", "fix").getResource().attachImageIcon(this, true);
             }
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -155,8 +154,8 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
             ignoreButton = new SideButton(new AbstractAction() {
                 {
                     putValue(NAME, tr("Ignore"));
-                    putValue(SHORT_DESCRIPTION,  tr("Ignore the selected issue next time."));
-                    putValue(SMALL_ICON, ImageProvider.get("dialogs", "fix"));
+                    putValue(SHORT_DESCRIPTION, tr("Ignore the selected issue next time."));
+                    new ImageProvider("dialogs", "fix").getResource().attachImageIcon(this, true);
                 }
                 @Override
                 public void actionPerformed(ActionEvent e) {
@@ -178,16 +177,12 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
         if (ds != null) {
             updateSelection(ds.getAllSelected());
         }
-        MapView.addLayerChangeListener(this);
-        Layer activeLayer = Main.map.mapView.getActiveLayer();
-        if (activeLayer != null) {
-            activeLayerChange(null, activeLayer);
-        }
+        Main.getLayerManager().addAndFireActiveLayerChangeListener(this);
     }
 
     @Override
     public void hideNotify() {
-        MapView.removeLayerChangeListener(this);
+        Main.getLayerManager().removeActiveLayerChangeListener(this);
         DataSet.removeSelectionListener(this);
     }
 
@@ -406,22 +401,12 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
     }
 
     @Override
-    public void activeLayerChange(Layer oldLayer, Layer newLayer) {
-        if (newLayer instanceof OsmDataLayer) {
-            linkedLayer = (OsmDataLayer) newLayer;
-            tree.setErrorList(linkedLayer.validationErrors);
-        }
-    }
-
-    @Override
-    public void layerAdded(Layer newLayer) {
-        // Do nothing
-    }
-
-    @Override
-    public void layerRemoved(Layer oldLayer) {
-        if (oldLayer == linkedLayer) {
+    public void activeOrEditLayerChanged(ActiveLayerChangeEvent e) {
+        OsmDataLayer editLayer = e.getSource().getEditLayer();
+        if (editLayer == null) {
             tree.setErrorList(new ArrayList<TestError>());
+        } else {
+            tree.setErrorList(editLayer.validationErrors);
         }
     }
 

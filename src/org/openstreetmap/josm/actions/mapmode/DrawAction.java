@@ -184,8 +184,8 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
             return false;
 
         // update selection to reflect which way being modified
-        DataSet currentDataSet = getCurrentDataSet();
-        if (getCurrentBaseNode() != null && currentDataSet != null && !currentDataSet.getSelected().isEmpty()) {
+        DataSet currentDataSet = getLayerManager().getEditDataSet();
+        if (getCurrentBaseNode() != null && currentDataSet != null && !currentDataSet.selectionEmpty()) {
             Way continueFrom = getWayForNode(getCurrentBaseNode());
             if (alt && continueFrom != null && (!getCurrentBaseNode().isSelected() || continueFrom.isSelected())) {
                 addRemoveSelection(currentDataSet, getCurrentBaseNode(), continueFrom);
@@ -218,7 +218,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
 
         // determine if selection is suitable to continue drawing. If it
         // isn't, set wayIsFinished to true to avoid superfluous repaints.
-        determineCurrentBaseNodeAndPreviousNode(getCurrentDataSet().getSelected());
+        determineCurrentBaseNodeAndPreviousNode(getLayerManager().getEditDataSet().getSelected());
         wayIsFinished = getCurrentBaseNode() == null;
 
         toleranceMultiplier = 0.01 * NavigatableComponent.PROP_SNAP_DISTANCE.get();
@@ -271,7 +271,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
         // when exiting we let everybody know about the currently selected
         // primitives
         //
-        DataSet ds = getCurrentDataSet();
+        DataSet ds = getLayerManager().getEditDataSet();
         if (ds != null) {
             ds.fireSelectionChanged();
         }
@@ -323,7 +323,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
     }
 
     private void tryAgain(MouseEvent e) {
-        getCurrentDataSet().setSelected();
+        getLayerManager().getEditDataSet().setSelected();
         mouseReleased(e);
     }
 
@@ -393,13 +393,13 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
         updateKeyModifiers(e);
         mousePos = e.getPoint();
 
-        DataSet ds = getCurrentDataSet();
+        DataSet ds = getLayerManager().getEditDataSet();
         Collection<OsmPrimitive> selection = new ArrayList<>(ds.getSelected());
 
         boolean newNode = false;
         Node n = Main.map.mapView.getNearestNode(mousePos, OsmPrimitive.isSelectablePredicate);
         if (ctrl) {
-            Iterator<Way> it = getCurrentDataSet().getSelectedWays().iterator();
+            Iterator<Way> it = ds.getSelectedWays().iterator();
             if (it.hasNext()) {
                 // ctrl-click on node of selected way = reuse node despite of ctrl
                 if (!it.next().containsNode(n)) n = null;
@@ -415,11 +415,11 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
                 // (this is just a convenience option so that people don't
                 // have to switch modes)
 
-                getCurrentDataSet().setSelected(n);
+                ds.setSelected(n);
                 // If we extend/continue an existing way, select it already now to make it obvious
                 Way continueFrom = getWayForNode(n);
                 if (continueFrom != null) {
-                    getCurrentDataSet().addSelected(continueFrom);
+                    ds.addSelected(continueFrom);
                 }
 
                 // The user explicitly selected a node, so let him continue drawing
@@ -614,7 +614,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
             lastUsedNode = n;
         }
 
-        getCurrentDataSet().setSelected(newSelection);
+        ds.setSelected(newSelection);
 
         // "viewport following" mode for tracing long features
         // from aerial imagery or GPS tracks.
@@ -690,9 +690,11 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
         if (selectedWay != null) {
             int posn0 = selectedWay.getNodes().indexOf(currentNode);
             if (posn0 != -1 && // n0 is part of way
-                    (posn0 >= 1                             && targetNode.equals(selectedWay.getNode(posn0-1))) || // previous node
-                    (posn0 < selectedWay.getNodesCount()-1) && targetNode.equals(selectedWay.getNode(posn0+1))) {  // next node
-                getCurrentDataSet().setSelected(targetNode);
+                  // CHECKSTYLE.OFF: SingleSpaceSeparator
+                  (posn0 >= 1                             && targetNode.equals(selectedWay.getNode(posn0-1))) || // previous node
+                  (posn0 < selectedWay.getNodesCount()-1) && targetNode.equals(selectedWay.getNode(posn0+1))) {  // next node
+                  // CHECKSTYLE.ON: SingleSpaceSeparator
+                getLayerManager().getEditDataSet().setSelected(targetNode);
                 lastUsedNode = targetNode;
                 return true;
             }
@@ -776,7 +778,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
             return;
         }
 
-        Collection<OsmPrimitive> selection = getCurrentDataSet().getSelected();
+        Collection<OsmPrimitive> selection = getLayerManager().getEditDataSet().getSelected();
 
         MapView mv = Main.map.mapView;
         Node currentMouseNode = null;
@@ -844,7 +846,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
      * @param selection
      * uses also lastUsedNode field
      */
-    private void determineCurrentBaseNodeAndPreviousNode(Collection<OsmPrimitive>  selection) {
+    private void determineCurrentBaseNodeAndPreviousNode(Collection<OsmPrimitive> selection) {
         Node selectedNode = null;
         Way selectedWay = null;
         for (OsmPrimitive p : selection) {
@@ -1082,8 +1084,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
         }
 
         // This happens when nothing is selected, but we still want to highlight the "target node"
-        if (mouseOnExistingNode == null && getCurrentDataSet().getSelected().isEmpty()
-                && mousePos != null) {
+        if (mouseOnExistingNode == null && getLayerManager().getEditDataSet().selectionEmpty() && mousePos != null) {
             mouseOnExistingNode = Main.map.mapView.getNearestNode(mousePos, OsmPrimitive.isSelectablePredicate);
         }
 
@@ -1206,10 +1207,11 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
         }
 
         Node n = mouseOnExistingNode;
+        DataSet ds = getLayerManager().getEditDataSet();
         /*
          * Handle special case: Highlighted node == selected node => finish drawing
          */
-        if (n != null && getCurrentDataSet() != null && getCurrentDataSet().getSelectedNodes().contains(n)) {
+        if (n != null && ds != null && ds.getSelectedNodes().contains(n)) {
             if (wayIsFinished) {
                 rv = new StringBuilder(tr("Select node under cursor."));
             } else {
@@ -1220,8 +1222,8 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
         /*
          * Handle special case: Self-Overlapping or closing way
          */
-        if (getCurrentDataSet() != null && !getCurrentDataSet().getSelectedWays().isEmpty() && !wayIsFinished && !alt) {
-            Way w = getCurrentDataSet().getSelectedWays().iterator().next();
+        if (ds != null && !ds.getSelectedWays().isEmpty() && !wayIsFinished && !alt) {
+            Way w = ds.getSelectedWays().iterator().next();
             for (Node m : w.getNodes()) {
                 if (m.equals(mouseOnExistingNode) || mouseOnExistingWays.contains(w)) {
                     rv.append(' ').append(tr("Finish drawing."));
@@ -1243,9 +1245,9 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
      * @return selected primitives, while draw action is in progress
      */
     public Collection<OsmPrimitive> getInProgressSelection() {
-        DataSet ds = getCurrentDataSet();
+        DataSet ds = getLayerManager().getEditDataSet();
         if (ds == null) return null;
-        if (getCurrentBaseNode() != null && !ds.getSelected().isEmpty()) {
+        if (getCurrentBaseNode() != null && !ds.selectionEmpty()) {
             Way continueFrom = getWayForNode(getCurrentBaseNode());
             if (continueFrom != null)
                 return Collections.<OsmPrimitive>singleton(continueFrom);
@@ -1260,7 +1262,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
 
     @Override
     protected void updateEnabledState() {
-        setEnabled(getEditLayer() != null);
+        setEnabled(getLayerManager().getEditLayer() != null);
     }
 
     @Override
@@ -1282,7 +1284,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
                     if (n == null) {
                         n = (Node) p; // found one node
                         wayIsFinished = false;
-                    }  else {
+                    } else {
                         // if more than 1 node were affected by previous command,
                         // we have no way to continue, so we forget about found node
                         n = null;
@@ -1292,7 +1294,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
             }
             // select last added node - maybe we will continue drawing from it
             if (n != null) {
-                getCurrentDataSet().addSelected(n);
+                getLayerManager().getEditDataSet().addSelected(n);
             }
         }
     }
@@ -1632,7 +1634,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
 
             projectionSource = null;
             if (snapToProjections) {
-                DataSet ds = getCurrentDataSet();
+                DataSet ds = getLayerManager().getEditDataSet();
                 Collection<Way> selectedWays = ds.getSelectedWays();
                 if (selectedWays.size() == 1) {
                     Way w = selectedWays.iterator().next();
@@ -1658,7 +1660,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, SelectionCh
                         }
                     }
                     if (enOpt != null) {
-                        projectionSource =  enOpt;
+                        projectionSource = enOpt;
                     }
                 }
             }

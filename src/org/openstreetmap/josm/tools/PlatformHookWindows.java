@@ -78,7 +78,7 @@ public class PlatformHookWindows extends PlatformHookUnixoid {
         0x7e, (byte) 0xb9, (byte) 0x96, 0x2c, (byte) 0xeb, (byte) 0x8f, (byte) 0xbc, 0x6e, 0x40, (byte) 0xe6, (byte) 0xe2,
         (byte) 0xfc, (byte) 0xf1, 0x7f, 0x73, (byte) 0xa7, (byte) 0x9d, (byte) 0xde, (byte) 0xc7, (byte) 0x88, 0x57, 0x51,
         (byte) 0x84, (byte) 0xed, (byte) 0x96, (byte) 0xfb, (byte) 0xe1, 0x38, (byte) 0xef, 0x08, 0x2b, (byte) 0xf3,
-        (byte) 0xc7, (byte) 0xc3,  0x5d, (byte) 0xfe, (byte) 0xf9, 0x51, (byte) 0xe6, 0x29, (byte) 0xfc, (byte) 0xe5, 0x0d,
+        (byte) 0xc7, (byte) 0xc3, 0x5d, (byte) 0xfe, (byte) 0xf9, 0x51, (byte) 0xe6, 0x29, (byte) 0xfc, (byte) 0xe5, 0x0d,
         (byte) 0xa1, 0x0d, (byte) 0xa8, (byte) 0xb4, (byte) 0xae, 0x26, 0x18, 0x19, 0x4d, 0x6c, 0x0c, 0x3b, 0x12, (byte) 0xba,
         (byte) 0xbc, 0x5f, 0x32, (byte) 0xb3, (byte) 0xbe, (byte) 0x9d, 0x17, 0x0d, 0x4d, 0x2f, 0x1a, 0x48, (byte) 0xb7,
         (byte) 0xac, (byte) 0xf7, 0x1a, 0x43, 0x01, (byte) 0x97, (byte) 0xf4, (byte) 0xf8, 0x4c, (byte) 0xbb, 0x6a, (byte) 0xbc,
@@ -345,11 +345,14 @@ public class PlatformHookWindows extends PlatformHookUnixoid {
 
     @Override
     public Collection<FontEntry> getAdditionalFonts() {
-        Collection<FontEntry> def = new ArrayList<>();
+        Collection<FontEntry> def = new ArrayList<>(33);
         def.add(new FontEntry("devanagari", "", "")); // just include in fallback list font already defined in template
 
         // Windows scripts: https://msdn.microsoft.com/en-us/goglobal/bb688099.aspx
         // IE default fonts: https://msdn.microsoft.com/en-us/library/ie/dn467844(v=vs.85).aspx
+
+        // Windows 10 and later
+        def.add(new FontEntry("historic", "Segoe UI Historic", "SEGUIHIS.TTF"));       // historic charsets
 
         // Windows 8/8.1 and later
         def.add(new FontEntry("javanese", "Javanese Text", "JAVATEXT.TTF"));           // ISO 639: jv

@@ -42,7 +42,7 @@ import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.WindowGeometry;
 
-public class PasteTagsConflictResolverDialog extends JDialog  implements PropertyChangeListener {
+public class PasteTagsConflictResolverDialog extends JDialog implements PropertyChangeListener {
     static final Map<OsmPrimitiveType, String> PANE_TITLES;
     static {
         PANE_TITLES = new EnumMap<>(OsmPrimitiveType.class);
@@ -264,7 +264,7 @@ public class PasteTagsConflictResolverDialog extends JDialog  implements Propert
         private CancelAction() {
             putValue(Action.SHORT_DESCRIPTION, tr("Cancel conflict resolution"));
             putValue(Action.NAME, tr("Cancel"));
-            putValue(Action.SMALL_ICON, ImageProvider.get("", "cancel"));
+            new ImageProvider("cancel").getResource().attachImageIcon(this);
             setEnabled(true);
         }
 
@@ -280,7 +280,7 @@ public class PasteTagsConflictResolverDialog extends JDialog  implements Propert
         private ApplyAction() {
             putValue(Action.SHORT_DESCRIPTION, tr("Apply resolved conflicts"));
             putValue(Action.NAME, tr("Apply"));
-            putValue(Action.SMALL_ICON, ImageProvider.get("ok"));
+            new ImageProvider("ok").getResource().attachImageIcon(this);
             updateEnabledState();
         }
 

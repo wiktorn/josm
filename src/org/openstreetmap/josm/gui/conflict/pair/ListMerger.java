@@ -782,7 +782,7 @@ public abstract class ListMerger<T extends PrimitiveId> extends JPanel implement
      * Action for freezing the current state of the list merger
      *
      */
-    private final class FreezeAction extends AbstractAction implements ItemListener, FreezeActionProperties  {
+    private final class FreezeAction extends AbstractAction implements ItemListener, FreezeActionProperties {
 
         private FreezeAction() {
             putValue(Action.NAME, tr("Freeze"));
@@ -890,7 +890,7 @@ public abstract class ListMerger<T extends PrimitiveId> extends JPanel implement
 
     protected final <P extends OsmPrimitive> OsmDataLayer findLayerFor(P primitive) {
         if (primitive != null) {
-            Iterable<OsmDataLayer> layers = Main.map.mapView.getLayersOfType(OsmDataLayer.class);
+            Iterable<OsmDataLayer> layers = Main.getLayerManager().getLayersOfType(OsmDataLayer.class);
             // Find layer with same dataset
             for (OsmDataLayer layer : layers) {
                 if (layer.data == primitive.getDataSet()) {

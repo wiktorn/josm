@@ -30,6 +30,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.MissingResourceException;
 import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.Set;
@@ -505,16 +506,16 @@ public class Preferences {
      * Called after every put. In case of a problem, do nothing but output the error in log.
      * @throws IOException if any I/O error occurs
      */
-    public void save() throws IOException {
+    public synchronized void save() throws IOException {
         save(getPreferenceFile(),
                 new FilteredCollection<>(settingsMap.entrySet(), NO_DEFAULT_SETTINGS_ENTRY), false);
     }
 
-    public void saveDefaults() throws IOException {
+    public synchronized void saveDefaults() throws IOException {
         save(getDefaultsCacheFile(), defaultsMap.entrySet(), true);
     }
 
-    public void save(File prefFile, Collection<Entry<String, Setting<?>>> settings, boolean defaults) throws IOException {
+    protected void save(File prefFile, Collection<Entry<String, Setting<?>>> settings, boolean defaults) throws IOException {
 
         if (!defaults) {
             /* currently unused, but may help to fix configuration issues in future */
@@ -1277,7 +1278,7 @@ public class Preferences {
                 } catch (NumberFormatException nfe) {
                     continue;
                 }
-            } else  if (f.getType() == String.class) {
+            } else if (f.getType() == String.class) {
                 value = key_value.getValue();
             } else if (f.getType().isAssignableFrom(Map.class)) {
                 value = mapFromJson(key_value.getValue());
@@ -1323,10 +1324,8 @@ public class Preferences {
                 Field field = Toolkit.class.getDeclaredField("resources");
                 Utils.setObjectsAccessible(field);
                 field.set(null, ResourceBundle.getBundle("sun.awt.resources.awt"));
-            } catch (ReflectiveOperationException e) {
-                if (Main.isTraceEnabled()) {
-                    Main.trace(e.getMessage());
-                }
+            } catch (ReflectiveOperationException | MissingResourceException e) {
+                Main.warn(e);
             }
         }
         // Possibility to disable SNI (not by default) in case of misconfigured https servers

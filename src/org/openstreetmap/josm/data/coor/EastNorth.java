@@ -12,14 +12,27 @@ public class EastNorth extends Coordinate {
 
     private static final long serialVersionUID = 1L;
 
+    /**
+     * Constructs a new {@code EastNorth}.
+     * @param east easting
+     * @param north northing
+     */
     public EastNorth(double east, double north) {
         super(east, north);
     }
 
+    /**
+     * Returns easting.
+     * @return easting
+     */
     public double east() {
         return x;
     }
 
+    /**
+     * Returns northing.
+     * @return northing
+     */
     public double north() {
         return y;
     }
@@ -52,6 +65,11 @@ public class EastNorth extends Coordinate {
         return new EastNorth(x-other.x, y-other.y);
     }
 
+    /**
+     * Scales this {@link EastNorth} instance to a given factor and returns the result.
+     * @param s factor
+     * @return The result.
+     */
     public EastNorth scale(double s) {
         return new EastNorth(s * x, s * y);
     }
@@ -143,8 +161,10 @@ public class EastNorth extends Coordinate {
         double sinPhi = Math.sin(angle);
         double x = east() - pivot.east();
         double y = north() - pivot.north();
+        // CHECKSTYLE.OFF: SingleSpaceSeparator
         double nx =  cosPhi * x + sinPhi * y + pivot.east();
         double ny = -sinPhi * x + cosPhi * y + pivot.north();
+        // CHECKSTYLE.ON: SingleSpaceSeparator
         return new EastNorth(nx, ny);
     }
 

@@ -26,7 +26,7 @@ import org.junit.Test;
 /**
  * Performs Validation Test for url validations.
  *
- * @version $Revision: 1715076 $
+ * @version $Revision: 1741724 $
  */
 public class UrlValidatorTest {
 
@@ -98,7 +98,7 @@ public class UrlValidatorTest {
       assertTrue(urlVal.isValid("http://www.google.com/"));
       int statusPerLine = 60;
       int printed = 0;
-      if (printIndex)  {
+      if (printIndex) {
          statusPerLine = 6;
       }
       do {

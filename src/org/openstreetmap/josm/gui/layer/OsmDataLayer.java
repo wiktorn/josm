@@ -48,6 +48,7 @@ import org.openstreetmap.josm.actions.ToggleUploadDiscouragedLayerAction;
 import org.openstreetmap.josm.data.APIDataSet;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.DataSource;
+import org.openstreetmap.josm.data.ProjectionBounds;
 import org.openstreetmap.josm.data.SelectionChangedListener;
 import org.openstreetmap.josm.data.conflict.Conflict;
 import org.openstreetmap.josm.data.conflict.ConflictCollection;
@@ -268,12 +269,24 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
     }
 
     /**
-     * Removes a layer property change listener
+     * Removes a layer state change listener
      *
      * @param listener the listener. Ignored if null or already registered.
      * @since 5519
+     * @deprecated Method name contains a typo, use {@link #removeLayerStateChangeListener(LayerStateChangeListener)}.
      */
+    @Deprecated
     public void removeLayerPropertyChangeListener(LayerStateChangeListener listener) {
+        removeLayerStateChangeListener(listener);
+    }
+
+    /**
+     * Removes a layer state change listener
+     *
+     * @param listener the listener. Ignored if null or already registered.
+     * @since 10340
+     */
+    public void removeLayerStateChangeListener(LayerStateChangeListener listener) {
         layerStateChangeListeners.remove(listener);
     }
 
@@ -323,7 +336,8 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
         big.setComposite(comp);
         big.fillRect(0, 0, 15, 15);
         big.setColor(getOutsideColor());
-        big.drawLine(0, 15, 15, 0);
+        big.drawLine(-1, 6, 6, -1);
+        big.drawLine(4, 16, 16, 4);
         Rectangle r = new Rectangle(0, 0, 15, 15);
         hatched = new TexturePaint(bi, r);
     }
@@ -1064,5 +1078,15 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
         UploadDialog dialog = UploadDialog.getUploadDialog();
         dialog.setUploadedPrimitives(new APIDataSet(data));
         return dialog;
+    }
+
+    @Override
+    public ProjectionBounds getViewProjectionBounds() {
+        BoundingXYVisitor v = new BoundingXYVisitor();
+        v.visit(data.getDataSourceBoundingBox());
+        if (!v.hasExtend()) {
+            v.computeBoundingBox(data.getNodes());
+        }
+        return v.getBounds();
     }
 }

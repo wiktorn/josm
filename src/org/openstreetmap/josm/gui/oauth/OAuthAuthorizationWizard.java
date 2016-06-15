@@ -25,6 +25,7 @@ import java.util.concurrent.Executor;
 
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
+import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
@@ -41,7 +42,6 @@ import org.openstreetmap.josm.data.CustomConfigurator;
 import org.openstreetmap.josm.data.Preferences;
 import org.openstreetmap.josm.data.oauth.OAuthParameters;
 import org.openstreetmap.josm.data.oauth.OAuthToken;
-import org.openstreetmap.josm.gui.SideButton;
 import org.openstreetmap.josm.gui.help.ContextSensitiveHelpAction;
 import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.preferences.server.OAuthAccessTokenHolder;
@@ -98,9 +98,9 @@ public class OAuthAuthorizationWizard extends JDialog {
         pnlSemiAutomaticAuthorisationUI.addPropertyChangeListener(actAcceptAccessToken);
         pnlManualAuthorisationUI.addPropertyChangeListener(actAcceptAccessToken);
 
-        pnl.add(new SideButton(actAcceptAccessToken));
-        pnl.add(new SideButton(new CancelAction()));
-        pnl.add(new SideButton(new ContextSensitiveHelpAction(HelpUtil.ht("/Dialog/OAuthAuthorisationWizard"))));
+        pnl.add(new JButton(actAcceptAccessToken));
+        pnl.add(new JButton(new CancelAction()));
+        pnl.add(new JButton(new ContextSensitiveHelpAction(HelpUtil.ht("/Dialog/OAuthAuthorisationWizard"))));
 
         return pnl;
     }
@@ -127,19 +127,19 @@ public class OAuthAuthorizationWizard extends JDialog {
         pnl.add(lbl, gc);
 
         // OAuth in a nutshell ...
-        gc.gridy  = 1;
+        gc.gridy = 1;
         gc.insets = new Insets(5, 0, 0, 5);
         HtmlPanel pnlMessage = new HtmlPanel();
         pnlMessage.setText("<html><body>"
                 + tr("With OAuth you grant JOSM the right to upload map data and GPS tracks "
-                        + "on your behalf (<a href=\"{0}\">more info...</a>).",  "http://oauth.net/")
+                        + "on your behalf (<a href=\"{0}\">more info...</a>).", "http://oauth.net/")
                         + "</body></html>"
         );
         pnlMessage.getEditorPane().addHyperlinkListener(new ExternalBrowserLauncher());
         pnl.add(pnlMessage, gc);
 
         // the authorisation procedure
-        gc.gridy  = 2;
+        gc.gridy = 2;
         gc.gridwidth = 1;
         gc.weightx = 0.0;
         lbl = new JLabel(tr("Please select an authorization procedure: "));
@@ -350,7 +350,7 @@ public class OAuthAuthorizationWizard extends JDialog {
          */
         CancelAction() {
             putValue(NAME, tr("Cancel"));
-            putValue(SMALL_ICON, ImageProvider.get("cancel"));
+            new ImageProvider("cancel").getResource().attachImageIcon(this);
             putValue(SHORT_DESCRIPTION, tr("Close the dialog and cancel authorization"));
         }
 
@@ -372,7 +372,7 @@ public class OAuthAuthorizationWizard extends JDialog {
          */
         AcceptAccessTokenAction() {
             putValue(NAME, tr("Accept Access Token"));
-            putValue(SMALL_ICON, ImageProvider.get("ok"));
+            new ImageProvider("ok").getResource().attachImageIcon(this);
             putValue(SHORT_DESCRIPTION, tr("Close the dialog and accept the Access Token"));
             updateEnabledState(null);
         }

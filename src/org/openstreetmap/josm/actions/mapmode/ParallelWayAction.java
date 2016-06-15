@@ -159,7 +159,7 @@ public class ParallelWayAction extends MapMode implements ModifierListener, MapV
 
         //// Needed to update the mouse cursor if modifiers are changed when the mouse is motionless
         Main.map.keyDetector.addModifierListener(this);
-        sourceWays = new LinkedHashSet<>(getCurrentDataSet().getSelectedWays());
+        sourceWays = new LinkedHashSet<>(getLayerManager().getEditDataSet().getSelectedWays());
         for (Way w : sourceWays) {
             w.setHighlighted(true);
         }
@@ -204,6 +204,7 @@ public class ParallelWayAction extends MapMode implements ModifierListener, MapV
 
     private void updateModeLocalPreferences() {
         // @formatter:off
+        // CHECKSTYLE.OFF: SingleSpaceSeparator
         snapThreshold        = Main.pref.getDouble(prefKey("snap-threshold-percent"), 0.70);
         snapDefault          = Main.pref.getBoolean(prefKey("snap-default"),      true);
         copyTagsDefault      = Main.pref.getBoolean(prefKey("copy-tags-default"), true);
@@ -218,6 +219,7 @@ public class ParallelWayAction extends MapMode implements ModifierListener, MapV
         addToSelectionModifierCombo = new ModifiersSpec(getStringPref("add-to-selection-modifier-combo", "aSc"));
         toggleSelectedModifierCombo = new ModifiersSpec(getStringPref("toggle-selection-modifier-combo", "asC"));
         setSelectedModifierCombo    = new ModifiersSpec(getStringPref("set-selection-modifier-combo",    "asc"));
+        // CHECKSTYLE.ON: SingleSpaceSeparator
         // @formatter:on
     }
 
@@ -299,7 +301,7 @@ public class ParallelWayAction extends MapMode implements ModifierListener, MapV
 
         // Since the created way is left selected, we need to unselect again here
         if (pWays != null && pWays.getWays() != null) {
-            getCurrentDataSet().clearSelection(pWays.getWays());
+            getLayerManager().getEditDataSet().clearSelection(pWays.getWays());
             pWays = null;
         }
 
@@ -487,24 +489,24 @@ public class ParallelWayAction extends MapMode implements ModifierListener, MapV
         snap = snapDefault != matchesCurrentModifiers(snapModifierCombo);
     }
 
-    //// We keep the source ways and the selection in sync so the user can see the source way's tags
+    // We keep the source ways and the selection in sync so the user can see the source way's tags
     private void addSourceWay(Way w) {
         assert sourceWays != null;
-        getCurrentDataSet().addSelected(w);
+        getLayerManager().getEditDataSet().addSelected(w);
         w.setHighlighted(true);
         sourceWays.add(w);
     }
 
     private void removeSourceWay(Way w) {
         assert sourceWays != null;
-        getCurrentDataSet().clearSelection(w);
+        getLayerManager().getEditDataSet().clearSelection(w);
         w.setHighlighted(false);
         sourceWays.remove(w);
     }
 
     private void clearSourceWays() {
         assert sourceWays != null;
-        getCurrentDataSet().clearSelection(sourceWays);
+        getLayerManager().getEditDataSet().clearSelection(sourceWays);
         for (Way w : sourceWays) {
             w.setHighlighted(false);
         }
@@ -540,7 +542,7 @@ public class ParallelWayAction extends MapMode implements ModifierListener, MapV
             }
             pWays = new ParallelWays(sourceWays, copyTags, referenceWayIndex);
             pWays.commit();
-            getCurrentDataSet().setSelected(pWays.getWays());
+            getLayerManager().getEditDataSet().setSelected(pWays.getWays());
             return true;
         } catch (IllegalArgumentException e) {
             new Notification(tr("ParallelWayAction\n" +
