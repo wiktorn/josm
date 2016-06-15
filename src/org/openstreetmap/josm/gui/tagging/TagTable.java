@@ -48,7 +48,7 @@ import org.openstreetmap.josm.tools.Utils;
  * This is the tabular editor component for OSM tags.
  * @since 1762
  */
-public class TagTable extends JosmTable  {
+public class TagTable extends JosmTable {
     /** the table cell editor used by this table */
     private TagCellEditor editor;
     private final TagEditorModel model;
@@ -69,9 +69,8 @@ public class TagTable extends JosmTable  {
      *   <li>it automatically add a new empty row when the user leaves the
      *   last cell in the table</li>
      * </ul>
-     *
      */
-    class SelectNextColumnCellAction extends AbstractAction  {
+    class SelectNextColumnCellAction extends AbstractAction {
         @Override
         public void actionPerformed(ActionEvent e) {
             run();
@@ -115,9 +114,8 @@ public class TagTable extends JosmTable  {
     /**
      * Action to be run when the user navigates to the previous cell in the table,
      * for instance by pressing Shift-TAB
-     *
      */
-    class SelectPreviousColumnCellAction extends AbstractAction  {
+    class SelectPreviousColumnCellAction extends AbstractAction {
 
         @Override
         public void actionPerformed(ActionEvent e) {
@@ -163,7 +161,7 @@ public class TagTable extends JosmTable  {
     class DeleteAction extends AbstractAction implements ListSelectionListener {
 
         DeleteAction() {
-            putValue(SMALL_ICON, ImageProvider.get("dialogs", "delete"));
+            new ImageProvider("dialogs", "delete").getResource().attachImageIcon(this);
             putValue(SHORT_DESCRIPTION, tr("Delete the selection in the tag table"));
             getSelectionModel().addListSelectionListener(this);
             getColumnModel().getSelectionModel().addListSelectionListener(this);
@@ -252,7 +250,7 @@ public class TagTable extends JosmTable  {
      */
     class AddAction extends AbstractAction implements PropertyChangeListener {
         AddAction() {
-            putValue(SMALL_ICON, ImageProvider.get("dialogs", "add"));
+            new ImageProvider("dialogs", "add").getResource().attachImageIcon(this);
             putValue(SHORT_DESCRIPTION, tr("Add a new tag"));
             TagTable.this.addPropertyChangeListener(this);
             updateEnabledState();
@@ -286,7 +284,7 @@ public class TagTable extends JosmTable  {
      */
     class PasteAction extends AbstractAction implements PropertyChangeListener {
         PasteAction() {
-            putValue(SMALL_ICON, ImageProvider.get("", "pastetags"));
+            new ImageProvider("pastetags").getResource().attachImageIcon(this);
             putValue(SHORT_DESCRIPTION, tr("Paste tags from buffer"));
             TagTable.this.addPropertyChangeListener(this);
             updateEnabledState();

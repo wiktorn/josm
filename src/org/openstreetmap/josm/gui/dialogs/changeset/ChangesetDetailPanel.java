@@ -34,9 +34,9 @@ import org.openstreetmap.josm.data.osm.Changeset;
 import org.openstreetmap.josm.data.osm.ChangesetCache;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
-import org.openstreetmap.josm.gui.MapView;
-import org.openstreetmap.josm.gui.MapView.EditLayerChangeListener;
 import org.openstreetmap.josm.gui.help.HelpUtil;
+import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeEvent;
+import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeListener;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.widgets.JosmTextArea;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
@@ -51,6 +51,7 @@ import org.openstreetmap.josm.tools.date.DateUtils;
  */
 public class ChangesetDetailPanel extends JPanel implements PropertyChangeListener, ChangesetAware {
 
+    // CHECKSTYLE.OFF: SingleSpaceSeparator
     private final JosmTextField tfID        = new JosmTextField(10);
     private final JosmTextArea  taComment   = new JosmTextArea(5, 40);
     private final JosmTextField tfOpen      = new JosmTextField(10);
@@ -63,6 +64,7 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
     private final RemoveFromCacheAction          actRemoveFromCache          = new RemoveFromCacheAction();
     private final SelectInCurrentLayerAction     actSelectInCurrentLayer     = new SelectInCurrentLayerAction();
     private final ZoomInCurrentLayerAction       actZoomInCurrentLayerAction = new ZoomInCurrentLayerAction();
+    // CHECKSTYLE.ON: SingleSpaceSeparator
 
     private transient Changeset currentChangeset;
 
@@ -85,10 +87,10 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
         actDownloadChangesetContent.initProperties();
 
         tb.add(actSelectInCurrentLayer);
-        MapView.addEditLayerChangeListener(actSelectInCurrentLayer);
+        Main.getLayerManager().addActiveLayerChangeListener(actSelectInCurrentLayer);
 
         tb.add(actZoomInCurrentLayerAction);
-        MapView.addEditLayerChangeListener(actZoomInCurrentLayerAction);
+        Main.getLayerManager().addActiveLayerChangeListener(actZoomInCurrentLayerAction);
 
         addComponentListener(
                 new ComponentAdapter() {
@@ -96,8 +98,8 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
                     public void componentHidden(ComponentEvent e) {
                         // make sure the listener is unregistered when the panel becomes
                         // invisible
-                        MapView.removeEditLayerChangeListener(actSelectInCurrentLayer);
-                        MapView.removeEditLayerChangeListener(actZoomInCurrentLayerAction);
+                        Main.getLayerManager().removeActiveLayerChangeListener(actSelectInCurrentLayer);
+                        Main.getLayerManager().removeActiveLayerChangeListener(actZoomInCurrentLayerAction);
                     }
                 }
         );
@@ -317,7 +319,7 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
      * Selects the primitives in the content of this changeset in the current data layer.
      *
      */
-    class SelectInCurrentLayerAction extends AbstractAction implements EditLayerChangeListener {
+    class SelectInCurrentLayerAction extends AbstractAction implements ActiveLayerChangeListener {
 
         SelectInCurrentLayerAction() {
             putValue(NAME, tr("Select in layer"));
@@ -368,7 +370,7 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
         }
 
         @Override
-        public void editLayerChanged(OsmDataLayer oldLayer, OsmDataLayer newLayer) {
+        public void activeOrEditLayerChanged(ActiveLayerChangeEvent e) {
             updateEnabledState();
         }
     }
@@ -378,7 +380,7 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
      * data layer.
      *
      */
-    class ZoomInCurrentLayerAction extends AbstractAction implements EditLayerChangeListener {
+    class ZoomInCurrentLayerAction extends AbstractAction implements ActiveLayerChangeListener {
 
         ZoomInCurrentLayerAction() {
             putValue(NAME, tr("Zoom to in layer"));
@@ -430,7 +432,7 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
         }
 
         @Override
-        public void editLayerChanged(OsmDataLayer oldLayer, OsmDataLayer newLayer) {
+        public void activeOrEditLayerChanged(ActiveLayerChangeEvent e) {
             updateEnabledState();
         }
     }

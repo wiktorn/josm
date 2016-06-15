@@ -21,6 +21,7 @@ import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.MoveCommand;
 import org.openstreetmap.josm.command.SequenceCommand;
 import org.openstreetmap.josm.data.coor.EastNorth;
+import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
@@ -130,7 +131,7 @@ public final class AlignInCircleAction extends JosmAction {
         if (!isEnabled())
             return;
 
-        Collection<OsmPrimitive> sel = getCurrentDataSet().getSelected();
+        Collection<OsmPrimitive> sel = getLayerManager().getEditDataSet().getSelected();
         List<Node> nodes = new LinkedList<>();
         // fixNodes: All nodes for which the angle relative to center should not be modified
         Set<Node> fixNodes = new HashSet<>();
@@ -270,7 +271,7 @@ public final class AlignInCircleAction extends JosmAction {
                     PolarCoor pcLast = new PolarCoor(nodes.get(j % nodeCount).getEastNorth(), center, 0);
                     delta = pcLast.angle - pcFirst.angle;
                     if (delta < 0) // Assume each PolarCoor.angle is in range ]-pi; pi]
-                        delta +=  2*Math.PI;
+                        delta += 2*Math.PI;
                     delta /= j - i;
                 }
                 for (int k = i+1; k < j; k++) {
@@ -373,7 +374,8 @@ public final class AlignInCircleAction extends JosmAction {
 
     @Override
     protected void updateEnabledState() {
-        setEnabled(getCurrentDataSet() != null && !getCurrentDataSet().getSelected().isEmpty());
+        DataSet ds = getLayerManager().getEditDataSet();
+        setEnabled(ds != null && !ds.selectionEmpty());
     }
 
     @Override

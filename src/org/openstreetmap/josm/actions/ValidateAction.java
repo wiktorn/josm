@@ -95,7 +95,7 @@ public class ValidateAction extends JosmAction {
 
     @Override
     public void updateEnabledState() {
-        setEnabled(getEditLayer() != null);
+        setEnabled(getLayerManager().getEditLayer() != null);
     }
 
     @Override
@@ -125,7 +125,7 @@ public class ValidateAction extends JosmAction {
         ValidationTask(Collection<Test> tests, Collection<OsmPrimitive> validatedPrimitives,
                 Collection<OsmPrimitive> formerValidatedPrimitives) {
             super(tr("Validating"), false /*don't ignore exceptions */);
-            this.validatedPrimitives  = validatedPrimitives;
+            this.validatedPrimitives = validatedPrimitives;
             this.formerValidatedPrimitives = formerValidatedPrimitives;
             this.tests = tests;
         }
@@ -141,7 +141,7 @@ public class ValidateAction extends JosmAction {
 
             // update GUI on Swing EDT
             //
-            GuiHelper.runInEDT(new Runnable()  {
+            GuiHelper.runInEDT(new Runnable() {
                 @Override
                 public void run() {
                     Main.map.validatorDialog.tree.setErrors(errors);

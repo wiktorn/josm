@@ -112,7 +112,7 @@ public final class PasteAction extends JosmAction implements PasteBufferChangedL
             }
         }
 
-        double offsetEast  = mPosition.east() - (maxEast + minEast)/2.0;
+        double offsetEast = mPosition.east() - (maxEast + minEast)/2.0;
         double offsetNorth = mPosition.north() - (maxNorth + minNorth)/2.0;
 
         // Make a copy of pasteBuffer and map from old id to copied data id
@@ -200,7 +200,7 @@ public final class PasteAction extends JosmAction implements PasteBufferChangedL
 
     @Override
     protected void updateEnabledState() {
-        if (getCurrentDataSet() == null || Main.pasteBuffer == null) {
+        if (getLayerManager().getEditDataSet() == null || Main.pasteBuffer == null) {
             setEnabled(false);
             return;
         }

@@ -45,6 +45,7 @@ import org.openstreetmap.josm.actions.relation.SelectInRelationListAction;
 import org.openstreetmap.josm.actions.search.SearchAction.SearchSetting;
 import org.openstreetmap.josm.data.SelectionChangedListener;
 import org.openstreetmap.josm.data.coor.LatLon;
+import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.OsmPrimitiveComparator;
@@ -64,13 +65,13 @@ import org.openstreetmap.josm.data.osm.event.TagsChangedEvent;
 import org.openstreetmap.josm.data.osm.event.WayNodesChangedEvent;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
 import org.openstreetmap.josm.gui.DefaultNameFormatter;
-import org.openstreetmap.josm.gui.MapView;
-import org.openstreetmap.josm.gui.MapView.EditLayerChangeListener;
 import org.openstreetmap.josm.gui.OsmPrimitivRenderer;
 import org.openstreetmap.josm.gui.PopupMenuHandler;
 import org.openstreetmap.josm.gui.SideButton;
 import org.openstreetmap.josm.gui.datatransfer.PrimitiveTransferable;
 import org.openstreetmap.josm.gui.history.HistoryBrowserDialogManager;
+import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeEvent;
+import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeListener;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.util.HighlightHelper;
@@ -86,7 +87,7 @@ import org.openstreetmap.josm.tools.Utils;
  * A small tool dialog for displaying the current selection.
  * @since 8
  */
-public class SelectionListDialog extends ToggleDialog  {
+public class SelectionListDialog extends ToggleDialog {
     private JList<OsmPrimitive> lstPrimitives;
     private final DefaultListSelectionModel selectionModel = new DefaultListSelectionModel();
     private final SelectionListModel model = new SelectionListModel(selectionModel);
@@ -176,24 +177,19 @@ public class SelectionListDialog extends ToggleDialog  {
 
     @Override
     public void showNotify() {
-        MapView.addEditLayerChangeListener(model);
         SelectionEventManager.getInstance().addSelectionListener(actShowHistory, FireMode.IN_EDT_CONSOLIDATED);
         SelectionEventManager.getInstance().addSelectionListener(model, FireMode.IN_EDT_CONSOLIDATED);
         DatasetEventManager.getInstance().addDatasetListener(model, FireMode.IN_EDT);
-        MapView.addEditLayerChangeListener(actSearch);
-        // editLayerChanged also gets the selection history of the level
-        OsmDataLayer editLayer = Main.main.getEditLayer();
-        model.editLayerChanged(null, editLayer);
-        if (editLayer != null) {
-            model.setJOSMSelection(editLayer.data.getAllSelected());
-        }
+        Main.getLayerManager().addActiveLayerChangeListener(actSearch);
+        // editLayerChanged also gets the selection history of the level. Listener calls setJOSMSelection when fired.
+        Main.getLayerManager().addAndFireActiveLayerChangeListener(model);
         actSearch.updateEnabledState();
     }
 
     @Override
     public void hideNotify() {
-        MapView.removeEditLayerChangeListener(actSearch);
-        MapView.removeEditLayerChangeListener(model);
+        Main.getLayerManager().removeActiveLayerChangeListener(actSearch);
+        Main.getLayerManager().removeActiveLayerChangeListener(model);
         SelectionEventManager.getInstance().removeSelectionListener(actShowHistory);
         SelectionEventManager.getInstance().removeSelectionListener(model);
         DatasetEventManager.getInstance().removeDatasetListener(model);
@@ -295,14 +291,14 @@ public class SelectionListDialog extends ToggleDialog  {
     /**
      * Launches the search dialog
      */
-    static class SearchAction extends AbstractAction implements EditLayerChangeListener {
+    static class SearchAction extends AbstractAction implements ActiveLayerChangeListener {
         /**
          * Constructs a new {@code SearchAction}.
          */
         SearchAction() {
             putValue(NAME, tr("Search"));
-            putValue(SHORT_DESCRIPTION,   tr("Search for objects"));
-            putValue(SMALL_ICON, ImageProvider.get("dialogs", "search"));
+            putValue(SHORT_DESCRIPTION, tr("Search for objects"));
+            new ImageProvider("dialogs", "search").getResource().attachImageIcon(this, true);
             updateEnabledState();
         }
 
@@ -317,7 +313,7 @@ public class SelectionListDialog extends ToggleDialog  {
         }
 
         @Override
-        public void editLayerChanged(OsmDataLayer oldLayer, OsmDataLayer newLayer) {
+        public void activeOrEditLayerChanged(ActiveLayerChangeEvent e) {
             updateEnabledState();
         }
     }
@@ -345,7 +341,7 @@ public class SelectionListDialog extends ToggleDialog  {
         }
 
         protected void updateEnabledState() {
-            setEnabled(!model.getSelected().isEmpty());
+            setEnabled(!model.isSelectionEmpty());
         }
 
         @Override
@@ -364,7 +360,7 @@ public class SelectionListDialog extends ToggleDialog  {
         ShowHistoryAction() {
             putValue(NAME, tr("History"));
             putValue(SHORT_DESCRIPTION, tr("Display the history of the selected objects."));
-            putValue(SMALL_ICON, ImageProvider.get("dialogs", "history"));
+            new ImageProvider("dialogs", "history").getResource().attachImageIcon(this, true);
             updateEnabledState(model.getSize());
         }
 
@@ -381,7 +377,7 @@ public class SelectionListDialog extends ToggleDialog  {
 
         protected void updateEnabledState(int osmSelectionSize) {
             // See #10830 - allow to click on history button is a single object is selected, even if not selected again in the list
-            setEnabled(!model.getSelected().isEmpty() || osmSelectionSize == 1);
+            setEnabled(!model.isSelectionEmpty() || osmSelectionSize == 1);
         }
 
         @Override
@@ -404,7 +400,7 @@ public class SelectionListDialog extends ToggleDialog  {
         ZoomToJOSMSelectionAction() {
             putValue(NAME, tr("Zoom to selection"));
             putValue(SHORT_DESCRIPTION, tr("Zoom to selection"));
-            putValue(SMALL_ICON, ImageProvider.get("dialogs/autoscale", "selection"));
+            new ImageProvider("dialogs/autoscale", "selection").getResource().attachImageIcon(this, true);
             updateEnabledState();
         }
 
@@ -445,7 +441,7 @@ public class SelectionListDialog extends ToggleDialog  {
         ZoomToListSelection() {
             putValue(NAME, tr("Zoom to selected element(s)"));
             putValue(SHORT_DESCRIPTION, tr("Zoom to selected element(s)"));
-            putValue(SMALL_ICON, ImageProvider.get("dialogs/autoscale", "selection"));
+            new ImageProvider("dialogs/autoscale", "selection").getResource().attachImageIcon(this, true);
             updateEnabledState();
         }
 
@@ -462,7 +458,7 @@ public class SelectionListDialog extends ToggleDialog  {
         }
 
         protected void updateEnabledState() {
-            setEnabled(!model.getSelected().isEmpty());
+            setEnabled(!model.isSelectionEmpty());
         }
 
         @Override
@@ -479,7 +475,7 @@ public class SelectionListDialog extends ToggleDialog  {
      *
      */
     private static class SelectionListModel extends AbstractListModel<OsmPrimitive>
-    implements EditLayerChangeListener, SelectionChangedListener, DataSetListener {
+    implements ActiveLayerChangeListener, SelectionChangedListener, DataSetListener {
 
         private static final int SELECTION_HISTORY_SIZE = 10;
 
@@ -564,8 +560,16 @@ public class SelectionListDialog extends ToggleDialog  {
         }
 
         /**
-         * Replies the collection of OSM primitives currently selected in the view
-         * of this model
+         * Determines if no OSM primitives are currently selected.
+         * @return {@code true} if no OSM primitives are currently selected
+         * @since 10383
+         */
+        public boolean isSelectionEmpty() {
+            return selectionModel.isSelectionEmpty();
+        }
+
+        /**
+         * Replies the collection of OSM primitives currently selected in the view of this model
          *
          * @return choosen elements in the view
          */
@@ -671,16 +675,17 @@ public class SelectionListDialog extends ToggleDialog  {
         }
 
         /* ------------------------------------------------------------------------ */
-        /* interface EditLayerChangeListener                                        */
+        /* interface ActiveLayerChangeListener                                      */
         /* ------------------------------------------------------------------------ */
         @Override
-        public void editLayerChanged(OsmDataLayer oldLayer, OsmDataLayer newLayer) {
-            if (newLayer == null) {
+        public void activeOrEditLayerChanged(ActiveLayerChangeEvent e) {
+            DataSet newData = e.getSource().getEditDataSet();
+            if (newData == null) {
                 setJOSMSelection(null);
                 history = null;
             } else {
-                history = newLayer.data.getSelectionHistory();
-                setJOSMSelection(newLayer.data.getAllSelected());
+                history = newData.getSelectionHistory();
+                setJOSMSelection(newData.getAllSelected());
             }
         }
 

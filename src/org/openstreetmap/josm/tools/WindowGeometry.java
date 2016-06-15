@@ -8,6 +8,7 @@ import java.awt.Dimension;
 import java.awt.GraphicsConfiguration;
 import java.awt.GraphicsDevice;
 import java.awt.GraphicsEnvironment;
+import java.awt.IllegalComponentStateException;
 import java.awt.Insets;
 import java.awt.Point;
 import java.awt.Rectangle;
@@ -56,8 +57,9 @@ public class WindowGeometry {
      * Creates a window geometry from the position and the size of a window.
      *
      * @param window the window
+     * @throws IllegalComponentStateException if the window is not showing on the screen
      */
-    public WindowGeometry(Window window)  {
+    public WindowGeometry(Window window) {
         this(window.getLocationOnScreen(), window.getSize());
     }
 
@@ -164,7 +166,7 @@ public class WindowGeometry {
      *
      * @param window the window
      */
-    public void fixScreen(Window window)  {
+    public void fixScreen(Window window) {
         Rectangle oldScreen = getScreenInfo(getRectangle());
         Rectangle newScreen = getScreenInfo(new Rectangle(window.getLocationOnScreen(), window.getSize()));
         if (oldScreen.x != newScreen.x) {
@@ -401,7 +403,7 @@ public class WindowGeometry {
             // Max displayable dimension (max screen dimension - insets)
             Rectangle bounds = gc.getBounds();
             Insets insets = component.getToolkit().getScreenInsets(gc);
-            result.width  = bounds.width  - insets.left - insets.right;
+            result.width = bounds.width - insets.left - insets.right;
             result.height = bounds.height - insets.top - insets.bottom;
         }
         return result;

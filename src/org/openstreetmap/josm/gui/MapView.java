@@ -34,7 +34,6 @@ import javax.swing.AbstractButton;
 import javax.swing.ActionMap;
 import javax.swing.InputMap;
 import javax.swing.JComponent;
-import javax.swing.JFrame;
 import javax.swing.JPanel;
 
 import org.openstreetmap.josm.Main;
@@ -90,7 +89,7 @@ import org.openstreetmap.josm.tools.bugreport.BugReportExceptionHandler;
  * @author imi
  */
 public class MapView extends NavigatableComponent
-implements PropertyChangeListener, PreferenceChangedListener, OsmDataLayer.LayerStateChangeListener,
+implements PropertyChangeListener, PreferenceChangedListener,
 LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
     /**
      * Interface to notify listeners of a layer change.
@@ -395,7 +394,11 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
 
             LayerChangeAdapter adapter = new LayerChangeAdapter(listener, initialFire);
             Main.getLayerManager().addLayerChangeListener(adapter, false);
-            Main.getLayerManager().addActiveLayerChangeListener(adapter, initialFire);
+            if (initialFire) {
+                Main.getLayerManager().addAndFireActiveLayerChangeListener(adapter);
+            } else {
+                Main.getLayerManager().addActiveLayerChangeListener(adapter);
+            }
             adapter.receiveOneInitialFire = false;
         }
     }
@@ -413,8 +416,12 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
     @Deprecated
     public static void addEditLayerChangeListener(EditLayerChangeListener listener, boolean initialFire) {
         if (listener != null) {
-            Main.getLayerManager().addActiveLayerChangeListener(new EditLayerChangeAdapter(listener),
-                    initialFire && Main.isDisplayingMapView() && Main.map.mapView.getEditLayer() != null);
+            boolean doFire = initialFire && Main.isDisplayingMapView() && Main.getLayerManager().getEditLayer() != null;
+            if (doFire) {
+                Main.getLayerManager().addAndFireActiveLayerChangeListener(new EditLayerChangeAdapter(listener));
+            } else {
+                Main.getLayerManager().addActiveLayerChangeListener(new EditLayerChangeAdapter(listener));
+            }
         }
     }
 
@@ -483,7 +490,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
         this.layerManager = layerManager;
         initialViewport = viewportData;
         layerManager.addLayerChangeListener(this);
-        layerManager.addActiveLayerChangeListener(this, false);
+        layerManager.addActiveLayerChangeListener(this);
         Main.pref.addPreferenceChangeListener(this);
 
         addComponentListener(new ComponentAdapter() {
@@ -556,7 +563,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
      */
     public void rememberLastPositionOnScreen() {
         oldSize = getSize();
-        oldLoc  = getLocationOnScreen();
+        oldLoc = getLocationOnScreen();
     }
 
     /**
@@ -576,11 +583,6 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
         Layer layer = e.getAddedLayer();
         if (layer instanceof MarkerLayer && playHeadMarker == null) {
             playHeadMarker = PlayHeadMarker.create();
-        }
-
-        boolean isOsmDataLayer = layer instanceof OsmDataLayer;
-        if (isOsmDataLayer) {
-            ((OsmDataLayer) layer).addLayerStateChangeListener(this);
         }
 
         layer.addPropertyChangeListener(this);
@@ -665,9 +667,6 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
     @Override
     public void layerRemoving(LayerRemoveEvent e) {
         Layer layer = e.getRemovedLayer();
-        if (layer instanceof OsmDataLayer) {
-            ((OsmDataLayer) layer).removeLayerPropertyChangeListener(this);
-        }
 
         Main.removeProjectionChangeListener(layer);
         layer.removePropertyChangeListener(this);
@@ -936,6 +935,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
      * @return <code>true</code> if the view can be drawn, <code>false</code> otherwise.
      */
     public boolean prepareToDraw() {
+        updateLocationState();
         if (initialViewport != null) {
             zoomTo(initialViewport);
             initialViewport = null;
@@ -948,7 +948,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
 
         // if the position was remembered, we need to adjust center once before repainting
         if (oldLoc != null && oldSize != null) {
-            Point l1  = getLocationOnScreen();
+            Point l1 = getLocationOnScreen();
             final EastNorth newCenter = new EastNorth(
                     getCenter().getX()+ (l1.x-oldLoc.x - (oldSize.width-getWidth())/2.0)*getScale(),
                     getCenter().getY()+ (oldLoc.y-l1.y + (oldSize.height-getHeight())/2.0)*getScale()
@@ -1072,7 +1072,6 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
             });
         }
         AudioPlayer.reset();
-        refreshTitle();
         repaint();
     }
 
@@ -1155,26 +1154,18 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
                 changedLayer = l;
                 repaint();
             }
-        } else if (evt.getPropertyName().equals(OsmDataLayer.REQUIRES_SAVE_TO_DISK_PROP)
-                || evt.getPropertyName().equals(OsmDataLayer.REQUIRES_UPLOAD_TO_SERVER_PROP)) {
-            OsmDataLayer layer = (OsmDataLayer) evt.getSource();
-            if (layer == getEditLayer()) {
-                refreshTitle();
-            }
         }
     }
 
     /**
      * Sets the title of the JOSM main window, adding a star if there are dirty layers.
      * @see Main#parent
+     * @deprecated Replaced by {@link MainFrame#refreshTitle()}. The {@link MainFrame} should handle this by itself.
      */
+    @Deprecated
     protected void refreshTitle() {
         if (Main.parent != null) {
-            OsmDataLayer editLayer = layerManager.getEditLayer();
-            boolean dirty = editLayer != null &&
-                    (editLayer.requiresSaveToFile() || (editLayer.requiresUploadToServer() && !editLayer.isUploadDiscouraged()));
-            ((JFrame) Main.parent).setTitle((dirty ? "* " : "") + tr("Java OpenStreetMap Editor"));
-            ((JFrame) Main.parent).getRootPane().putClientProperty("Window.documentModified", dirty);
+            ((MainFrame) Main.parent).refreshTitle();
         }
     }
 
@@ -1192,6 +1183,9 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
         }
     };
 
+    /**
+     * Destroy this map view panel. Should be called once when it is not needed any more.
+     */
     public void destroy() {
         layerManager.removeLayerChangeListener(this);
         layerManager.removeActiveLayerChangeListener(this);
@@ -1205,13 +1199,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
         synchronized (temporaryLayers) {
             temporaryLayers.clear();
         }
-    }
-
-    @Override
-    public void uploadDiscouragedChanged(OsmDataLayer layer, boolean newValue) {
-        if (layer == layerManager.getEditLayer()) {
-            refreshTitle();
-        }
+        nonChangedLayersBuffer = null;
     }
 
     /**

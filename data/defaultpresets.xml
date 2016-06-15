@@ -270,8 +270,8 @@
         <text key="branch" text="Branch operator" />
     </chunk>
     <chunk id="cable_circuit">
-        <combo key="cables" text="Amount of Cables" values="1,3,6,9,12" lenght="2" />
-        <combo key="circuits" text="Amount of circuits" values="1,2,3" lenght="2" />
+        <combo key="cables" text="Amount of Cables" values="1,2,3,4,6,9,12" />
+        <combo key="circuits" text="Amount of circuits" values="1,2,3,4" />
     </chunk>
     <chunk id="power_loc">
         <combo key="location" text="Location" values="outdoor,indoor,underground,platform,kiosk" values_context="power" />
@@ -987,7 +987,13 @@
                   sv.href="http://wiki.openstreetmap.org/wiki/Sv:Tag:highway=track"
                   uk.href="http://wiki.openstreetmap.org/wiki/Uk:Tag:highway=track" />
             <space />
-            <combo key="tracktype" text="Tracktype" values="grade1,grade2,grade3,grade4,grade5" />
+            <combo key="tracktype" text="Tracktype" values_searchable="true" values_sort="false">
+                <list_entry value="grade1" short_description="Solid: paved or heavily compacted hardcore surface" />
+                <list_entry value="grade2" short_description="Mostly Solid: gravel/rock with some soft material mixed in" />
+                <list_entry value="grade3" short_description="Even mixture of hard and soft materials" />
+                <list_entry value="grade4" short_description="Mostly Soft: soil/sand/grass with some hard material mixed in" />
+                <list_entry value="grade5" short_description="Soft: soil/sand/grass" />
+            </combo>
             <key key="highway" value="track" />
             <optional>
                 <reference ref="name_layer" />
@@ -2868,9 +2874,46 @@
                   ru.href="http://wiki.openstreetmap.org/wiki/RU:Tag:amenity=charging_station" />
             <space />
             <key key="amenity" value="charging_station" />
-            <reference ref="name_operator" />
-            <text key="voltage" text="Voltage" />
-            <text key="amperage" text="Amperage" />
+            <reference ref="name_ref_operator" />
+            <reference ref="oh" />
+            <reference ref="fee" />
+            <space />
+            <combo key="voltage" text="Voltage" values="230,400"/>
+            <combo key="amperage" text="Amperage" values="16,32" />
+            <combo key="capacity" text="Capacity" values="1,2,3,4,5,6" />
+            <space />
+            <label text="Types of vehicles which can be charged:" />
+            <checkgroup columns="4">
+                <check key="bicycle" text="Bicycle" />
+                <check key="scooter" text="Scooter" />
+                <check key="car" text="Car" />
+                <check key="truck" text="Truck" />
+            </checkgroup>
+            <space />
+            <label text="Number of Sockets:" />
+            <combo key="socket:type1" text="Type 1 (Yazaki)" values="1,2,3,4,5,6" />
+            <combo key="socket:type1_combo" text="Type 1 Combo" values="1,2,3,4,5,6" />
+            <combo key="socket:type2" text="Type 2 (Mennekes)" values="1,2,3,4,5,6" />
+            <combo key="socket:type2_combo" text="Type 2 Combo" values="1,2,3,4,5,6" />
+            <combo key="socket:type3" text="Type 3 (SCAME)" values="1,2,3,4,5,6" />
+            <combo key="socket:chademo" text="CHAdeMO" values="1,2,3,4,5,6" />
+            <combo key="socket:tesla_supercharger" text="Tesla Supercharger" values="1,2,3,4,5,6" />
+            <combo key="socket:schuko" text="Schuko" values="1,2,3,4,5,6" />
+            <combo key="socket:cee_blue" text="CEE blue" values="1,2,3,4,5,6" />
+            <combo key="socket:cee_red_16a" text="CEE red 16A" values="1,2,3,4,5,6" />
+            <combo key="socket:cee_red_32a" text="CEE red 32A" values="1,2,3,4,5,6" />
+            <combo key="socket:nema_5_15" text="NEMA 5-15" values="1,2,3,4,5,6" />
+            <combo key="socket:nema_5_20" text="NEMA 5-20" values="1,2,3,4,5,6" />
+            <space />
+            <label text="Authentication:" />
+            <checkgroup columns="4">
+                <check key="authentication:none" text="None" />
+                <check key="authentication:phone_call" text="Phone call" />
+                <check key="authentication:short_message" text="Short message" />
+                <check key="authentication:nfc" text="NFC" />
+            </checkgroup>
+            <combo key="authentication:membership_card" text="Membership card" values="yes" />
+            <preset_link preset_name="Payment Methods" />
         </item> <!-- Charging Station -->
         <item name="Wash" icon="presets/car_wash.png" type="node,closedway,multipolygon" preset_name_label="true">
             <link href="http://wiki.openstreetmap.org/wiki/Tag:amenity=car_wash"

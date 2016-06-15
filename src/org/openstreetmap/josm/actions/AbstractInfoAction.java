@@ -14,6 +14,7 @@ import javax.swing.JOptionPane;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.notes.Note;
+import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane.ButtonSpec;
@@ -61,7 +62,7 @@ public abstract class AbstractInfoAction extends JosmAction {
      * @return {@code true} if the user confirms, {@code false} otherwise
      */
     public static boolean confirmLaunchMultiple(int numBrowsers) {
-        String msg  = /* for correct i18n of plural forms - see #9110 */ trn(
+        String msg = /* for correct i18n of plural forms - see #9110 */ trn(
                 "You are about to launch {0} browser window.<br>"
                         + "This may both clutter your screen with browser windows<br>"
                         + "and take some time to finish.",
@@ -98,8 +99,9 @@ public abstract class AbstractInfoAction extends JosmAction {
 
     protected void launchInfoBrowsersForSelectedPrimitivesAndNote() {
         List<OsmPrimitive> primitivesToShow = new ArrayList<>();
-        if (getCurrentDataSet() != null) {
-            primitivesToShow.addAll(getCurrentDataSet().getAllSelected());
+        DataSet ds = getLayerManager().getEditDataSet();
+        if (ds != null) {
+            primitivesToShow.addAll(ds.getAllSelected());
         }
 
         Note noteToShow = Main.isDisplayingMapView() ? Main.map.noteDialog.getSelectedNote() : null;
@@ -156,7 +158,8 @@ public abstract class AbstractInfoAction extends JosmAction {
 
     @Override
     protected void updateEnabledState() {
-        setEnabled(getCurrentDataSet() != null && !getCurrentDataSet().getSelected().isEmpty());
+        DataSet ds = getLayerManager().getEditDataSet();
+        setEnabled(ds != null && !ds.selectionEmpty());
     }
 
     @Override

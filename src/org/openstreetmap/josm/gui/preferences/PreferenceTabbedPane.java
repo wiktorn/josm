@@ -6,7 +6,6 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 import java.awt.Component;
 import java.awt.Font;
 import java.awt.GridBagLayout;
-import java.awt.Image;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.util.ArrayList;
@@ -509,10 +508,10 @@ public final class PreferenceTabbedPane extends JTabbedPane implements MouseWhee
                 if (expert || !tps.isExpert()) {
                     // Get icon
                     String iconName = tps.getIconName();
-                    ImageIcon icon = iconName != null && !iconName.isEmpty() ? ImageProvider.get("preferences", iconName) : null;
-                    // See #6985 - Force icons to be 48x48 pixels
-                    if (icon != null && (icon.getIconHeight() != 48 || icon.getIconWidth() != 48)) {
-                        icon = new ImageIcon(icon.getImage().getScaledInstance(48, 48, Image.SCALE_DEFAULT));
+                    ImageIcon icon = null;
+
+                    if (iconName != null && !iconName.isEmpty()) {
+                        icon = new ImageProvider("preferences", iconName).setSize(ImageProvider.ImageSizes.SETTINGS_TAB).get();
                     }
                     if (settingsInitialized.contains(tps)) {
                         // If it has been initialized, add corresponding tab(s)
@@ -545,7 +544,7 @@ public final class PreferenceTabbedPane extends JTabbedPane implements MouseWhee
     }
 
     @SuppressWarnings("unchecked")
-    public <T>  T getSetting(Class<? extends T> clazz) {
+    public <T> T getSetting(Class<? extends T> clazz) {
         for (PreferenceSetting setting:settings) {
             if (clazz.isAssignableFrom(setting.getClass()))
                 return (T) setting;

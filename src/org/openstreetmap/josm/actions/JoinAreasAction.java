@@ -290,7 +290,7 @@ public class JoinAreasAction extends JosmAction {
          * Get the next way creating a clockwise path, ensure it is the most right way. #7959
          * @return The next way.
          */
-        public  WayInPolygon walk() {
+        public WayInPolygon walk() {
             Node headNode = getHeadNode();
             Node prevNode = getPrevNode();
 
@@ -954,7 +954,7 @@ public class JoinAreasAction extends JosmAction {
         List<List<Node>> chunks = buildNodeChunks(way, nodes);
 
         if (chunks.size() > 1) {
-            SplitWayResult split = SplitWayAction.splitWay(getEditLayer(), way, chunks,
+            SplitWayResult split = SplitWayAction.splitWay(getLayerManager().getEditLayer(), way, chunks,
                     Collections.<OsmPrimitive>emptyList(), SplitWayAction.Strategy.keepFirstChunk());
 
             if (split != null) {
@@ -1216,7 +1216,7 @@ public class JoinAreasAction extends JosmAction {
      * @return The newly created outer way
      * @throws UserCancelException if user cancels the operation
      */
-    private Multipolygon  joinPolygon(AssembledMultipolygon polygon) throws UserCancelException {
+    private Multipolygon joinPolygon(AssembledMultipolygon polygon) throws UserCancelException {
         Multipolygon result = new Multipolygon(joinWays(polygon.outerWay.ways));
 
         for (AssembledPolygon pol : polygon.innerWays) {
@@ -1439,7 +1439,7 @@ public class JoinAreasAction extends JosmAction {
                 newRel.setMembers(members);
 
                 cmds.add(new ChangeCommand(r, newRel));
-                RelationRole saverel =  new RelationRole(r, rm.getRole());
+                RelationRole saverel = new RelationRole(r, rm.getRole());
                 if (!result.contains(saverel)) {
                     result.add(saverel);
                 }
@@ -1547,10 +1547,11 @@ public class JoinAreasAction extends JosmAction {
 
     @Override
     protected void updateEnabledState() {
-        if (getCurrentDataSet() == null) {
+        DataSet ds = getLayerManager().getEditDataSet();
+        if (ds == null) {
             setEnabled(false);
         } else {
-            updateEnabledState(getCurrentDataSet().getSelected());
+            updateEnabledState(ds.getSelected());
         }
     }
 

@@ -6,7 +6,6 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.GridBagLayout;
-import java.awt.Image;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.io.BufferedReader;
@@ -15,7 +14,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 
 import javax.swing.BorderFactory;
-import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -104,7 +102,7 @@ public final class AboutAction extends JosmAction {
         // Intermediate panel to allow proper optionPane resizing
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setPreferredSize(new Dimension(890, 300));
-        panel.add(new JLabel("", new ImageIcon(ImageProvider.get("logo.svg").getImage().getScaledInstance(256, 258, Image.SCALE_SMOOTH)),
+        panel.add(new JLabel("", new ImageProvider("logo.svg").setSize(ImageProvider.ImageSizes.ABOUT_LOGO).get(),
                 JLabel.CENTER), GBC.std().insets(0, 5, 0, 0));
         panel.add(about, GBC.std().fill());
 

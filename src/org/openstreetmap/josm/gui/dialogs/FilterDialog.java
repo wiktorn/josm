@@ -139,8 +139,8 @@ public class FilterDialog extends ToggleDialog implements DataSetListener {
         SideButton addButton = new SideButton(new AbstractAction() {
             {
                 putValue(NAME, tr("Add"));
-                putValue(SHORT_DESCRIPTION,  tr("Add filter."));
-                putValue(SMALL_ICON, ImageProvider.get("dialogs", "add"));
+                putValue(SHORT_DESCRIPTION, tr("Add filter."));
+                new ImageProvider("dialogs", "add").getResource().attachImageIcon(this, true);
             }
 
             @Override
@@ -155,7 +155,7 @@ public class FilterDialog extends ToggleDialog implements DataSetListener {
             {
                 putValue(NAME, tr("Edit"));
                 putValue(SHORT_DESCRIPTION, tr("Edit filter."));
-                putValue(SMALL_ICON, ImageProvider.get("dialogs", "edit"));
+                new ImageProvider("dialogs", "edit").getResource().attachImageIcon(this, true);
             }
 
             @Override
@@ -173,7 +173,7 @@ public class FilterDialog extends ToggleDialog implements DataSetListener {
             {
                 putValue(NAME, tr("Delete"));
                 putValue(SHORT_DESCRIPTION, tr("Delete filter."));
-                putValue(SMALL_ICON, ImageProvider.get("dialogs", "delete"));
+                new ImageProvider("dialogs", "delete").getResource().attachImageIcon(this, true);
             }
 
             @Override
@@ -188,7 +188,7 @@ public class FilterDialog extends ToggleDialog implements DataSetListener {
             {
                 putValue(NAME, tr("Up"));
                 putValue(SHORT_DESCRIPTION, tr("Move filter up."));
-                putValue(SMALL_ICON, ImageProvider.get("dialogs", "up"));
+                new ImageProvider("dialogs", "up").getResource().attachImageIcon(this, true);
             }
 
             @Override
@@ -204,7 +204,7 @@ public class FilterDialog extends ToggleDialog implements DataSetListener {
             {
                 putValue(NAME, tr("Down"));
                 putValue(SHORT_DESCRIPTION, tr("Move filter down."));
-                putValue(SMALL_ICON, ImageProvider.get("dialogs", "down"));
+                new ImageProvider("dialogs", "down").getResource().attachImageIcon(this, true);
             }
 
             @Override
@@ -409,7 +409,7 @@ public class FilterDialog extends ToggleDialog implements DataSetListener {
         }
     }
 
-    private class EnableFilterAction extends AbstractFilterAction  {
+    private class EnableFilterAction extends AbstractFilterAction {
 
         EnableFilterAction() {
             putValue(SHORT_DESCRIPTION, tr("Enable filter"));

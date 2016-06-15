@@ -382,7 +382,7 @@ public class TagEditHelper {
             private final DefaultListCellRenderer def = new DefaultListCellRenderer();
             @Override
             public Component getListCellRendererComponent(JList<? extends AutoCompletionListItem> list,
-                    AutoCompletionListItem value, int index, boolean isSelected,  boolean cellHasFocus) {
+                    AutoCompletionListItem value, int index, boolean isSelected, boolean cellHasFocus) {
                 Component c = def.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
                 if (c instanceof JLabel) {
                     String str = value.getValue();
@@ -601,7 +601,7 @@ public class TagEditHelper {
             selectACComboBoxSavingUnixBuffer(keys);
         }
 
-        public void selectValuesCombobox()   {
+        public void selectValuesCombobox() {
             selectACComboBoxSavingUnixBuffer(values);
         }
 
@@ -1041,10 +1041,14 @@ public class TagEditHelper {
             }
         }
 
+        /**
+         * Destroy the recentTagsActions.
+         */
         public void destroyActions() {
             for (JosmAction action : recentTagsActions) {
                 action.destroy();
             }
+            recentTagsActions.clear();
         }
 
         /**
