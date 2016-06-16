@@ -15,6 +15,8 @@ import org.openstreetmap.josm.gui.layer.TMSLayer;
 import org.openstreetmap.josm.gui.layer.WMSLayer;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * Unit tests for class {@link AddImageryLayerAction}.
  */
@@ -23,6 +25,7 @@ public final class AddImageryLayerActionTest {
      * We need prefs for this. We need platform for actions and the OSM API for checking blacklist.
      */
     @Rule
+    @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
     public JOSMTestRules test = new JOSMTestRules().preferences().platform().fakeAPI();
 
     /**
@@ -53,9 +56,9 @@ public final class AddImageryLayerActionTest {
             List<WMSLayer> wmsLayers = Main.getLayerManager().getLayersOfType(WMSLayer.class);
             assertEquals(1, wmsLayers.size());
 
-            Main.map.mapView.removeLayer(wmsLayers.get(0));
+            Main.getLayerManager().removeLayer(wmsLayers.get(0));
         } finally {
-            Main.map.mapView.removeLayer(tmsLayers.get(0));
+            Main.getLayerManager().removeLayer(tmsLayers.get(0));
         }
     }
 

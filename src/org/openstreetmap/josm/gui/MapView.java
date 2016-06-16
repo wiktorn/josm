@@ -489,7 +489,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
     public MapView(MainLayerManager layerManager, final JPanel contentPane, final ViewportData viewportData) {
         this.layerManager = layerManager;
         initialViewport = viewportData;
-        layerManager.addLayerChangeListener(this);
+        layerManager.addLayerChangeListener(this, true);
         layerManager.addActiveLayerChangeListener(this);
         Main.pref.addPreferenceChangeListener(this);
 
@@ -595,7 +595,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
 
     /**
      * Returns current data set. To be removed: end of 2016.
-     * @deprecated Use {@link Main#getLayerManager()} instead.
+     * @deprecated Use {@link #getLayerManager()}.getEditDataSet() instead.
      */
     @Override
     @Deprecated
@@ -1187,7 +1187,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
      * Destroy this map view panel. Should be called once when it is not needed any more.
      */
     public void destroy() {
-        layerManager.removeLayerChangeListener(this);
+        layerManager.removeLayerChangeListener(this, true);
         layerManager.removeActiveLayerChangeListener(this);
         Main.pref.removePreferenceChangeListener(this);
         DataSet.removeSelectionListener(repaintSelectionChangedListener);
@@ -1289,5 +1289,15 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
      */
     public final MainLayerManager getLayerManager() {
         return layerManager;
+    }
+
+    /**
+     * Schedule a zoom to the given position on the next redraw.
+     * Temporary, may be removed without warning.
+     * @param viewportData the viewport to zoom to
+     * @since 10394
+     */
+    public void scheduleZoomTo(ViewportData viewportData) {
+        initialViewport = viewportData;
     }
 }
