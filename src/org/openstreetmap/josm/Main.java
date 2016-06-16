@@ -101,6 +101,7 @@ import org.openstreetmap.josm.gui.preferences.projection.ProjectionPreference;
 import org.openstreetmap.josm.gui.progress.PleaseWaitProgressMonitor;
 import org.openstreetmap.josm.gui.progress.ProgressMonitorExecutor;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPresets;
+import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.util.RedirectInputMap;
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel;
 import org.openstreetmap.josm.io.FileWatcher;
@@ -569,10 +570,14 @@ public abstract class Main {
         getLayerManager().addLayerChangeListener(new LayerChangeListener() {
             @Override
             public void layerAdded(LayerAddEvent e) {
+                Layer layer = e.getAddedLayer();
                 if (map == null) {
-                    Layer layer = e.getAddedLayer();
-                    ProjectionBounds viewProjectionBounds = layer.getViewProjectionBounds();
-                    Main.main.createMapFrame(layer, viewProjectionBounds == null ? null : new ViewportData(viewProjectionBounds));
+                    Main.main.createMapFrame(layer, null);
+                    Main.map.setVisible(true);
+                }
+                ProjectionBounds viewProjectionBounds = layer.getViewProjectionBounds();
+                if (viewProjectionBounds != null) {
+                    Main.map.mapView.scheduleZoomTo(new ViewportData(viewProjectionBounds));
                 }
             }
 
@@ -804,7 +809,7 @@ public abstract class Main {
      * @param bounds the bounds of the layer (target zoom area); can be null, then
      * the viewport isn't changed
      */
-    public final synchronized void addLayer(final Layer layer, ProjectionBounds bounds) {
+    public final void addLayer(Layer layer, ProjectionBounds bounds) {
         addLayer(layer, bounds == null ? null : new ViewportData(bounds));
     }
 
@@ -814,19 +819,22 @@ public abstract class Main {
      * If no map exists, create one.
      *
      * @param layer the layer
-     * @param viewport the viewport to zoom to; can be null, then the viewport
-     * isn't changed
+     * @param viewport the viewport to zoom to; can be null, then the viewport isn't changed
      */
-    public final synchronized void addLayer(final Layer layer, ViewportData viewport) {
+    public final void addLayer(Layer layer, ViewportData viewport) {
         getLayerManager().addLayer(layer);
-        if (map != null) {
-            Main.map.setVisible(true);
-        } else if (viewport != null) {
-            Main.map.mapView.zoomTo(viewport);
+        if (viewport != null) {
+            Main.map.mapView.scheduleZoomTo(viewport);
         }
     }
 
+    /**
+     * Creates the map frame. Call only in EDT Thread.
+     * @param firstLayer The first layer that was added.
+     * @param viewportData The initial viewport. Can be <code>null</code> to be automatically computed.
+     */
     public synchronized void createMapFrame(Layer firstLayer, ViewportData viewportData) {
+        GuiHelper.assertCallFromEdt();
         MapFrame mapFrame = new MapFrame(contentPanePrivate, viewportData);
         setMapFrame(mapFrame);
         if (firstLayer != null) {
