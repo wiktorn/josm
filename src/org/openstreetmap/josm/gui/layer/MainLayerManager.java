@@ -275,7 +275,6 @@ public class MainLayerManager extends LayerManager {
         }
     }
 
-
     /**
      * Creates a list of the visible layers in Z-Order, the layer with the lowest Z-Order
      * first, layer with the highest Z-Order last.
@@ -311,5 +310,13 @@ public class MainLayerManager extends LayerManager {
             ret.add(activeLayer);
         }
         return ret;
+    }
+
+    @Override
+    public void resetState() {
+        // active and edit layer are unset automatically
+        super.resetState();
+
+        activeLayerChangeListeners.clear();
     }
 }

@@ -15,7 +15,6 @@ import org.openstreetmap.josm.data.osm.NoteData;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.NoteInputDialog;
 import org.openstreetmap.josm.gui.Notification;
-import org.openstreetmap.josm.gui.dialogs.NotesDialog;
 import org.openstreetmap.josm.gui.util.KeyPressReleaseListener;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.ImageProvider;
@@ -69,7 +68,7 @@ public class AddNoteAction extends MapMode implements KeyPressReleaseListener {
         Main.map.selectMapMode(Main.map.mapModeSelect);
 
         NoteInputDialog dialog = new NoteInputDialog(Main.parent, tr("Create new note"), tr("Create note"));
-        dialog.showNoteDialog(tr("Enter a detailed comment to create a note"), NotesDialog.ICON_NEW);
+        dialog.showNoteDialog(tr("Enter a detailed comment to create a note"), ImageProvider.get("dialogs/notes", "note_new"));
 
         if (dialog.getValue() != 1) {
             Main.debug("User aborted note creation");
