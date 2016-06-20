@@ -30,7 +30,7 @@ public final class DeleteLayerAction extends AbstractAction implements IEnabledS
      */
     public DeleteLayerAction(LayerListModel model) {
         this.model = model;
-        putValue(SMALL_ICON, ImageProvider.get("dialogs", "delete"));
+        new ImageProvider("dialogs", "delete").getResource().attachImageIcon(this, true);
         putValue(SHORT_DESCRIPTION, tr("Delete the selected layers."));
         putValue(NAME, tr("Delete"));
         putValue("help", HelpUtil.ht("/Dialog/LayerList#DeleteLayer"));
@@ -45,7 +45,7 @@ public final class DeleteLayerAction extends AbstractAction implements IEnabledS
         if (!Main.saveUnsavedModifications(selectedLayers, false))
             return;
         for (Layer l: selectedLayers) {
-            Main.main.removeLayer(l);
+            Main.getLayerManager().removeLayer(l);
         }
     }
 
