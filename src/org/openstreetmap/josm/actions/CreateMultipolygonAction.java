@@ -134,7 +134,8 @@ public class CreateMultipolygonAction extends JosmAction {
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        if (!Main.main.hasEditLayer()) {
+        DataSet dataSet = Main.getLayerManager().getEditDataSet();
+        if (dataSet == null) {
             new Notification(
                     tr("No data loaded."))
                     .setIcon(JOptionPane.WARNING_MESSAGE)
@@ -143,7 +144,7 @@ public class CreateMultipolygonAction extends JosmAction {
             return;
         }
 
-        final Collection<Way> selectedWays = Main.main.getCurrentDataSet().getSelectedWays();
+        final Collection<Way> selectedWays = dataSet.getSelectedWays();
 
         if (selectedWays.isEmpty()) {
             // Sometimes it make sense creating multipoly of only one way (so it will form outer way)
@@ -156,7 +157,7 @@ public class CreateMultipolygonAction extends JosmAction {
             return;
         }
 
-        final Collection<Relation> selectedRelations = Main.main.getCurrentDataSet().getSelectedRelations();
+        final Collection<Relation> selectedRelations = dataSet.getSelectedRelations();
         final Relation multipolygonRelation = update
                 ? getSelectedMultipolygonRelation(selectedWays, selectedRelations)
                 : null;
@@ -175,8 +176,9 @@ public class CreateMultipolygonAction extends JosmAction {
         Main.worker.submit(new CreateUpdateMultipolygonTask(selectedWays, multipolygonRelation));
     }
 
-    private static Relation getSelectedMultipolygonRelation() {
-        return getSelectedMultipolygonRelation(getCurrentDataSet().getSelectedWays(), getCurrentDataSet().getSelectedRelations());
+    private Relation getSelectedMultipolygonRelation() {
+        DataSet ds = getLayerManager().getEditDataSet();
+        return getSelectedMultipolygonRelation(ds.getSelectedWays(), ds.getSelectedRelations());
     }
 
     private static Relation getSelectedMultipolygonRelation(Collection<Way> selectedWays, Collection<Relation> selectedRelations) {

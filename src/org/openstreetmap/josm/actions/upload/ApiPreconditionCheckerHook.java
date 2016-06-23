@@ -41,6 +41,7 @@ public class ApiPreconditionCheckerHook implements UploadHook {
                     return false;
             }
         } catch (OsmTransferCanceledException e) {
+            Main.trace(e);
             return false;
         } catch (OsmApiInitializationException e) {
             ExceptionDialogUtil.explainOsmTransferException(e);
@@ -72,7 +73,7 @@ public class ApiPreconditionCheckerHook implements UploadHook {
                             tr("Precondition Violation"),
                             JOptionPane.ERROR_MESSAGE
                     );
-                    Main.main.getCurrentDataSet().setSelected(Collections.singleton(osmPrimitive));
+                    Main.getLayerManager().getEditDataSet().setSelected(Collections.singleton(osmPrimitive));
                     return false;
                 }
             }
@@ -89,7 +90,7 @@ public class ApiPreconditionCheckerHook implements UploadHook {
                         tr("API Capabilities Violation"),
                         JOptionPane.ERROR_MESSAGE
                 );
-                Main.main.getCurrentDataSet().setSelected(Collections.singleton(osmPrimitive));
+                Main.getLayerManager().getEditDataSet().setSelected(Collections.singleton(osmPrimitive));
                 return false;
             }
         }

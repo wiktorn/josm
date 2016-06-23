@@ -451,12 +451,9 @@ node[barrier=spikes] {
     icon-image: "vehicle/spikes.svg";
     set icon_z17;
 }
-node[barrier=fence][!is_prop_set(icon-image)],
 node[barrier=kissing_gate][!is_prop_set(icon-image)],
 node[barrier=bump_gate][!is_prop_set(icon-image)],
-node[barrier=portcullis][!is_prop_set(icon-image)],
 node[barrier=bus_trap][!is_prop_set(icon-image)],
-node[barrier=drawbridge][!is_prop_set(icon-image)],
 node[barrier=jersey_barrier][!is_prop_set(icon-image)],
 node[barrier=hampshire_gate][!is_prop_set(icon-image)] {
     icon-image: "misc/no_icon.png";
@@ -2739,8 +2736,7 @@ node[amenity=bus_station] {
     set icon_z17;
 }
 node[amenity=ferry_terminal] {
-    icon-image: "nautical/ferry.png";
-    icon-width: 16;
+    icon-image: "nautical/ferry.svg";
     set icon_z17;
 }
 node[amenity=theatre] {
@@ -3289,7 +3285,7 @@ node[railway=station] {
     set icon_z17;
 }
 node[railway=halt] {
-    icon-image: "transport/railway_small.png";
+    icon-image: "presets/station16.png";
     set icon_z17;
 }
 node[railway=tram_stop] {
@@ -3629,8 +3625,16 @@ node[public_transport=stop_position] {
     icon-image: "transport/railway_small.png";
     set icon_z17;
 }
+node[public_transport=stop_position][bus=yes] {
+    icon-image: "transport/bus.svg";
+    set icon_z17;
+}
 node[public_transport=stop_position][train=yes] {
     icon-image: "transport/train.svg";
+    set icon_z17;
+}
+node[public_transport=stop_position][tram=yes] {
+    icon-image: "transport/railway/tram.svg";
     set icon_z17;
 }
 node[public_transport=stop_position][subway=yes] {
@@ -3639,14 +3643,6 @@ node[public_transport=stop_position][subway=yes] {
 }
 node[public_transport=stop_position][monorail=yes] {
     icon-image: "transport/railway/monorail.svg";
-    set icon_z17;
-}
-node[public_transport=stop_position][tram=yes] {
-    icon-image: "transport/railway/tram.svg";
-    set icon_z17;
-}
-node[public_transport=stop_position][bus=yes] {
-    icon-image: "transport/bus.svg";
     set icon_z17;
 }
 node[public_transport=stop_position][trolleybus=yes] {
@@ -3658,8 +3654,7 @@ node[public_transport=stop_position][aerialway=yes] {
     set icon_z17;
 }
 node[public_transport=stop_position][ferry=yes] {
-    icon-image: "nautical/ferry.png";
-    icon-width: 16;
+    icon-image: "nautical/ferry.svg";
     set icon_z17;
 }
 area[public_transport=platform]:closed {
