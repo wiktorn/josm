@@ -267,9 +267,9 @@ public class ChangesetDialog extends ToggleDialog {
             Set<Integer> sel = getCurrentChangesetListModel().getSelectedChangesetIds();
             if (sel.isEmpty())
                 return;
-            if (Main.main.getCurrentDataSet() == null)
+            if (Main.getLayerManager().getEditDataSet() == null)
                 return;
-            new SelectObjectsAction().selectObjectsByChangesetIds(Main.main.getCurrentDataSet(), sel);
+            new SelectObjectsAction().selectObjectsByChangesetIds(Main.getLayerManager().getEditDataSet(), sel);
         }
 
     }
@@ -315,7 +315,7 @@ public class ChangesetDialog extends ToggleDialog {
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            if (!Main.main.hasEditLayer())
+            if (Main.getLayerManager().getEditLayer() == null)
                 return;
             ChangesetListModel model = getCurrentChangesetListModel();
             Set<Integer> sel = model.getSelectedChangesetIds();

@@ -271,7 +271,7 @@ public class MergeNodesAction extends JosmAction {
         Command cmd = mergeNodes(layer, nodes, target, targetLocationNode);
         if (cmd != null) {
             Main.main.undoRedo.add(cmd);
-            getCurrentDataSet().setSelected(target);
+            layer.data.setSelected(target);
         }
     }
 
@@ -345,6 +345,7 @@ public class MergeNodesAction extends JosmAction {
             return new SequenceCommand(/* for correct i18n of plural forms - see #9110 */
                     trn("Merge {0} node", "Merge {0} nodes", nodes.size(), nodes.size()), cmds);
         } catch (UserCancelException ex) {
+            Main.trace(ex);
             return null;
         }
     }

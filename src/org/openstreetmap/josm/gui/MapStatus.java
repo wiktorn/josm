@@ -267,12 +267,11 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
                 // The popup != null check is required because a left-click produces several events as well,
                 // which would make this variable true. Of course we only want the popup to show
                 // if the middle mouse button has been pressed in the first place
-                boolean mouseNotMoved = oldMousePos != null
-                        && oldMousePos.equals(ms.mousePos);
+                boolean mouseNotMoved = oldMousePos != null && oldMousePos.equals(ms.mousePos);
                 boolean isAtOldPosition = mouseNotMoved && popup != null;
                 boolean middleMouseDown = (ms.modifiers & MouseEvent.BUTTON2_DOWN_MASK) != 0;
                 try {
-                    ds = mv.getCurrentDataSet();
+                    ds = mv.getLayerManager().getEditDataSet();
                     if (ds != null) {
                         // This is not perfect, if current dataset was changed during execution, the lock would be useless
                         if (isAtOldPosition && middleMouseDown) {
@@ -461,7 +460,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
          * @param mods modifiers (i.e. control keys)
          */
         private void popupCycleSelection(Collection<OsmPrimitive> osms, int mods) {
-            DataSet ds = Main.main.getCurrentDataSet();
+            DataSet ds = Main.getLayerManager().getEditDataSet();
             // Find some items that are required for cycling through
             OsmPrimitive firstItem = null;
             OsmPrimitive firstSelected = null;
@@ -565,7 +564,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
          * @param osm The primitive to derive the colors from
          */
         private void popupSetLabelColors(JLabel lbl, OsmPrimitive osm) {
-            DataSet ds = Main.main.getCurrentDataSet();
+            DataSet ds = Main.getLayerManager().getEditDataSet();
             if (ds.isSelected(osm)) {
                 lbl.setBackground(SystemColor.textHighlight);
                 lbl.setForeground(SystemColor.textHighlightText);
@@ -637,7 +636,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
 
                 @Override
                 public void mouseClicked(MouseEvent e) {
-                    DataSet ds = Main.main.getCurrentDataSet();
+                    DataSet ds = Main.getLayerManager().getEditDataSet();
                     // Let the user toggle the selection
                     ds.toggleSelected(osm);
                     l.validate();

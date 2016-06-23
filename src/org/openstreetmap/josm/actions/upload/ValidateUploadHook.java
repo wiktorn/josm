@@ -13,7 +13,6 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.actions.JosmAction;
 import org.openstreetmap.josm.data.APIDataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.validation.OsmValidator;
@@ -72,7 +71,7 @@ public class ValidateUploadHook implements UploadHook {
                 }
             }
         }
-        OsmDataLayer editLayer = JosmAction.getEditLayer();
+        OsmDataLayer editLayer = Main.getLayerManager().getEditLayer();
         if (editLayer != null) {
             editLayer.validationErrors.clear();
             editLayer.validationErrors.addAll(errors);
@@ -150,7 +149,7 @@ public class ValidateUploadHook implements UploadHook {
             OsmValidator.initializeTests();
             OsmValidator.initializeErrorLayer();
             Main.map.validatorDialog.unfurlDialog();
-            Main.main.getCurrentDataSet().fireSelectionChanged();
+            Main.getLayerManager().getEditDataSet().fireSelectionChanged();
             return false;
         }
         return true;

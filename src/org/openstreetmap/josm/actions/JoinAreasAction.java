@@ -412,7 +412,7 @@ public class JoinAreasAction extends JosmAction {
      */
     @Override
     public void actionPerformed(ActionEvent e) {
-        join(Main.main.getCurrentDataSet().getSelectedWays());
+        join(Main.getLayerManager().getEditDataSet().getSelectedWays());
     }
 
     /**
@@ -499,7 +499,6 @@ public class JoinAreasAction extends JosmAction {
                 }
                 if (ds != null) {
                     ds.setSelected(allWays);
-                    Main.map.mapView.repaint();
                 }
             } else {
                 new Notification(
@@ -508,6 +507,7 @@ public class JoinAreasAction extends JosmAction {
                         .show();
             }
         } catch (UserCancelException exception) {
+            Main.trace(exception);
             //revert changes
             //FIXME: this is dirty hack
             makeCommitsOneAction(tr("Reverting changes"));
@@ -681,6 +681,7 @@ public class JoinAreasAction extends JosmAction {
             commitCommands(marktr("Fix tag conflicts"));
             return true;
         } catch (UserCancelException ex) {
+            Main.trace(ex);
             return false;
         }
     }
@@ -1424,7 +1425,7 @@ public class JoinAreasAction extends JosmAction {
     private List<RelationRole> removeFromAllRelations(OsmPrimitive osm) {
         List<RelationRole> result = new ArrayList<>();
 
-        for (Relation r : Main.main.getCurrentDataSet().getRelations()) {
+        for (Relation r : Main.getLayerManager().getEditDataSet().getRelations()) {
             if (r.isDeleted()) {
                 continue;
             }

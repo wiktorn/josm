@@ -135,16 +135,14 @@ public final class ShowStatusReportAction extends JosmAction {
                 text.append("VM arguments: ").append(vmArguments.toString().replace("\\\\", "\\")).append('\n');
             }
         } catch (SecurityException e) {
-            if (Main.isTraceEnabled()) {
-                Main.trace(e.getMessage());
-            }
+            Main.trace(e);
         }
         List<String> commandLineArgs = Main.getCommandLineArgs();
         if (!commandLineArgs.isEmpty()) {
             text.append("Program arguments: ").append(Arrays.toString(paramCleanup(commandLineArgs).toArray())).append('\n');
         }
         if (Main.main != null) {
-            DataSet dataset = Main.main.getCurrentDataSet();
+            DataSet dataset = Main.getLayerManager().getEditDataSet();
             if (dataset != null) {
                 String result = DatasetConsistencyTest.runTests(dataset);
                 if (result.isEmpty()) {

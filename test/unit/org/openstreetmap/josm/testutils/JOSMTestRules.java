@@ -4,6 +4,7 @@ package org.openstreetmap.josm.testutils;
 import java.io.File;
 import java.io.IOException;
 
+import org.junit.rules.DisableOnDebug;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
 import org.junit.rules.Timeout;
@@ -18,6 +19,8 @@ import org.openstreetmap.josm.io.OsmApiInitializationException;
 import org.openstreetmap.josm.io.OsmTransferCanceledException;
 import org.openstreetmap.josm.tools.I18n;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * This class runs a test in an environment that resembles the one used by the JOSM main application.
  * <p>
@@ -27,8 +30,7 @@ import org.openstreetmap.josm.tools.I18n;
  * @author Michael Zangl
  */
 public class JOSMTestRules implements TestRule {
-    //We should make this the default when running from ant: Timeout.seconds(10);
-    private Timeout timeout = null;
+    private Timeout timeout = Timeout.seconds(10);
     private TemporaryFolder josmHome;
     private boolean usePreferences = false;
     private APIType useAPI = APIType.NONE;
@@ -143,7 +145,7 @@ public class JOSMTestRules implements TestRule {
             }
         };
         if (timeout != null) {
-            statement = timeout.apply(statement, description);
+            statement = new DisableOnDebug(timeout).apply(statement, description);
         }
         if (josmHome != null) {
             statement = josmHome.apply(statement, description);
@@ -156,6 +158,8 @@ public class JOSMTestRules implements TestRule {
      * @throws InitializationError If an error occured while creating the required environment.
      */
     protected void before() throws InitializationError {
+        cleanUpFromJosmFixture();
+
         // Tests are running headless by default.
         System.setProperty("java.awt.headless", "true");
 
@@ -211,8 +215,20 @@ public class JOSMTestRules implements TestRule {
     }
 
     /**
+     * Clean up what test not using these test rules may have broken.
+     */
+    @SuppressFBWarnings("DM_GC")
+    private void cleanUpFromJosmFixture() {
+        Main.getLayerManager().resetState();
+        Main.pref = null;
+        Main.platform = null;
+        System.gc();
+    }
+
+    /**
      * Clean up after running a test
      */
+    @SuppressFBWarnings("DM_GC")
     protected void after() {
         // Sync AWT Thread
         GuiHelper.runInEDTAndWait(new Runnable() {

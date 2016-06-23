@@ -2316,8 +2316,8 @@
             <text key="name" text="Name" />
         </item> <!-- Bay -->
     </group> <!-- Water -->
-    <group name="Shipping" icon="presets/ferry.png">
-        <item name="Ferry Terminal" icon="presets/ferry.png" type="node,closedway,multipolygon" preset_name_label="true">
+    <group name="Shipping" icon="styles/standard/nautical/ferry.svg">
+        <item name="Ferry Terminal" icon="styles/standard/nautical/ferry.svg" type="node,closedway,multipolygon" preset_name_label="true">
             <link href="http://wiki.openstreetmap.org/wiki/Tag:amenity=ferry_terminal"
                   de.href="http://wiki.openstreetmap.org/wiki/DE:Tag:amenity=ferry_terminal"
                   fi.href="http://wiki.openstreetmap.org/wiki/Fi:Tag:amenity=ferry_terminal"
@@ -2330,7 +2330,7 @@
             <text key="name" text="Name" />
             <combo key="cargo" text="Cargo" values="passengers,vehicle,bicycle,hgv,passengers;vehicle" values_context="cargo" />
         </item> <!-- Ferry Terminal -->
-        <item name="Ferry Route" icon="presets/ferry.png" type="way,closedway,relation" preset_name_label="true">
+        <item name="Ferry Route" icon="styles/standard/nautical/ferry.svg" type="way,closedway,relation" preset_name_label="true">
             <link href="http://wiki.openstreetmap.org/wiki/Tag:route=ferry"
                   da.href="http://wiki.openstreetmap.org/wiki/Da:Tag:route=ferry"
                   de.href="http://wiki.openstreetmap.org/wiki/DE:Tag:route=ferry"
@@ -3228,13 +3228,15 @@
                 <text key="network" text="Network" />
                 <combo key="tactile_paving" text="Tactile Paving" values="yes,no,incorrect" />
             </optional>
-            <check key="bus" text="Bus" />
-            <check key="highway" value_on="bus_stop" value_off="" text="Bus stop (legacy)" />
-            <check key="tram" text="Tram" />
-            <check key="railway" value_on="tram_stop" value_off="" text="Tram stop (legacy)" />
-            <check key="train" text="Train" />
-            <check key="railway" value_on="station" value_off="" text="Railway station (legacy)" />
-            <check key="railway" value_on="halt" value_off="" text="Railway halt (legacy)" />
+            <space />
+            <checkgroup columns="2">
+                <check key="bus" text="Bus" />
+                <check key="highway" value_on="bus_stop" value_off="" text="Bus stop (legacy)" />
+                <check key="tram" text="Tram" />
+                <check key="railway" value_on="tram_stop" value_off="" text="Tram stop (legacy)" />
+                <check key="train" text="Train" />
+                <check key="railway" value_on="halt" value_off="" text="Railway halt (legacy)" />
+            </checkgroup>
             <check key="trolleybus" text="Trolleybus" />
             <check key="share_taxi" text="Share taxi" />
             <check key="subway" text="Subway" />
@@ -3341,7 +3343,7 @@
                 <text key="uic_ref" text="UIC-Reference" />
             </optional>
         </item> <!-- Station -->
-        <item name="Railway Halt" icon="styles/standard/transport/railway_small.png" type="node" preset_name_label="true">
+        <item name="Railway Halt" icon="presets/station.png" type="node" preset_name_label="true">
             <link href="http://wiki.openstreetmap.org/wiki/Tag:railway=halt"
                   de.href="http://wiki.openstreetmap.org/wiki/DE:Tag:railway=halt"
                   ja.href="http://wiki.openstreetmap.org/wiki/JA:Tag:railway=halt"
@@ -8996,13 +8998,10 @@
             <key key="natural" value="tree" />
             <text key="name" text="Name" />
             <text key="height" text="Height (meters)" />
-            <text key="name:botanical" text="Botanical Name" />
-            <optional>
-                <text key="genus" text="Genus" />
-                <text key="species" text="Species" />
-                <text key="taxon" text="Taxon" />
-                <reference ref="leaf" />
-            </optional>
+            <text key="genus" text="Genus" />
+            <text key="species" text="Species" />
+            <text key="taxon" text="Taxon" />
+            <reference ref="leaf" />
         </item> <!-- Tree -->
         <item name="Tree Row" icon="styles/standard/misc/landmark/tree_row.svg" type="way" preset_name_label="true">
             <link href="http://wiki.openstreetmap.org/wiki/Tag:natural=tree_row"
