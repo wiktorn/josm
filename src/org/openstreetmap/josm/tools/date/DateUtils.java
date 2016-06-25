@@ -29,6 +29,11 @@ import org.openstreetmap.josm.tools.UncheckedParseException;
  */
 public final class DateUtils {
 
+    /**
+     * The UTC time zone.
+     */
+    public static final TimeZone UTC = TimeZone.getTimeZone("UTC");
+
     protected DateUtils() {
         // Hide default constructor for utils classes
     }
@@ -45,7 +50,7 @@ public final class DateUtils {
      * The shared instance is used because the construction, together
      * with the timezone lookup, is very expensive.
      */
-    private static final GregorianCalendar calendar = new GregorianCalendar(TimeZone.getTimeZone("UTC"));
+    private static final GregorianCalendar calendar = new GregorianCalendar(UTC);
     private static final GregorianCalendar calendarLocale = new GregorianCalendar(TimeZone.getDefault());
     private static final DatatypeFactory XML_DATE;
 
@@ -128,6 +133,7 @@ public final class DateUtils {
         } else {
             // example date format "18-AUG-08 13:33:03"
             SimpleDateFormat f = new SimpleDateFormat("dd-MMM-yy HH:mm:ss");
+            f.setTimeZone(calendarLocale.getTimeZone());
             Date d = f.parse(str, new ParsePosition(0));
             if (d != null)
                 return d.getTime();
