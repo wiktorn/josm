@@ -291,7 +291,7 @@ public final class DomainValidator extends AbstractValidator {
 
     // WARNING: this array MUST be sorted, otherwise it cannot be searched reliably using binary search
     private static final String[] GENERIC_TLDS = new String[] {
-        // Taken from Version 2016062300, Last Updated Thu Jun 23 07:07:01 2016 UTC
+        // Taken from Version 2016070700, Last Updated Thu Jul  7 07:07:01 2016 UTC
         "aaa", // aaa American Automobile Association, Inc.
         "aarp", // aarp AARP
         "abb", // abb ABB Ltd
@@ -340,6 +340,7 @@ public final class DomainValidator extends AbstractValidator {
         "aramco", // aramco Aramco Services Company
         "archi", // archi STARTING DOT LIMITED
         "army", // army United TLD Holdco Ltd.
+        "art", // art UK Creative Ideas Limited
         "arte", // arte Association Relative à la Télévision Européenne G.E.I.E.
         "asia", // asia DotAsia Organisation Ltd.
         "associates", // associates Baxter Hill, LLC
@@ -446,6 +447,7 @@ public final class DomainValidator extends AbstractValidator {
         "catering", // catering New Falls. LLC
         "cba", // cba COMMONWEALTH BANK OF AUSTRALIA
         "cbn", // cbn The Christian Broadcasting Network, Inc.
+        "cbre", // cbre CBRE, Inc.
         "ceb", // ceb The Corporate Executive Board Company
         "center", // center Tin Mill, LLC
         "ceo", // ceo CEOTLD Pty Ltd
@@ -495,6 +497,7 @@ public final class DomainValidator extends AbstractValidator {
         "contact", // contact Top Level Spectrum, Inc.
         "contractors", // contractors Magic Woods, LLC
         "cooking", // cooking Top Level Domain Holdings Limited
+        "cookingchannel", // cookingchannel Lifestyle Domain Holdings, Inc.
         "cool", // cool Koko Lake, LLC
         "coop", // coop DotCooperation LLC
         "corsica", // corsica Collectivité Territoriale de Corse
@@ -592,8 +595,10 @@ public final class DomainValidator extends AbstractValidator {
         "fan", // fan Asiamix Digital Ltd
         "fans", // fans Asiamix Digital Limited
         "farm", // farm Just Maple, LLC
+        "farmers", // farmers Farmers Insurance Exchange
         "fashion", // fashion Top Level Domain Holdings Limited
         "fast", // fast Amazon Registry Services, Inc.
+        "fedex", // fedex Federal Express Corporation
         "feedback", // feedback Top Level Spectrum, Inc.
         "ferrero", // ferrero Ferrero Trading Lux S.A.
         "film", // film Motion Picture Domain Registry Pty Ltd
@@ -615,6 +620,7 @@ public final class DomainValidator extends AbstractValidator {
         "flsmidth", // flsmidth FLSmidth A/S
         "fly", // fly Charleston Road Registry Inc.
         "foo", // foo Charleston Road Registry Inc.
+        "foodnetwork", // foodnetwork Lifestyle Domain Holdings, Inc.
         "football", // football Foggy Farms, LLC
         "ford", // ford Ford Motor Company
         "forex", // forex DOTFOREX REGISTRY LTD
@@ -625,6 +631,7 @@ public final class DomainValidator extends AbstractValidator {
         "fresenius", // fresenius Fresenius Immobilien-Verwaltungs-GmbH
         "frl", // frl FRLregistry B.V.
         "frogans", // frogans OP3FT
+        "frontdoor", // frontdoor Lifestyle Domain Holdings, Inc.
         "frontier", // frontier Frontier Communications Corporation
         "ftr", // ftr Frontier Communications Corporation
         "fund", // fund John Castle, LLC
@@ -688,6 +695,7 @@ public final class DomainValidator extends AbstractValidator {
         "helsinki", // helsinki City of Helsinki
         "here", // here Charleston Road Registry Inc.
         "hermes", // hermes Hermes International
+        "hgtv", // hgtv Lifestyle Domain Holdings, Inc.
         "hiphop", // hiphop Uniregistry, Corp.
         "hisamitsu", // hisamitsu Hisamitsu Pharmaceutical Co.,Inc.
         "hitachi", // hitachi Hitachi, Ltd.
@@ -715,6 +723,7 @@ public final class DomainValidator extends AbstractValidator {
         "icu", // icu One.com A/S
         "ifm", // ifm ifm electronic gmbh
         "iinet", // iinet Connect West Pty. Ltd.
+        "ikano", // ikano Ikano S.A.
         "imamat", // imamat Fondation Aga Khan (Aga Khan Foundation)
         "imdb", // imdb Amazon Registry Service, Inc.
         "immo", // immo Auburn Bloom, LLC
@@ -853,6 +862,7 @@ public final class DomainValidator extends AbstractValidator {
         "microsoft", // microsoft Microsoft Corporation
         "mil", // mil DoD Network Information Center
         "mini", // mini Bayerische Motoren Werke Aktiengesellschaft
+        "mit", // mit Massachusetts Institute of Technology
         "mlb", // mlb MLB Advanced Media DH, LLC
         "mls", // mls The Canadian Real Estate Association
         "mma", // mma MMA IARD
@@ -894,6 +904,7 @@ public final class DomainValidator extends AbstractValidator {
         "next", // next Next plc
         "nextdirect", // nextdirect Next plc
         "nexus", // nexus Charleston Road Registry Inc.
+        "nfl", // nfl NFL Reg Ops LLC
         "ngo", // ngo Public Interest Registry
         "nhk", // nhk Japan Broadcasting Corporation (NHK)
         "nico", // nico DWANGO Co., Ltd.
@@ -965,8 +976,10 @@ public final class DomainValidator extends AbstractValidator {
         "playstation", // playstation Sony Computer Entertainment Inc.
         "plumbing", // plumbing Spring Tigers, LLC
         "plus", // plus Sugar Mill, LLC
+        "pnc", // pnc PNC Domain Co., LLC
         "pohl", // pohl Deutsche Vermögensberatung Aktiengesellschaft DVAG
         "poker", // poker Afilias Domains No. 5 Limited
+        "politie", // politie Politie Nederland
         "porn", // porn ICM Registry PN LLC
         "post", // post Universal Postal Union
         "praxi", // praxi Praxi S.p.A.
@@ -1064,6 +1077,7 @@ public final class DomainValidator extends AbstractValidator {
         "sex", // sex ICM Registry SX LLC
         "sexy", // sexy Uniregistry, Corp.
         "sfr", // sfr Societe Francaise du Radiotelephone - SFR
+        "shangrila", // shangrila Shangri‐La International Hotel Management Limited
         "sharp", // sharp Sharp Corporation
         "shaw", // shaw Shaw Cablesystems G.P.
         "shell", // shell Shell Information Technology International Inc
@@ -1172,6 +1186,7 @@ public final class DomainValidator extends AbstractValidator {
         "trading", // trading DOTTRADING REGISTRY LTD
         "training", // training Wild Willow, LLC
         "travel", // travel Tralliance Registry Management Company, LLC.
+        "travelchannel", // travelchannel Lifestyle Domain Holdings, Inc.
         "travelers", // travelers Travelers TLD, LLC
         "travelersinsurance", // travelersinsurance Travelers TLD, LLC
         "trust", // trust Artemis Internet Inc
@@ -1239,6 +1254,7 @@ public final class DomainValidator extends AbstractValidator {
         "wine", // wine June Station, LLC
         "wme", // wme William Morris Endeavor Entertainment, LLC
         "wolterskluwer", // wolterskluwer Wolters Kluwer N.V.
+        "woodside", // woodside Woodside Petroleum Limited
         "work", // work Top Level Domain Holdings Limited
         "works", // works Little Dynamite, LLC
         "world", // world Bitter Fields, LLC
@@ -1260,6 +1276,7 @@ public final class DomainValidator extends AbstractValidator {
         "xn--4gbrim", // موقع Suhub Electronic Establishment
         "xn--55qw42g", // 公益 China Organizational Name Administration Center
         "xn--55qx5d", // 公司 Computer Network Information Center of Chinese Academy of Sciences （China Internet Network Information Center）
+        "xn--5su34j936bgsg", // 香格里拉 Shangri‐La International Hotel Management Limited
         "xn--5tzm5g", // 网站 Global Website TLD Asia Limited
         "xn--6frz82g", // 移动 Afilias Limited
         "xn--6qq986b3xl", // 我爱你 Tycoon Treasure Limited
@@ -1267,6 +1284,7 @@ public final class DomainValidator extends AbstractValidator {
         "xn--80asehdb", // онлайн CORE Association
         "xn--80aswg", // сайт CORE Association
         "xn--8y0a063a", // 联通 China United Network Communications Corporation Limited
+        "xn--90ae", // бг Imena.BG Plc (NAMES.BG Plc)
         "xn--9dbq2a", // קום VeriSign Sarl
         "xn--9et52u", // 时尚 RISE VICTORY LIMITED
         "xn--9krt00a", // 微博 Sina Corporation
@@ -1351,6 +1369,7 @@ public final class DomainValidator extends AbstractValidator {
         "zara", // zara Industria de Diseño Textil, S.A. (INDITEX, S.A.)
         "zero", // zero Amazon Registry Services, Inc.
         "zip", // zip Charleston Road Registry Inc.
+        "zippo", // zippo Zadco Company
         "zone", // zone Outer Falls, LLC
         "zuerich", // zuerich Kanton Zürich (Canton of Zurich)
     };
