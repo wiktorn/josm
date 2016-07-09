@@ -5356,7 +5356,14 @@
             <key key="amenity" value="shelter" />
             <text key="name" text="Name" />
             <check key="fireplace" text="Fireplace" />
-            <combo key="shelter_type" text="Type of shelter" values="basic_hut,lean_to,picnic_shelter,public_transport,weather_shelter,wildlife_hide" values_context="shelter" values_searchable="true" />
+            <combo key="shelter_type" text="Type of shelter" values_context="shelter" values_searchable="true">
+                <list_entry value="basic_hut" icon="styles/standard/accommodation/basic_hut_blue.png" />
+                <list_entry value="lean_to" icon="styles/standard/accommodation/shelter_lean_to.svg" />
+                <list_entry value="picnic_shelter" icon="styles/standard/accommodation/shelter_picnic_brown.png" />
+                <list_entry value="public_transport" icon="styles/standard/accommodation/shelter_public_transport_brown.png" />
+                <list_entry value="weather_shelter" icon="styles/standard/accommodation/shelter.png" />
+                <list_entry value="wildlife_hide" icon="styles/standard/accommodation/shelter.png" />
+            </combo>
         </item> <!-- Shelter -->
         <item name="Hunting Stand" icon="presets/hunting_stand.png" type="node" preset_name_label="true">
             <link href="http://wiki.openstreetmap.org/wiki/Tag:amenity=hunting_stand"
@@ -6937,7 +6944,7 @@
                 <combo key="design" text="Tower design" values="one-level,two-level,donau,three-level,barrel,asymmetric,triangle,flag,donau;one-level,four-level,six-level,nine-level,delta,delta_two-level,y-frame,x-frame,h-frame,guyed_h-frame,portal,portal_two-level,portal_three-level,guyed_v-frame,bipole,monopolar" values_context="power" />
                 <check key="triple_tower" text="Triple tower" />
                 <check key="design:incomplete" text="Incomplete tower" />
-                <check key="tower" text="Location transition" value_on="transition" disable_off="true" />
+                <check key="location:transition" text="Location transition" disable_off="true" />
             </optional>
         </item> <!-- Power Tower -->
         <item name="Pole" icon="styles/standard/power/pole.svg" type="node" preset_name_label="true">
@@ -6955,7 +6962,7 @@
             <key key="power" value="pole" />
             <text key="height" text="Height (meters)" />
             <combo key="material" text="Material" values="metal,plastic,steel,stone,wood,concrete" />
-            <check key="pole" text="Location transition" value_on="transition" disable_off="true" />
+            <check key="location:transition" text="Location transition" disable_off="true" />
             <reference ref="ref_operator_branch" />
         </item> <!-- Pole -->
         <item name="Pole with Transformer" icon="styles/standard/power/pole_transformer.svg" type="node" preset_name_label="true">
@@ -6972,7 +6979,7 @@
             <label text="Pole Attributes:" />
             <text key="height" text="Height (meters)" />
             <combo key="material" text="Material" values="metal,plastic,steel,stone,wood,concrete" />
-            <check key="pole" text="Location transition" value_on="transition" disable_off="true" />
+            <check key="location:transition" text="Location transition" disable_off="true" />
             <reference ref="ref_operator_branch" />
             <space />
             <label text="Transformer Attributes:" />
