@@ -198,11 +198,11 @@ way[oneway][!highway][!railway] {
   throwWarning: tr("{0} together with {1}", "{0.tag}", "{1.key}");
 }
 
-/* {0.tag} together with {1.key}, see #9389, #11977 */
-*[oneway=yes][/:backward/][!"traffic_sign:backward"],
-*[oneway=yes][/:forward/][!"traffic_sign:forward"],
-*[oneway=-1 ][/:backward/][!"traffic_sign:backward"],
-*[oneway=-1 ][/:forward/][!"traffic_sign:forward"] {
+/* {0.tag} together with {1.key}, see #9389, #11977, #13156 */
+way[oneway=yes][/:backward/][!traffic_sign:backward][bicycle:backward!=use_sidepath],
+way[oneway=yes][/:forward/][!traffic_sign:forward][bicycle:forward!=use_sidepath],
+way[oneway=-1 ][/:backward/][!traffic_sign:backward][bicycle:backward!=use_sidepath],
+way[oneway=-1 ][/:forward/][!traffic_sign:forward][bicycle:forward!=use_sidepath] {
   throwWarning: tr("{0} together with {1}", "{0.tag}", "{1.key}");
 }
 
@@ -372,4 +372,31 @@ way[waterway][layer][layer=~/^(-1|-2|-3|-4|-5)$/][!tunnel][culvert!=yes][covered
 }
 way[waterway][layer][layer=~/^(-1|-2|-3|-4|-5)$/][!tunnel][culvert!=yes][covered!=yes][pipeline!=yes][location!=underground][eval(waylength()) <= 400] {
   throwOther: tr("Short waterway with {0} but without a tag which defines it as tunnel or underground. Remove {1} or add a tunnel tag if applicable. Also check crossing bridges and their {1} tags.", "{1.tag}", "{1.key}");
+}
+
+/* #13144 */
+*[unisex=yes][female=yes][male!=yes],
+*[unisex=yes][male=yes][female!=yes] {
+  throwWarning: tr("{0} together with {1}", "{0.tag}", "{1.tag}");
+}
+*[unisex=yes][female=yes][male=yes] {
+  throwWarning: tr("{0} together with {1} and {2}. Remove {1} and {2}", "{0.tag}", "{1.tag}", "{2.tag}");
+  fixRemove: "female";
+  fixRemove: "male";
+}
+*[female=yes][male=yes][!unisex][shop=hairdresser] { /* for toilets male=yes female=yes unisex=no combination is valid */
+  throwWarning: tr("{0} together with {1}", "{0.tag}", "{1.tag}");
+  suggestAlternative: "unisex=yes";
+  fixRemove: "female";
+  fixRemove: "male";
+  fixAdd: "unisex=yes";
+}
+
+/* #13138 */
+area:closed[water][natural!=water][water!=intermittent] { /* water=intermittent is deprecated and has an own warning */
+  throwWarning: tr("{0} without {1}", "{1.key}", "{2.tag}");
+  fixAdd: "natural=water";
+}
+way!:closed[water][natural!=water][water!=intermittent] {
+  throwWarning: tr("{0} without {1}", "{1.key}", "{2.tag}");
 }
