@@ -25,7 +25,6 @@ import org.openstreetmap.josm.command.DeleteCommand;
 import org.openstreetmap.josm.command.SequenceCommand;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
-import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.TagCollection;
@@ -352,12 +351,7 @@ public class MergeNodesAction extends JosmAction {
 
     @Override
     protected void updateEnabledState() {
-        DataSet ds = getLayerManager().getEditDataSet();
-        if (ds == null) {
-            setEnabled(false);
-        } else {
-            updateEnabledState(ds.getAllSelected());
-        }
+        updateEnabledStateOnCurrentSelection();
     }
 
     @Override

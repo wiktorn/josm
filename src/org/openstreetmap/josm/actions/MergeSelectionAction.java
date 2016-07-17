@@ -9,7 +9,6 @@ import java.awt.event.KeyEvent;
 import java.util.Collection;
 import java.util.List;
 
-import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.visitor.MergeSourceBuildingVisitor;
 import org.openstreetmap.josm.gui.dialogs.LayerListDialog;
@@ -70,12 +69,7 @@ public class MergeSelectionAction extends AbstractMergeAction {
 
     @Override
     protected void updateEnabledState() {
-        DataSet ds = getLayerManager().getEditDataSet();
-        if (ds == null) {
-            setEnabled(false);
-        } else {
-            updateEnabledState(ds.getAllSelected());
-        }
+        updateEnabledStateOnCurrentSelection();
     }
 
     @Override
