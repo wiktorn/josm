@@ -81,6 +81,7 @@ import org.openstreetmap.josm.gui.NavigatableComponent.ZoomChangeListener;
 import org.openstreetmap.josm.gui.PleaseWaitRunnable;
 import org.openstreetmap.josm.gui.dialogs.LayerListDialog;
 import org.openstreetmap.josm.gui.dialogs.LayerListPopup;
+import org.openstreetmap.josm.gui.layer.imagery.ImageryFilterSettings.FilterChangeListener;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.io.WMSLayerImporter;
@@ -98,7 +99,7 @@ import org.openstreetmap.josm.tools.GBC;
  * @since 8526 (copied from TMSLayer)
  */
 public abstract class AbstractTileSourceLayer<T extends AbstractTMSTileSource> extends ImageryLayer
-implements ImageObserver, TileLoaderListener, ZoomChangeListener {
+implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeListener {
     private static final String PREFERENCE_PREFIX = "imagery.generic";
 
     /** maximum zoom level supported */
@@ -174,6 +175,12 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener {
         super(info);
         setBackgroundLayer(true);
         this.setVisible(true);
+        getFilterSettings().addFilterChangeListener(this);
+    }
+
+    @Override
+    public void filterChanged() {
+        redraw();
     }
 
     protected abstract TileLoaderFactory getTileLoaderFactory();
@@ -260,24 +267,6 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener {
     protected void redraw() {
         needRedraw = true;
         if (isVisible()) Main.map.repaint();
-    }
-
-    @Override
-    public void setGamma(double gamma) {
-        super.setGamma(gamma);
-        redraw();
-    }
-
-    @Override
-    public void setSharpenLevel(double sharpenLevel) {
-        super.setSharpenLevel(sharpenLevel);
-        redraw();
-    }
-
-    @Override
-    public void setColorfulness(double colorfulness) {
-        super.setColorfulness(colorfulness);
-        redraw();
     }
 
     /**
@@ -702,7 +691,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener {
         // add 10% for tiles from different zoom levels
         int ret = (int) Math.ceil(
                 Math.pow(2d, ZOOM_OFFSET.get()) * visibileTiles // use offset to decide, how many tiles are visible
-                * 2);
+                * 4);
         Main.info("AbstractTileSourceLayer: estimated visible tiles: {0}, estimated cache size: {1}", visibileTiles, ret);
         return ret;
     }
@@ -1204,25 +1193,25 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener {
     }
 
 
-    private final TileSet nullTileSet = new TileSet((LatLon) null, (LatLon) null, 0);
+    private final TileSet nullTileSet = new TileSet();
 
     private final class MapWrappingTileSet extends TileSet {
-            private MapWrappingTileSet(EastNorth topLeft, EastNorth botRight, int zoom) {
-                this(getShiftedLatLon(topLeft), getShiftedLatLon(botRight), zoom);
-            }
+        private MapWrappingTileSet(EastNorth topLeft, EastNorth botRight, int zoom) {
+            this(getShiftedLatLon(topLeft), getShiftedLatLon(botRight), zoom);
+        }
 
-            private MapWrappingTileSet(LatLon topLeft, LatLon botRight, int zoom) {
-                super(topLeft, botRight, zoom);
-                double centerLon = getShiftedLatLon(Main.map.mapView.getCenter()).lon();
+        private MapWrappingTileSet(LatLon topLeft, LatLon botRight, int zoom) {
+            super(topLeft, botRight, zoom);
+            double centerLon = getShiftedLatLon(Main.map.mapView.getCenter()).lon();
 
-                if (topLeft.lon() > centerLon) {
-                    x0 = tileSource.getTileXMin(zoom);
-                }
-                if (botRight.lon() < centerLon) {
-                    x1 = tileSource.getTileXMax(zoom);
-                }
-                sanitize();
+            if (topLeft.lon() > centerLon) {
+                x0 = tileSource.getTileXMin(zoom);
             }
+            if (botRight.lon() < centerLon) {
+                x1 = tileSource.getTileXMax(zoom);
+            }
+            sanitize();
+        }
     }
 
     private class TileSet {
@@ -1235,7 +1224,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener {
          * @param botRight bottom-right lat/lon
          * @param zoom zoom level
          */
-        private TileSet(EastNorth topLeft, EastNorth botRight, int zoom) {
+        protected TileSet(EastNorth topLeft, EastNorth botRight, int zoom) {
             this(getShiftedLatLon(topLeft), getShiftedLatLon(botRight), zoom);
         }
 
@@ -1245,7 +1234,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener {
          * @param botRight bottom-right lat/lon
          * @param zoom zoom level
          */
-        private TileSet(LatLon topLeft, LatLon botRight, int zoom) {
+        protected TileSet(LatLon topLeft, LatLon botRight, int zoom) {
             this.zoom = zoom;
             if (zoom == 0)
                 return;
@@ -1253,11 +1242,19 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener {
             TileXY t1 = tileSource.latLonToTileXY(topLeft.toCoordinate(), zoom);
             TileXY t2 = tileSource.latLonToTileXY(botRight.toCoordinate(), zoom);
 
-            x0 = t1.getXIndex();
-            y0 = t1.getYIndex();
-            x1 = t2.getXIndex();
-            y1 = t2.getYIndex();
+            x0 = (int) Math.floor(t1.getX());
+            y0 = (int) Math.floor(t1.getY());
+            x1 = (int) Math.ceil(t2.getX());
+            y1 = (int) Math.ceil(t2.getY());
             sanitize();
+
+        }
+
+        /**
+         * null tile set
+         */
+        private TileSet() {
+            return;
         }
 
         protected void sanitize() {
@@ -1388,6 +1385,11 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener {
                     tileLoader.createTileLoaderJob(t).submit(force);
                 }
             }
+        }
+
+        @Override
+        public String toString() {
+            return getClass().getName() + ": zoom: " + zoom + " X(" + x0 + ", " + x1 + ") Y(" + y0 + ", " + y1 + ") size: " + size();
         }
     }
 
@@ -1557,9 +1559,10 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener {
                     continue;
                 }
                 Tile t2 = tempCornerTile(missed);
-                LatLon topLeft2 = getShiftedLatLon(tileSource.tileXYToLatLon(missed));
-                LatLon botRight2 = getShiftedLatLon(tileSource.tileXYToLatLon(t2));
-                TileSet ts2 = new TileSet(topLeft2, botRight2, newzoom);
+                TileSet ts2 = new TileSet(
+                        getShiftedLatLon(tileSource.tileXYToLatLon(missed)),
+                        getShiftedLatLon(tileSource.tileXYToLatLon(t2)),
+                        newzoom);
                 // Instantiating large TileSets is expensive.  If there
                 // are no loaded tiles, don't bother even trying.
                 if (ts2.allLoadedTiles().isEmpty()) {
