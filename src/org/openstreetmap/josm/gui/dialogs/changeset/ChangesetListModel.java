@@ -3,7 +3,6 @@ package org.openstreetmap.josm.gui.dialogs.changeset;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -140,17 +139,7 @@ public class ChangesetListModel extends DefaultListModel<Changeset> implements C
     }
 
     protected void sort() {
-        Collections.sort(
-                data,
-                new Comparator<Changeset>() {
-                    @Override
-                    public int compare(Changeset cs1, Changeset cs2) {
-                        if (cs1.getId() > cs2.getId()) return -1;
-                        if (cs1.getId() == cs2.getId()) return 0;
-                        return 1;
-                    }
-                }
-        );
+        data.sort(Comparator.comparingInt(Changeset::getId).reversed());
     }
 
     /**

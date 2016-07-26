@@ -11,6 +11,8 @@ import java.awt.GraphicsEnvironment;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Window;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.FlavorListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
@@ -44,10 +46,6 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JToolBar;
 import javax.swing.KeyStroke;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.ExpertToggleAction;
@@ -61,6 +59,7 @@ import org.openstreetmap.josm.data.osm.Tag;
 import org.openstreetmap.josm.gui.ConditionalOptionPaneUtil;
 import org.openstreetmap.josm.gui.DefaultNameFormatter;
 import org.openstreetmap.josm.gui.MainMenu;
+import org.openstreetmap.josm.gui.datatransfer.ClipboardUtils;
 import org.openstreetmap.josm.gui.dialogs.relation.actions.AddSelectedAfterSelection;
 import org.openstreetmap.josm.gui.dialogs.relation.actions.AddSelectedAtEndAction;
 import org.openstreetmap.josm.gui.dialogs.relation.actions.AddSelectedAtStartAction;
@@ -152,6 +151,10 @@ public class GenericRelationEditor extends RelationEditor {
      * Action for performing the {@link CancelAction}
      */
     private final CancelAction cancelAction;
+    /**
+     * A list of listeners that need to be notified on clipboard content changes.
+     */
+    private final ArrayList<FlavorListener> clipboardListeners = new ArrayList<>();
 
     /**
      * Creates a new relation editor for the given relation. The relation will be saved if the user
@@ -224,19 +227,14 @@ public class GenericRelationEditor extends RelationEditor {
         referrerBrowser = new ReferringRelationsBrowser(getLayer(), referrerModel);
         tabbedPane.add(tr("Parent Relations"), referrerBrowser);
         tabbedPane.add(tr("Child Relations"), new ChildRelationBrowser(getLayer(), relation));
-        tabbedPane.addChangeListener(
-                new ChangeListener() {
-                    @Override
-                    public void stateChanged(ChangeEvent e) {
-                        JTabbedPane sourceTabbedPane = (JTabbedPane) e.getSource();
-                        int index = sourceTabbedPane.getSelectedIndex();
-                        String title = sourceTabbedPane.getTitleAt(index);
-                        if (title.equals(tr("Parent Relations"))) {
-                            referrerBrowser.init();
-                        }
-                    }
-                }
-        );
+        tabbedPane.addChangeListener(e -> {
+            JTabbedPane sourceTabbedPane = (JTabbedPane) e.getSource();
+            int index = sourceTabbedPane.getSelectedIndex();
+            String title = sourceTabbedPane.getTitleAt(index);
+            if (title.equals(tr("Parent Relations"))) {
+                referrerBrowser.init();
+            }
+        });
 
         refreshAction = new RefreshAction(memberTable, memberTableModel, tagEditorPanel.getModel(), getLayer(), this);
         applyAction = new ApplyAction(memberTable, memberTableModel, tagEditorPanel.getModel(), getLayer(), this);
@@ -273,7 +271,7 @@ public class GenericRelationEditor extends RelationEditor {
                 getRootPane(), memberTable, selectionTable);
         // CHECKSTYLE.ON: LineLength
 
-        registerCopyPasteAction(new PasteMembersAction(memberTableModel, getLayer(), this) {
+        registerCopyPasteAction(new PasteMembersAction(memberTable, getLayer(), this) {
             @Override
             public void actionPerformed(ActionEvent e) {
                 super.actionPerformed(e);
@@ -479,12 +477,7 @@ public class GenericRelationEditor extends RelationEditor {
         tfRole.getDocument().addDocumentListener(setRoleAction);
         tfRole.addActionListener(setRoleAction);
         memberTableModel.getSelectionModel().addListSelectionListener(
-                new ListSelectionListener() {
-                    @Override
-                    public void valueChanged(ListSelectionEvent e) {
-                        tfRole.setEnabled(memberTable.getSelectedRowCount() > 0);
-                    }
-                }
+                e -> tfRole.setEnabled(memberTable.getSelectedRowCount() > 0)
         );
         tfRole.setEnabled(memberTable.getSelectedRowCount() > 0);
         JButton btnApply = new JButton(setRoleAction);
@@ -738,10 +731,14 @@ public class GenericRelationEditor extends RelationEditor {
 
     @Override
     public void setVisible(boolean visible) {
+        if (isVisible() == visible) {
+            return;
+        }
         if (visible) {
             tagEditorPanel.initAutoCompletion(getLayer());
         }
         super.setVisible(visible);
+        Clipboard clipboard = ClipboardUtils.getClipboard();
         if (visible) {
             leftButtonToolbar.sortBelowButton.setVisible(ExpertToggleAction.isExpert());
             RelationDialogManager.getRelationDialogManager().positionOnScreen(this);
@@ -749,6 +746,9 @@ public class GenericRelationEditor extends RelationEditor {
                 windowMenuItem = addToWindowMenu(this, getLayer().getName());
             }
             tagEditorPanel.requestFocusInWindow();
+            for (FlavorListener listener : clipboardListeners) {
+                clipboard.addFlavorListener(listener);
+            }
         } else {
             // make sure all registered listeners are unregistered
             //
@@ -759,6 +759,9 @@ public class GenericRelationEditor extends RelationEditor {
             if (windowMenuItem != null) {
                 Main.main.menu.windowMenu.remove(windowMenuItem);
                 windowMenuItem = null;
+            }
+            for (FlavorListener listener : clipboardListeners) {
+                clipboard.removeFlavorListener(listener);
             }
             dispose();
         }
@@ -823,7 +826,7 @@ public class GenericRelationEditor extends RelationEditor {
         }
     }
 
-    private static void registerCopyPasteAction(AbstractAction action, Object actionName, KeyStroke shortcut,
+    private void registerCopyPasteAction(AbstractAction action, Object actionName, KeyStroke shortcut,
             JRootPane rootPane, JTable... tables) {
         int mods = shortcut.getModifiers();
         int code = shortcut.getKeyCode();
@@ -839,6 +842,9 @@ public class GenericRelationEditor extends RelationEditor {
             table.getInputMap(JComponent.WHEN_FOCUSED).put(shortcut, actionName);
             table.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(shortcut, actionName);
             table.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(shortcut, actionName);
+        }
+        if (action instanceof FlavorListener) {
+            clipboardListeners.add((FlavorListener) action);
         }
     }
 
@@ -931,6 +937,7 @@ public class GenericRelationEditor extends RelationEditor {
             }
             return modified ? new ChangeCommand(orig, relation) : null;
         } catch (AddAbortException ign) {
+            Main.trace(ign);
             return null;
         }
     }

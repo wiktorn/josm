@@ -164,7 +164,7 @@ public final class MapPaintStyles {
      *  can be null if the defaults are turned off by user
      */
     public static ImageIcon getNoIcon_Icon(StyleSource source) {
-        return new ImageProvider("misc/no_icon")
+        return new ImageProvider("presets/misc/no_icon")
                 .setDirs(getIconSourceDirs(source))
                 .setId("mappaint."+source.getPrefName())
                 .setArchive(source.zipIcons)
@@ -240,8 +240,7 @@ public final class MapPaintStyles {
 
         if (Main.pref.getBoolean("mappaint.icon.enable-defaults", true)) {
             /* don't prefix icon path, as it should be generic */
-            dirs.add("resource://images/styles/standard/");
-            dirs.add("resource://images/styles/");
+            dirs.add("resource://images/");
         }
 
         return dirs;
@@ -365,15 +364,12 @@ public final class MapPaintStyles {
 
         @Override
         protected void finish() {
-            SwingUtilities.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    fireMapPaintSylesUpdated();
-                    styles.clearCached();
-                    if (Main.isDisplayingMapView()) {
-                        Main.map.mapView.preferenceChanged(null);
-                        Main.map.mapView.repaint();
-                    }
+            SwingUtilities.invokeLater(() -> {
+                fireMapPaintSylesUpdated();
+                styles.clearCached();
+                if (Main.isDisplayingMapView()) {
+                    Main.map.mapView.preferenceChanged(null);
+                    Main.map.mapView.repaint();
                 }
             });
         }

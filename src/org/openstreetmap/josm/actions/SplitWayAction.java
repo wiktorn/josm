@@ -26,8 +26,6 @@ import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.ListSelectionModel;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.command.AddCommand;
@@ -251,21 +249,18 @@ public class SplitWayAction extends JosmAction {
 
         private void configureList() {
             list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-            list.addListSelectionListener(new ListSelectionListener() {
-                @Override
-                public void valueChanged(ListSelectionEvent e) {
-                    final Way selected = list.getSelectedValue();
-                    if (Main.isDisplayingMapView() && selected != null && selected.getNodesCount() > 1) {
-                        final Collection<WaySegment> segments = new ArrayList<>(selected.getNodesCount() - 1);
-                        final Iterator<Node> it = selected.getNodes().iterator();
-                        Node previousNode = it.next();
-                        while (it.hasNext()) {
-                            final Node node = it.next();
-                            segments.add(WaySegment.forNodePair(selectedWay, previousNode, node));
-                            previousNode = node;
-                        }
-                        setHighlightedWaySegments(segments);
+            list.addListSelectionListener(e -> {
+                final Way selected = list.getSelectedValue();
+                if (Main.isDisplayingMapView() && selected != null && selected.getNodesCount() > 1) {
+                    final Collection<WaySegment> segments = new ArrayList<>(selected.getNodesCount() - 1);
+                    final Iterator<Node> it = selected.getNodes().iterator();
+                    Node previousNode = it.next();
+                    while (it.hasNext()) {
+                        final Node node = it.next();
+                        segments.add(WaySegment.forNodePair(selectedWay, previousNode, node));
+                        previousNode = node;
                     }
+                    setHighlightedWaySegments(segments);
                 }
             });
             list.setCellRenderer(new DefaultListCellRenderer() {
@@ -317,8 +312,10 @@ public class SplitWayAction extends JosmAction {
      * Determines which way chunk should reuse the old id and its history
      *
      * @since 8954
+     * @since 10599 (functional interface)
      */
-    public abstract static class Strategy {
+    @FunctionalInterface
+    public interface Strategy {
 
         /**
          * Determines which way chunk should reuse the old id and its history.
@@ -326,16 +323,14 @@ public class SplitWayAction extends JosmAction {
          * @param wayChunks the way chunks
          * @return the way to keep
          */
-        public abstract Way determineWayToKeep(Iterable<Way> wayChunks);
+        Way determineWayToKeep(Iterable<Way> wayChunks);
 
         /**
          * Returns a strategy which selects the way chunk with the highest node count to keep.
          * @return strategy which selects the way chunk with the highest node count to keep
          */
-        public static Strategy keepLongestChunk() {
-            return new Strategy() {
-                @Override
-                public Way determineWayToKeep(Iterable<Way> wayChunks) {
+        static Strategy keepLongestChunk() {
+            return wayChunks -> {
                     Way wayToKeep = null;
                     for (Way i : wayChunks) {
                         if (wayToKeep == null || i.getNodesCount() > wayToKeep.getNodesCount()) {
@@ -343,21 +338,15 @@ public class SplitWayAction extends JosmAction {
                         }
                     }
                     return wayToKeep;
-                }
-            };
+                };
         }
 
         /**
          * Returns a strategy which selects the first way chunk.
          * @return strategy which selects the first way chunk
          */
-        public static Strategy keepFirstChunk() {
-            return new Strategy() {
-                @Override
-                public Way determineWayToKeep(Iterable<Way> wayChunks) {
-                    return wayChunks.iterator().next();
-                }
-            };
+        static Strategy keepFirstChunk() {
+            return wayChunks -> wayChunks.iterator().next();
         }
     }
 

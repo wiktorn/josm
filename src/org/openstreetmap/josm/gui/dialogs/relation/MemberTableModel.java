@@ -121,12 +121,7 @@ implements TableModelListener, SelectionChangedListener, DataSetListener, OsmPri
     public void dataChanged(DataChangedEvent event) {
         // just trigger a repaint - the display name of the relation members may have changed
         Collection<RelationMember> sel = getSelectedMembers();
-        GuiHelper.runInEDT(new Runnable() {
-            @Override
-            public void run() {
-                fireTableDataChanged();
-            }
-        });
+        GuiHelper.runInEDT(this::fireTableDataChanged);
         setSelectedMembers(sel);
     }
 
@@ -479,9 +474,7 @@ implements TableModelListener, SelectionChangedListener, DataSetListener, OsmPri
             members.add(idx++, member);
         }
         invalidateConnectionType();
-        final List<Integer> selection = getSelectedIndices();
         fireTableRowsInserted(index, idx - 1);
-        setSelectedMembersIdx(selection);
     }
 
     public void addMembersAtBeginning(List<? extends OsmPrimitive> primitives) {

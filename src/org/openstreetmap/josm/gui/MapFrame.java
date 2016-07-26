@@ -8,13 +8,10 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.GraphicsEnvironment;
 import java.awt.GridBagLayout;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
-import java.awt.event.MouseWheelEvent;
-import java.awt.event.MouseWheelListener;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -53,8 +50,6 @@ import org.openstreetmap.josm.actions.mapmode.MapMode;
 import org.openstreetmap.josm.actions.mapmode.ParallelWayAction;
 import org.openstreetmap.josm.actions.mapmode.SelectAction;
 import org.openstreetmap.josm.actions.mapmode.ZoomAction;
-import org.openstreetmap.josm.data.Preferences;
-import org.openstreetmap.josm.data.Preferences.PreferenceChangeEvent;
 import org.openstreetmap.josm.data.Preferences.PreferenceChangedListener;
 import org.openstreetmap.josm.data.ViewportData;
 import org.openstreetmap.josm.gui.dialogs.ChangesetDialog;
@@ -196,9 +191,6 @@ public class MapFrame extends JPanel implements Destroyable, ActiveLayerChangeLi
         setLayout(new BorderLayout());
 
         mapView = new MapView(Main.getLayerManager(), contentPane, viewportData);
-        if (!GraphicsEnvironment.isHeadless()) {
-            new FileDrop(mapView);
-        }
 
         splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, true);
 
@@ -500,21 +492,13 @@ public class MapFrame extends JPanel implements Destroyable, ActiveLayerChangeLi
          */
         if (Main.pref.getBoolean("sidetoolbar.scrollable", true)) {
             final ScrollViewport svp = new ScrollViewport(sideToolBar, ScrollViewport.VERTICAL_DIRECTION);
-            svp.addMouseWheelListener(new MouseWheelListener() {
-                @Override
-                public void mouseWheelMoved(MouseWheelEvent e) {
-                    svp.scroll(0, e.getUnitsToScroll() * 5);
-                }
-            });
+            svp.addMouseWheelListener(e -> svp.scroll(0, e.getUnitsToScroll() * 5));
             sideToolBar = svp;
         }
         sideToolBar.setVisible(Main.pref.getBoolean("sidetoolbar.visible", true));
-        sidetoolbarPreferencesChangedListener = new Preferences.PreferenceChangedListener() {
-            @Override
-            public void preferenceChanged(PreferenceChangeEvent e) {
-                if ("sidetoolbar.visible".equals(e.getKey())) {
-                    sideToolBar.setVisible(Main.pref.getBoolean("sidetoolbar.visible"));
-                }
+        sidetoolbarPreferencesChangedListener = e -> {
+            if ("sidetoolbar.visible".equals(e.getKey())) {
+                sideToolBar.setVisible(Main.pref.getBoolean("sidetoolbar.visible"));
             }
         };
         Main.pref.addPreferenceChangeListener(sidetoolbarPreferencesChangedListener);
@@ -718,7 +702,9 @@ public class MapFrame extends JPanel implements Destroyable, ActiveLayerChangeLi
 
     /**
      * Interface to notify listeners of the change of the mapMode.
+     * @since 10600 (functional interface)
      */
+    @FunctionalInterface
     public interface MapModeChangeListener {
         /**
          * Trigerred when map mode changes.

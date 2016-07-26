@@ -84,19 +84,11 @@ public class DownloadOpenChangesetsTask extends PleaseWaitRunnable {
             );
             return;
         }
-        SwingUtilities.invokeLater(
-                new Runnable() {
-                    @Override public void run() {
-                        ChangesetCache.getInstance().update(changesets);
-                    }
-                }
-        );
+        SwingUtilities.invokeLater(() -> ChangesetCache.getInstance().update(changesets));
     }
 
     /**
-     * Refreshes the user info from the server. This is necessary if we don't know
-     * the users id yet.
-     *
+     * Refreshes the user info from the server. This is necessary if we don't know the users id yet.
      */
     protected void refreshUserIdentity() {
         JosmUserIdentityManager im = JosmUserIdentityManager.getInstance();
@@ -117,7 +109,7 @@ public class DownloadOpenChangesetsTask extends PleaseWaitRunnable {
             if (im.isFullyIdentified()) {
                 im.setPartiallyIdentified(im.getUserName());
             }
-            Main.warn(tr("Failed to retrieve user infos for the current JOSM user. Exception was: {0}", e.toString()));
+            Main.warn(e, tr("Failed to retrieve user infos for the current JOSM user. Exception was: {0}", e.toString()));
         }
     }
 

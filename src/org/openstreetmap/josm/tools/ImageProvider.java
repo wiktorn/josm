@@ -32,7 +32,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
@@ -75,7 +74,6 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.Attributes;
-import org.xml.sax.EntityResolver;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
@@ -310,7 +308,9 @@ public class ImageProvider {
 
     /**
      * Callback interface for asynchronous image loading.
+     * @since 10600 (functional interface)
      */
+    @FunctionalInterface
     public interface ImageCallback {
         /**
          * Called when image loading has finished.
@@ -322,7 +322,9 @@ public class ImageProvider {
     /**
      * Callback interface for asynchronous image loading (with delayed scaling possibility).
      * @since 7693
+     * @since 10600 (functional interface)
      */
+    @FunctionalInterface
     public interface ImageResourceCallback {
         /**
          * Called when image loading has finished.
@@ -682,8 +684,7 @@ public class ImageProvider {
     /**
      * Load the image in a background thread.
      *
-     * This method returns immediately and runs the image request
-     * asynchronously.
+     * This method returns immediately and runs the image request asynchronously.
      *
      * @param callback a callback. It is called, when the image is ready.
      * This can happen before the call to this method returns or it may be
@@ -692,25 +693,16 @@ public class ImageProvider {
      */
     public void getInBackground(final ImageCallback callback) {
         if (name.startsWith(HTTP_PROTOCOL) || name.startsWith(WIKI_PROTOCOL)) {
-            Runnable fetch = new Runnable() {
-                @Override
-                public void run() {
-                    ImageIcon result = get();
-                    callback.finished(result);
-                }
-            };
-            IMAGE_FETCHER.submit(fetch);
+            IMAGE_FETCHER.submit(() -> callback.finished(get()));
         } else {
-            ImageIcon result = get();
-            callback.finished(result);
+            callback.finished(get());
         }
     }
 
     /**
      * Load the image in a background thread.
      *
-     * This method returns immediately and runs the image request
-     * asynchronously.
+     * This method returns immediately and runs the image request asynchronously.
      *
      * @param callback a callback. It is called, when the image is ready.
      * This can happen before the call to this method returns or it may be
@@ -720,13 +712,7 @@ public class ImageProvider {
      */
     public void getInBackground(final ImageResourceCallback callback) {
         if (name.startsWith(HTTP_PROTOCOL) || name.startsWith(WIKI_PROTOCOL)) {
-            Runnable fetch = new Runnable() {
-                @Override
-                public void run() {
-                    callback.finished(getResource());
-                }
-            };
-            IMAGE_FETCHER.submit(fetch);
+            IMAGE_FETCHER.submit(() -> callback.finished(getResource()));
         } else {
             callback.finished(getResource());
         }
@@ -972,13 +958,14 @@ public class ImageProvider {
                 try {
                     img = read(Utils.fileToURL(cf.getFile()), false, false);
                 } catch (IOException e) {
-                    Main.warn("IOException while reading HTTP image: "+e.getMessage());
+                    Main.warn(e, "IOException while reading HTTP image:");
                 }
                 return img == null ? null : new ImageResource(img);
             default:
                 throw new AssertionError();
             }
         } catch (IOException e) {
+            Main.debug(e);
             return null;
         } finally {
             cf.close();
@@ -1003,7 +990,7 @@ public class ImageProvider {
                 try {
                     bytes = Utils.decodeUrl(data).getBytes(StandardCharsets.UTF_8);
                 } catch (IllegalArgumentException ex) {
-                    Main.warn("Unable to decode URL data part: "+ex.getMessage() + " (" + data + ')');
+                    Main.warn(ex, "Unable to decode URL data part: "+ex.getMessage() + " (" + data + ')');
                     return null;
                 }
             }
@@ -1025,12 +1012,12 @@ public class ImageProvider {
                     // See #10479: for PNG files, always enforce transparency to be sure tNRS chunk is used even not in paletted mode
                     // This can be removed if someday Oracle fixes https://bugs.openjdk.java.net/browse/JDK-6788458
                     // CHECKSTYLE.OFF: LineLength
-                    // hg.openjdk.java.net/jdk7u/jdk7u/jdk/file/828c4fedd29f/src/share/classes/com/sun/imageio/plugins/png/PNGImageReader.java#l656
+                    // hg.openjdk.java.net/jdk8u/jdk8u/jdk/file/dc4322602480/src/share/classes/com/sun/imageio/plugins/png/PNGImageReader.java#l656
                     // CHECKSTYLE.ON: LineLength
                     Image img = read(new ByteArrayInputStream(bytes), false, true);
                     return img == null ? null : new ImageResource(img);
                 } catch (IOException e) {
-                    Main.warn("IOException while reading image: "+e.getMessage());
+                    Main.warn(e, "IOException while reading image:");
                 }
             }
         }
@@ -1124,7 +1111,7 @@ public class ImageProvider {
                 }
             }
         } catch (IOException e) {
-            Main.warn(tr("Failed to handle zip file ''{0}''. Exception was: {1}", archive.getName(), e.toString()));
+            Main.warn(e, tr("Failed to handle zip file ''{0}''. Exception was: {1}", archive.getName(), e.toString()));
         }
         return null;
     }
@@ -1150,7 +1137,7 @@ public class ImageProvider {
             try {
                 // See #10479: for PNG files, always enforce transparency to be sure tNRS chunk is used even not in paletted mode
                 // This can be removed if someday Oracle fixes https://bugs.openjdk.java.net/browse/JDK-6788458
-                // hg.openjdk.java.net/jdk7u/jdk7u/jdk/file/828c4fedd29f/src/share/classes/com/sun/imageio/plugins/png/PNGImageReader.java#l656
+                // hg.openjdk.java.net/jdk8u/jdk8u/jdk/file/dc4322602480/src/share/classes/com/sun/imageio/plugins/png/PNGImageReader.java#l656
                 img = read(path, false, true);
                 if (Main.isDebugEnabled() && isTransparencyForced(img)) {
                     Main.debug("Transparency has been forced for image "+path.toExternalForm());
@@ -1195,7 +1182,7 @@ public class ImageProvider {
                     if (u != null)
                         return u;
                 } catch (SecurityException e) {
-                    Main.warn(tr(
+                    Main.warn(e, tr(
                             "Failed to access directory ''{0}'' for security reasons. Exception was: {1}",
                             name, e.toString()));
                 }
@@ -1210,7 +1197,7 @@ public class ImageProvider {
                 if (u != null)
                     return u;
             } catch (SecurityException e) {
-                Main.warn(tr(
+                Main.warn(e, tr(
                         "Failed to access directory ''{0}'' for security reasons. Exception was: {1}", dir, e
                         .toString()));
             }
@@ -1275,12 +1262,7 @@ public class ImageProvider {
                 }
             });
 
-            parser.setEntityResolver(new EntityResolver() {
-                @Override
-                public InputSource resolveEntity(String publicId, String systemId) {
-                    return new InputSource(new ByteArrayInputStream(new byte[0]));
-                }
-            });
+            parser.setEntityResolver((publicId, systemId) -> new InputSource(new ByteArrayInputStream(new byte[0])));
 
             CachedFile cf = new CachedFile(base + fn).setDestDir(
                     new File(Main.pref.getUserDataDirectory(), "images").getPath());
@@ -1289,6 +1271,7 @@ public class ImageProvider {
             }
             cf.close();
         } catch (SAXReturnException r) {
+            Main.trace(r);
             return r.getResult();
         } catch (IOException | SAXException e) {
             Main.warn("Parsing " + base + fn + " failed:\n" + e);
@@ -1503,13 +1486,10 @@ public class ImageProvider {
 
         // Check if the presets have icons for nodes/relations.
         if (!OsmPrimitiveType.WAY.equals(primitive.getType())) {
-            final Collection<TaggingPreset> presets = new TreeSet<>(new Comparator<TaggingPreset>() {
-                @Override
-                public int compare(TaggingPreset o1, TaggingPreset o2) {
-                    final int o1TypesSize = o1.types == null || o1.types.isEmpty() ? Integer.MAX_VALUE : o1.types.size();
-                    final int o2TypesSize = o2.types == null || o2.types.isEmpty() ? Integer.MAX_VALUE : o2.types.size();
-                    return Integer.compare(o1TypesSize, o2TypesSize);
-                }
+            final Collection<TaggingPreset> presets = new TreeSet<>((o1, o2) -> {
+                final int o1TypesSize = o1.types == null || o1.types.isEmpty() ? Integer.MAX_VALUE : o1.types.size();
+                final int o2TypesSize = o2.types == null || o2.types.isEmpty() ? Integer.MAX_VALUE : o2.types.size();
+                return Integer.compare(o1TypesSize, o2TypesSize);
             });
             presets.addAll(TaggingPresets.getMatchingPresets(primitive));
             for (final TaggingPreset preset : presets) {
@@ -1566,7 +1546,7 @@ public class ImageProvider {
                 svg.render(g);
             }
         } catch (SVGException ex) {
-            Main.error("Unable to load svg: {0}", ex.getMessage());
+            Main.error(ex, "Unable to load svg:");
             return null;
         }
         return img;
@@ -1808,7 +1788,7 @@ public class ImageProvider {
      * @param reader The image reader
      * @return the {@code TransparentColor} defined in image reader metadata, or {@code null}
      * @throws IOException if an error occurs during reading
-     * @see <a href="http://docs.oracle.com/javase/7/docs/api/javax/imageio/metadata/doc-files/standard_metadata.html">javax_imageio_1.0 metadata</a>
+     * @see <a href="http://docs.oracle.com/javase/8/docs/api/javax/imageio/metadata/doc-files/standard_metadata.html">javax_imageio_1.0 metadata</a>
      * @since 7499
      */
     public static Color getTransparentColor(ColorModel model, ImageReader reader) throws IOException {

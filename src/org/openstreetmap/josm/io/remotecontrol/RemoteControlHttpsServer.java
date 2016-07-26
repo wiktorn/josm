@@ -45,9 +45,7 @@ import sun.security.x509.AlgorithmId;
 import sun.security.x509.BasicConstraintsExtension;
 import sun.security.x509.CertificateAlgorithmId;
 import sun.security.x509.CertificateExtensions;
-import sun.security.x509.CertificateIssuerName;
 import sun.security.x509.CertificateSerialNumber;
-import sun.security.x509.CertificateSubjectName;
 import sun.security.x509.CertificateValidity;
 import sun.security.x509.CertificateVersion;
 import sun.security.x509.CertificateX509Key;
@@ -148,19 +146,8 @@ public class RemoteControlHttpsServer extends Thread {
 
         info.set(X509CertInfo.VALIDITY, interval);
         info.set(X509CertInfo.SERIAL_NUMBER, new CertificateSerialNumber(sn));
-
-        // Change of behaviour in JDK8:
-        // https://bugs.openjdk.java.net/browse/JDK-8040820
-        // https://bugs.openjdk.java.net/browse/JDK-7198416
-        if (!Main.isJava8orLater()) {
-            // Java 7 code. To remove with Java 8 migration
-            info.set(X509CertInfo.SUBJECT, new CertificateSubjectName(owner));
-            info.set(X509CertInfo.ISSUER, new CertificateIssuerName(owner));
-        } else {
-            // Java 8 and later code
-            info.set(X509CertInfo.SUBJECT, owner);
-            info.set(X509CertInfo.ISSUER, owner);
-        }
+        info.set(X509CertInfo.SUBJECT, owner);
+        info.set(X509CertInfo.ISSUER, owner);
 
         info.set(X509CertInfo.KEY, new CertificateX509Key(pair.getPublic()));
         info.set(X509CertInfo.VERSION, new CertificateVersion(CertificateVersion.V3));
@@ -330,6 +317,7 @@ public class RemoteControlHttpsServer extends Thread {
                 instance4 = new RemoteControlHttpsServer(port, false);
                 instance4.start();
             } catch (IOException | GeneralSecurityException ex) {
+                Main.debug(ex);
                 Main.warn(marktr("Cannot start IPv4 remotecontrol https server on port {0}: {1}"),
                         Integer.toString(port), ex.getLocalizedMessage());
             }
@@ -339,6 +327,7 @@ public class RemoteControlHttpsServer extends Thread {
             } catch (IOException | GeneralSecurityException ex) {
                 /* only show error when we also have no IPv4 */
                 if (instance4 == null) {
+                    Main.debug(ex);
                     Main.warn(marktr("Cannot start IPv6 remotecontrol https server on port {0}: {1}"),
                         Integer.toString(port), ex.getLocalizedMessage());
                 }
@@ -373,11 +362,10 @@ public class RemoteControlHttpsServer extends Thread {
      * @param port The port this server will listen on
      * @param ipv6 Whether IPv6 or IPv4 server should be started
      * @throws IOException when connection errors
-     * @throws NoSuchAlgorithmException if the JVM does not support TLS (can not happen)
      * @throws GeneralSecurityException in case of SSL setup errors
      * @since 8339
      */
-    public RemoteControlHttpsServer(int port, boolean ipv6) throws IOException, NoSuchAlgorithmException, GeneralSecurityException {
+    public RemoteControlHttpsServer(int port, boolean ipv6) throws IOException, GeneralSecurityException {
         super("RemoteControl HTTPS Server");
         this.setDaemon(true);
 

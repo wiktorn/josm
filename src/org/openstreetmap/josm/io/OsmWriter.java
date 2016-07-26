@@ -6,7 +6,6 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map.Entry;
@@ -96,22 +95,20 @@ public class OsmWriter extends XmlWriter implements PrimitiveVisitor {
     /**
      * Sorts {@code -1} &rarr; {@code -infinity}, then {@code +1} &rarr; {@code +infinity}
      */
-    protected static final Comparator<AbstractPrimitive> byIdComparator = new Comparator<AbstractPrimitive>() {
-        @Override public int compare(AbstractPrimitive o1, AbstractPrimitive o2) {
-            final long i1 = o1.getUniqueId();
-            final long i2 = o2.getUniqueId();
-            if (i1 < 0 && i2 < 0) {
-                return Long.compare(i2, i1);
-            } else {
-                return Long.compare(i1, i2);
-            }
+    protected static final Comparator<AbstractPrimitive> byIdComparator = (o1, o2) -> {
+        final long i1 = o1.getUniqueId();
+        final long i2 = o2.getUniqueId();
+        if (i1 < 0 && i2 < 0) {
+            return Long.compare(i2, i1);
+        } else {
+            return Long.compare(i1, i2);
         }
     };
 
     protected <T extends OsmPrimitive> Collection<T> sortById(Collection<T> primitives) {
         List<T> result = new ArrayList<>(primitives.size());
         result.addAll(primitives);
-        Collections.sort(result, byIdComparator);
+        result.sort(byIdComparator);
         return result;
     }
 
@@ -262,12 +259,7 @@ public class OsmWriter extends XmlWriter implements PrimitiveVisitor {
         addTags(cs, "changeset", false); // also writes closing </changeset>
     }
 
-    protected static final Comparator<Entry<String, String>> byKeyComparator = new Comparator<Entry<String, String>>() {
-        @Override
-        public int compare(Entry<String, String> o1, Entry<String, String> o2) {
-            return o1.getKey().compareTo(o2.getKey());
-        }
-    };
+    protected static final Comparator<Entry<String, String>> byKeyComparator = (o1, o2) -> o1.getKey().compareTo(o2.getKey());
 
     protected void addTags(Tagged osm, String tagname, boolean tagOpen) {
         if (osm.hasKeys()) {
@@ -275,7 +267,7 @@ public class OsmWriter extends XmlWriter implements PrimitiveVisitor {
                 out.println(">");
             }
             List<Entry<String, String>> entries = new ArrayList<>(osm.getKeys().entrySet());
-            Collections.sort(entries, byKeyComparator);
+            entries.sort(byKeyComparator);
             for (Entry<String, String> e : entries) {
                 out.println("    <tag k='"+ XmlWriter.encode(e.getKey()) +
                         "' v='"+XmlWriter.encode(e.getValue())+ "' />");

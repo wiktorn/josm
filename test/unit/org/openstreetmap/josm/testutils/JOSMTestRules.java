@@ -3,15 +3,15 @@ package org.openstreetmap.josm.testutils;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.MessageFormat;
 import java.util.TimeZone;
 
-import org.junit.rules.DisableOnDebug;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
-import org.junit.rules.Timeout;
 import org.junit.runner.Description;
 import org.junit.runners.model.InitializationError;
 import org.junit.runners.model.Statement;
+import org.openstreetmap.josm.JOSMFixture;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.projection.Projections;
 import org.openstreetmap.josm.gui.util.GuiHelper;
@@ -19,6 +19,7 @@ import org.openstreetmap.josm.io.OsmApi;
 import org.openstreetmap.josm.io.OsmApiInitializationException;
 import org.openstreetmap.josm.io.OsmTransferCanceledException;
 import org.openstreetmap.josm.tools.I18n;
+import org.openstreetmap.josm.tools.MemoryManagerTest;
 import org.openstreetmap.josm.tools.date.DateUtils;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -32,20 +33,22 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * @author Michael Zangl
  */
 public class JOSMTestRules implements TestRule {
-    private Timeout timeout = Timeout.seconds(10);
+    private int timeout = 10 * 1000;
     private TemporaryFolder josmHome;
     private boolean usePreferences = false;
     private APIType useAPI = APIType.NONE;
     private String i18n = null;
     private boolean platform;
     private boolean useProjection;
+    private boolean commands;
+    private boolean allowMemoryManagerLeaks;
 
     /**
      * Disable the default timeout for this test. Use with care.
      * @return this instance, for easy chaining
      */
     public JOSMTestRules noTimeout() {
-        timeout = null;
+        timeout = -1;
         return this;
     }
 
@@ -55,7 +58,7 @@ public class JOSMTestRules implements TestRule {
      * @return this instance, for easy chaining
      */
     public JOSMTestRules timeout(int millis) {
-        timeout = Timeout.millis(millis);
+        timeout = millis;
         return this;
     }
 
@@ -133,22 +136,32 @@ public class JOSMTestRules implements TestRule {
         return this;
     }
 
+    /**
+      * Allow the execution of commands using {@link Main#undoRedo}
+      * @return this instance, for easy chaining
+      */
+    public JOSMTestRules commands() {
+        commands = true;
+        return this;
+    }
+
+    /**
+     * Allow the memory manager to contain items after execution of the test cases.
+     * @return this instance, for easy chaining
+     */
+    public JOSMTestRules memoryManagerLeaks() {
+        allowMemoryManagerLeaks = true;
+        return this;
+    }
+
     @Override
-    public Statement apply(final Statement base, Description description) {
-        Statement statement = new Statement() {
-            @Override
-            public void evaluate() throws Throwable {
-                before();
-                try {
-                    base.evaluate();
-                } finally {
-                    after();
-                }
-            }
-        };
-        if (timeout != null) {
-            statement = new DisableOnDebug(timeout).apply(statement, description);
+    public Statement apply(Statement base, Description description) {
+        Statement statement = base;
+        if (timeout > 0) {
+            // TODO: new DisableOnDebug(timeout)
+            statement = new FailOnTimeoutStatement(statement, timeout);
         }
+        statement = new CreateJosmEnvironment(statement);
         if (josmHome != null) {
             statement = josmHome.apply(statement, description);
         }
@@ -219,6 +232,11 @@ public class JOSMTestRules implements TestRule {
         if (platform) {
             Main.determinePlatformHook();
         }
+
+        if (commands) {
+            // TODO: Implement a more selective version of this once Main is restructured.
+            JOSMFixture.createUnitTestFixture().init(true);
+        }
     }
 
     /**
@@ -226,6 +244,7 @@ public class JOSMTestRules implements TestRule {
      */
     @SuppressFBWarnings("DM_GC")
     private void cleanUpFromJosmFixture() {
+        MemoryManagerTest.resetState(true);
         Main.getLayerManager().resetState();
         Main.pref = null;
         Main.platform = null;
@@ -245,6 +264,7 @@ public class JOSMTestRules implements TestRule {
         });
         // Remove all layers
         Main.getLayerManager().resetState();
+        MemoryManagerTest.resetState(allowMemoryManagerLeaks);
 
         // TODO: Remove global listeners and other global state.
         Main.pref = null;
@@ -253,7 +273,82 @@ public class JOSMTestRules implements TestRule {
         System.gc();
     }
 
+    private final class CreateJosmEnvironment extends Statement {
+        private final Statement base;
+
+        private CreateJosmEnvironment(Statement base) {
+            this.base = base;
+        }
+
+        @Override
+        public void evaluate() throws Throwable {
+            before();
+            try {
+                base.evaluate();
+            } finally {
+                after();
+            }
+        }
+    }
+
     enum APIType {
         NONE, FAKE, DEV
+    }
+
+    /**
+     * The junit timeout statement has problems when switchting timezones. This one does not.
+     * @author Michael Zangl
+     */
+    private static class FailOnTimeoutStatement extends Statement {
+
+        private int timeout;
+        private Statement original;
+
+        FailOnTimeoutStatement(Statement original, int timeout) {
+            this.original = original;
+            this.timeout = timeout;
+        }
+
+        @Override
+        public void evaluate() throws Throwable {
+            TimeoutThread thread = new TimeoutThread(original);
+            thread.setDaemon(true);
+            thread.start();
+            thread.join(timeout);
+            thread.interrupt();
+            if (!thread.isDone) {
+                Throwable exception = thread.getExecutionException();
+                if (exception != null) {
+                    throw exception;
+                } else {
+                    throw new Exception(MessageFormat.format("Test timed out after {0}ms", timeout));
+                }
+            }
+        }
+    }
+
+    private static final class TimeoutThread extends Thread {
+        public boolean isDone;
+        private Statement original;
+        private Throwable exceptionCaught;
+
+        private TimeoutThread(Statement original) {
+            super("Timeout runner");
+            this.original = original;
+        }
+
+        public Throwable getExecutionException() {
+            return exceptionCaught;
+        }
+
+        @Override
+        public void run() {
+            try {
+                original.evaluate();
+                isDone = true;
+            } catch (Throwable e) {
+                exceptionCaught = e;
+            }
+        }
     }
 }

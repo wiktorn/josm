@@ -554,7 +554,9 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
      * Interfaces implementing this may receive the result of the current search.
      * @author Michael Zangl
      * @since 10457
+     * @since 10600 (functional interface)
      */
+    @FunctionalInterface
     interface SearchReceiver {
         /**
          * Receive the search result
@@ -622,7 +624,7 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
         private final Predicate<OsmPrimitive> predicate;
         private boolean canceled;
         private int foundMatches;
-        private SearchReceiver resultReceiver;
+        private final SearchReceiver resultReceiver;
 
         private SearchTask(DataSet ds, SearchSetting setting, Collection<OsmPrimitive> selection, Predicate<OsmPrimitive> predicate,
                 SearchReceiver resultReceiver) {
@@ -648,12 +650,7 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
          */
         private static SearchTask newSearchTask(SearchSetting setting, final DataSet ds, SearchReceiver resultReceiver) {
             final Collection<OsmPrimitive> selection = new HashSet<>(ds.getAllSelected());
-            return new SearchTask(ds, setting, selection, new Predicate<OsmPrimitive>() {
-                @Override
-                public boolean evaluate(OsmPrimitive o) {
-                    return ds.isSelected(o);
-                }
-            }, resultReceiver);
+            return new SearchTask(ds, setting, selection, ds::isSelected, resultReceiver);
         }
 
         @Override

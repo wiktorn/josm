@@ -9,7 +9,6 @@ import java.awt.GridBagLayout;
 import java.text.Collator;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -20,8 +19,6 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.SingleSelectionModel;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
@@ -77,27 +74,19 @@ public class InspectPrimitiveDialog extends ExtendedDialog {
 
         final JPanel pMapPaint = new JPanel();
         tabs.addTab(tr("map style"), pMapPaint);
-        tabs.getModel().addChangeListener(new ChangeListener() {
-
-            @Override
-            public void stateChanged(ChangeEvent e) {
-                if (!mappaintTabLoaded && ((SingleSelectionModel) e.getSource()).getSelectedIndex() == 1) {
-                    mappaintTabLoaded = true;
-                    genericMonospacePanel(pMapPaint, buildMapPaintText());
-                }
+        tabs.getModel().addChangeListener(e -> {
+            if (!mappaintTabLoaded && ((SingleSelectionModel) e.getSource()).getSelectedIndex() == 1) {
+                mappaintTabLoaded = true;
+                genericMonospacePanel(pMapPaint, buildMapPaintText());
             }
         });
 
         final JPanel pEditCounts = new JPanel();
         tabs.addTab(tr("edit counts"), pEditCounts);
-        tabs.getModel().addChangeListener(new ChangeListener() {
-
-            @Override
-            public void stateChanged(ChangeEvent e) {
-                if (!editcountTabLoaded && ((SingleSelectionModel) e.getSource()).getSelectedIndex() == 2) {
-                    editcountTabLoaded = true;
-                    genericMonospacePanel(pEditCounts, buildListOfEditorsText(primitives));
-                }
+        tabs.getModel().addChangeListener(e -> {
+            if (!editcountTabLoaded && ((SingleSelectionModel) e.getSource()).getSelectedIndex() == 2) {
+                editcountTabLoaded = true;
+                genericMonospacePanel(pEditCounts, buildListOfEditorsText(primitives));
             }
         });
 
@@ -116,7 +105,7 @@ public class InspectPrimitiveDialog extends ExtendedDialog {
 
     protected static String buildDataText(OsmDataLayer layer, List<OsmPrimitive> primitives) {
         InspectPrimitiveDataText dt = new InspectPrimitiveDataText(layer);
-        Collections.sort(primitives, new OsmPrimitiveComparator());
+        primitives.sort(new OsmPrimitiveComparator());
         for (OsmPrimitive o : primitives) {
             dt.addPrimitive(o);
         }

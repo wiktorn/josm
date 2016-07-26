@@ -46,7 +46,6 @@ import org.openstreetmap.josm.data.projection.ProjectionChangeListener;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
 import org.openstreetmap.josm.gui.tagging.ac.AutoCompletionManager;
 import org.openstreetmap.josm.tools.FilteredCollection;
-import org.openstreetmap.josm.tools.Predicate;
 import org.openstreetmap.josm.tools.Predicates;
 import org.openstreetmap.josm.tools.SubclassFilteredCollection;
 import org.openstreetmap.josm.tools.Utils;
@@ -312,7 +311,14 @@ public final class DataSet implements Data, Cloneable, ProjectionChangeListener 
      */
     private final QuadBuckets<Node> nodes = new QuadBuckets<>();
 
-    private <T extends OsmPrimitive> Collection<T> getPrimitives(Predicate<? super OsmPrimitive> predicate) {
+    /**
+     * Gets a filtered collection of primitives matching the given predicate.
+     * @param <T> The primitive type.
+     * @param predicate The predicate to match
+     * @return The list of primtives.
+     * @since 10590
+     */
+    public <T extends OsmPrimitive> Collection<T> getPrimitives(java.util.function.Predicate<? super OsmPrimitive> predicate) {
         return new SubclassFilteredCollection<>(allPrimitives, predicate);
     }
 
@@ -606,12 +612,7 @@ public final class DataSet implements Data, Cloneable, ProjectionChangeListener 
      * @return selected nodes and ways
      */
     public Collection<OsmPrimitive> getSelectedNodesAndWays() {
-        return new FilteredCollection<>(getSelected(), new Predicate<OsmPrimitive>() {
-            @Override
-            public boolean evaluate(OsmPrimitive primitive) {
-                return primitive instanceof Node || primitive instanceof Way;
-            }
-        });
+        return new FilteredCollection<>(getSelected(), primitive -> primitive instanceof Node || primitive instanceof Way);
     }
 
     /**

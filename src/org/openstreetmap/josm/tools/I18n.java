@@ -381,12 +381,7 @@ public final class I18n {
         v.add(Locale.ENGLISH);
         Locale[] l = new Locale[v.size()];
         l = v.toArray(l);
-        Arrays.sort(l, new Comparator<Locale>() {
-            @Override
-            public int compare(Locale o1, Locale o2) {
-                return o1.toString().compareTo(o2.toString());
-            }
-        });
+        Arrays.sort(l, Comparator.comparing(Locale::toString));
         return l;
     }
 
@@ -491,9 +486,7 @@ public final class I18n {
             }
         } catch (IOException e) {
             // Ignore
-            if (Main.isTraceEnabled()) {
-                Main.trace(e.getMessage());
-            }
+            Main.trace(e);
         }
     }
 
@@ -523,9 +516,7 @@ public final class I18n {
             }
         } catch (IOException e) {
             // Ignore exception
-            if (Main.isTraceEnabled()) {
-                Main.trace(e.getMessage());
-            }
+            Main.trace(e);
         }
         return false;
     }
@@ -651,6 +642,7 @@ public final class I18n {
                 }
             }
         } catch (IOException e) {
+            Main.trace(e);
             return false;
         }
         if (!s.isEmpty()) {
@@ -742,12 +734,7 @@ public final class I18n {
     }
 
     public static TranslationAdapter getTranslationAdapter() {
-        return new TranslationAdapter() {
-            @Override
-            public String tr(String text, Object... objects) {
-                return I18n.tr(text, objects);
-            }
-        };
+        return I18n::tr;
     }
 
     /**

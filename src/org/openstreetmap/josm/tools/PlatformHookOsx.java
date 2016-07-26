@@ -66,17 +66,13 @@ public class PlatformHookOsx extends PlatformHookUnixoid implements InvocationHa
                 // enable full screen
                 enableOSXFullscreen((Window) Main.parent);
             } catch (IllegalAccessException e) {
+                Main.debug(e);
                 // with Java 9, module java.desktop does not export com.apple.eawt, use new Desktop API instead
                 setHandlers(Desktop.class, quitHandler, aboutHandler, openFilesHandler, preferencesHandler, proxy, Desktop.getDesktop());
             }
         } catch (ReflectiveOperationException | SecurityException | IllegalArgumentException ex) {
             // We'll just ignore this for now. The user will still be able to close JOSM by closing all its windows.
             Main.warn("Failed to register with OSX: " + ex);
-        }
-        // Invite users to install Java 8 if they are still with Java 7
-        String java = System.getProperty("java.version");
-        if (java != null && java.startsWith("1.7")) {
-            askUpdateJava(java);
         }
     }
 
@@ -93,6 +89,7 @@ public class PlatformHookOsx extends PlatformHookUnixoid implements InvocationHa
         try {
             return Class.forName("com.apple.eawt."+className);
         } catch (ClassNotFoundException e) {
+            Main.trace(e);
             return Class.forName("java.awt.desktop."+className);
         }
     }
@@ -152,6 +149,7 @@ public class PlatformHookOsx extends PlatformHookUnixoid implements InvocationHa
                 try {
                     args[1].getClass().getDeclaredMethod(closed ? "performQuit" : "cancelQuit").invoke(args[1]);
                 } catch (IllegalAccessException e) {
+                    Main.debug(e);
                     // with Java 9, module java.desktop does not export com.apple.eawt, use new Desktop API instead
                     Class.forName("java.awt.desktop.QuitResponse").getMethod(closed ? "performQuit" : "cancelQuit").invoke(args[1]);
                 }

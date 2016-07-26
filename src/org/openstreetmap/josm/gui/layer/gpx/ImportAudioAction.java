@@ -10,7 +10,6 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 
 import javax.swing.AbstractAction;
@@ -88,12 +87,7 @@ public class ImportAudioAction extends AbstractAction {
             // sort files in increasing order of timestamp (this is the end time, but so
             // long as they don't overlap, that's fine)
             if (sel.length > 1) {
-                Arrays.sort(sel, new Comparator<File>() {
-                    @Override
-                    public int compare(File a, File b) {
-                        return a.lastModified() <= b.lastModified() ? -1 : 1;
-                    }
-                });
+                Arrays.sort(sel, Comparator.comparingLong(File::lastModified));
             }
             StringBuilder names = new StringBuilder();
             for (File file : sel) {
@@ -283,12 +277,7 @@ public class ImportAudioAction extends AbstractAction {
 
         /* we must have got at least one waypoint now */
 
-        Collections.sort((ArrayList<WayPoint>) waypoints, new Comparator<WayPoint>() {
-            @Override
-            public int compare(WayPoint a, WayPoint b) {
-                return a.time <= b.time ? -1 : 1;
-            }
-        });
+        ((ArrayList<WayPoint>) waypoints).sort(Comparator.comparingDouble(o -> o.time));
 
         firstTime = -1.0; /* this time of the first waypoint, not first trackpoint */
         for (WayPoint w : waypoints) {
@@ -298,8 +287,7 @@ public class ImportAudioAction extends AbstractAction {
             double offset = w.time - firstTime;
             AudioMarker am = new AudioMarker(w.getCoor(), w, url, ml, w.time, offset);
             /*
-             * timeFromAudio intended for future use to shift markers of this type on
-             * synchronization
+             * timeFromAudio intended for future use to shift markers of this type on synchronization
              */
             if (w == wayPointFromTimeStamp) {
                 am.timeFromAudio = true;

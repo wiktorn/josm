@@ -7,6 +7,7 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.GraphicsEnvironment;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
@@ -24,6 +25,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import javax.swing.AbstractAction;
 import javax.swing.DefaultCellEditor;
 import javax.swing.DefaultListSelectionModel;
+import javax.swing.DropMode;
 import javax.swing.ImageIcon;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
@@ -35,9 +37,6 @@ import javax.swing.ListSelectionModel;
 import javax.swing.UIManager;
 import javax.swing.event.ListDataEvent;
 import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
-import javax.swing.event.TableModelEvent;
-import javax.swing.event.TableModelListener;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellRenderer;
@@ -51,7 +50,7 @@ import org.openstreetmap.josm.gui.SideButton;
 import org.openstreetmap.josm.gui.dialogs.layer.ActivateLayerAction;
 import org.openstreetmap.josm.gui.dialogs.layer.DeleteLayerAction;
 import org.openstreetmap.josm.gui.dialogs.layer.DuplicateAction;
-import org.openstreetmap.josm.gui.dialogs.layer.IEnabledStateUpdating;
+import org.openstreetmap.josm.gui.dialogs.layer.LayerListTransferHandler;
 import org.openstreetmap.josm.gui.dialogs.layer.LayerVisibilityAction;
 import org.openstreetmap.josm.gui.dialogs.layer.MergeAction;
 import org.openstreetmap.josm.gui.dialogs.layer.MoveDownAction;
@@ -360,14 +359,7 @@ public class LayerListDialog extends ToggleDialog {
      * @param listSelectionModel  the source emitting {@link ListSelectionEvent}s
      */
     protected void adaptTo(final IEnabledStateUpdating listener, ListSelectionModel listSelectionModel) {
-        listSelectionModel.addListSelectionListener(
-                new ListSelectionListener() {
-                    @Override
-                    public void valueChanged(ListSelectionEvent e) {
-                        listener.updateEnabledState();
-                    }
-                }
-                );
+        listSelectionModel.addListSelectionListener(e -> listener.updateEnabledState());
     }
 
     /**
@@ -379,14 +371,7 @@ public class LayerListDialog extends ToggleDialog {
      * @param listModel the source emitting {@link ListDataEvent}s
      */
     protected void adaptTo(final IEnabledStateUpdating listener, LayerListModel listModel) {
-        listModel.addTableModelListener(
-                new TableModelListener() {
-                    @Override
-                    public void tableChanged(TableModelEvent e) {
-                        listener.updateEnabledState();
-                    }
-                }
-                );
+        listModel.addTableModelListener(e -> listener.updateEnabledState());
     }
 
     @Override
@@ -1104,7 +1089,7 @@ public class LayerListDialog extends ToggleDialog {
 
         @Override
         public void layerOrderChanged(LayerOrderChangeEvent e) {
-            // ignored for now, since only we change layer order.
+            fireTableDataChanged();
         }
 
         /* ------------------------------------------------------------------------------ */
@@ -1130,6 +1115,11 @@ public class LayerListDialog extends ToggleDialog {
         LayerList(LayerListModel dataModel) {
             super(dataModel);
             dataModel.setLayerList(this);
+            if (!GraphicsEnvironment.isHeadless()) {
+                setDragEnabled(true);
+            }
+            setDropMode(DropMode.INSERT_ROWS);
+            setTransferHandler(new LayerListTransferHandler());
         }
 
         public void scrollToVisible(int row, int col) {
@@ -1140,6 +1130,11 @@ public class LayerListDialog extends ToggleDialog {
             Point pt = viewport.getViewPosition();
             rect.setLocation(rect.x - pt.x, rect.y - pt.y);
             viewport.scrollRectToVisible(rect);
+        }
+
+        @Override
+        public LayerListModel getModel() {
+            return (LayerListModel) super.getModel();
         }
     }
 

@@ -21,8 +21,6 @@ import javax.swing.JPanel;
 import javax.swing.JSeparator;
 import javax.swing.JTabbedPane;
 import javax.swing.UIManager;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
@@ -166,14 +164,11 @@ public class LatLonDialog extends ExtendedDialog {
         tabs = new JTabbedPane();
         tabs.addTab(tr("Lat/Lon"), buildLatLon());
         tabs.addTab(tr("East/North"), buildEastNorth());
-        tabs.getModel().addChangeListener(new ChangeListener() {
-            @Override
-            public void stateChanged(ChangeEvent e) {
-                switch (tabs.getModel().getSelectedIndex()) {
-                    case 0: parseLatLonUserInput(); break;
-                    case 1: parseEastNorthUserInput(); break;
-                    default: throw new AssertionError();
-                }
+        tabs.getModel().addChangeListener(e -> {
+            switch (tabs.getModel().getSelectedIndex()) {
+                case 0: parseLatLonUserInput(); break;
+                case 1: parseEastNorthUserInput(); break;
+                default: throw new AssertionError();
             }
         });
         setContent(tabs, false);
@@ -240,6 +235,7 @@ public class LatLonDialog extends ExtendedDialog {
                 latLon = null;
             }
         } catch (IllegalArgumentException e) {
+            Main.trace(e);
             latLon = null;
         }
         if (latLon == null) {
@@ -258,6 +254,7 @@ public class LatLonDialog extends ExtendedDialog {
         try {
             en = parseEastNorth(tfEastNorth.getText());
         } catch (IllegalArgumentException e) {
+            Main.trace(e);
             en = null;
         }
         if (en == null) {

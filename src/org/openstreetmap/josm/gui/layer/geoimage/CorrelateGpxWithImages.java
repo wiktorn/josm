@@ -59,8 +59,6 @@ import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
 import javax.swing.filechooser.FileFilter;
 
 import org.openstreetmap.josm.Main;
@@ -459,54 +457,46 @@ public class CorrelateGpxWithImages extends AbstractAction {
                 }
             });
             imgList.getSelectionModel().setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-            imgList.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
-
-                @Override
-                public void valueChanged(ListSelectionEvent arg0) {
-                    int index = imgList.getSelectedIndex();
-                    Integer orientation = ExifReader.readOrientation(yLayer.data.get(index).getFile());
-                    imgDisp.setImage(yLayer.data.get(index).getFile(), orientation);
-                    Date date = yLayer.data.get(index).getExifTime();
-                    if (date != null) {
-                        DateFormat df = DateUtils.getDateTimeFormat(DateFormat.SHORT, DateFormat.MEDIUM);
-                        lbExifTime.setText(df.format(date));
-                        tfGpsTime.setText(df.format(date));
-                        tfGpsTime.setCaretPosition(tfGpsTime.getText().length());
-                        tfGpsTime.setEnabled(true);
-                        tfGpsTime.requestFocus();
-                    } else {
-                        lbExifTime.setText(tr("No date"));
-                        tfGpsTime.setText("");
-                        tfGpsTime.setEnabled(false);
-                    }
+            imgList.getSelectionModel().addListSelectionListener(evt -> {
+                int index = imgList.getSelectedIndex();
+                Integer orientation = ExifReader.readOrientation(yLayer.data.get(index).getFile());
+                imgDisp.setImage(yLayer.data.get(index).getFile(), orientation);
+                Date date = yLayer.data.get(index).getExifTime();
+                if (date != null) {
+                    DateFormat df = DateUtils.getDateTimeFormat(DateFormat.SHORT, DateFormat.MEDIUM);
+                    lbExifTime.setText(df.format(date));
+                    tfGpsTime.setText(df.format(date));
+                    tfGpsTime.setCaretPosition(tfGpsTime.getText().length());
+                    tfGpsTime.setEnabled(true);
+                    tfGpsTime.requestFocus();
+                } else {
+                    lbExifTime.setText(tr("No date"));
+                    tfGpsTime.setText("");
+                    tfGpsTime.setEnabled(false);
                 }
             });
             panelLst.add(new JScrollPane(imgList), BorderLayout.CENTER);
 
             JButton openButton = new JButton(tr("Open another photo"));
-            openButton.addActionListener(new ActionListener() {
+            openButton.addActionListener(ae -> {
+                AbstractFileChooser fc = DiskAccessAction.createAndOpenFileChooser(true, false, null,
+                        JpgImporter.FILE_FILTER_WITH_FOLDERS, JFileChooser.FILES_ONLY, "geoimage.lastdirectory");
+                if (fc == null)
+                    return;
+                File sel = fc.getSelectedFile();
 
-                @Override
-                public void actionPerformed(ActionEvent ae) {
-                    AbstractFileChooser fc = DiskAccessAction.createAndOpenFileChooser(true, false, null,
-                            JpgImporter.FILE_FILTER_WITH_FOLDERS, JFileChooser.FILES_ONLY, "geoimage.lastdirectory");
-                    if (fc == null)
-                        return;
-                    File sel = fc.getSelectedFile();
+                Integer orientation = ExifReader.readOrientation(sel);
+                imgDisp.setImage(sel, orientation);
 
-                    Integer orientation = ExifReader.readOrientation(sel);
-                    imgDisp.setImage(sel, orientation);
-
-                    Date date = ExifReader.readTime(sel);
-                    if (date != null) {
-                        lbExifTime.setText(DateUtils.getDateTimeFormat(DateFormat.SHORT, DateFormat.MEDIUM).format(date));
-                        tfGpsTime.setText(DateUtils.getDateFormat(DateFormat.SHORT).format(date)+' ');
-                        tfGpsTime.setEnabled(true);
-                    } else {
-                        lbExifTime.setText(tr("No date"));
-                        tfGpsTime.setText("");
-                        tfGpsTime.setEnabled(false);
-                    }
+                Date date = ExifReader.readTime(sel);
+                if (date != null) {
+                    lbExifTime.setText(DateUtils.getDateTimeFormat(DateFormat.SHORT, DateFormat.MEDIUM).format(date));
+                    tfGpsTime.setText(DateUtils.getDateFormat(DateFormat.SHORT).format(date)+' ');
+                    tfGpsTime.setEnabled(true);
+                } else {
+                    lbExifTime.setText(tr("No date"));
+                    tfGpsTime.setText("");
+                    tfGpsTime.setEnabled(false);
                 }
             });
             panelLst.add(openButton, BorderLayout.PAGE_END);
@@ -952,6 +942,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
                 final long deciSeconds = timezoneOffsetPair.b.getMilliseconds() / 100;
                 sldSeconds.setValue((int) (deciSeconds % 60));
             } catch (RuntimeException e) {
+                Main.warn(e);
                 JOptionPane.showMessageDialog(Main.parent,
                         tr("An error occurred while trying to match the photos to the GPX track."
                                 +" You can adjust the sliders to manually match the photos."),
@@ -989,7 +980,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
      * @throws IndexOutOfBoundsException when there are no images
      * @throws NoGpxTimestamps when the gpx track does not contain a timestamp
      */
-    static Pair<Timezone, Offset> autoGuess(List<ImageEntry> imgs, GpxData gpx) throws IndexOutOfBoundsException, NoGpxTimestamps {
+    static Pair<Timezone, Offset> autoGuess(List<ImageEntry> imgs, GpxData gpx) throws NoGpxTimestamps {
 
         // Init variables
         long firstExifDate = imgs.get(0).getExifTime().getTime();
@@ -1091,12 +1082,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
             dateImgLst.add(e);
         }
 
-        Collections.sort(dateImgLst, new Comparator<ImageEntry>() {
-            @Override
-            public int compare(ImageEntry arg0, ImageEntry arg1) {
-                return arg0.getExifTime().compareTo(arg1.getExifTime());
-            }
-        });
+        dateImgLst.sort(Comparator.comparing(ImageEntry::getExifTime));
 
         return dateImgLst;
     }

@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.coor.CoordinateFormat;
@@ -41,7 +42,6 @@ import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetNameTemplateList;
 import org.openstreetmap.josm.tools.AlphanumComparator;
 import org.openstreetmap.josm.tools.I18n;
 import org.openstreetmap.josm.tools.Utils;
-import org.openstreetmap.josm.tools.Utils.Function;
 
 /**
  * This is the default implementation of a {@link NameFormatter} for names of {@link OsmPrimitive}s
@@ -193,12 +193,7 @@ public class DefaultNameFormatter implements NameFormatter, HistoryNameFormatter
         return result;
     }
 
-    private final Comparator<Node> nodeComparator = new Comparator<Node>() {
-        @Override
-        public int compare(Node n1, Node n2) {
-            return format(n1).compareTo(format(n2));
-        }
-    };
+    private final Comparator<Node> nodeComparator = (n1, n2) -> format(n1).compareTo(format(n2));
 
     @Override
     public Comparator<Node> getNodeComparator() {
@@ -288,12 +283,7 @@ public class DefaultNameFormatter implements NameFormatter, HistoryNameFormatter
         return result;
     }
 
-    private final Comparator<Way> wayComparator = new Comparator<Way>() {
-        @Override
-        public int compare(Way w1, Way w2) {
-            return format(w1).compareTo(format(w2));
-        }
-    };
+    private final Comparator<Way> wayComparator = (w1, w2) -> format(w1).compareTo(format(w2));
 
     @Override
     public Comparator<Way> getWayComparator() {
@@ -348,49 +338,46 @@ public class DefaultNameFormatter implements NameFormatter, HistoryNameFormatter
         return result;
     }
 
-    private final Comparator<Relation> relationComparator = new Comparator<Relation>() {
-        @Override
-        public int compare(Relation r1, Relation r2) {
-            //TODO This doesn't work correctly with formatHooks
+    private final Comparator<Relation> relationComparator = (r1, r2) -> {
+        //TODO This doesn't work correctly with formatHooks
 
-            TaggingPreset preset1 = TaggingPresetNameTemplateList.getInstance().findPresetTemplate(r1);
-            TaggingPreset preset2 = TaggingPresetNameTemplateList.getInstance().findPresetTemplate(r2);
+        TaggingPreset preset1 = TaggingPresetNameTemplateList.getInstance().findPresetTemplate(r1);
+        TaggingPreset preset2 = TaggingPresetNameTemplateList.getInstance().findPresetTemplate(r2);
 
-            if (preset1 != null || preset2 != null) {
-                String name1 = formatRelationNameAndType(r1, new StringBuilder(), preset1).toString();
-                String name2 = formatRelationNameAndType(r2, new StringBuilder(), preset2).toString();
+        if (preset1 != null || preset2 != null) {
+            String name11 = formatRelationNameAndType(r1, new StringBuilder(), preset1).toString();
+            String name21 = formatRelationNameAndType(r2, new StringBuilder(), preset2).toString();
 
-                int comp = AlphanumComparator.getInstance().compare(name1, name2);
-                if (comp != 0)
-                    return comp;
-            } else {
+            int comp1 = AlphanumComparator.getInstance().compare(name11, name21);
+            if (comp1 != 0)
+                return comp1;
+        } else {
 
-                String type1 = getRelationTypeName(r1);
-                String type2 = getRelationTypeName(r2);
+            String type1 = getRelationTypeName(r1);
+            String type2 = getRelationTypeName(r2);
 
-                int comp = AlphanumComparator.getInstance().compare(type1, type2);
-                if (comp != 0)
-                    return comp;
+            int comp2 = AlphanumComparator.getInstance().compare(type1, type2);
+            if (comp2 != 0)
+                return comp2;
 
-                String name1 = getRelationName(r1);
-                String name2 = getRelationName(r2);
+            String name12 = getRelationName(r1);
+            String name22 = getRelationName(r2);
 
-                comp = AlphanumComparator.getInstance().compare(name1, name2);
-                if (comp != 0)
-                    return comp;
-            }
-
-            int comp = Integer.compare(r1.getMembersCount(), r2.getMembersCount());
-            if (comp != 0)
-                return comp;
-
-
-            comp = Boolean.compare(r1.hasIncompleteMembers(), r2.hasIncompleteMembers());
-            if (comp != 0)
-                return comp;
-
-            return Long.compare(r1.getUniqueId(), r2.getUniqueId());
+            comp2 = AlphanumComparator.getInstance().compare(name12, name22);
+            if (comp2 != 0)
+                return comp2;
         }
+
+        int comp3 = Integer.compare(r1.getMembersCount(), r2.getMembersCount());
+        if (comp3 != 0)
+            return comp3;
+
+
+        comp3 = Boolean.compare(r1.hasIncompleteMembers(), r2.hasIncompleteMembers());
+        if (comp3 != 0)
+            return comp3;
+
+        return Long.compare(r1.getUniqueId(), r2.getUniqueId());
     };
 
     @Override
@@ -643,13 +630,7 @@ public class DefaultNameFormatter implements NameFormatter, HistoryNameFormatter
      * @return HTML unordered list
      */
     public String formatAsHtmlUnorderedList(Collection<? extends OsmPrimitive> primitives, int maxElements) {
-        final Collection<String> displayNames = Utils.transform(primitives, new Function<OsmPrimitive, String>() {
-
-            @Override
-            public String apply(OsmPrimitive x) {
-                return x.getDisplayName(DefaultNameFormatter.this);
-            }
-        });
+        Collection<String> displayNames = primitives.stream().map(x -> x.getDisplayName(this)).collect(Collectors.toList());
         return Utils.joinAsHtmlUnorderedList(Utils.limit(displayNames, maxElements, "..."));
     }
 

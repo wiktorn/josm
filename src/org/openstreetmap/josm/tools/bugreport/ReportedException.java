@@ -2,17 +2,24 @@
 package org.openstreetmap.josm.tools.bugreport;
 
 import java.io.PrintWriter;
+import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.ConcurrentModificationException;
 import java.util.IdentityHashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.function.Supplier;
 
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.tools.StreamUtils;
 
 /**
  * This is a special exception that cannot be directly thrown.
@@ -24,17 +31,19 @@ import org.openstreetmap.josm.Main;
  * @since 10285
  */
 public class ReportedException extends RuntimeException {
-    private static final int MAX_COLLECTION_ENTRIES = 30;
     /**
-     *
+     * How many entries of a collection to include in the bug report.
      */
+    private static final int MAX_COLLECTION_ENTRIES = 30;
+
     private static final long serialVersionUID = 737333873766201033L;
+
     /**
      * We capture all stack traces on exception creation. This allows us to trace synchonization problems better. We cannot be really sure what
      * happened but we at least see which threads
      */
     private final transient Map<Thread, StackTraceElement[]> allStackTraces;
-    private final transient LinkedList<Section> sections = new LinkedList<>();
+    private final LinkedList<Section> sections = new LinkedList<>();
     private final transient Thread caughtOnThread;
     private final Throwable exception;
     private String methodWarningFrom;
@@ -143,17 +152,15 @@ public class ReportedException extends RuntimeException {
             return false;
         }
 
-        Set<Throwable> dejaVu = Collections.newSetFromMap(new IdentityHashMap<Throwable, Boolean>());
-        return hasSameStackTrace(dejaVu, this.exception, e.exception);
+        return hasSameStackTrace(new CauseTraceIterator(), e.exception);
     }
 
-    private static boolean hasSameStackTrace(Set<Throwable> dejaVu, Throwable e1, Throwable e2) {
-        if (dejaVu.contains(e1)) {
-            // cycle. If it was the same until here, we assume both have that cycle.
+    private static boolean hasSameStackTrace(CauseTraceIterator causeTraceIterator, Throwable e2) {
+        if (!causeTraceIterator.hasNext()) {
+            // all done.
             return true;
         }
-        dejaVu.add(e1);
-
+        Throwable e1 = causeTraceIterator.next();
         StackTraceElement[] t1 = e1.getStackTrace();
         StackTraceElement[] t2 = e2.getStackTrace();
 
@@ -166,14 +173,14 @@ public class ReportedException extends RuntimeException {
         if ((c1 == null) != (c2 == null)) {
             return false;
         } else if (c1 != null) {
-            return hasSameStackTrace(dejaVu, c1, c2);
+            return hasSameStackTrace(causeTraceIterator, c2);
         } else {
             return true;
         }
     }
 
     /**
-     * Adds some debug values to this exception.
+     * Adds some debug values to this exception. The value is converted to a string. Errors during conversion are handled.
      *
      * @param key
      *            The key to add this for. Does not need to be unique but it would be nice.
@@ -182,8 +189,23 @@ public class ReportedException extends RuntimeException {
      * @return This exception for easy chaining.
      */
     public ReportedException put(String key, Object value) {
+        return put(key, () -> value);
+    }
+
+    /**
+    * Adds some debug values to this exception. This method automatically catches errors that occur during the production of the value.
+    *
+    * @param key
+    *            The key to add this for. Does not need to be unique but it would be nice.
+    * @param valueSupplier
+    *            A supplier that is called once to get the value.
+    * @return This exception for easy chaining.
+    * @since 10586
+    */
+    public ReportedException put(String key, Supplier<Object> valueSupplier) {
         String string;
         try {
+            Object value = valueSupplier.get();
             if (value == null) {
                 string = "null";
             } else if (value instanceof Collection) {
@@ -227,7 +249,54 @@ public class ReportedException extends RuntimeException {
             .toString();
     }
 
-    private static class SectionEntry {
+
+    /**
+     * Check if this exception may be caused by a threading issue.
+     * @return <code>true</code> if it is.
+     * @since 10585
+     */
+    public boolean mayHaveConcurrentSource() {
+        return StreamUtils.toStream(new CauseTraceIterator())
+                .anyMatch(t -> t instanceof ConcurrentModificationException || t instanceof InvocationTargetException);
+    }
+
+    /**
+     * Iterates over the causes for this exception. Ignores cycles and aborts iteration then.
+     * @author Michal Zangl
+     * @since 10585
+     */
+    private final class CauseTraceIterator implements Iterator<Throwable> {
+        private Throwable current = exception;
+        private final Set<Throwable> dejaVu = Collections.newSetFromMap(new IdentityHashMap<Throwable, Boolean>());
+
+        @Override
+        public boolean hasNext() {
+            return current != null;
+        }
+
+        @Override
+        public Throwable next() {
+            if (!hasNext()) {
+                throw new NoSuchElementException();
+            }
+            Throwable toReturn = current;
+            advance();
+            return toReturn;
+        }
+
+        private void advance() {
+            dejaVu.add(current);
+            current = current.getCause();
+            if (current != null && dejaVu.contains(current)) {
+                current = null;
+            }
+        }
+    }
+
+    private static class SectionEntry implements Serializable {
+
+        private static final long serialVersionUID = 1L;
+
         private final String key;
         private final String value;
 
@@ -248,7 +317,9 @@ public class ReportedException extends RuntimeException {
         }
     }
 
-    private static class Section {
+    private static class Section implements Serializable {
+
+        private static final long serialVersionUID = 1L;
 
         private final String sectionName;
         private final ArrayList<SectionEntry> entries = new ArrayList<>();

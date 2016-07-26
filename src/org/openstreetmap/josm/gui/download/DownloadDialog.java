@@ -13,7 +13,6 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
@@ -31,13 +30,13 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 import javax.swing.KeyStroke;
-import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.ExpertToggleAction;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.gui.MapView;
+import org.openstreetmap.josm.gui.datatransfer.ClipboardUtils;
 import org.openstreetmap.josm.gui.help.ContextSensitiveHelpAction;
 import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.util.GuiHelper;
@@ -47,7 +46,6 @@ import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.InputMapUtils;
 import org.openstreetmap.josm.tools.OsmUrlToBounds;
-import org.openstreetmap.josm.tools.Utils;
 import org.openstreetmap.josm.tools.WindowGeometry;
 
 /**
@@ -93,13 +91,8 @@ public class DownloadDialog extends JDialog {
     protected final JPanel buildMainPanel() {
         JPanel pnl = new JPanel(new GridBagLayout());
 
-        final ChangeListener checkboxChangeListener = new ChangeListener() {
-            @Override
-            public void stateChanged(ChangeEvent e) {
-                // size check depends on selected data source
-                updateSizeCheck();
-            }
-        };
+        // size check depends on selected data source
+        final ChangeListener checkboxChangeListener = e -> updateSizeCheck();
 
         // adding the download tasks
         pnl.add(new JLabel(tr("Data Sources and Types:")), GBC.std().insets(5, 5, 1, 5));
@@ -144,6 +137,7 @@ public class DownloadDialog extends JDialog {
         try {
             tpDownloadAreaSelectors.setSelectedIndex(Main.pref.getInteger("download.tab", 0));
         } catch (IndexOutOfBoundsException ex) {
+            Main.trace(ex);
             Main.pref.putInteger("download.tab", 0);
         }
 
@@ -158,12 +152,7 @@ public class DownloadDialog extends JDialog {
         cbStartup.setToolTipText(
                 tr("<html>Autostart ''Download from OSM'' dialog every time JOSM is started.<br>" +
                         "You can open it manually from File menu or toolbar.</html>"));
-        cbStartup.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                 Main.pref.put("download.autorun", cbStartup.isSelected());
-            }
-        });
+        cbStartup.addActionListener(e -> Main.pref.put("download.autorun", cbStartup.isSelected()));
 
         pnl.add(cbNewLayer, GBC.std().anchor(GBC.WEST).insets(5, 5, 5, 5));
         pnl.add(cbStartup, GBC.std().anchor(GBC.WEST).insets(15, 5, 5, 5));
@@ -242,7 +231,7 @@ public class DownloadDialog extends JDialog {
         getRootPane().getActionMap().put("checkClipboardContents", new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                String clip = Utils.getClipboardContent();
+                String clip = ClipboardUtils.getClipboardStringContent();
                 if (clip == null) {
                     return;
                 }
@@ -256,7 +245,7 @@ public class DownloadDialog extends JDialog {
         restoreSettings();
     }
 
-    private void updateSizeCheck() {
+    protected void updateSizeCheck() {
         boolean isAreaTooLarge = false;
         if (currentBounds == null) {
             sizeCheck.setText(tr("No area selected yet"));
@@ -268,6 +257,10 @@ public class DownloadDialog extends JDialog {
             // see max_request_area in https://github.com/openstreetmap/openstreetmap-website/blob/master/config/example.application.yml
             isAreaTooLarge = currentBounds.getArea() > Main.pref.getDouble("osm-server.max-request-area", 0.25);
         }
+        displaySizeCheckResult(isAreaTooLarge);
+    }
+
+    protected void displaySizeCheckResult(boolean isAreaTooLarge) {
         if (isAreaTooLarge) {
             sizeCheck.setText(tr("Download area too large; will probably be rejected by server"));
             sizeCheck.setForeground(Color.red);

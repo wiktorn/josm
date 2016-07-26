@@ -5,7 +5,6 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.BorderLayout;
 import java.awt.EventQueue;
-import java.awt.GraphicsEnvironment;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.io.IOException;
@@ -24,6 +23,7 @@ import javax.swing.event.HyperlinkListener;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Version;
+import org.openstreetmap.josm.gui.datatransfer.FileTransferHandler;
 import org.openstreetmap.josm.gui.preferences.server.ProxyPreference;
 import org.openstreetmap.josm.gui.preferences.server.ProxyPreferenceListener;
 import org.openstreetmap.josm.gui.widgets.JosmEditorPane;
@@ -124,6 +124,7 @@ public final class GettingStarted extends JPanel implements ProxyPreferenceListe
                 + "</h1><h2 align=\"center\">" + tr("Downloading \"Message of the day\"") + "</h2></html>");
         // clear the build-in command ctrl+shift+O, because it is used as shortcut in JOSM
         lg.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_O, InputEvent.SHIFT_MASK | InputEvent.CTRL_MASK), "none");
+        lg.setTransferHandler(null);
 
         JScrollPane scroller = new JScrollPane(lg);
         scroller.setViewportBorder(new EmptyBorder(10, 100, 10, 100));
@@ -131,38 +132,28 @@ public final class GettingStarted extends JPanel implements ProxyPreferenceListe
 
         getMOTD();
 
-        if (!GraphicsEnvironment.isHeadless()) {
-            new FileDrop(scroller);
-        }
+        setTransferHandler(new FileTransferHandler());
     }
 
     private void getMOTD() {
         // Asynchronously get MOTD to speed-up JOSM startup
-        Thread t = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                if (!contentInitialized && Main.pref.getBoolean("help.displaymotd", true)) {
-                    try {
-                        content = new MotdContent().updateIfRequiredString();
-                        contentInitialized = true;
-                        ProxyPreference.removeProxyPreferenceListener(GettingStarted.this);
-                    } catch (IOException ex) {
-                        Main.warn(tr("Failed to read MOTD. Exception was: {0}", ex.toString()));
-                        content = "<html>" + STYLE + "<h1>" + "JOSM - " + tr("Java OpenStreetMap Editor")
-                                + "</h1>\n<h2 align=\"center\">(" + tr("Message of the day not available") + ")</h2></html>";
-                        // In case of MOTD not loaded because of proxy error, listen to preference changes to retry after update
-                        ProxyPreference.addProxyPreferenceListener(GettingStarted.this);
-                    }
+        Thread t = new Thread((Runnable) () -> {
+            if (!contentInitialized && Main.pref.getBoolean("help.displaymotd", true)) {
+                try {
+                    content = new MotdContent().updateIfRequiredString();
+                    contentInitialized = true;
+                    ProxyPreference.removeProxyPreferenceListener(this);
+                } catch (IOException ex) {
+                    Main.warn(ex, tr("Failed to read MOTD. Exception was: {0}", ex.toString()));
+                    content = "<html>" + STYLE + "<h1>" + "JOSM - " + tr("Java OpenStreetMap Editor")
+                            + "</h1>\n<h2 align=\"center\">(" + tr("Message of the day not available") + ")</h2></html>";
+                    // In case of MOTD not loaded because of proxy error, listen to preference changes to retry after update
+                    ProxyPreference.addProxyPreferenceListener(this);
                 }
+            }
 
-                if (content != null) {
-                    EventQueue.invokeLater(new Runnable() {
-                        @Override
-                        public void run() {
-                            lg.setText(fixImageLinks(content));
-                        }
-                    });
-                }
+            if (content != null) {
+                EventQueue.invokeLater(() -> lg.setText(fixImageLinks(content)));
             }
         }, "MOTD-Loader");
         t.setDaemon(true);

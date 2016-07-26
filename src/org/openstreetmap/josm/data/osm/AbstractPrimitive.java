@@ -30,7 +30,9 @@ public abstract class AbstractPrimitive implements IPrimitive {
      *
      * @author Michael Zangl
      * @since 8742
+     * @since 10600 (functional interface)
      */
+    @FunctionalInterface
     public interface KeyValueVisitor {
 
         /**
@@ -175,7 +177,7 @@ public abstract class AbstractPrimitive implements IPrimitive {
 
     @Override
     public boolean isNewOrUndeleted() {
-        return (id <= 0) || ((flags & (FLAG_VISIBLE + FLAG_DELETED)) == 0);
+        return isNew() || ((flags & (FLAG_VISIBLE + FLAG_DELETED)) == 0);
     }
 
     @Override

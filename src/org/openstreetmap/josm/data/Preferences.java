@@ -137,12 +137,8 @@ public class Preferences {
      */
     protected final SortedMap<String, Setting<?>> defaultsMap = new TreeMap<>();
 
-    private final Predicate<Entry<String, Setting<?>>> NO_DEFAULT_SETTINGS_ENTRY = new Predicate<Entry<String, Setting<?>>>() {
-        @Override
-        public boolean evaluate(Entry<String, Setting<?>> e) {
-            return !e.getValue().equals(defaultsMap.get(e.getKey()));
-        }
-    };
+    private final Predicate<Entry<String, Setting<?>>> NO_DEFAULT_SETTINGS_ENTRY =
+            e -> !e.getValue().equals(defaultsMap.get(e.getKey()));
 
     /**
      * Maps color keys to human readable color name
@@ -180,7 +176,9 @@ public class Preferences {
 
     /**
      * Listener to preference change events.
+     * @since 10600 (functional interface)
      */
+    @FunctionalInterface
     public interface PreferenceChangedListener {
         /**
          * Trigerred when a preference entry value changes.
@@ -794,9 +792,7 @@ public class Preferences {
             return Integer.parseInt(v);
         } catch (NumberFormatException e) {
             // fall out
-            if (Main.isTraceEnabled()) {
-                Main.trace(e.getMessage());
-            }
+            Main.trace(e);
         }
         return def;
     }
@@ -812,9 +808,7 @@ public class Preferences {
             return Integer.parseInt(v);
         } catch (NumberFormatException e) {
             // fall out
-            if (Main.isTraceEnabled()) {
-                Main.trace(e.getMessage());
-            }
+            Main.trace(e);
         }
         return def;
     }
@@ -828,9 +822,7 @@ public class Preferences {
             return Long.parseLong(v);
         } catch (NumberFormatException e) {
             // fall out
-            if (Main.isTraceEnabled()) {
-                Main.trace(e.getMessage());
-            }
+            Main.trace(e);
         }
         return def;
     }
@@ -844,9 +836,7 @@ public class Preferences {
             return Double.parseDouble(v);
         } catch (NumberFormatException e) {
             // fall out
-            if (Main.isTraceEnabled()) {
-                Main.trace(e.getMessage());
-            }
+            Main.trace(e);
         }
         return def;
     }
@@ -1334,13 +1324,6 @@ public class Preferences {
         // then https://josm.openstreetmap.de/ticket/12152#comment:5 for details
         if (getBoolean("jdk.tls.disableSNIExtension", false)) {
             Utils.updateSystemProperty("jsse.enableSNIExtension", "false");
-        }
-        // Workaround to fix another Java bug - The bug seems to have been fixed in Java 8, to remove during transition
-        // Force Java 7 to use old sorting algorithm of Arrays.sort (fix #8712).
-        // See Oracle bug database: https://bugs.openjdk.java.net/browse/JDK-7075600
-        // and https://bugs.openjdk.java.net/browse/JDK-6923200
-        if (getBoolean("jdk.Arrays.useLegacyMergeSort", !Version.getInstance().isLocalBuild())) {
-            Utils.updateSystemProperty("java.util.Arrays.useLegacyMergeSort", "true");
         }
     }
 

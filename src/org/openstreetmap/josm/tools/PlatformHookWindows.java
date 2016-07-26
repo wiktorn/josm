@@ -63,11 +63,7 @@ public class PlatformHookWindows extends PlatformHookUnixoid {
 
     @Override
     public void startupHook() {
-        // Invite users to install Java 8 if they are still with Java 7
-        String version = System.getProperty("java.version");
-        if (version != null && version.startsWith("1.7")) {
-            askUpdateJava(version);
-        }
+        // Do nothing
     }
 
     private static final byte[] INSECURE_PUBLIC_KEY = new byte[] {
@@ -245,6 +241,7 @@ public class PlatformHookWindows extends PlatformHookUnixoid {
                 } catch (InvalidKeyException | NoSuchProviderException | SignatureException e) {
                     // If exception this is not a certificate related to JOSM, just trace it
                     Main.trace(alias + " --> " + e.getClass().getName());
+                    Main.trace(e);
                 }
             }
         }
@@ -270,7 +267,7 @@ public class PlatformHookWindows extends PlatformHookUnixoid {
                 try {
                     ks.deleteEntry(alias);
                 } catch (KeyStoreException e) {
-                    Main.error(tr("Unable to remove insecure certificate from keystore: {0}", e.getMessage()));
+                    Main.error(e, tr("Unable to remove insecure certificate from keystore: {0}", e.getMessage()));
                 }
             }
         }

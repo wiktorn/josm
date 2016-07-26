@@ -44,6 +44,7 @@ import org.openstreetmap.josm.gui.layer.TMSLayer;
 
 public class SlippyMapBBoxChooser extends JMapViewer implements BBoxChooser {
 
+    @FunctionalInterface
     public interface TileSourceProvider {
         List<TileSource> getTileSources();
     }
@@ -73,6 +74,7 @@ public class SlippyMapBBoxChooser extends JMapViewer implements BBoxChooser {
                         sources.add(source);
                     }
                 } catch (IllegalArgumentException ex) {
+                    Main.warn(ex);
                     if (ex.getMessage() != null && !ex.getMessage().isEmpty()) {
                         JOptionPane.showMessageDialog(Main.parent,
                                 ex.getMessage(), tr("Warning"),
@@ -94,14 +96,9 @@ public class SlippyMapBBoxChooser extends JMapViewer implements BBoxChooser {
 
     private static CopyOnWriteArrayList<TileSourceProvider> providers = new CopyOnWriteArrayList<>();
     static {
-        addTileSourceProvider(new TileSourceProvider() {
-            @Override
-            public List<TileSource> getTileSources() {
-                return Arrays.<TileSource>asList(
-                        new OsmTileSource.Mapnik(),
-                        new OsmTileSource.CycleMap());
-            }
-        });
+        addTileSourceProvider(() -> Arrays.<TileSource>asList(
+                new OsmTileSource.Mapnik(),
+                new OsmTileSource.CycleMap()));
         addTileSourceProvider(new TMSTileSourceProvider());
     }
 
