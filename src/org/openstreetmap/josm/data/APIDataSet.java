@@ -3,7 +3,6 @@ package org.openstreetmap.josm.data;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -72,9 +71,9 @@ public class APIDataSet {
             }
         }
         OsmPrimitiveComparator c = new OsmPrimitiveComparator(false, true);
-        Collections.sort(toDelete, c);
-        Collections.sort(toAdd, c);
-        Collections.sort(toUpdate, c);
+        toDelete.sort(c);
+        toAdd.sort(c);
+        toUpdate.sort(c);
     }
 
     /**
@@ -332,15 +331,7 @@ public class APIDataSet {
                 visit(path, relation);
             }
             List<Relation> ret = new ArrayList<>(relations);
-            Collections.sort(
-                    ret,
-                    new Comparator<Relation>() {
-                        @Override
-                        public int compare(Relation o1, Relation o2) {
-                            return Integer.compare(uploadOrder.indexOf(o1), uploadOrder.indexOf(o2));
-                        }
-                    }
-                    );
+            ret.sort(Comparator.comparingInt(uploadOrder::indexOf));
             return ret;
         }
     }

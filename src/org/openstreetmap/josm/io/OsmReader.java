@@ -527,6 +527,7 @@ public class OsmReader extends AbstractReader {
                 }
             } catch (IllegalStateException e) {
                 // thrown for positive changeset id on new primitives
+                Main.debug(e);
                 Main.info(e.getMessage());
                 current.setChangesetId(0);
             }
@@ -575,11 +576,7 @@ public class OsmReader extends AbstractReader {
         if (progressMonitor == null) {
             progressMonitor = NullProgressMonitor.INSTANCE;
         }
-        ProgressMonitor.CancelListener cancelListener = new ProgressMonitor.CancelListener() {
-            @Override public void operationCanceled() {
-                cancel = true;
-            }
-        };
+        ProgressMonitor.CancelListener cancelListener = () -> cancel = true;
         progressMonitor.addCancelListener(cancelListener);
         CheckParameterUtil.ensureParameterNotNull(source, "source");
         try {

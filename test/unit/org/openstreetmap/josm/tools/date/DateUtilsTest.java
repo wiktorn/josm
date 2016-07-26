@@ -23,6 +23,8 @@ public class DateUtilsTest {
 
     /**
      * Set the timezone and timeout.
+     * <p>
+     * Timeouts need to be disabled because we change the time zone.
      */
     @Rule
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")

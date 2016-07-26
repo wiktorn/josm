@@ -23,8 +23,9 @@ public class MainLayerManager extends LayerManager {
     /**
      * This listener listens to changes of the active or the edit layer.
      * @author Michael Zangl
-     *
+     * @since 10600 (functional interface)
      */
+    @FunctionalInterface
     public interface ActiveLayerChangeListener {
         /**
          * Called whenever the active or edit layer changed.
@@ -226,12 +227,7 @@ public class MainLayerManager extends LayerManager {
     public void setActiveLayer(final Layer layer) {
         // we force this on to the EDT Thread to make events fire from there.
         // The synchronization lock needs to be held by the EDT.
-        GuiHelper.runInEDTAndWaitWithException(new Runnable() {
-            @Override
-            public void run() {
-                realSetActiveLayer(layer);
-            }
-        });
+        GuiHelper.runInEDTAndWaitWithException(() -> realSetActiveLayer(layer));
     }
 
     protected synchronized void realSetActiveLayer(final Layer layer) {

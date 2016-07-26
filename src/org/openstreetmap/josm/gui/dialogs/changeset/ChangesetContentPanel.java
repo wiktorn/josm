@@ -16,6 +16,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
@@ -52,7 +53,6 @@ import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel;
 import org.openstreetmap.josm.gui.widgets.PopupMenuLauncher;
 import org.openstreetmap.josm.tools.ImageProvider;
-import org.openstreetmap.josm.tools.Utils;
 import org.openstreetmap.josm.tools.bugreport.BugReportExceptionHandler;
 
 /**
@@ -232,20 +232,10 @@ public class ChangesetContentPanel extends JPanel implements PropertyChangeListe
                         if (h == null) {
                             continue;
                         }
-                        GuiHelper.runInEDT(new Runnable() {
-                            @Override
-                            public void run() {
-                                HistoryBrowserDialogManager.getInstance().show(h);
-                            }
-                        });
+                        GuiHelper.runInEDT(() -> HistoryBrowserDialogManager.getInstance().show(h));
                     }
                 } catch (final RuntimeException e) {
-                    GuiHelper.runInEDT(new Runnable() {
-                        @Override
-                        public void run() {
-                            BugReportExceptionHandler.handleException(e);
-                        }
-                    });
+                    GuiHelper.runInEDT(() -> BugReportExceptionHandler.handleException(e));
                 }
             }
         }
@@ -309,13 +299,8 @@ public class ChangesetContentPanel extends JPanel implements PropertyChangeListe
 
         @Override
         public void actionPerformed(ActionEvent arg0) {
-            final List<PrimitiveId> primitiveIds = new ArrayList<>(Utils.transform(
-                    model.getSelectedPrimitives(), new Utils.Function<HistoryOsmPrimitive, PrimitiveId>() {
-                        @Override
-                        public PrimitiveId apply(HistoryOsmPrimitive x) {
-                            return x.getPrimitiveId();
-                        }
-                    }));
+            final List<PrimitiveId> primitiveIds = model.getSelectedPrimitives().stream().map(x -> x.getPrimitiveId())
+                    .collect(Collectors.toList());
             Main.worker.submit(new DownloadPrimitivesWithReferrersTask(false, primitiveIds, true, true, null, null));
         }
 

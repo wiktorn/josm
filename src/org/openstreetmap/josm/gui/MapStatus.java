@@ -77,7 +77,6 @@ import org.openstreetmap.josm.gui.widgets.JosmTextField;
 import org.openstreetmap.josm.tools.Destroyable;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
-import org.openstreetmap.josm.tools.Predicate;
 
 /**
  * A component that manages some status information display about the map.
@@ -293,12 +292,8 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
                     // Popup Information
                     // display them if the middle mouse button is pressed and keep them until the mouse is moved
                     if (middleMouseDown || isAtOldPosition) {
-                        Collection<OsmPrimitive> osms = mv.getAllNearest(ms.mousePos, new Predicate<OsmPrimitive>() {
-                            @Override
-                            public boolean evaluate(OsmPrimitive o) {
-                                return isUsablePredicate.evaluate(o) && isSelectablePredicate.evaluate(o);
-                            }
-                        });
+                        Collection<OsmPrimitive> osms = mv.getAllNearest(ms.mousePos,
+                                o -> isUsablePredicate.evaluate(o) && isSelectablePredicate.evaluate(o));
 
                         final JPanel c = new JPanel(new GridBagLayout());
                         final JLabel lbl = new JLabel(
@@ -504,12 +499,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
                 return;
             final Popup staticPopup = popup;
             popup = null;
-            EventQueue.invokeLater(new Runnable() {
-               @Override
-               public void run() {
-                    staticPopup.hide();
-                }
-            });
+            EventQueue.invokeLater(staticPopup::hide);
         }
 
         /**
@@ -523,21 +513,13 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
             if (this.popup != null) {
                 // If an old popup exists, remove it when the new popup has been drawn to keep flickering to a minimum
                 final Popup staticOldPopup = this.popup;
-                EventQueue.invokeLater(new Runnable() {
-                    @Override
-                    public void run() {
-                        staticPopup.show();
-                        staticOldPopup.hide();
-                    }
+                EventQueue.invokeLater(() -> {
+                    staticPopup.show();
+                    staticOldPopup.hide();
                 });
             } else {
                 // There is no old popup
-                EventQueue.invokeLater(new Runnable() {
-                    @Override
-                    public void run() {
-                        staticPopup.show();
-                    }
-                });
+                EventQueue.invokeLater(staticPopup::show);
             }
             this.popupLabels = lbls;
             this.popup = newPopup;
@@ -692,22 +674,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
         }
     }
 
-    private final transient AWTEventListener awtListener = new AWTEventListener() {
-         @Override
-         public void eventDispatched(AWTEvent event) {
-            if (event instanceof InputEvent &&
-                    ((InputEvent) event).getComponent() == mv) {
-                synchronized (collector) {
-                    int modifiers = ((InputEvent) event).getModifiersEx();
-                    Point mousePos = null;
-                    if (event instanceof MouseEvent) {
-                        mousePos = ((MouseEvent) event).getPoint();
-                    }
-                    collector.updateMousePosition(mousePos, modifiers);
-                }
-            }
-        }
-    };
+    private final transient AWTEventListener awtListener;
 
     private final transient MouseMotionListener mouseMotionListener = new MouseMotionListener() {
         @Override
@@ -736,12 +703,12 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
     };
 
     private void registerListeners() {
-        // Listen to keyboard/mouse events for pressing/releasing alt key and
-        // inform the collector.
+        // Listen to keyboard/mouse events for pressing/releasing alt key and inform the collector.
         try {
             Toolkit.getDefaultToolkit().addAWTEventListener(awtListener,
                     AWTEvent.KEY_EVENT_MASK | AWTEvent.MOUSE_EVENT_MASK | AWTEvent.MOUSE_MOTION_EVENT_MASK);
         } catch (SecurityException ex) {
+            Main.trace(ex);
             mv.addMouseMotionListener(mouseMotionListener);
             mv.addKeyListener(keyAdapter);
         }
@@ -752,9 +719,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
             Toolkit.getDefaultToolkit().removeAWTEventListener(awtListener);
         } catch (SecurityException e) {
             // Don't care, awtListener probably wasn't registered anyway
-            if (Main.isTraceEnabled()) {
-                Main.trace(e.getMessage());
-            }
+            Main.trace(e);
         }
         mv.removeMouseMotionListener(mouseMotionListener);
         mv.removeKeyListener(keyAdapter);
@@ -843,6 +808,19 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
     public MapStatus(final MapFrame mapFrame) {
         this.mv = mapFrame.mapView;
         this.collector = new Collector(mapFrame);
+        this.awtListener = event -> {
+            if (event instanceof InputEvent &&
+                    ((InputEvent) event).getComponent() == mv) {
+                synchronized (collector) {
+                    int modifiers = ((InputEvent) event).getModifiersEx();
+                    Point mousePos = null;
+                    if (event instanceof MouseEvent) {
+                        mousePos = ((MouseEvent) event).getPoint();
+                    }
+                    collector.updateMousePosition(mousePos, modifiers);
+                }
+            }
+        };
 
         // Context menu of status bar
         setComponentPopupMenu(new MapStatusPopupMenu());
@@ -1009,12 +987,9 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
         statusText.remove(entry);
         statusText.add(entry);
 
-        GuiHelper.runInEDT(new Runnable() {
-            @Override
-            public void run() {
-                helpText.setText(text);
-                helpText.setToolTipText(text);
-            }
+        GuiHelper.runInEDT(() -> {
+            helpText.setText(text);
+            helpText.setToolTipText(text);
         });
     }
 

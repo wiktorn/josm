@@ -8,8 +8,6 @@ import java.util.Collection;
 
 import javax.swing.AbstractButton;
 import javax.swing.JPanel;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.JTextComponent;
@@ -34,7 +32,9 @@ public abstract class AddImageryPanel extends JPanel {
 
     /**
      * A listener notified when the validation status of this panel change.
+     * @since 10600 (functional interface)
      */
+    @FunctionalInterface
     public interface ContentValidationListener {
         /**
          * Called when the validation status of this panel changed
@@ -53,12 +53,7 @@ public abstract class AddImageryPanel extends JPanel {
     }
 
     protected final void registerValidableComponent(AbstractButton component) {
-        component.addChangeListener(new ChangeListener() {
-            @Override
-            public void stateChanged(ChangeEvent e) {
-                notifyListeners();
-            }
-        });
+        component.addChangeListener(e -> notifyListeners());
     }
 
     protected final void registerValidableComponent(JTextComponent component) {

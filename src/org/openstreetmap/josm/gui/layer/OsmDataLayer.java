@@ -29,7 +29,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.regex.Pattern;
 
@@ -238,13 +237,16 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
         }
     }
 
+    @FunctionalInterface
     public interface CommandQueueListener {
         void commandChanged(int queueSize, int redoSize);
     }
 
     /**
      * Listener called when a state of this layer has changed.
+     * @since 10600 (functional interface)
      */
+    @FunctionalInterface
     public interface LayerStateChangeListener {
         /**
          * Notifies that the "upload discouraged" (upload=no) state has changed.
@@ -643,7 +645,7 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
          * (Only works if the data layer has not been saved to and been loaded from an osm file before.)
          */
         final List<Way> sortedWays = new ArrayList<>(ways);
-        Collections.sort(sortedWays, new OsmPrimitiveComparator(true, false)); // sort by OsmPrimitive#getUniqueId ascending
+        sortedWays.sort(new OsmPrimitiveComparator(true, false)); // sort by OsmPrimitive#getUniqueId ascending
         Collections.reverse(sortedWays); // sort by OsmPrimitive#getUniqueId descending
         for (Way w : sortedWays) {
             if (!w.isUsable()) {
@@ -749,9 +751,7 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
                         break;
                     }
                 } catch (NumberFormatException e) {
-                    if (Main.isTraceEnabled()) {
-                        Main.trace(e.getMessage());
-                    }
+                    Main.trace(e);
                 }
             }
         }
@@ -771,9 +771,7 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
                         break;
                     }
                 } catch (NumberFormatException e) {
-                    if (Main.isTraceEnabled()) {
-                        Main.trace(e.getMessage());
-                    }
+                    Main.trace(e);
                 }
             }
         }
@@ -990,40 +988,34 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
 
     @Override
     public boolean checkSaveConditions() {
-        if (isDataSetEmpty() && 1 != GuiHelper.runInEDTAndWaitAndReturn(new Callable<Integer>() {
-            @Override
-            public Integer call() {
-                if (GraphicsEnvironment.isHeadless()) {
-                    return 2;
-                }
-                ExtendedDialog dialog = new ExtendedDialog(
-                        Main.parent,
-                        tr("Empty document"),
-                        new String[] {tr("Save anyway"), tr("Cancel")}
-                );
-                dialog.setContent(tr("The document contains no data."));
-                dialog.setButtonIcons(new String[] {"save", "cancel"});
-                return dialog.showDialog().getValue();
+        if (isDataSetEmpty() && 1 != GuiHelper.runInEDTAndWaitAndReturn(() -> {
+            if (GraphicsEnvironment.isHeadless()) {
+                return 2;
             }
+            ExtendedDialog dialog = new ExtendedDialog(
+                    Main.parent,
+                    tr("Empty document"),
+                    new String[] {tr("Save anyway"), tr("Cancel")}
+            );
+            dialog.setContent(tr("The document contains no data."));
+            dialog.setButtonIcons(new String[] {"save", "cancel"});
+            return dialog.showDialog().getValue();
         })) {
             return false;
         }
 
         ConflictCollection conflictsCol = getConflicts();
-        if (conflictsCol != null && !conflictsCol.isEmpty() && 1 != GuiHelper.runInEDTAndWaitAndReturn(new Callable<Integer>() {
-            @Override
-            public Integer call() {
-                ExtendedDialog dialog = new ExtendedDialog(
-                        Main.parent,
-                        /* I18N: Display title of the window showing conflicts */
-                        tr("Conflicts"),
-                        new String[] {tr("Reject Conflicts and Save"), tr("Cancel")}
-                );
-                dialog.setContent(
-                        tr("There are unresolved conflicts. Conflicts will not be saved and handled as if you rejected all. Continue?"));
-                dialog.setButtonIcons(new String[] {"save", "cancel"});
-                return dialog.showDialog().getValue();
-            }
+        if (conflictsCol != null && !conflictsCol.isEmpty() && 1 != GuiHelper.runInEDTAndWaitAndReturn(() -> {
+            ExtendedDialog dialog = new ExtendedDialog(
+                    Main.parent,
+                    /* I18N: Display title of the window showing conflicts */
+                    tr("Conflicts"),
+                    new String[] {tr("Reject Conflicts and Save"), tr("Cancel")}
+            );
+            dialog.setContent(
+                    tr("There are unresolved conflicts. Conflicts will not be saved and handled as if you rejected all. Continue?"));
+            dialog.setButtonIcons(new String[] {"save", "cancel"});
+            return dialog.showDialog().getValue();
         })) {
             return false;
         }

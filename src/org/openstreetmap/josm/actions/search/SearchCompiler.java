@@ -229,7 +229,9 @@ public class SearchCompiler {
 
     /**
      * Classes implementing this interface can provide Match operators.
+     * @since 10600 (functional interface)
      */
+    @FunctionalInterface
     private interface MatchFactory {
         Collection<String> getKeywords();
     }
@@ -731,9 +733,7 @@ public class SearchCompiler {
                     v = Double.valueOf(referenceValue);
                 }
             } catch (NumberFormatException ignore) {
-                if (Main.isTraceEnabled()) {
-                    Main.trace(ignore.getMessage());
-                }
+                Main.trace(ignore);
             }
             this.referenceNumber = v;
             this.compareMode = compareMode;

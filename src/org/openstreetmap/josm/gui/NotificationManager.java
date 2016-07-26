@@ -153,7 +153,10 @@ class NotificationManager {
             hideTimer.stop();
             if (currentNotificationPanel != null) {
                 currentNotificationPanel.setVisible(false);
-                ((JFrame) Main.parent).getLayeredPane().remove(currentNotificationPanel);
+                JFrame parent = (JFrame) Main.parent;
+                if (parent != null) {
+                    parent.getLayeredPane().remove(currentNotificationPanel);
+                }
                 currentNotificationPanel = null;
             }
             pauseTimer.restart();
@@ -217,12 +220,7 @@ class NotificationManager {
                 btnHelp.addActionListener(new AbstractAction() {
                     @Override
                     public void actionPerformed(ActionEvent e) {
-                        SwingUtilities.invokeLater(new Runnable() {
-                            @Override
-                            public void run() {
-                                HelpBrowser.setUrlForHelpTopic(note.getHelpTopic());
-                            }
-                        });
+                        SwingUtilities.invokeLater(() -> HelpBrowser.setUrlForHelpTopic(note.getHelpTopic()));
                     }
                 });
                 btnHelp.setOpaque(false);

@@ -24,6 +24,7 @@ import org.openstreetmap.josm.command.SequenceCommand;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Tag;
 import org.openstreetmap.josm.data.osm.TagCollection;
+import org.openstreetmap.josm.data.osm.TagMap;
 import org.openstreetmap.josm.data.osm.Tagged;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetType;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
@@ -46,6 +47,8 @@ public class TagEditorModel extends AbstractTableModel {
     private final DefaultListSelectionModel colSelectionModel;
 
     private transient OsmPrimitive primitive;
+
+    private EndEditListener endEditListener;
 
     /**
      * Creates a new tag editor model. Internally allocates two selection models
@@ -166,6 +169,7 @@ public class TagEditorModel extends AbstractTableModel {
      * removes all tags in the model
      */
     public void clear() {
+        commitPendingEdit();
         boolean wasEmpty = tags.isEmpty();
         tags.clear();
         if (!wasEmpty) {
@@ -182,13 +186,24 @@ public class TagEditorModel extends AbstractTableModel {
      * @throws IllegalArgumentException if tag is null
      */
     public void add(TagModel tag) {
+        commitPendingEdit();
         CheckParameterUtil.ensureParameterNotNull(tag, "tag");
         tags.add(tag);
         setDirty(true);
         fireTableDataChanged();
     }
 
+    /**
+     * Add a tag at the beginning of the table.
+     *
+     * @param tag The tag to add
+     *
+     * @throws IllegalArgumentException if tag is null
+     *
+     * @see #add(TagModel)
+     */
     public void prepend(TagModel tag) {
+        commitPendingEdit();
         CheckParameterUtil.ensureParameterNotNull(tag, "tag");
         tags.add(0, tag);
         setDirty(true);
@@ -208,6 +223,7 @@ public class TagEditorModel extends AbstractTableModel {
      * @param value the value; converted to "" if null
      */
     public void add(String name, String value) {
+        commitPendingEdit();
         String key = (name == null) ? "" : name;
         String val = (value == null) ? "" : value;
 
@@ -258,6 +274,7 @@ public class TagEditorModel extends AbstractTableModel {
     public void deleteTagNames(int[] tagIndices) {
         if (tags == null)
             return;
+        commitPendingEdit();
         for (int tagIdx : tagIndices) {
             TagModel tag = tags.get(tagIdx);
             if (tag != null) {
@@ -276,6 +293,7 @@ public class TagEditorModel extends AbstractTableModel {
     public void deleteTagValues(int[] tagIndices) {
         if (tags == null)
             return;
+        commitPendingEdit();
         for (int tagIdx : tagIndices) {
             TagModel tag = tags.get(tagIdx);
             if (tag != null) {
@@ -292,6 +310,7 @@ public class TagEditorModel extends AbstractTableModel {
      * @param name the name. Ignored if null.
      */
     public void delete(String name) {
+        commitPendingEdit();
         if (name == null)
             return;
         Iterator<TagModel> it = tags.iterator();
@@ -317,6 +336,7 @@ public class TagEditorModel extends AbstractTableModel {
     public void deleteTags(int[] tagIndices) {
         if (tags == null)
             return;
+        commitPendingEdit();
         List<TagModel> toDelete = new ArrayList<>();
         for (int tagIdx : tagIndices) {
             TagModel tag = tags.get(tagIdx);
@@ -355,13 +375,14 @@ public class TagEditorModel extends AbstractTableModel {
      * @param primitive the OSM primitive
      */
     public void initFromPrimitive(Tagged primitive) {
+        commitPendingEdit();
         this.tags.clear();
         for (String key : primitive.keySet()) {
             String value = primitive.get(key);
             this.tags.add(new TagModel(key, value));
         }
-        TagModel tag = new TagModel();
         sort();
+        TagModel tag = new TagModel();
         tags.add(tag);
         setDirty(false);
         fireTableDataChanged();
@@ -373,6 +394,7 @@ public class TagEditorModel extends AbstractTableModel {
      * @param tags the tags of an OSM primitive
      */
     public void initFromTags(Map<String, String> tags) {
+        commitPendingEdit();
         this.tags.clear();
         for (Entry<String, String> entry : tags.entrySet()) {
             this.tags.add(new TagModel(entry.getKey(), entry.getValue()));
@@ -390,6 +412,7 @@ public class TagEditorModel extends AbstractTableModel {
      * @param tags the tags
      */
     public void initFromTags(TagCollection tags) {
+        commitPendingEdit();
         this.tags.clear();
         if (tags == null) {
             setDirty(false);
@@ -423,7 +446,8 @@ public class TagEditorModel extends AbstractTableModel {
      * @return the map of key/value pairs
      */
     private Map<String, String> applyToTags(boolean keepEmpty) {
-        Map<String, String> result = new HashMap<>();
+        // TagMap preserves the order of tags.
+        TagMap result = new TagMap();
         for (TagModel tag: this.tags) {
             // tag still holds an unchanged list of different values for the same key.
             // no property change command required
@@ -432,7 +456,6 @@ public class TagEditorModel extends AbstractTableModel {
             }
 
             // tag name holds an empty key. Don't apply it to the selection.
-            //
             if (!keepEmpty && (tag.getName().trim().isEmpty() || tag.getValue().trim().isEmpty())) {
                 continue;
             }
@@ -538,15 +561,7 @@ public class TagEditorModel extends AbstractTableModel {
      * sorts the current tags according alphabetical order of names
      */
     protected void sort() {
-        java.util.Collections.sort(
-                tags,
-                new Comparator<TagModel>() {
-                    @Override
-                    public int compare(TagModel self, TagModel other) {
-                        return self.getName().compareTo(other.getName());
-                    }
-                }
-        );
+        tags.sort(Comparator.comparing(TagModel::getName));
     }
 
     /**
@@ -590,9 +605,10 @@ public class TagEditorModel extends AbstractTableModel {
      * @param tags - the list
      */
     public void updateTags(List<Tag> tags) {
-         if (tags.isEmpty())
+        if (tags.isEmpty())
             return;
 
+        commitPendingEdit();
         Map<String, TagModel> modelTags = new HashMap<>();
         for (int i = 0; i < getRowCount(); i++) {
             TagModel tagModel = get(i);
@@ -647,6 +663,20 @@ public class TagEditorModel extends AbstractTableModel {
         return this;
     }
 
+    /**
+     * Sets the listener that is notified when an edit should be aborted.
+     * @param endEditListener The listener to be notified when editing should be aborted.
+     */
+    public void setEndEditListener(EndEditListener endEditListener) {
+        this.endEditListener = endEditListener;
+    }
+
+    private void commitPendingEdit() {
+        if (endEditListener != null) {
+            endEditListener.endCellEditing();
+        }
+    }
+
     class SelectionStateMemento {
         private final int rowMin;
         private final int rowMax;
@@ -672,5 +702,17 @@ public class TagEditorModel extends AbstractTableModel {
             rowSelectionModel.setValueIsAdjusting(false);
             colSelectionModel.setValueIsAdjusting(false);
         }
+    }
+
+    /**
+     * A listener that is called whenever the cells may be updated from outside the editor and the editor should thus be commited.
+     * @since 10604
+     */
+    @FunctionalInterface
+    public interface EndEditListener {
+        /**
+         * Requests to end the editing of any cells on this model
+         */
+        void endCellEditing();
     }
 }

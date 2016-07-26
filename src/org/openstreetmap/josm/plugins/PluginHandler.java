@@ -34,7 +34,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.jar.JarFile;
@@ -258,6 +257,7 @@ public final class PluginHandler {
             sources.add(ClassLoader.getSystemClassLoader());
             sources.add(org.openstreetmap.josm.gui.MainApplication.class.getClassLoader());
         } catch (SecurityException ex) {
+            Main.debug(ex);
             sources.add(ImageProvider.class.getClassLoader());
         }
     }
@@ -468,9 +468,7 @@ public final class PluginHandler {
                 try {
                     OnlineResource.JOSM_WEBSITE.checkOfflineAccess(updateSite, Main.getJOSMWebsite());
                 } catch (OfflineAccessException e) {
-                    if (Main.isTraceEnabled()) {
-                        Main.trace(e.getMessage());
-                    }
+                    Main.trace(e);
                     return false;
                 }
             }
@@ -533,43 +531,37 @@ public final class PluginHandler {
         Main.worker.submit(pluginInfoDownloadTask);
 
         // Continuation
-        Main.worker.submit(new Runnable() {
-            @Override
-            public void run() {
-                // Build list of plugins to download
-                Set<PluginInformation> toDownload = new HashSet<>(pluginInfoDownloadTask.getAvailablePlugins());
-                for (Iterator<PluginInformation> it = toDownload.iterator(); it.hasNext();) {
-                    PluginInformation info = it.next();
-                    if (!missingRequiredPlugin.contains(info.getName())) {
-                        it.remove();
-                    }
+        Main.worker.submit(() -> {
+            // Build list of plugins to download
+            Set<PluginInformation> toDownload = new HashSet<>(pluginInfoDownloadTask.getAvailablePlugins());
+            for (Iterator<PluginInformation> it = toDownload.iterator(); it.hasNext();) {
+                PluginInformation info = it.next();
+                if (!missingRequiredPlugin.contains(info.getName())) {
+                    it.remove();
                 }
-                // Check if something has still to be downloaded
-                if (!toDownload.isEmpty()) {
-                    // download plugins
-                    final PluginDownloadTask task = new PluginDownloadTask(parent, toDownload, tr("Download plugins"));
-                    Main.worker.submit(task);
-                    Main.worker.submit(new Runnable() {
-                        @Override
-                        public void run() {
-                            // restart if some plugins have been downloaded
-                            if (!task.getDownloadedPlugins().isEmpty()) {
-                                // update plugin list in preferences
-                                Set<String> plugins = new HashSet<>(Main.pref.getCollection("plugins"));
-                                for (PluginInformation plugin : task.getDownloadedPlugins()) {
-                                    plugins.add(plugin.name);
-                                }
-                                Main.pref.putCollection("plugins", plugins);
-                                // restart
-                                new RestartAction().actionPerformed(null);
-                            } else {
-                                Main.warn("No plugin downloaded, restart canceled");
-                            }
+            }
+            // Check if something has still to be downloaded
+            if (!toDownload.isEmpty()) {
+                // download plugins
+                final PluginDownloadTask task = new PluginDownloadTask(parent, toDownload, tr("Download plugins"));
+                Main.worker.submit(task);
+                Main.worker.submit(() -> {
+                    // restart if some plugins have been downloaded
+                    if (!task.getDownloadedPlugins().isEmpty()) {
+                        // update plugin list in preferences
+                        Set<String> plugins = new HashSet<>(Main.pref.getCollection("plugins"));
+                        for (PluginInformation plugin : task.getDownloadedPlugins()) {
+                            plugins.add(plugin.name);
                         }
-                    });
-                } else {
-                    Main.warn("No plugin to download, operation canceled");
-                }
+                        Main.pref.putCollection("plugins", plugins);
+                        // restart
+                        new RestartAction().actionPerformed(null);
+                    } else {
+                        Main.warn("No plugin downloaded, restart canceled");
+                    }
+                });
+            } else {
+                Main.warn("No plugin to download, operation canceled");
             }
         });
     }
@@ -664,12 +656,8 @@ public final class PluginHandler {
      */
     public static synchronized DynamicURLClassLoader getPluginClassLoader() {
         if (pluginClassLoader == null) {
-            pluginClassLoader = AccessController.doPrivileged(new PrivilegedAction<DynamicURLClassLoader>() {
-                @Override
-                public DynamicURLClassLoader run() {
-                    return new DynamicURLClassLoader(new URL[0], Main.class.getClassLoader());
-                }
-            });
+            pluginClassLoader = AccessController.doPrivileged((PrivilegedAction<DynamicURLClassLoader>)
+                    () -> new DynamicURLClassLoader(new URL[0], Main.class.getClassLoader()));
             sources.add(0, pluginClassLoader);
         }
         return pluginClassLoader;
@@ -757,17 +745,7 @@ public final class PluginHandler {
             // sort the plugins according to their "staging" equivalence class. The
             // lower the value of "stage" the earlier the plugin should be loaded.
             //
-            Collections.sort(
-                    toLoad,
-                    new Comparator<PluginInformation>() {
-                        @Override
-                        public int compare(PluginInformation o1, PluginInformation o2) {
-                            if (o1.stage < o2.stage) return -1;
-                            if (o1.stage == o2.stage) return 0;
-                            return 1;
-                        }
-                    }
-            );
+            toLoad.sort(Comparator.comparingInt(o -> o.stage));
             if (toLoad.isEmpty())
                 return;
 
@@ -1172,12 +1150,7 @@ public final class PluginHandler {
         if (!pluginDir.exists() || !pluginDir.isDirectory() || !pluginDir.canWrite())
             return;
 
-        final File[] files = pluginDir.listFiles(new FilenameFilter() {
-            @Override
-            public boolean accept(File dir, String name) {
-                return name.endsWith(".jar.new");
-            }
-        });
+        final File[] files = pluginDir.listFiles((FilenameFilter) (dir, name) -> name.endsWith(".jar.new"));
         if (files == null)
             return;
 
@@ -1197,7 +1170,7 @@ public final class PluginHandler {
                 new JarFile(updatedPlugin).close();
             } catch (IOException e) {
                 if (dowarn) {
-                    Main.warn(tr("Failed to install plugin ''{0}'' from temporary download file ''{1}''. {2}",
+                    Main.warn(e, tr("Failed to install plugin ''{0}'' from temporary download file ''{1}''. {2}",
                             plugin.toString(), updatedPlugin.toString(), e.getLocalizedMessage()));
                 }
                 continue;
@@ -1308,21 +1281,16 @@ public final class PluginHandler {
            .append("</html>");
 
         try {
-            FutureTask<Integer> task = new FutureTask<>(new Callable<Integer>() {
-                @Override
-                public Integer call() {
-                    return HelpAwareOptionPane.showOptionDialog(
-                            Main.parent,
-                            msg.toString(),
-                            tr("Update plugins"),
-                            JOptionPane.QUESTION_MESSAGE,
-                            null,
-                            options,
-                            options[0],
-                            ht("/ErrorMessages#ErrorInPlugin")
-                    );
-                }
-            });
+            FutureTask<Integer> task = new FutureTask<>(() -> HelpAwareOptionPane.showOptionDialog(
+                    Main.parent,
+                    msg.toString(),
+                    tr("Update plugins"),
+                    JOptionPane.QUESTION_MESSAGE,
+                    null,
+                    options,
+                    options[0],
+                    ht("/ErrorMessages#ErrorInPlugin")
+            ));
             GuiHelper.runInEDT(task);
             return task.get();
         } catch (InterruptedException | ExecutionException e) {
@@ -1393,17 +1361,12 @@ public final class PluginHandler {
             // deactivate the plugin
             plugins.remove(plugin.getPluginInformation().name);
             Main.pref.putCollection("plugins", plugins);
-            GuiHelper.runInEDTAndWait(new Runnable() {
-                @Override
-                public void run() {
-                    JOptionPane.showMessageDialog(
-                            Main.parent,
-                            tr("The plugin has been removed from the configuration. Please restart JOSM to unload the plugin."),
-                            tr("Information"),
-                            JOptionPane.INFORMATION_MESSAGE
-                    );
-                }
-            });
+            GuiHelper.runInEDTAndWait(() -> JOptionPane.showMessageDialog(
+                    Main.parent,
+                    tr("The plugin has been removed from the configuration. Please restart JOSM to unload the plugin."),
+                    tr("Information"),
+                    JOptionPane.INFORMATION_MESSAGE
+            ));
             return null;
         default:
             // user doesn't want to deactivate the plugin

@@ -1,6 +1,7 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.data.validation.tests;
 
+import static org.openstreetmap.josm.data.validation.tests.MapCSSTagChecker.FixCommand.evaluateObject;
 import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.io.BufferedReader;
@@ -129,7 +130,8 @@ public class MapCSSTagChecker extends Test.TagTest {
     /**
      * Represents a fix to a validation test. The fixing {@link Command} can be obtained by {@link #createCommand(OsmPrimitive, Selector)}.
      */
-    abstract static class FixCommand {
+    @FunctionalInterface
+    interface FixCommand {
         /**
          * Creates the fixing {@link Command} for the given primitive. The {@code matchingSelector} is used to evaluate placeholders
          * (cf. {@link MapCSSTagChecker.TagCheck#insertArguments(Selector, String, OsmPrimitive)}).
@@ -137,9 +139,9 @@ public class MapCSSTagChecker extends Test.TagTest {
          * @param matchingSelector  matching selector
          * @return fix command
          */
-        abstract Command createCommand(final OsmPrimitive p, final Selector matchingSelector);
+        Command createCommand(final OsmPrimitive p, final Selector matchingSelector);
 
-        private static void checkObject(final Object obj) {
+        static void checkObject(final Object obj) {
             CheckParameterUtil.ensureThat(obj instanceof Expression || obj instanceof String,
                     "instance of Exception or String expected, but got " + obj);
         }
@@ -151,7 +153,7 @@ public class MapCSSTagChecker extends Test.TagTest {
          * @param matchingSelector matching selector
          * @return result string
          */
-        private static String evaluateObject(final Object obj, final OsmPrimitive p, final Selector matchingSelector) {
+        static String evaluateObject(final Object obj, final OsmPrimitive p, final Selector matchingSelector) {
             final String s;
             if (obj instanceof Expression) {
                 s = (String) ((Expression) obj).evaluate(new Environment(p));
@@ -172,7 +174,7 @@ public class MapCSSTagChecker extends Test.TagTest {
             checkObject(obj);
             return new FixCommand() {
                 @Override
-                Command createCommand(OsmPrimitive p, Selector matchingSelector) {
+                public Command createCommand(OsmPrimitive p, Selector matchingSelector) {
                     final Tag tag = Tag.ofString(evaluateObject(obj, p, matchingSelector));
                     return new ChangePropertyCommand(p, tag.getKey(), tag.getValue());
                 }
@@ -193,7 +195,7 @@ public class MapCSSTagChecker extends Test.TagTest {
             checkObject(obj);
             return new FixCommand() {
                 @Override
-                Command createCommand(OsmPrimitive p, Selector matchingSelector) {
+                public Command createCommand(OsmPrimitive p, Selector matchingSelector) {
                     final String key = evaluateObject(obj, p, matchingSelector);
                     return new ChangePropertyCommand(p, key, "");
                 }
@@ -214,7 +216,7 @@ public class MapCSSTagChecker extends Test.TagTest {
         static FixCommand fixChangeKey(final String oldKey, final String newKey) {
             return new FixCommand() {
                 @Override
-                Command createCommand(OsmPrimitive p, Selector matchingSelector) {
+                public Command createCommand(OsmPrimitive p, Selector matchingSelector) {
                     return new ChangePropertyKeyCommand(p,
                             TagCheck.insertArguments(matchingSelector, oldKey, p),
                             TagCheck.insertArguments(matchingSelector, newKey, p));
@@ -785,13 +787,7 @@ public class MapCSSTagChecker extends Test.TagTest {
                 if (Main.isDebugEnabled()) {
                     Main.debug("- Errors: "+pErrors);
                 }
-                final boolean isError = Utils.exists(pErrors, new Predicate<TestError>() {
-                    @Override
-                    public boolean evaluate(TestError e) {
-                        //noinspection EqualsBetweenInconvertibleTypes
-                        return e.getTester().equals(check.rule);
-                    }
-                });
+                final boolean isError = Utils.exists(pErrors, e -> e.getTester().equals(check.rule));
                 if (isError != i.getValue()) {
                     final String error = MessageFormat.format("Expecting test ''{0}'' (i.e., {1}) to {2} {3} (i.e., {4})",
                             check.getMessage(p), check.rule.selectors, i.getValue() ? "match" : "not match", i.getKey(), p.getKeys());

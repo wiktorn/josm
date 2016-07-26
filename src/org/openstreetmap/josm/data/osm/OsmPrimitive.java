@@ -16,7 +16,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 import org.openstreetmap.josm.Main;
@@ -110,6 +109,33 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
     protected static final int FLAG_ANNOTATED = 1 << 12;
 
     /**
+     * A tagged way that matches this pattern has a direction.
+     * @see #FLAG_HAS_DIRECTIONS
+     */
+    private static volatile Match directionKeys;
+
+    /**
+     * A tagged way that matches this pattern has a direction that is reversed.
+     * <p>
+     * This pattern should be a subset of {@link #directionKeys}
+     * @see #FLAG_DIRECTION_REVERSED
+     */
+    private static volatile Match reversedDirectionKeys;
+
+    static {
+        String reversedDirectionDefault = "oneway=\"-1\"";
+
+        String directionDefault = "oneway? | (aerialway=* -aerialway=station) | "+
+                "waterway=stream | waterway=river | waterway=ditch | waterway=drain | "+
+                "\"piste:type\"=downhill | \"piste:type\"=sled | man_made=\"piste:halfpipe\" | "+
+                "junction=roundabout | (highway=motorway & -oneway=no & -oneway=reversible) | "+
+                "(highway=motorway_link & -oneway=no & -oneway=reversible)";
+
+        reversedDirectionKeys = compileDirectionKeys("tags.reversed_direction", reversedDirectionDefault);
+        directionKeys = compileDirectionKeys("tags.direction", directionDefault);
+    }
+
+    /**
      * Replies the sub-collection of {@link OsmPrimitive}s of type <code>type</code> present in
      * another collection of {@link OsmPrimitive}s. The result collection is a list.
      *
@@ -174,58 +200,34 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      * A predicate that filters primitives that are usable.
      * @see OsmPrimitive#isUsable()
      */
-    public static final Predicate<OsmPrimitive> isUsablePredicate = new Predicate<OsmPrimitive>() {
-        @Override
-        public boolean evaluate(OsmPrimitive primitive) {
-            return primitive.isUsable();
-        }
-    };
+    public static final Predicate<OsmPrimitive> isUsablePredicate = primitive -> primitive.isUsable();
 
     /**
      * A predicate filtering primitives that are selectable.
      */
-    public static final Predicate<OsmPrimitive> isSelectablePredicate = new Predicate<OsmPrimitive>() {
-        @Override
-        public boolean evaluate(OsmPrimitive primitive) {
-            return primitive.isSelectable();
-        }
-    };
+    public static final Predicate<OsmPrimitive> isSelectablePredicate = primitive -> primitive.isSelectable();
 
     /**
      * A predicate filtering primitives that are not deleted.
      */
-    public static final Predicate<OsmPrimitive> nonDeletedPredicate = new Predicate<OsmPrimitive>() {
-        @Override public boolean evaluate(OsmPrimitive primitive) {
-            return !primitive.isDeleted();
-        }
-    };
+    public static final Predicate<OsmPrimitive> nonDeletedPredicate = primitive -> !primitive.isDeleted();
 
     /**
      * A predicate filtering primitives that are not deleted and not incomplete.
      */
-    public static final Predicate<OsmPrimitive> nonDeletedCompletePredicate = new Predicate<OsmPrimitive>() {
-        @Override public boolean evaluate(OsmPrimitive primitive) {
-            return !primitive.isDeleted() && !primitive.isIncomplete();
-        }
-    };
+    public static final Predicate<OsmPrimitive> nonDeletedCompletePredicate =
+            primitive -> !primitive.isDeleted() && !primitive.isIncomplete();
 
     /**
      * A predicate filtering primitives that are not deleted and not incomplete and that are not a relation.
      */
-    public static final Predicate<OsmPrimitive> nonDeletedPhysicalPredicate = new Predicate<OsmPrimitive>() {
-        @Override public boolean evaluate(OsmPrimitive primitive) {
-            return !primitive.isDeleted() && !primitive.isIncomplete() && !(primitive instanceof Relation);
-        }
-    };
+    public static final Predicate<OsmPrimitive> nonDeletedPhysicalPredicate =
+            primitive -> !primitive.isDeleted() && !primitive.isIncomplete() && !(primitive instanceof Relation);
 
     /**
      * A predicate filtering primitives that are modified
      */
-    public static final Predicate<OsmPrimitive> modifiedPredicate = new Predicate<OsmPrimitive>() {
-        @Override public boolean evaluate(OsmPrimitive primitive) {
-            return primitive.isModified();
-        }
-    };
+    public static final Predicate<OsmPrimitive> modifiedPredicate = primitive -> primitive.isModified();
 
     /**
      * A predicate filtering nodes.
@@ -245,23 +247,15 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
     /**
      * A predicate filtering multipolygon relations.
      */
-    public static final Predicate<OsmPrimitive> multipolygonPredicate = new Predicate<OsmPrimitive>() {
-        @Override public boolean evaluate(OsmPrimitive primitive) {
-            return primitive.getClass() == Relation.class && ((Relation) primitive).isMultipolygon();
-        }
-    };
+    public static final Predicate<OsmPrimitive> multipolygonPredicate =
+            primitive -> primitive.getClass() == Relation.class && ((Relation) primitive).isMultipolygon();
 
     /**
      * This matches all ways that have a direction
      *
      * @see #FLAG_HAS_DIRECTIONS
      */
-    public static final Predicate<Tag> directionalKeyPredicate = new Predicate<Tag>() {
-        @Override
-        public boolean evaluate(Tag tag) {
-            return directionKeys.match(tag);
-        }
-    };
+    public static final Predicate<Tag> directionalKeyPredicate = directionKeys::match;
 
     /**
      * Creates a new primitive for the given id.
@@ -843,33 +837,6 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
         return result;
     }
 
-    /**
-     * A tagged way that matches this pattern has a direction.
-     * @see #FLAG_HAS_DIRECTIONS
-     */
-    private static volatile Match directionKeys;
-
-    /**
-     * A tagged way that matches this pattern has a direction that is reversed.
-     * <p>
-     * This pattern should be a subset of {@link #directionKeys}
-     * @see #FLAG_DIRECTION_REVERSED
-     */
-    private static volatile Match reversedDirectionKeys;
-
-    static {
-        String reversedDirectionDefault = "oneway=\"-1\"";
-
-        String directionDefault = "oneway? | (aerialway=* -aerialway=station) | "+
-                "waterway=stream | waterway=river | waterway=ditch | waterway=drain | "+
-                "\"piste:type\"=downhill | \"piste:type\"=sled | man_made=\"piste:halfpipe\" | "+
-                "junction=roundabout | (highway=motorway & -oneway=no & -oneway=reversible) | "+
-                "(highway=motorway_link & -oneway=no & -oneway=reversible)";
-
-        reversedDirectionKeys = compileDirectionKeys("tags.reversed_direction", reversedDirectionDefault);
-        directionKeys = compileDirectionKeys("tags.direction", directionDefault);
-    }
-
     private static Match compileDirectionKeys(String prefName, String defaultValue) throws AssertionError {
         try {
             return SearchCompiler.compile(Main.pref.get(prefName, defaultValue));
@@ -1384,10 +1351,14 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      */
     @Override
     public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (obj == null || getClass() != obj.getClass()) return false;
-        OsmPrimitive that = (OsmPrimitive) obj;
-        return Objects.equals(id, that.id);
+        if (this == obj) {
+            return true;
+        } else if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        } else {
+            OsmPrimitive that = (OsmPrimitive) obj;
+            return id == that.id;
+        }
     }
 
     /**
@@ -1397,7 +1368,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      */
     @Override
     public int hashCode() {
-        return Objects.hash(id);
+        return Long.hashCode(id);
     }
 
     /**

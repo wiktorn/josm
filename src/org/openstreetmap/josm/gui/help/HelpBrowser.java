@@ -113,15 +113,11 @@ public class HelpBrowser extends JDialog implements IHelpBrowser {
      */
     public static void setUrlForHelpTopic(final String helpTopic) {
         final HelpBrowser browser = getInstance();
-        Runnable r = new Runnable() {
-            @Override
-            public void run() {
-                browser.openHelpTopic(helpTopic);
-                browser.setVisible(true);
-                browser.toFront();
-            }
-        };
-        SwingUtilities.invokeLater(r);
+        SwingUtilities.invokeLater(() -> {
+            browser.openHelpTopic(helpTopic);
+            browser.setVisible(true);
+            browser.toFront();
+        });
     }
 
     /**
@@ -304,14 +300,17 @@ public class HelpBrowser extends JDialog implements IHelpBrowser {
         try {
             content = reader.fetchHelpTopicContent(url, true);
         } catch (MissingHelpContentException e) {
+            Main.trace(e);
             url = getHelpTopicUrl(buildAbsoluteHelpTopic(relativeHelpTopic, LocaleType.BASELANGUAGE));
             try {
                 content = reader.fetchHelpTopicContent(url, true);
             } catch (MissingHelpContentException e1) {
+                Main.trace(e1);
                 url = getHelpTopicUrl(buildAbsoluteHelpTopic(relativeHelpTopic, LocaleType.ENGLISH));
                 try {
                     content = reader.fetchHelpTopicContent(url, true);
                 } catch (MissingHelpContentException e2) {
+                    Main.debug(e2);
                     this.url = url;
                     handleMissingHelpContent(relativeHelpTopic);
                     return;
@@ -347,6 +346,7 @@ public class HelpBrowser extends JDialog implements IHelpBrowser {
         try {
             content = reader.fetchHelpTopicContent(url, true);
         } catch (MissingHelpContentException e) {
+            Main.debug(e);
             this.url = url;
             handleMissingHelpContent(absoluteHelpTopic);
             return;

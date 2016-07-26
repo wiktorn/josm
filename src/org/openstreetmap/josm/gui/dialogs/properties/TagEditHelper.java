@@ -16,7 +16,6 @@ import java.awt.GridBagLayout;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.Transferable;
 import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.InputEvent;
@@ -76,6 +75,7 @@ import org.openstreetmap.josm.data.preferences.EnumProperty;
 import org.openstreetmap.josm.data.preferences.IntegerProperty;
 import org.openstreetmap.josm.data.preferences.StringProperty;
 import org.openstreetmap.josm.gui.ExtendedDialog;
+import org.openstreetmap.josm.gui.datatransfer.ClipboardUtils;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
 import org.openstreetmap.josm.gui.tagging.ac.AutoCompletingComboBox;
 import org.openstreetmap.josm.gui.tagging.ac.AutoCompletionListItem;
@@ -106,12 +106,8 @@ public class TagEditHelper {
     private String changedKey;
     private String objKey;
 
-    private final Comparator<AutoCompletionListItem> defaultACItemComparator = new Comparator<AutoCompletionListItem>() {
-        @Override
-        public int compare(AutoCompletionListItem o1, AutoCompletionListItem o2) {
-            return String.CASE_INSENSITIVE_ORDER.compare(o1.getValue(), o2.getValue());
-        }
-    };
+    private final Comparator<AutoCompletionListItem> defaultACItemComparator =
+            (o1, o2) -> String.CASE_INSENSITIVE_ORDER.compare(o1.getValue(), o2.getValue());
 
     private String lastAddKey;
     private String lastAddValue;
@@ -363,20 +359,7 @@ public class TagEditHelper {
     protected class EditTagDialog extends AbstractTagsDialog implements IEditTagDialog {
         private final String key;
         private final transient Map<String, Integer> m;
-
-        private final transient Comparator<AutoCompletionListItem> usedValuesAwareComparator = new Comparator<AutoCompletionListItem>() {
-                @Override
-                public int compare(AutoCompletionListItem o1, AutoCompletionListItem o2) {
-                    boolean c1 = m.containsKey(o1.getValue());
-                    boolean c2 = m.containsKey(o2.getValue());
-                    if (c1 == c2)
-                        return String.CASE_INSENSITIVE_ORDER.compare(o1.getValue(), o2.getValue());
-                    else if (c1)
-                        return -1;
-                    else
-                        return +1;
-                }
-            };
+        private final transient Comparator<AutoCompletionListItem> usedValuesAwareComparator;
 
         private final transient ListCellRenderer<AutoCompletionListItem> cellRenderer = new ListCellRenderer<AutoCompletionListItem>() {
             private final DefaultListCellRenderer def = new DefaultListCellRenderer();
@@ -407,6 +390,17 @@ public class TagEditHelper {
             this.key = key;
             this.m = map;
 
+            usedValuesAwareComparator = (o1, o2) -> {
+                boolean c1 = m.containsKey(o1.getValue());
+                boolean c2 = m.containsKey(o2.getValue());
+                if (c1 == c2)
+                    return String.CASE_INSENSITIVE_ORDER.compare(o1.getValue(), o2.getValue());
+                else if (c1)
+                    return -1;
+                else
+                    return +1;
+            };
+
             JPanel mainPanel = new JPanel(new BorderLayout());
 
             String msg = "<html>"+trn("This will change {0} object.",
@@ -420,7 +414,7 @@ public class TagEditHelper {
 
             AutoCompletionManager autocomplete = Main.getLayerManager().getEditLayer().data.getAutoCompletionManager();
             List<AutoCompletionListItem> keyList = autocomplete.getKeys();
-            Collections.sort(keyList, defaultACItemComparator);
+            keyList.sort(defaultACItemComparator);
 
             keys = new AutoCompletingComboBox(key);
             keys.setPossibleACItems(keyList);
@@ -433,7 +427,7 @@ public class TagEditHelper {
             p.add(keys, GBC.eol().fill(GBC.HORIZONTAL));
 
             List<AutoCompletionListItem> valueList = autocomplete.getValues(getAutocompletionKeys(key));
-            Collections.sort(valueList, usedValuesAwareComparator);
+            valueList.sort(usedValuesAwareComparator);
 
             final String selection = m.size() != 1 ? tr("<different>") : m.entrySet().iterator().next().getKey();
 
@@ -448,12 +442,7 @@ public class TagEditHelper {
             p.add(new JLabel(tr("Value")), GBC.std());
             p.add(Box.createHorizontalStrut(10), GBC.std());
             p.add(values, GBC.eol().fill(GBC.HORIZONTAL));
-            values.getEditor().addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    buttonAction(0, null); // emulate OK button click
-                }
-            });
+            values.getEditor().addActionListener(e -> buttonAction(0, null));
             addFocusAdapter(autocomplete, usedValuesAwareComparator);
 
             setContent(mainPanel, false);
@@ -583,9 +572,9 @@ public class TagEditHelper {
 
         private void selectACComboBoxSavingUnixBuffer(AutoCompletingComboBox cb) {
             // select combobox with saving unix system selection (middle mouse paste)
-            Clipboard sysSel = GuiHelper.getSystemSelection();
+            Clipboard sysSel = ClipboardUtils.getSystemSelection();
             if (sysSel != null) {
-                Transferable old = Utils.getTransferableContent(sysSel);
+                Transferable old = ClipboardUtils.getClipboardContent(sysSel);
                 cb.requestFocusInWindow();
                 cb.getEditor().selectAll();
                 if (old != null) {
@@ -622,7 +611,7 @@ public class TagEditHelper {
                    String key = keys.getEditor().getItem().toString();
 
                    List<AutoCompletionListItem> valueList = autocomplete.getValues(getAutocompletionKeys(key));
-                   Collections.sort(valueList, comparator);
+                   valueList.sort(comparator);
                    if (Main.isTraceEnabled()) {
                        Main.trace("Focus gained by {0}, e={1}", values, e);
                    }
@@ -697,7 +686,7 @@ public class TagEditHelper {
                 }
             }
 
-            Collections.sort(keyList, defaultACItemComparator);
+            keyList.sort(defaultACItemComparator);
             keys.setPossibleACItems(keyList);
             keys.setEditable(true);
 

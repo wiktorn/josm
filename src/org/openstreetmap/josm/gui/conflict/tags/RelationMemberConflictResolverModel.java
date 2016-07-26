@@ -24,7 +24,6 @@ import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.RelationToChildReference;
 import org.openstreetmap.josm.gui.util.GuiHelper;
-import org.openstreetmap.josm.tools.Predicate;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -161,7 +160,7 @@ public class RelationMemberConflictResolverModel extends DefaultTableModel {
     public void populate(Collection<Relation> relations, Collection<? extends OsmPrimitive> memberPrimitives) {
         decisions.clear();
         relations = relations == null ? Collections.<Relation>emptyList() : relations;
-        memberPrimitives = memberPrimitives == null ? new LinkedList<OsmPrimitive>() : memberPrimitives;
+        memberPrimitives = memberPrimitives == null ? new LinkedList<>() : memberPrimitives;
         for (Relation r : relations) {
             for (OsmPrimitive p: memberPrimitives) {
                 populate(r, p);
@@ -179,7 +178,7 @@ public class RelationMemberConflictResolverModel extends DefaultTableModel {
      * @param references the references. Empty list assumed if null.
      */
     public void populate(Collection<RelationToChildReference> references) {
-        references = references == null ? new LinkedList<RelationToChildReference>() : references;
+        references = references == null ? new LinkedList<>() : references;
         decisions.clear();
         this.relations = new HashSet<>(references.size());
         final Collection<OsmPrimitive> primitives = new HashSet<>();
@@ -234,12 +233,7 @@ public class RelationMemberConflictResolverModel extends DefaultTableModel {
                 for (final Collection<RelationMemberConflictDecision> i : decisionsByPrimitive.values()) {
                     iterators.add(i.iterator());
                 }
-                while (Utils.forAll(iterators, new Predicate<Iterator<RelationMemberConflictDecision>>() {
-                    @Override
-                    public boolean evaluate(Iterator<RelationMemberConflictDecision> it) {
-                        return it.hasNext();
-                    }
-                })) {
+                while (Utils.forAll(iterators, it -> it.hasNext())) {
                     final List<RelationMemberConflictDecision> decisions = new ArrayList<>();
                     final Collection<String> roles = new HashSet<>();
                     final Collection<Integer> indices = new TreeSet<>();
@@ -309,11 +303,7 @@ public class RelationMemberConflictResolverModel extends DefaultTableModel {
      */
     public void refresh() {
         updateNumConflicts();
-        GuiHelper.runInEDTAndWait(new Runnable() {
-            @Override public void run() {
-                fireTableDataChanged();
-            }
-        });
+        GuiHelper.runInEDTAndWait(this::fireTableDataChanged);
     }
 
     /**

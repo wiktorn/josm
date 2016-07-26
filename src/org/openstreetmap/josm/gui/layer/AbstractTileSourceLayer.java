@@ -63,6 +63,7 @@ import org.openstreetmap.gui.jmapviewer.interfaces.TileLoaderListener;
 import org.openstreetmap.gui.jmapviewer.interfaces.TileSource;
 import org.openstreetmap.gui.jmapviewer.tilesources.AbstractTMSTileSource;
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.actions.ImageryAdjustAction;
 import org.openstreetmap.josm.actions.RenameLayerAction;
 import org.openstreetmap.josm.actions.SaveActionBase;
 import org.openstreetmap.josm.data.Bounds;
@@ -72,7 +73,6 @@ import org.openstreetmap.josm.data.imagery.ImageryInfo;
 import org.openstreetmap.josm.data.imagery.TMSCachedTileLoader;
 import org.openstreetmap.josm.data.imagery.TileLoaderFactory;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
-import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.data.preferences.IntegerProperty;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.MapFrame;
@@ -82,10 +82,16 @@ import org.openstreetmap.josm.gui.PleaseWaitRunnable;
 import org.openstreetmap.josm.gui.dialogs.LayerListDialog;
 import org.openstreetmap.josm.gui.dialogs.LayerListPopup;
 import org.openstreetmap.josm.gui.layer.imagery.ImageryFilterSettings.FilterChangeListener;
+import org.openstreetmap.josm.gui.layer.imagery.TileSourceDisplaySettings;
+import org.openstreetmap.josm.gui.layer.imagery.TileSourceDisplaySettings.DisplaySettingsChangeEvent;
+import org.openstreetmap.josm.gui.layer.imagery.TileSourceDisplaySettings.DisplaySettingsChangeListener;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.io.WMSLayerImporter;
 import org.openstreetmap.josm.tools.GBC;
+import org.openstreetmap.josm.tools.MemoryManager;
+import org.openstreetmap.josm.tools.MemoryManager.MemoryHandle;
+import org.openstreetmap.josm.tools.MemoryManager.NotEnoughMemoryException;
 
 /**
  * Base abstract class that supports displaying images provided by TileSource. It might be TMS source, WMS or WMTS
@@ -99,8 +105,14 @@ import org.openstreetmap.josm.tools.GBC;
  * @since 8526 (copied from TMSLayer)
  */
 public abstract class AbstractTileSourceLayer<T extends AbstractTMSTileSource> extends ImageryLayer
-implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeListener {
+implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeListener, DisplaySettingsChangeListener {
     private static final String PREFERENCE_PREFIX = "imagery.generic";
+    /**
+     * Registers all setting properties
+     */
+    static {
+        new TileSourceDisplaySettings();
+    }
 
     /** maximum zoom level supported */
     public static final int MAX_ZOOM = 30;
@@ -108,12 +120,6 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
     public static final int MIN_ZOOM = 2;
     private static final Font InfoFont = new Font("sansserif", Font.BOLD, 13);
 
-    /** do set autozoom when creating a new layer */
-    public static final BooleanProperty PROP_DEFAULT_AUTOZOOM = new BooleanProperty(PREFERENCE_PREFIX + ".default_autozoom", true);
-    /** do set autoload when creating a new layer */
-    public static final BooleanProperty PROP_DEFAULT_AUTOLOAD = new BooleanProperty(PREFERENCE_PREFIX + ".default_autoload", true);
-    /** do show errors per default */
-    public static final BooleanProperty PROP_DEFAULT_SHOWERRORS = new BooleanProperty(PREFERENCE_PREFIX + ".default_showerrors", true);
     /** minimum zoom level to show to user */
     public static final IntegerProperty PROP_MIN_ZOOM_LVL = new IntegerProperty(PREFERENCE_PREFIX + ".min_zoom_lvl", 2);
     /** maximum zoom level to show to user */
@@ -129,14 +135,6 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
 
     private final AttributionSupport attribution = new AttributionSupport();
     private final TileHolder clickedTileHolder = new TileHolder();
-
-    // needed public access for session exporter
-    /** if layers changes automatically, when user zooms in */
-    public boolean autoZoom = PROP_DEFAULT_AUTOZOOM.get();
-    /** if layer automatically loads new tiles */
-    public boolean autoLoad = PROP_DEFAULT_AUTOLOAD.get();
-    /** if layer should show errors on tiles */
-    public boolean showErrors = PROP_DEFAULT_SHOWERRORS.get();
 
     /**
      * Offset between calculated zoom level and zoom level used to download and show tiles. Negative values will result in
@@ -167,6 +165,11 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             }
         }
     };
+
+    private final TileSourceDisplaySettings displaySettings = createDisplaySettings();
+
+    private final ImageryAdjustAction adjustAction = new ImageryAdjustAction(this);
+
     /**
      * Creates Tile Source based Imagery Layer based on Imagery Info
      * @param info imagery info
@@ -176,11 +179,30 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         setBackgroundLayer(true);
         this.setVisible(true);
         getFilterSettings().addFilterChangeListener(this);
+        getDisplaySettings().addSettingsChangeListener(this);
+    }
+
+    /**
+     * This method creates the {@link TileSourceDisplaySettings} object. Subclasses may implement it to e.g. change the prefix.
+     * @return The object.
+     * @since 10568
+     */
+    protected TileSourceDisplaySettings createDisplaySettings() {
+        return new TileSourceDisplaySettings();
+    }
+
+    /**
+     * Gets the {@link TileSourceDisplaySettings} instance associated with this tile source.
+     * @return The tile source display settings
+     * @since 10568
+     */
+    public TileSourceDisplaySettings getDisplaySettings() {
+        return displaySettings;
     }
 
     @Override
     public void filterChanged() {
-        redraw();
+        invalidate();
     }
 
     protected abstract TileLoaderFactory getTileLoaderFactory();
@@ -263,21 +285,73 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
      *
      * @see Main#map
      * @see MapFrame#repaint()
+     * @see #invalidate() To trigger a repaint of all places where the layer is displayed.
      */
     protected void redraw() {
         needRedraw = true;
         if (isVisible()) Main.map.repaint();
     }
 
-    /**
-     * Marks layer as needing redraw on offset change
-     */
     @Override
-    public void setOffset(double dx, double dy) {
-        super.setOffset(dx, dy);
+    public void invalidate() {
         needRedraw = true;
+        super.invalidate();
     }
 
+    /**
+     * {@inheritDoc}
+     * @deprecated Use {@link TileSourceDisplaySettings#getDx()}
+     */
+    @Override
+    @Deprecated
+    public double getDx() {
+        return getDisplaySettings().getDx();
+    }
+
+    /**
+     * {@inheritDoc}
+     * @deprecated Use {@link TileSourceDisplaySettings#getDy()}
+     */
+    @Override
+    @Deprecated
+    public double getDy() {
+        return getDisplaySettings().getDy();
+    }
+
+    /**
+     * {@inheritDoc}
+     * @deprecated Use {@link TileSourceDisplaySettings}
+     */
+    @Override
+    @Deprecated
+    public void displace(double dx, double dy) {
+        getDisplaySettings().addDisplacement(new EastNorth(dx, dy));
+    }
+
+    /**
+     * {@inheritDoc}
+     * @deprecated Use {@link TileSourceDisplaySettings}
+     */
+    @Override
+    @Deprecated
+    public void setOffset(double dx, double dy) {
+        getDisplaySettings().setDisplacement(new EastNorth(dx, dy));
+    }
+
+    @Override
+    public Object getInfoComponent() {
+        JPanel panel = (JPanel) super.getInfoComponent();
+        EastNorth offset = getDisplaySettings().getDisplacement();
+        if (offset.distanceSq(0, 0) > 1e-10) {
+            panel.add(new JLabel(tr("Offset: ") + offset.east() + ';' + offset.north()), GBC.eol().insets(0, 5, 10, 0));
+        }
+        return panel;
+    }
+
+    @Override
+    protected Action getAdjustAction() {
+        return adjustAction;
+    }
 
     /**
      * Returns average number of screen pixels per tile pixel for current mapview
@@ -352,9 +426,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
                     url = clickedTile.getUrl();
                 } catch (IOException e) {
                     // silence exceptions
-                    if (Main.isTraceEnabled()) {
-                        Main.trace(e.getMessage());
-                    }
+                    Main.trace(e);
                 }
 
                 String[][] content = {
@@ -398,7 +470,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             Tile clickedTile = clickedTileHolder.getTile();
             if (clickedTile != null) {
                 loadTile(clickedTile, true);
-                redraw();
+                invalidate();
             }
         }
     }
@@ -410,17 +482,13 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
 
         @Override
         public void actionPerformed(ActionEvent ae) {
-            autoZoom = !autoZoom;
-            if (autoZoom && getBestZoom() != currentZoomLevel) {
-                setZoomLevel(getBestZoom());
-                redraw();
-            }
+            getDisplaySettings().setAutoZoom(!getDisplaySettings().isAutoZoom());
         }
 
         @Override
         public Component createMenuComponent() {
             JCheckBoxMenuItem item = new JCheckBoxMenuItem(this);
-            item.setSelected(autoZoom);
+            item.setSelected(getDisplaySettings().isAutoZoom());
             return item;
         }
 
@@ -437,14 +505,13 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
 
         @Override
         public void actionPerformed(ActionEvent ae) {
-            autoLoad = !autoLoad;
-            if (autoLoad) redraw();
+            getDisplaySettings().setAutoLoad(!getDisplaySettings().isAutoLoad());
         }
 
         @Override
         public Component createMenuComponent() {
             JCheckBoxMenuItem item = new JCheckBoxMenuItem(this);
-            item.setSelected(autoLoad);
+            item.setSelected(getDisplaySettings().isAutoLoad());
             return item;
         }
 
@@ -461,14 +528,13 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
 
         @Override
         public void actionPerformed(ActionEvent ae) {
-            showErrors = !showErrors;
-            redraw();
+            getDisplaySettings().setShowErrors(!getDisplaySettings().isShowErrors());
         }
 
         @Override
         public Component createMenuComponent() {
             JCheckBoxMenuItem item = new JCheckBoxMenuItem(this);
-            item.setSelected(showErrors);
+            item.setSelected(getDisplaySettings().isShowErrors());
             return item;
         }
 
@@ -486,7 +552,6 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         @Override
         public void actionPerformed(ActionEvent ae) {
             loadAllTiles(true);
-            redraw();
         }
     }
 
@@ -498,7 +563,6 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         @Override
         public void actionPerformed(ActionEvent ae) {
             loadAllErrorTiles(true);
-            redraw();
         }
     }
 
@@ -518,39 +582,36 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
     private class ZoomToBestAction extends AbstractAction {
         ZoomToBestAction() {
             super(tr("Change resolution"));
-            setEnabled(!autoZoom && getBestZoom() != currentZoomLevel);
+            setEnabled(!getDisplaySettings().isAutoZoom() && getBestZoom() != currentZoomLevel);
         }
 
         @Override
         public void actionPerformed(ActionEvent ae) {
             setZoomLevel(getBestZoom());
-            redraw();
         }
     }
 
     private class IncreaseZoomAction extends AbstractAction {
         IncreaseZoomAction() {
             super(tr("Increase zoom"));
-            setEnabled(!autoZoom && zoomIncreaseAllowed());
+            setEnabled(!getDisplaySettings().isAutoZoom() && zoomIncreaseAllowed());
         }
 
         @Override
         public void actionPerformed(ActionEvent ae) {
             increaseZoomLevel();
-            redraw();
         }
     }
 
     private class DecreaseZoomAction extends AbstractAction {
         DecreaseZoomAction() {
             super(tr("Decrease zoom"));
-            setEnabled(!autoZoom && zoomDecreaseAllowed());
+            setEnabled(!getDisplaySettings().isAutoZoom() && zoomDecreaseAllowed());
         }
 
         @Override
         public void actionPerformed(ActionEvent ae) {
             decreaseZoomLevel();
-            redraw();
         }
     }
 
@@ -613,7 +674,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         initializeIfRequired();
 
         event.getMapView().addMouseListener(adapter);
-        MapView.addZoomChangeListener(AbstractTileSourceLayer.this);
+        MapView.addZoomChangeListener(this);
 
         if (this instanceof NativeScaleLayer) {
             event.getMapView().setNativeScaleLayer((NativeScaleLayer) this);
@@ -633,7 +694,6 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             if (tileSource == null) {
                 throw new IllegalArgumentException(tr("Failed to create tile source"));
             }
-            checkLayerMemoryDoesNotExceedMaximum();
             // check if projection is supported
             projectionChanged(null, Main.getProjection());
             initTileSource(this.tileSource);
@@ -642,14 +702,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
 
     @Override
     protected LayerPainter createMapViewPainter(MapViewEvent event) {
-        return new CompatibilityModeLayerPainter() {
-            @Override
-            public void detachFromMapView(MapViewEvent event) {
-                event.getMapView().removeMouseListener(adapter);
-                MapView.removeZoomChangeListener(AbstractTileSourceLayer.this);
-                super.detachFromMapView(event);
-            }
-        };
+        return new TileSourcePainter();
     }
 
     /**
@@ -673,11 +726,6 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         }
     }
 
-    @Override
-    protected long estimateMemoryUsage() {
-        return 4L * tileSource.getTileSize() * tileSource.getTileSize() * estimateTileCacheSize();
-    }
-
     protected int estimateTileCacheSize() {
         Dimension screenSize = GuiHelper.getMaximumScreenSize();
         int height = screenSize.height;
@@ -694,6 +742,29 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
                 * 4);
         Main.info("AbstractTileSourceLayer: estimated visible tiles: {0}, estimated cache size: {1}", visibileTiles, ret);
         return ret;
+    }
+
+    @Override
+    public void displaySettingsChanged(DisplaySettingsChangeEvent e) {
+        if (tileSource == null) {
+            return;
+        }
+        switch (e.getChangedSetting()) {
+        case TileSourceDisplaySettings.AUTO_ZOOM:
+            if (getDisplaySettings().isAutoZoom() && getBestZoom() != currentZoomLevel) {
+                setZoomLevel(getBestZoom());
+                invalidate();
+            }
+            break;
+        case TileSourceDisplaySettings.AUTO_LOAD:
+            if (getDisplaySettings().isAutoLoad()) {
+                invalidate();
+            }
+            break;
+        default:
+            // trigger a redraw just to be sure.
+            invalidate();
+        }
     }
 
     /**
@@ -778,7 +849,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         if (tileLoader instanceof TMSCachedTileLoader) {
             ((TMSCachedTileLoader) tileLoader).cancelOutstandingTasks();
         }
-        needRedraw = true;
+        invalidate();
     }
 
     protected int getMaxZoomLvl() {
@@ -942,11 +1013,13 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             return;
         }
         ts.loadAllTiles(force);
+        invalidate();
     }
 
     protected void loadAllErrorTiles(boolean force) {
         TileSet ts = getVisibleTileSet();
         ts.loadAllErrorTiles(force);
+        invalidate();
     }
 
     @Override
@@ -1142,7 +1215,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             texty += 1 + fontHeight;
         }*/
 
-        if (tile.hasError() && showErrors) {
+        if (tile.hasError() && getDisplaySettings().isShowErrors()) {
             myDrawString(g, tr("Error") + ": " + tr(tile.getErrorMessage()), p.x + 2, texty);
             //texty += 1 + fontHeight;
         }
@@ -1368,17 +1441,17 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         }
 
         private void loadAllTiles(boolean force) {
-            if (!autoLoad && !force)
+            if (!getDisplaySettings().isAutoLoad() && !force)
                 return;
             List<Tile> allTiles = allTilesCreate();
-            Collections.sort(allTiles, getTileDistanceComparator());
+            allTiles.sort(getTileDistanceComparator());
             for (Tile t : allTiles) {
                 loadTile(t, force);
             }
         }
 
         private void loadAllErrorTiles(boolean force) {
-            if (!autoLoad && !force)
+            if (!getDisplaySettings().isAutoLoad() && !force)
                 return;
             for (Tile t : this.allTilesCreate()) {
                 if (t.hasError()) {
@@ -1476,7 +1549,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         needRedraw = false;
 
         int zoom = currentZoomLevel;
-        if (autoZoom) {
+        if (getDisplaySettings().isAutoZoom()) {
             zoom = getBestZoom();
         }
 
@@ -1486,7 +1559,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         int displayZoomLevel = zoom;
 
         boolean noTilesAtZoom = false;
-        if (autoZoom && autoLoad) {
+        if (getDisplaySettings().isAutoZoom() && getDisplaySettings().isAutoLoad()) {
             // Auto-detection of tilesource maxzoom (currently fully works only for Bing)
             TileSetInfo tsi = dts.getTileSetInfo(zoom);
             if (!tsi.hasVisibleTiles && (!tsi.hasLoadingTiles || tsi.hasOverzoomedTiles)) {
@@ -1522,7 +1595,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
                 tsi = dts.getTileSetInfo(zoom);
             }
             ts = dts.getTileSet(zoom);
-        } else if (autoZoom) {
+        } else if (getDisplaySettings().isAutoZoom()) {
             setZoomLevel(zoom);
         }
 
@@ -1541,7 +1614,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         List<Tile> missedTiles = this.paintTileImages(g, ts, displayZoomLevel, null);
         int[] otherZooms = {-1, 1, -2, 2, -3, -4, -5};
         for (int zoomOffset : otherZooms) {
-            if (!autoZoom) {
+            if (!getDisplaySettings().isAutoZoom()) {
                 break;
             }
             int newzoom = displayZoomLevel + zoomOffset;
@@ -1597,7 +1670,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             myDrawString(g, tr("zoom in to load any tiles"), 120, 120);
         } else if (ts.tooLarge()) {
             myDrawString(g, tr("zoom in to load more tiles"), 120, 120);
-        } else if (!autoZoom && ts.tooSmall()) {
+        } else if (!getDisplaySettings().isAutoZoom() && ts.tooSmall()) {
             myDrawString(g, tr("increase tiles zoom level (change resolution) to see more detail"), 120, 120);
         }
 
@@ -1709,7 +1782,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
 
     @Override
     public String getToolTipText() {
-        if (autoLoad) {
+        if (getDisplaySettings().isAutoLoad()) {
             return tr("{0} ({1}), automatically downloading in zoom {2}", this.getClass().getSimpleName(), getName(), currentZoomLevel);
         } else {
             return tr("{0} ({1}), downloading in zoom {2}", this.getClass().getSimpleName(), getName(), currentZoomLevel);
@@ -1804,12 +1877,8 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
     public AbstractTileSourceLayer<T>.PrecacheTask downloadAreaToCache(final ProgressMonitor progressMonitor, List<LatLon> points,
             double bufferX, double bufferY) {
         PrecacheTask precacheTask = new PrecacheTask(progressMonitor);
-        final Set<Tile> requestedTiles = new ConcurrentSkipListSet<>(new Comparator<Tile>() {
-            @Override
-            public int compare(Tile o1, Tile o2) {
-                return String.CASE_INSENSITIVE_ORDER.compare(o1.getKey(), o2.getKey());
-            }
-        });
+        final Set<Tile> requestedTiles = new ConcurrentSkipListSet<>(
+                (o1, o2) -> String.CASE_INSENSITIVE_ORDER.compare(o1.getKey(), o2.getKey()));
         for (LatLon point: points) {
 
             TileXY minTile = tileSource.latLonToTileXY(point.lat() - bufferY, point.lon() - bufferX, currentZoomLevel);
@@ -1847,5 +1916,53 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
     @Override
     public File createAndOpenSaveFileChooser() {
         return SaveActionBase.createAndOpenSaveFileChooser(tr("Save WMS file"), WMSLayerImporter.FILE_FILTER);
+    }
+
+    @Override
+    public void destroy() {
+        super.destroy();
+        adjustAction.destroy();
+    }
+
+    private class TileSourcePainter extends CompatibilityModeLayerPainter {
+        /**
+         * The memory handle that will hold our tile source.
+         */
+        private MemoryHandle<?> memory;
+
+        @Override
+        public void paint(MapViewGraphics graphics) {
+            allocateCacheMemory();
+            if (memory != null) {
+                super.paint(graphics);
+            }
+        }
+
+        private void allocateCacheMemory() {
+            if (memory == null) {
+                MemoryManager manager = MemoryManager.getInstance();
+                if (manager.isAvailable(getEstimatedCacheSize())) {
+                    try {
+                        memory = manager.allocateMemory("tile source layer", getEstimatedCacheSize(), Object::new);
+                    } catch (NotEnoughMemoryException e) {
+                        Main.warn("Could not allocate tile source memory", e);
+                    }
+                }
+            }
+        }
+
+        protected long getEstimatedCacheSize() {
+            return 4L * tileSource.getTileSize() * tileSource.getTileSize() * estimateTileCacheSize();
+        }
+
+        @Override
+        public void detachFromMapView(MapViewEvent event) {
+            event.getMapView().removeMouseListener(adapter);
+            MapView.removeZoomChangeListener(AbstractTileSourceLayer.this);
+            super.detachFromMapView(event);
+            if (memory != null) {
+                memory.free();
+            }
+        }
     }
 }

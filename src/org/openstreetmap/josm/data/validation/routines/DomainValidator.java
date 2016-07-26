@@ -291,7 +291,7 @@ public final class DomainValidator extends AbstractValidator {
 
     // WARNING: this array MUST be sorted, otherwise it cannot be searched reliably using binary search
     private static final String[] GENERIC_TLDS = new String[] {
-        // Taken from Version 2016071600, Last Updated Sat Jul 16 07:07:02 2016 UTC
+        // Taken from Version 2016072400, Last Updated Sun Jul 24 07:07:01 2016 UTC
         "aaa", // aaa American Automobile Association, Inc.
         "aarp", // aarp AARP
         "abb", // abb ABB Ltd
@@ -328,6 +328,7 @@ public final class DomainValidator extends AbstractValidator {
         "ally", // ally Ally Financial Inc.
         "alsace", // alsace REGION D ALSACE
         "alstom", // alstom ALSTOM
+        "amfam", // amfam AmFam, Inc.
         "amica", // amica Amica Mutual Insurance Company
         "amsterdam", // amsterdam Gemeente Amsterdam
         "analytics", // analytics Campus IP LLC
@@ -380,6 +381,7 @@ public final class DomainValidator extends AbstractValidator {
         "bentley", // bentley Bentley Motors Limited
         "berlin", // berlin dotBERLIN GmbH &amp; Co. KG
         "best", // best BestTLD Pty Ltd
+        "bestbuy", // bestbuy BBY Solutions, Inc.
         "bet", // bet Afilias plc
         "bharti", // bharti Bharti Enterprises (Holding) Private Limited
         "bible", // bible American Bible Society
@@ -405,6 +407,7 @@ public final class DomainValidator extends AbstractValidator {
         "bond", // bond Bond University Limited
         "boo", // boo Charleston Road Registry Inc.
         "book", // book Amazon Registry Services, Inc.
+        "booking", // booking Booking.com B.V.
         "boots", // boots THE BOOTS COMPANY PLC
         "bosch", // bosch Robert Bosch GMBH
         "bostik", // bostik Bostik SA
@@ -470,6 +473,7 @@ public final class DomainValidator extends AbstractValidator {
         "cipriani", // cipriani Hotel Cipriani Srl
         "circle", // circle Amazon Registry Services, Inc.
         "cisco", // cisco Cisco Technology, Inc.
+        "citadel", // citadel Citadel Domain LLC
         "citic", // citic CITIC Group Corporation
         "city", // city Snow Sky, LLC
         "cityeats", // cityeats Lifestyle Domain Holdings, Inc.
@@ -552,6 +556,7 @@ public final class DomainValidator extends AbstractValidator {
         "discount", // discount Holly Hill, LLC
         "dnp", // dnp Dai Nippon Printing Co., Ltd.
         "docs", // docs Charleston Road Registry Inc.
+        "doctor", // doctor Brice Trail, LLC
         "dog", // dog Koko Mill, LLC
         "doha", // doha Communications Regulatory Authority (CRA)
         "domains", // domains Sugar Cross, LLC
@@ -560,7 +565,9 @@ public final class DomainValidator extends AbstractValidator {
         "drive", // drive Charleston Road Registry Inc.
         "dtv", // dtv Dish DBS Corporation
         "dubai", // dubai Dubai Smart Government Department
+        "duck", // duck Johnson Shareholdings, Inc.
         "dunlop", // dunlop The Goodyear Tire &amp; Rubber Company
+        "duns", // duns The Dun &amp; Bradstreet Corporation
         "dupont", // dupont E. I. du Pont de Nemours and Company
         "durban", // durban ZA Central Registry NPC trading as ZA Central Registry
         "dvag", // dvag Deutsche Vermögensberatung Aktiengesellschaft DVAG
@@ -582,6 +589,7 @@ public final class DomainValidator extends AbstractValidator {
         "erni", // erni ERNI Group Holding AG
         "esq", // esq Charleston Road Registry Inc.
         "estate", // estate Trixy Park, LLC
+        "esurance", // esurance Esurance Insurance Company
         "eurovision", // eurovision European Broadcasting Union (EBU)
         "eus", // eus Puntueus Fundazioa
         "events", // events Pioneer Maple, LLC
@@ -731,6 +739,7 @@ public final class DomainValidator extends AbstractValidator {
         "icbc", // icbc Industrial and Commercial Bank of China Limited
         "ice", // ice IntercontinentalExchange, Inc.
         "icu", // icu One.com A/S
+        "ieee", // ieee IEEE Global LLC
         "ifm", // ifm ifm electronic gmbh
         "iinet", // iinet Connect West Pty. Ltd.
         "ikano", // ikano Ikano S.A.
@@ -843,6 +852,8 @@ public final class DomainValidator extends AbstractValidator {
         "lotte", // lotte Lotte Holdings Co., Ltd.
         "lotto", // lotto Afilias Limited
         "love", // love Merchant Law Group LLP
+        "lpl", // lpl LPL Holdings, Inc.
+        "lplfinancial", // lplfinancial LPL Holdings, Inc.
         "ltd", // ltd Over Corner, LLC
         "ltda", // ltda InterNetX Corp.
         "lundbeck", // lundbeck H. Lundbeck A/S
@@ -900,6 +911,7 @@ public final class DomainValidator extends AbstractValidator {
         "mov", // mov Charleston Road Registry Inc.
         "movie", // movie New Frostbite, LLC
         "movistar", // movistar Telefónica S.A.
+        "msd", // msd MSD Registry Holdings, Inc.
         "mtn", // mtn MTN Dubai Limited
         "mtpc", // mtpc Mitsubishi Tanabe Pharma Corporation
         "mtr", // mtr MTR Corporation Limited
@@ -943,6 +955,7 @@ public final class DomainValidator extends AbstractValidator {
         "ntt", // ntt NIPPON TELEGRAPH AND TELEPHONE CORPORATION
         "nyc", // nyc The City of New York by and through the New York City Department of Information Technology &amp; Telecommunications
         "obi", // obi OBI Group Holding SE &amp; Co. KGaA
+        "off", // off Johnson Shareholdings, Inc.
         "office", // office Microsoft Corporation
         "okinawa", // okinawa BusinessRalliart inc.
         "olayan", // olayan Crescent Holding GmbH
@@ -1023,6 +1036,7 @@ public final class DomainValidator extends AbstractValidator {
         "quebec", // quebec PointQuébec Inc
         "quest", // quest Quest ION Limited
         "racing", // racing Premier Registry Limited
+        "raid", // raid Johnson Shareholdings, Inc.
         "read", // read Amazon Registry Services, Inc.
         "realestate", // realestate dotRealEstate LLC
         "realtor", // realtor Real Estate Domains LLC
@@ -1049,6 +1063,7 @@ public final class DomainValidator extends AbstractValidator {
         "rich", // rich I-REGISTRY Ltd., Niederlassung Deutschland
         "richardli", // richardli Pacific Century Asset Management (HK) Limited
         "ricoh", // ricoh Ricoh Company, Ltd.
+        "rightathome", // rightathome Johnson Shareholdings, Inc.
         "rio", // rio Empresa Municipal de Informática SA - IPLANRIO
         "rip", // rip United TLD Holdco Ltd.
         "rocher", // rocher Ferrero Trading Lux S.A.
@@ -1087,6 +1102,7 @@ public final class DomainValidator extends AbstractValidator {
         "schule", // schule Outer Moon, LLC
         "schwarz", // schwarz Schwarz Domains und Services GmbH &amp; Co. KG
         "science", // science dot Science Limited
+        "scjohnson", // scjohnson Johnson Shareholdings, Inc.
         "scor", // scor SCOR SE
         "scot", // scot Dot Scot Registry Limited
         "seat", // seat SEAT, S.A. (Sociedad Unipersonal)
@@ -1163,6 +1179,7 @@ public final class DomainValidator extends AbstractValidator {
         "surgery", // surgery Tin Avenue, LLC
         "suzuki", // suzuki SUZUKI MOTOR CORPORATION
         "swatch", // swatch The Swatch Group Ltd
+        "swiftcover", // swiftcover Swiftcover Insurance Services Limited
         "swiss", // swiss Swiss Confederation
         "sydney", // sydney State of New South Wales, Department of Premier and Cabinet
         "symantec", // symantec Symantec Corporation
@@ -1190,6 +1207,7 @@ public final class DomainValidator extends AbstractValidator {
         "thd", // thd Homer TLC, Inc.
         "theater", // theater Blue Tigers, LLC
         "theatre", // theatre XYZ.COM LLC
+        "tiaa", // tiaa Teachers Insurance and Annuity Association of America
         "tickets", // tickets Accent Media Limited
         "tienda", // tienda Victor Manor, LLC
         "tiffany", // tiffany Tiffany and Company

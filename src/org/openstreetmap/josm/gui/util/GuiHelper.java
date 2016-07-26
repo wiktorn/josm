@@ -20,10 +20,7 @@ import java.awt.Image;
 import java.awt.Stroke;
 import java.awt.Toolkit;
 import java.awt.Window;
-import java.awt.datatransfer.Clipboard;
 import java.awt.event.ActionListener;
-import java.awt.event.HierarchyEvent;
-import java.awt.event.HierarchyListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -91,12 +88,7 @@ public final class GuiHelper {
     }
 
     public static void executeByMainWorkerInEDT(final Runnable task) {
-        Main.worker.submit(new Runnable() {
-            @Override
-            public void run() {
-                runInEDTAndWait(task);
-            }
-        });
+        Main.worker.submit(() -> runInEDTAndWait(task));
     }
 
     /**
@@ -272,17 +264,14 @@ public final class GuiHelper {
      */
     public static Component prepareResizeableOptionPane(final Component pane, final Dimension minDimension) {
         if (pane != null) {
-            pane.addHierarchyListener(new HierarchyListener() {
-                @Override
-                public void hierarchyChanged(HierarchyEvent e) {
-                    Window window = SwingUtilities.getWindowAncestor(pane);
-                    if (window instanceof Dialog) {
-                        Dialog dialog = (Dialog) window;
-                        if (!dialog.isResizable()) {
-                            dialog.setResizable(true);
-                            if (minDimension != null) {
-                                dialog.setMinimumSize(minDimension);
-                            }
+            pane.addHierarchyListener(e -> {
+                Window window = SwingUtilities.getWindowAncestor(pane);
+                if (window instanceof Dialog) {
+                    Dialog dialog = (Dialog) window;
+                    if (!dialog.isResizable()) {
+                        dialog.setResizable(true);
+                        if (minDimension != null) {
+                            dialog.setMinimumSize(minDimension);
                         }
                     }
                 }
@@ -493,18 +482,6 @@ public final class GuiHelper {
             return new Dimension(800, 600);
         }
         return new Dimension(width, height);
-    }
-
-    /**
-     * Gets the singleton instance of the system selection as a <code>Clipboard</code> object.
-     * This allows an application to read and modify the current, system-wide selection.
-     * @return the system selection as a <code>Clipboard</code>, or <code>null</code> if the native platform does not
-     *         support a system selection <code>Clipboard</code> or if GraphicsEnvironment.isHeadless() returns true
-     * @see Toolkit#getSystemSelection
-     * @since 9576
-     */
-    public static Clipboard getSystemSelection() {
-        return GraphicsEnvironment.isHeadless() ? null : Toolkit.getDefaultToolkit().getSystemSelection();
     }
 
     /**

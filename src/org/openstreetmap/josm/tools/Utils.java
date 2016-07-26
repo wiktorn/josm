@@ -7,14 +7,8 @@ import static org.openstreetmap.josm.tools.I18n.trn;
 
 import java.awt.Color;
 import java.awt.Font;
-import java.awt.HeadlessException;
-import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
-import java.awt.datatransfer.ClipboardOwner;
-import java.awt.datatransfer.DataFlavor;
-import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.Transferable;
-import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.font.FontRenderContext;
 import java.awt.font.GlyphVector;
 import java.io.BufferedReader;
@@ -57,6 +51,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -71,6 +66,7 @@ import javax.xml.parsers.SAXParserFactory;
 
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.gui.datatransfer.ClipboardUtils;
 import org.w3c.dom.Document;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
@@ -104,6 +100,8 @@ public final class Utils {
 
     /**
      * Tests whether {@code predicate} applies to at least one element from {@code collection}.
+     * <p>
+     * Note: you can use {@link Stream#anyMatch(java.util.function.Predicate)} instead.
      * @param <T> type of items
      * @param collection the collection
      * @param predicate the predicate
@@ -120,6 +118,8 @@ public final class Utils {
 
     /**
      * Tests whether {@code predicate} applies to all elements from {@code collection}.
+     * <p>
+     * Note: you can use {@link Stream#allMatch(java.util.function.Predicate)} instead.
      * @param <T> type of items
      * @param collection the collection
      * @param predicate the predicate
@@ -174,7 +174,9 @@ public final class Utils {
      * @param collection The collection to filter.
      * @param predicate The predicate to filter for.
      * @return The new {@link FilteredCollection}
+     * @deprecated Use java predicates and {@link SubclassFilteredCollection#filter(Collection, java.util.function.Predicate)} instead.
      */
+    @Deprecated
     @SuppressWarnings("unused")
     public static <T> Collection<T> filter(Collection<? extends T> collection, Predicate<? super T> predicate) {
         // Diamond operator does not work with Java 9 here
@@ -324,13 +326,7 @@ public final class Utils {
      * @return An unordered HTML list
      */
     public static String joinAsHtmlUnorderedList(Iterable<?> values) {
-        StringBuilder sb = new StringBuilder(1024);
-        sb.append("<ul>");
-        for (Object i : values) {
-            sb.append("<li>").append(i).append("</li>");
-        }
-        sb.append("</ul>");
-        return sb.toString();
+        return StreamUtils.toStream(values.iterator()).map(x -> x.toString()).collect(StreamUtils.toHtmlList());
     }
 
     /**
@@ -491,6 +487,20 @@ public final class Utils {
     }
 
     /**
+     * Deletes a file and log a default warning if the file exists but the deletion fails.
+     * @param file file to delete
+     * @return {@code true} if and only if the file does not exist or is successfully deleted; {@code false} otherwise
+     * @since 10569
+     */
+    public static boolean deleteFileIfExists(File file) {
+        if (file.exists()) {
+            return deleteFile(file);
+        } else {
+            return true;
+        }
+    }
+
+    /**
      * Deletes a file and log a default warning if the deletion fails.
      * @param file file to delete
      * @return {@code true} if and only if the file is successfully deleted; {@code false} otherwise
@@ -623,20 +633,11 @@ public final class Utils {
      * Copies the string {@code s} to system clipboard.
      * @param s string to be copied to clipboard.
      * @return true if succeeded, false otherwise.
+     * @deprecated Use {@link ClipboardUtils#copyString(String)}. To be removed end of 2016.
      */
+    @Deprecated
     public static boolean copyToClipboard(String s) {
-        try {
-            Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(s), new ClipboardOwner() {
-                @Override
-                public void lostOwnership(Clipboard clpbrd, Transferable t) {
-                    // Do nothing
-                }
-            });
-            return true;
-        } catch (IllegalStateException | HeadlessException ex) {
-            Main.error(ex);
-            return false;
-        }
+        return ClipboardUtils.copyString(s);
     }
 
     /**
@@ -644,43 +645,21 @@ public final class Utils {
      * @param clipboard clipboard from which contents are retrieved
      * @return clipboard contents if available, {@code null} otherwise.
      * @since 8429
+     * @deprecated Use {@link ClipboardUtils#getClipboardContent(Clipboard)} instead. To be removed end of 2016.
      */
+    @Deprecated
     public static Transferable getTransferableContent(Clipboard clipboard) {
-        Transferable t = null;
-        for (int tries = 0; t == null && tries < 10; tries++) {
-            try {
-                t = clipboard.getContents(null);
-            } catch (IllegalStateException e) {
-                // Clipboard currently unavailable.
-                // On some platforms, the system clipboard is unavailable while it is accessed by another application.
-                try {
-                    Thread.sleep(1);
-                } catch (InterruptedException ex) {
-                    Main.warn("InterruptedException in "+Utils.class.getSimpleName()+" while getting clipboard content");
-                }
-            } catch (NullPointerException e) {
-                // JDK-6322854: On Linux/X11, NPE can happen for unknown reasons, on all versions of Java
-                Main.error(e);
-            }
-        }
-        return t;
+        return ClipboardUtils.getClipboardContent(clipboard);
     }
 
     /**
      * Extracts clipboard content as string.
      * @return string clipboard contents if available, {@code null} otherwise.
+     * @deprecated Use {@link ClipboardUtils#getClipboardStringContent()}. To be removed end of 2016
      */
+    @Deprecated
     public static String getClipboardContent() {
-        try {
-            Transferable t = getTransferableContent(Toolkit.getDefaultToolkit().getSystemClipboard());
-            if (t != null && t.isDataFlavorSupported(DataFlavor.stringFlavor)) {
-                return (String) t.getTransferData(DataFlavor.stringFlavor);
-            }
-        } catch (UnsupportedFlavorException | IOException | HeadlessException ex) {
-            Main.error(ex);
-            return null;
-        }
-        return null;
+        return ClipboardUtils.getClipboardStringContent();
     }
 
     /**
@@ -783,7 +762,11 @@ public final class Utils {
      * returns objects of {@code B}.
      * @param <A> class of input objects
      * @param <B> class of transformed objects
+     *
+     * @deprecated Use java.util.function.Function instead.
      */
+    @Deprecated
+    @FunctionalInterface
     public interface Function<A, B> {
 
         /**
@@ -1336,6 +1319,7 @@ public final class Utils {
             new URL(url);
             return true;
         } catch (MalformedURLException | NullPointerException e) {
+            Main.trace(e);
             return false;
         }
     }
@@ -1384,12 +1368,7 @@ public final class Utils {
      * @return an executor
      */
     public static Executor newDirectExecutor() {
-        return new Executor() {
-            @Override
-            public void execute(Runnable command) {
-                command.run();
-            }
-        };
+        return command -> command.run();
     }
 
     /**
@@ -1630,14 +1609,11 @@ public final class Utils {
      */
     public static void setObjectsAccessible(final AccessibleObject ... objects) {
         if (objects != null && objects.length > 0) {
-            AccessController.doPrivileged(new PrivilegedAction<Object>() {
-                @Override
-                public Object run() {
-                    for (AccessibleObject o : objects) {
-                        o.setAccessible(true);
-                    }
-                    return null;
+            AccessController.doPrivileged((PrivilegedAction<Object>) () -> {
+                for (AccessibleObject o : objects) {
+                    o.setAccessible(true);
                 }
+                return null;
             });
         }
     }

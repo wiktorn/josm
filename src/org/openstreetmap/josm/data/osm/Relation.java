@@ -14,8 +14,8 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.osm.visitor.PrimitiveVisitor;
 import org.openstreetmap.josm.data.osm.visitor.Visitor;
 import org.openstreetmap.josm.tools.CopyList;
-import org.openstreetmap.josm.tools.Predicate;
 import org.openstreetmap.josm.tools.Utils;
+import org.openstreetmap.josm.tools.Utils.Function;
 
 /**
  * A relation, having a set of tags and any number (0...n) of members.
@@ -348,12 +348,7 @@ public final class Relation extends OsmPrimitive implements IRelation {
      * @return all relation members for the given primitives
      */
     public Collection<RelationMember> getMembersFor(final Collection<? extends OsmPrimitive> primitives) {
-        return Utils.filter(getMembers(), new Predicate<RelationMember>() {
-            @Override
-            public boolean evaluate(RelationMember member) {
-                return primitives.contains(member.getMember());
-            }
-        });
+        return Utils.filter(getMembers(), member -> primitives.contains(member.getMember()));
     }
 
     /**
@@ -404,12 +399,7 @@ public final class Relation extends OsmPrimitive implements IRelation {
     }
 
     public List<OsmPrimitive> getMemberPrimitivesList() {
-        return Utils.transform(getMembers(), new Utils.Function<RelationMember, OsmPrimitive>() {
-            @Override
-            public OsmPrimitive apply(RelationMember x) {
-                return x.getMember();
-            }
-        });
+        return Utils.transform(getMembers(), (Function<RelationMember, OsmPrimitive>) x -> x.getMember());
     }
 
     @Override
@@ -493,7 +483,11 @@ public final class Relation extends OsmPrimitive implements IRelation {
         bbox = null; // bbox might have changed if relation was in ds, was removed, modified, added back to dataset
     }
 
-    private void checkMembers() throws DataIntegrityProblemException {
+    /**
+     * Checks that members are part of the same dataset, and that they're not deleted.
+     * @throws DataIntegrityProblemException if one the above conditions is not met
+     */
+    private void checkMembers() {
         DataSet dataSet = getDataSet();
         if (dataSet != null) {
             RelationMember[] members = this.members;
@@ -512,7 +506,12 @@ public final class Relation extends OsmPrimitive implements IRelation {
         }
     }
 
-    private void fireMembersChanged() throws DataIntegrityProblemException {
+    /**
+     * Fires the {@code RelationMembersChangedEvent} to listeners.
+     * @throws DataIntegrityProblemException if members are not valid
+     * @see #checkMembers
+     */
+    private void fireMembersChanged() {
         checkMembers();
         if (getDataSet() != null) {
             getDataSet().fireRelationMembersChanged(this);

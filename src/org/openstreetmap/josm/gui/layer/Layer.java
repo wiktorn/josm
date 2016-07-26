@@ -69,7 +69,9 @@ public abstract class Layer extends AbstractMapViewPaintable implements Destroya
 
     /**
      * Action related to several layers.
+     * @since 10600 (functional interface)
      */
+    @FunctionalInterface
     public interface MultiLayerAction {
 
         /**
@@ -158,36 +160,12 @@ public abstract class Layer extends AbstractMapViewPaintable implements Destroya
      * It is always called in the event dispatching thread.
      * Note that Main.map is null as long as no layer has been added, so do
      * not execute code in the constructor, that assumes Main.map.mapView is
-     * not null. Instead override this method.
+     * not null.
      *
-     * This implementation provides check, if JOSM will be able to use Layer. Layers
-     * using a lot of memory, which do know in advance, how much memory they use, should
-     * override {@link #estimateMemoryUsage() estimateMemoryUsage} method and give a hint.
-     *
-     * This allows for preemptive warning message for user, instead of failing later on
-     *
-     * Remember to call {@code super.hookUpMapView()} when overriding this method
+     * If you need to execute code when this layer is added to the map view, use
+     * {@link #attachToMapView(org.openstreetmap.josm.gui.layer.MapViewPaintable.MapViewEvent)}
      */
     public void hookUpMapView() {
-        checkLayerMemoryDoesNotExceedMaximum();
-    }
-
-    /**
-     * Checks that the memory required for the layers is no greather than the max memory.
-     */
-    protected static void checkLayerMemoryDoesNotExceedMaximum() {
-        // calculate total memory needed for all layers
-        long memoryBytesRequired = 50L * 1024L * 1024L; // assumed minimum JOSM memory footprint
-        for (Layer layer: Main.getLayerManager().getLayers()) {
-            memoryBytesRequired += layer.estimateMemoryUsage();
-        }
-        if (memoryBytesRequired > Runtime.getRuntime().maxMemory()) {
-            throw new IllegalArgumentException(
-                    tr("To add another layer you need to allocate at least {0,number,#}MB memory to JOSM using -Xmx{0,number,#}M "
-                            + "option (see http://forum.openstreetmap.org/viewtopic.php?id=25677).\n"
-                            + "Currently you have {1,number,#}MB memory allocated for JOSM",
-                            memoryBytesRequired / 1024 / 1024, Runtime.getRuntime().maxMemory() / 1024 / 1024));
-        }
     }
 
     /**
@@ -537,15 +515,10 @@ public abstract class Layer extends AbstractMapViewPaintable implements Destroya
                     tr("Change the projection again or remove the layer.");
 
             // run later to not block loading the UI.
-            SwingUtilities.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    JOptionPane.showMessageDialog(Main.parent,
-                            message,
-                            tr("Warning"),
-                            JOptionPane.WARNING_MESSAGE);
-                }
-            });
+            SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(Main.parent,
+                    message,
+                    tr("Warning"),
+                    JOptionPane.WARNING_MESSAGE));
         }
     }
 
@@ -588,7 +561,9 @@ public abstract class Layer extends AbstractMapViewPaintable implements Destroya
 
     /**
      * @return bytes that the tile will use. Needed for resource management
+     * @deprecated Not used any more.
      */
+    @Deprecated
     protected long estimateMemoryUsage() {
         return 0;
     }

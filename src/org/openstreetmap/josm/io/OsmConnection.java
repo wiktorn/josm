@@ -7,12 +7,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.Authenticator.RequestorType;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
-import java.nio.charset.CharacterCodingException;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Objects;
-import java.util.concurrent.Callable;
 import java.util.concurrent.FutureTask;
 
 import javax.swing.SwingUtilities;
@@ -24,7 +21,6 @@ import org.openstreetmap.josm.gui.preferences.server.OAuthAccessTokenHolder;
 import org.openstreetmap.josm.io.auth.CredentialsAgentException;
 import org.openstreetmap.josm.io.auth.CredentialsAgentResponse;
 import org.openstreetmap.josm.io.auth.CredentialsManager;
-import org.openstreetmap.josm.tools.Base64;
 import org.openstreetmap.josm.tools.HttpClient;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -80,12 +76,7 @@ public class OsmConnection {
             String username = response.getUsername() == null ? "" : response.getUsername();
             String password = response.getPassword() == null ? "" : String.valueOf(response.getPassword());
             token = username + ':' + password;
-            try {
-                ByteBuffer bytes = StandardCharsets.UTF_8.newEncoder().encode(CharBuffer.wrap(token));
-                con.setHeader("Authorization", "Basic "+Base64.encode(bytes));
-            } catch (CharacterCodingException e) {
-                throw new OsmTransferException(e);
-            }
+            con.setHeader("Authorization", "Basic "+Base64.getEncoder().encodeToString(token.getBytes(StandardCharsets.UTF_8)));
         }
     }
 
@@ -128,18 +119,15 @@ public class OsmConnection {
             if (!Objects.equals(apiUrl.getHost(), connection.getURL().getHost())) {
                 throw new MissingOAuthAccessTokenException();
             }
-            final Runnable authTask = new FutureTask<>(new Callable<OAuthAuthorizationWizard>() {
-                @Override
-                public OAuthAuthorizationWizard call() throws Exception {
-                    // Concerning Utils.newDirectExecutor: Main.worker cannot be used since this connection is already
-                    // executed via Main.worker. The OAuth connections would block otherwise.
-                    final OAuthAuthorizationWizard wizard = new OAuthAuthorizationWizard(
-                            Main.parent, apiUrl.toExternalForm(), Utils.newDirectExecutor());
-                    wizard.showDialog();
-                    OAuthAccessTokenHolder.getInstance().setSaveToPreferences(true);
-                    OAuthAccessTokenHolder.getInstance().save(Main.pref, CredentialsManager.getInstance());
-                    return wizard;
-                }
+            final Runnable authTask = new FutureTask<>(() -> {
+                // Concerning Utils.newDirectExecutor: Main.worker cannot be used since this connection is already
+                // executed via Main.worker. The OAuth connections would block otherwise.
+                final OAuthAuthorizationWizard wizard = new OAuthAuthorizationWizard(
+                        Main.parent, apiUrl.toExternalForm(), Utils.newDirectExecutor());
+                wizard.showDialog();
+                OAuthAccessTokenHolder.getInstance().setSaveToPreferences(true);
+                OAuthAccessTokenHolder.getInstance().save(Main.pref, CredentialsManager.getInstance());
+                return wizard;
             });
             // exception handling differs from implementation at GuiHelper.runInEDTAndWait()
             if (SwingUtilities.isEventDispatchThread()) {

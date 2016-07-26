@@ -83,6 +83,8 @@ import org.openstreetmap.josm.gui.MainMenu;
 import org.openstreetmap.josm.gui.MainPanel;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.MapFrameListener;
+import org.openstreetmap.josm.gui.datatransfer.OsmTransferHandler;
+import org.openstreetmap.josm.gui.datatransfer.data.OsmLayerTransferData;
 import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.io.SaveLayersDialog;
 import org.openstreetmap.josm.gui.layer.AbstractModifiableLayer;
@@ -177,12 +179,16 @@ public abstract class Main {
 
     /**
      * The global paste buffer.
+     * @deprecated Use swing CCP instead. See {@link OsmTransferHandler}
      */
+    @Deprecated
     public static final PrimitiveDeepCopy pasteBuffer = new PrimitiveDeepCopy();
 
     /**
      * The layer source from which {@link Main#pasteBuffer} data comes from.
+     * @deprecated During a copy operation, the layer should be added. See {@link OsmLayerTransferData}.
      */
+    @Deprecated
     public static Layer pasteSource;
 
     /**
@@ -595,12 +601,7 @@ public abstract class Main {
      */
     public Main() {
         main = this;
-        mainPanel.addMapFrameListener(new MapFrameListener() {
-            @Override
-            public void mapFrameInitialized(MapFrame oldFrame, MapFrame newFrame) {
-                redoUndoListener.commandChanged(0, 0);
-            }
-        });
+        mainPanel.addMapFrameListener((o, n) -> redoUndoListener.commandChanged(0, 0));
     }
 
     /**
@@ -696,16 +697,9 @@ public abstract class Main {
         }
 
         // hooks for the jmapviewer component
-        FeatureAdapter.registerBrowserAdapter(new FeatureAdapter.BrowserAdapter() {
-            @Override
-            public void openLink(String url) {
-                OpenBrowser.displayUrl(url);
-            }
-        });
+        FeatureAdapter.registerBrowserAdapter(OpenBrowser::displayUrl);
         FeatureAdapter.registerTranslationAdapter(I18n.getTranslationAdapter());
-        FeatureAdapter.registerLoggingAdapter(new FeatureAdapter.LoggingAdapter() {
-            @Override
-            public Logger getLogger(String name) {
+        FeatureAdapter.registerLoggingAdapter(name -> {
                 Logger logger = Logger.getAnonymousLogger();
                 logger.setUseParentHandlers(false);
                 logger.setLevel(Level.ALL);
@@ -739,8 +733,7 @@ public abstract class Main {
                     });
                 }
                 return logger;
-            }
-        });
+            });
 
         new InitializationTask(tr("Updating user interface")) {
 
@@ -990,13 +983,10 @@ public abstract class Main {
      */
     public static final JPanel panel = mainPanel;
 
-    private final CommandQueueListener redoUndoListener = new CommandQueueListener() {
-        @Override
-        public void commandChanged(final int queueSize, final int redoSize) {
+    private final CommandQueueListener redoUndoListener = (queueSize, redoSize) -> {
             menu.undo.setEnabled(queueSize > 0);
             menu.redo.setEnabled(redoSize > 0);
-        }
-    };
+        };
 
     /**
      * Should be called before the main constructor to setup some parameter stuff
@@ -1051,7 +1041,7 @@ public abstract class Main {
         UIManager.put("OptionPane.cancelIcon", ImageProvider.get("cancel"));
         UIManager.put("OptionPane.noIcon", UIManager.get("OptionPane.cancelIcon"));
         // Ensures caret color is the same than text foreground color, see #12257
-        // See http://docs.oracle.com/javase/7/docs/api/javax/swing/plaf/synth/doc-files/componentProperties.html
+        // See http://docs.oracle.com/javase/8/docs/api/javax/swing/plaf/synth/doc-files/componentProperties.html
         for (String p : Arrays.asList(
                 "EditorPane", "FormattedTextField", "PasswordField", "TextArea", "TextField", "TextPane")) {
             UIManager.put(p+".caretForeground", UIManager.getColor(p+".foreground"));
@@ -1336,31 +1326,21 @@ public abstract class Main {
     }
 
     /**
-     * Determines if JOSM currently runs with Java 8 or later.
-     * @return {@code true} if the current JVM is at least Java 8, {@code false} otherwise
-     * @since 7894
-     */
-    public static boolean isJava8orLater() {
-        String version = System.getProperty("java.version");
-        return version != null && !version.matches("^(1\\.)?[7].*");
-    }
-
-    /**
-     * Checks that JOSM is at least running with Java 7.
+     * Checks that JOSM is at least running with Java 8.
      * @since 7001
      */
     public static void checkJavaVersion() {
         String version = System.getProperty("java.version");
         if (version != null) {
-            if (version.matches("^(1\\.)?[789].*"))
+            if (version.matches("^(1\\.)?[89].*"))
                 return;
-            if (version.matches("^(1\\.)?[56].*")) {
+            if (version.matches("^(1\\.)?[567].*")) {
                 JMultilineLabel ho = new JMultilineLabel("<html>"+
                         tr("<h2>JOSM requires Java version {0}.</h2>"+
                                 "Detected Java version: {1}.<br>"+
                                 "You can <ul><li>update your Java (JRE) or</li>"+
                                 "<li>use an earlier (Java {2} compatible) version of JOSM.</li></ul>"+
-                                "More Info:", "7", version, "6")+"</html>");
+                                "More Info:", "8", version, "7")+"</html>");
                 JTextArea link = new JTextArea(HelpUtil.getWikiBaseHelpUrl()+"/Help/SystemRequirements");
                 link.setEditable(false);
                 link.setBackground(panel.getBackground());

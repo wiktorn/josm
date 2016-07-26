@@ -1,6 +1,12 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.tools.bugreport;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+import org.openstreetmap.josm.actions.ShowStatusReportAction;
+
 /**
  * This class contains utility methods to create and handle a bug report.
  * <p>
@@ -13,30 +19,138 @@ package org.openstreetmap.josm.tools.bugreport;
  * <p>
  * You should then add some debug information there. This can be the OSM ids that caused the error, information on the data you were working on
  * or other local variables. Make sure that no excpetions may occur while computing the values. It is best to send plain local variables to
- * put(...). Then simply throw the throwable you got from the bug report. The global exception handler will do the rest.
+ * put(...). If you need to do computations, put them into a lambda expression. Then simply throw the throwable you got from the bug report.
+ * The global exception handler will do the rest.
  * <pre>
  * int id = ...;
  * String tag = "...";
  * try {
  *   ... your code ...
- * } catch (Throwable t) {
- *   throw BugReport.intercept(t).put("id", id).put("tag", tag);
+ * } catch (RuntimeException t) {
+ *   throw BugReport.intercept(t).put("id", id).put("tag", () -> x.getTag());
  * }
  * </pre>
  *
  * Instead of re-throwing, you can call {@link ReportedException#warn()}. This will display a warning to the user and allow it to either report
- * the execption or ignore it.
+ * the exception or ignore it.
  *
  * @author Michael Zangl
  * @since 10285
  */
 public final class BugReport {
+    private boolean includeStatusReport = true;
+    private boolean includeData = true;
+    private boolean includeAllStackTraces;
+    private final ReportedException exception;
+    private final CopyOnWriteArrayList<BugReportListener> listeners = new CopyOnWriteArrayList<>();
+
     /**
      * Create a new bug report
      * @param e The {@link ReportedException} to use. No more data should be added after creating the report.
      */
-    private BugReport(ReportedException e) {
-        // TODO: Use this class to create the bug report.
+    BugReport(ReportedException e) {
+        this.exception = e;
+        includeAllStackTraces = e.mayHaveConcurrentSource();
+    }
+
+    /**
+     * Determines if this report should include a system status report
+     * @return <code>true</code> to include it.
+     * @since 10597
+     */
+    public boolean isIncludeStatusReport() {
+        return includeStatusReport;
+    }
+
+    /**
+     * Set if this report should include a system status report
+     * @param includeStatusReport if the status report should be included
+     * @since 10585
+     */
+    public void setIncludeStatusReport(boolean includeStatusReport) {
+        this.includeStatusReport = includeStatusReport;
+        fireChange();
+    }
+
+    /**
+     * Determines if this report should include the data that was traced.
+     * @return <code>true</code> to include it.
+     * @since 10597
+     */
+    public boolean isIncludeData() {
+        return includeData;
+    }
+
+    /**
+     * Set if this report should include the data that was traced.
+     * @param includeData if data should be included
+     * @since 10585
+     */
+    public void setIncludeData(boolean includeData) {
+        this.includeData = includeData;
+        fireChange();
+    }
+
+    /**
+     * Determines if this report should include the stack traces for all other threads.
+     * @return <code>true</code> to include it.
+     * @since 10597
+     */
+    public boolean isIncludeAllStackTraces() {
+        return includeAllStackTraces;
+    }
+
+    /**
+     * Sets if this report should include the stack traces for all other threads.
+     * @param includeAllStackTraces if all stack traces should be included
+     * @since 10585
+     */
+    public void setIncludeAllStackTraces(boolean includeAllStackTraces) {
+        this.includeAllStackTraces = includeAllStackTraces;
+        fireChange();
+    }
+
+    /**
+     * Gets the full string that should be send as error report.
+     * @return The string.
+     * @since 10585
+     */
+    public String getReportText() {
+        StringWriter stringWriter = new StringWriter();
+        PrintWriter out = new PrintWriter(stringWriter);
+        if (isIncludeStatusReport()) {
+            out.println(ShowStatusReportAction.getReportHeader());
+        }
+        if (isIncludeData()) {
+            exception.printReportDataTo(out);
+        }
+        exception.printReportStackTo(out);
+        if (isIncludeAllStackTraces()) {
+            exception.printReportThreadsTo(out);
+        }
+        return stringWriter.toString().replaceAll("\r", "");
+    }
+
+    /**
+     * Add a new change listener.
+     * @param listener The listener
+     * @since 10585
+     */
+    public void addChangeListener(BugReportListener listener) {
+        listeners.add(listener);
+    }
+
+    /**
+     * Remove a change listener.
+     * @param listener The listener
+     * @since 10585
+     */
+    public void removeChangeListener(BugReportListener listener) {
+        listeners.remove(listener);
+    }
+
+    private void fireChange() {
+        listeners.stream().forEach(l -> l.bugReportChanged(this));
     }
 
     /**
@@ -73,5 +187,19 @@ public final class BugReport {
             }
         }
         return "?";
+    }
+
+    /**
+     * A listener that listens to changes to this report.
+     * @author Michael Zangl
+     * @since 10585
+     */
+    @FunctionalInterface
+    public interface BugReportListener {
+        /**
+         * Called whenever this bug report was changed, e.g. the data to be included in it.
+         * @param report The report that was changed.
+         */
+        void bugReportChanged(BugReport report);
     }
 }

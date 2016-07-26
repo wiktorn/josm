@@ -3,15 +3,13 @@ package org.openstreetmap.josm.tools;
 
 import static org.junit.Assert.assertEquals;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.net.URL;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
 
 /**
@@ -87,46 +85,6 @@ public class UtilsTest {
     }
 
     /**
-     * Test of {@link Utils#openURLReaderAndDecompress} method with Gzip compression.
-     * @throws IOException if any I/O error occurs
-     */
-    @Test
-    public void testOpenUrlGzip() throws IOException {
-        Main.initApplicationPreferences();
-        final URL url = new URL("https://www.openstreetmap.org/trace/1613906/data");
-        try (BufferedReader x = HttpClient.create(url).connect().uncompress(true).getContentReader()) {
-            Assert.assertTrue(x.readLine().startsWith("<?xml version="));
-        }
-    }
-
-    /**
-     * Test of {@link Utils#openURLReaderAndDecompress} method with Bzip compression.
-     * @throws IOException if any I/O error occurs
-     */
-    @Test
-    public void testOpenUrlBzip() throws IOException {
-        Main.initApplicationPreferences();
-        final URL url = new URL("https://www.openstreetmap.org/trace/785544/data");
-        try (BufferedReader x = HttpClient.create(url).connect().uncompress(true).getContentReader()) {
-            Assert.assertTrue(x.readLine().startsWith("<?xml version="));
-        }
-    }
-
-    /**
-     * Test of {@link Utils#openURLReaderAndDecompress} method with Bzip compression.
-     * @throws IOException if any I/O error occurs
-     */
-    @Test
-    public void testTicket9660() throws IOException {
-        Main.initApplicationPreferences();
-        final URL url = new URL("http://www.openstreetmap.org/trace/1350010/data");
-        try (BufferedReader x = HttpClient.create(url).connect()
-                .uncompress(true).uncompressAccordingToContentDisposition(true).getContentReader()) {
-            Assert.assertTrue(x.readLine().startsWith("<?xml version="));
-        }
-    }
-
-    /**
      * Test of {@link Utils#getPositionListString} method.
      */
     @Test
@@ -175,7 +133,7 @@ public class UtilsTest {
      * Test of {@link Utils#getSizeString} method.
      */
     @Test
-    public void testSizeString() throws Exception {
+    public void testSizeString() {
         assertEquals("0 B", Utils.getSizeString(0, Locale.ENGLISH));
         assertEquals("123 B", Utils.getSizeString(123, Locale.ENGLISH));
         assertEquals("1023 B", Utils.getSizeString(1023, Locale.ENGLISH));
@@ -188,8 +146,17 @@ public class UtilsTest {
      * Test of {@link Utils#getSizeString} method.
      */
     @Test(expected = IllegalArgumentException.class)
-    public void testSizeStringNegative() throws Exception {
+    public void testSizeStringNegative() {
         Utils.getSizeString(-1, Locale.ENGLISH);
     }
 
+    /**
+     * Test {@link Utils#joinAsHtmlUnorderedList(Iterable)}
+     */
+    @Test
+    public void joinAsHtmlUnorderedList() {
+        List<? extends Object> items = Arrays.asList("1", new Integer(2));
+        assertEquals("<ul><li>1</li><li>2</li></ul>", Utils.joinAsHtmlUnorderedList(items));
+        assertEquals("<ul></ul>", Utils.joinAsHtmlUnorderedList(Collections.emptyList()));
+    }
 }

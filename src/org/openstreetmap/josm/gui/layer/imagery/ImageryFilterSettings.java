@@ -17,7 +17,7 @@ public class ImageryFilterSettings {
     protected GammaImageProcessor gammaImageProcessor = new GammaImageProcessor();
     protected SharpenImageProcessor sharpenImageProcessor = new SharpenImageProcessor();
     protected ColorfulImageProcessor collorfulnessImageProcessor = new ColorfulImageProcessor();
-    private List<FilterChangeListener> filterChangeListeners = new CopyOnWriteArrayList<>();
+    private final List<FilterChangeListener> filterChangeListeners = new CopyOnWriteArrayList<>();
 
     /**
      * Returns the currently set gamma value.
@@ -109,7 +109,9 @@ public class ImageryFilterSettings {
     /**
      * A listener that listens to filter changes
      * @author Michael Zangl
+     * @since 10600 (functional interface)
      */
+    @FunctionalInterface
     public interface FilterChangeListener {
         /**
          * Invoked when the filter is changed.

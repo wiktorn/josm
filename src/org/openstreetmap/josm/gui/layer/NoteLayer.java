@@ -2,6 +2,7 @@
 package org.openstreetmap.josm.gui.layer;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
+import static org.openstreetmap.josm.tools.I18n.trn;
 
 import java.awt.Dimension;
 import java.awt.Graphics2D;
@@ -30,6 +31,7 @@ import org.openstreetmap.josm.data.notes.NoteComment;
 import org.openstreetmap.josm.data.osm.NoteData;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
 import org.openstreetmap.josm.gui.MapView;
+import org.openstreetmap.josm.gui.datatransfer.ClipboardUtils;
 import org.openstreetmap.josm.gui.dialogs.LayerListDialog;
 import org.openstreetmap.josm.gui.dialogs.LayerListPopup;
 import org.openstreetmap.josm.gui.io.AbstractIOTask;
@@ -40,7 +42,6 @@ import org.openstreetmap.josm.io.OsmApi;
 import org.openstreetmap.josm.io.XmlWriter;
 import org.openstreetmap.josm.tools.ColorHelper;
 import org.openstreetmap.josm.tools.ImageProvider;
-import org.openstreetmap.josm.tools.Utils;
 import org.openstreetmap.josm.tools.date.DateUtils;
 
 /**
@@ -187,7 +188,7 @@ public class NoteLayer extends AbstractModifiableLayer implements MouseListener 
 
     @Override
     public String getToolTipText() {
-        return noteData.getNotes().size() + ' ' + tr("Notes");
+        return trn("{0} note", "{0} notes", noteData.getNotes().size(), noteData.getNotes().size());
     }
 
     @Override
@@ -237,7 +238,7 @@ public class NoteLayer extends AbstractModifiableLayer implements MouseListener 
     public void mouseClicked(MouseEvent e) {
         if (SwingUtilities.isRightMouseButton(e) && noteData.getSelectedNote() != null) {
             final String url = OsmApi.getOsmApi().getBaseUrl() + "notes/" + noteData.getSelectedNote().getId();
-            Utils.copyToClipboard(url);
+            ClipboardUtils.copyString(url);
             return;
         } else if (!SwingUtilities.isLeftMouseButton(e)) {
             return;

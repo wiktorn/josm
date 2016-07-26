@@ -6,18 +6,16 @@ import static org.openstreetmap.josm.tools.I18n.trc;
 
 import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.swing.BorderFactory;
 import javax.swing.GroupLayout;
@@ -33,6 +31,7 @@ import org.openstreetmap.josm.data.osm.OsmPrimitiveType;
 import org.openstreetmap.josm.data.osm.PrimitiveId;
 import org.openstreetmap.josm.data.osm.SimplePrimitiveId;
 import org.openstreetmap.josm.gui.ExtendedDialog;
+import org.openstreetmap.josm.gui.datatransfer.ClipboardUtils;
 import org.openstreetmap.josm.gui.widgets.HistoryComboBox;
 import org.openstreetmap.josm.gui.widgets.HtmlPanel;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
@@ -103,12 +102,9 @@ public class OsmIdSelectionDialog extends ExtendedDialog implements WindowListen
         HtmlPanel help = new HtmlPanel(help1 + "<br/>" + help2 + "<br/><br/>" + help3);
         help.setBorder(BorderFactory.createEtchedBorder(EtchedBorder.LOWERED));
 
-        cbType.addItemListener(new ItemListener() {
-            @Override
-            public void itemStateChanged(ItemEvent e) {
-                tfId.setType(cbType.getType());
-                tfId.performValidation();
-            }
+        cbType.addItemListener(e -> {
+            tfId.setType(cbType.getType());
+            tfId.performValidation();
         });
 
         final GroupLayout.SequentialGroup sequentialGroup = layout.createSequentialGroup()
@@ -201,24 +197,15 @@ public class OsmIdSelectionDialog extends ExtendedDialog implements WindowListen
     }
 
     protected void tryToPasteFromClipboard(OsmIdTextField tfId, OsmPrimitiveTypesComboBox cbType) {
-        String buf = Utils.getClipboardContent();
+        String buf = ClipboardUtils.getClipboardStringContent();
         if (buf == null || buf.isEmpty()) return;
         if (buf.length() > Main.pref.getInteger("downloadprimitive.max-autopaste-length", 2000)) return;
         final List<SimplePrimitiveId> ids = SimplePrimitiveId.fuzzyParse(buf);
         if (!ids.isEmpty()) {
-            final String parsedText = Utils.join(", ", Utils.transform(ids, new Utils.Function<SimplePrimitiveId, String>() {
-                @Override
-                public String apply(SimplePrimitiveId x) {
-                    return x.getType().getAPIName().charAt(0) + String.valueOf(x.getUniqueId());
-                }
-            }));
+            final String parsedText = ids.stream().map(x -> x.getType().getAPIName().charAt(0) + String.valueOf(x.getUniqueId()))
+                    .collect(Collectors.joining(", "));
             tfId.tryToPasteFrom(parsedText);
-            final Set<OsmPrimitiveType> types = EnumSet.copyOf(Utils.transform(ids, new Utils.Function<SimplePrimitiveId, OsmPrimitiveType>() {
-                @Override
-                public OsmPrimitiveType apply(SimplePrimitiveId x) {
-                    return x.getType();
-                }
-            }));
+            final Set<OsmPrimitiveType> types = ids.stream().map(x -> x.getType()).collect(Collectors.toSet());
             if (types.size() == 1) {
                 // select corresponding type
                 cbType.setSelectedItem(types.iterator().next());

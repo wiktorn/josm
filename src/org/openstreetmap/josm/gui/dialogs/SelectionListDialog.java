@@ -69,6 +69,7 @@ import org.openstreetmap.josm.gui.OsmPrimitivRenderer;
 import org.openstreetmap.josm.gui.PopupMenuHandler;
 import org.openstreetmap.josm.gui.SideButton;
 import org.openstreetmap.josm.gui.datatransfer.PrimitiveTransferable;
+import org.openstreetmap.josm.gui.datatransfer.data.PrimitiveTransferData;
 import org.openstreetmap.josm.gui.history.HistoryBrowserDialogManager;
 import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeEvent;
 import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeListener;
@@ -123,21 +124,11 @@ public class SelectionListDialog extends ToggleDialog {
 
         // the select action
         final SideButton selectButton = new SideButton(actSelect);
-        selectButton.createArrow(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                SelectionHistoryPopup.launch(selectButton, model.getSelectionHistory());
-            }
-        });
+        selectButton.createArrow(e -> SelectionHistoryPopup.launch(selectButton, model.getSelectionHistory()));
 
         // the search button
         final SideButton searchButton = new SideButton(actSearch);
-        searchButton.createArrow(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                SearchPopupMenu.launch(searchButton);
-            }
-        });
+        searchButton.createArrow(e -> SearchPopupMenu.launch(searchButton));
 
         createLayout(lstPrimitives, true, Arrays.asList(new SideButton[] {
             selectButton, searchButton, new SideButton(actShowHistory)
@@ -162,12 +153,9 @@ public class SelectionListDialog extends ToggleDialog {
         popupMenu = new ListPopupMenu(lstPrimitives);
         popupMenuHandler = setupPopupMenuHandler();
 
-        lstPrimitives.addListSelectionListener(new ListSelectionListener() {
-            @Override
-            public void valueChanged(ListSelectionEvent e) {
-                actZoomToListSelection.valueChanged(e);
-                popupMenuHandler.setPrimitives(model.getSelected());
-            }
+        lstPrimitives.addListSelectionListener(e -> {
+            actZoomToListSelection.valueChanged(e);
+            popupMenuHandler.setPrimitives(model.getSelected());
         });
 
         lstPrimitives.addMouseListener(new MouseEventHandler());
@@ -668,9 +656,9 @@ public class SelectionListDialog extends ToggleDialog {
          * Sorts the current elements in the selection
          */
         public synchronized void sort() {
-            if (this.selection.size() <= Main.pref.getInteger("selection.no_sort_above", 100000)) {
-                boolean quick = this.selection.size() > Main.pref.getInteger("selection.fast_sort_above", 10000);
-                Collections.sort(this.selection, new OsmPrimitiveComparator(quick, false));
+            if (selection.size() <= Main.pref.getInteger("selection.no_sort_above", 100000)) {
+                boolean quick = selection.size() > Main.pref.getInteger("selection.fast_sort_above", 10000);
+                selection.sort(new OsmPrimitiveComparator(quick, false));
             }
         }
 
@@ -880,7 +868,7 @@ public class SelectionListDialog extends ToggleDialog {
 
         @Override
         protected Transferable createTransferable(JComponent c) {
-            return new PrimitiveTransferable(getSelectedPrimitives());
+            return new PrimitiveTransferable(PrimitiveTransferData.getData(getSelectedPrimitives()));
         }
     }
 }

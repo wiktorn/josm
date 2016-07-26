@@ -47,11 +47,11 @@ import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.imagery.ImageryInfo;
 import org.openstreetmap.josm.data.osm.DataSet;
-import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.visitor.paint.PaintColors;
 import org.openstreetmap.josm.data.osm.visitor.paint.Rendering;
 import org.openstreetmap.josm.data.osm.visitor.paint.relations.MultipolygonCache;
 import org.openstreetmap.josm.gui.MapViewState.MapViewRectangle;
+import org.openstreetmap.josm.gui.datatransfer.OsmTransferHandler;
 import org.openstreetmap.josm.gui.layer.AbstractMapViewPaintable;
 import org.openstreetmap.josm.gui.layer.GpxLayer;
 import org.openstreetmap.josm.gui.layer.ImageryLayer;
@@ -130,6 +130,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
      * @deprecated Use {@link ActiveLayerChangeListener} instead.
      */
     @Deprecated
+    @FunctionalInterface
     public interface EditLayerChangeListener {
 
         /**
@@ -148,7 +149,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
     private class LayerInvalidatedListener implements PaintableInvalidationListener {
         private boolean ignoreRepaint;
         @Override
-        public void paintablInvalidated(PaintableInvalidationEvent event) {
+        public void paintableInvalidated(PaintableInvalidationEvent event) {
             ignoreRepaint = true;
             repaint();
         }
@@ -324,7 +325,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
      */
     private static class WarningLayerPainter implements LayerPainter {
         boolean warningPrinted = false;
-        private Layer layer;
+        private final Layer layer;
 
         WarningLayerPainter(Layer layer) {
             this.layer = layer;
@@ -359,17 +360,13 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
             Main.getLayerManager().removeLayerChangeListener(adapter);
         } catch (IllegalArgumentException e) {
             // Ignored in old implementation
-            if (Main.isDebugEnabled()) {
-                Main.debug(e.getMessage());
-            }
+            Main.debug(e);
         }
         try {
             Main.getLayerManager().removeActiveLayerChangeListener(adapter);
         } catch (IllegalArgumentException e) {
             // Ignored in old implementation
-            if (Main.isDebugEnabled()) {
-                Main.debug(e.getMessage());
-            }
+            Main.debug(e);
         }
     }
 
@@ -387,9 +384,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
             Main.getLayerManager().removeActiveLayerChangeListener(new EditLayerChangeAdapter(listener));
         } catch (IllegalArgumentException e) {
             // Ignored in old implementation
-            if (Main.isDebugEnabled()) {
-                Main.debug(e.getMessage());
-            }
+            Main.debug(e);
         }
     }
 
@@ -576,9 +571,10 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
             setFocusTraversalKeysEnabled(false);
         }
 
-        for (JComponent c : getMapNavigationComponents(MapView.this)) {
+        for (JComponent c : getMapNavigationComponents(this)) {
             add(c);
         }
+        setTransferHandler(new OsmTransferHandler());
     }
 
     /**
@@ -919,11 +915,61 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
 
         synchronized (temporaryLayers) {
             for (MapViewPaintable mvp : temporaryLayers) {
-                mvp.paint(tempG, this, box);
+                try {
+                    mvp.paint(tempG, this, box);
+                } catch (RuntimeException e) {
+                    throw BugReport.intercept(e).put("mvp", mvp);
+                }
             }
         }
 
         // draw world borders
+        try {
+            drawWorldBorders(tempG);
+        } catch (RuntimeException e) {
+            throw BugReport.intercept(e).put("bounds", getProjection()::getWorldBoundsLatLon);
+        }
+
+        if (Main.isDisplayingMapView() && Main.map.filterDialog != null) {
+            Main.map.filterDialog.drawOSDText(tempG);
+        }
+
+        if (playHeadMarker != null) {
+            playHeadMarker.paint(tempG, this);
+        }
+
+        try {
+            g.drawImage(offscreenBuffer, 0, 0, null);
+        } catch (ClassCastException e) {
+            // See #11002 and duplicate tickets. On Linux with Java >= 8 Many users face this error here:
+            //
+            // java.lang.ClassCastException: sun.awt.image.BufImgSurfaceData cannot be cast to sun.java2d.xr.XRSurfaceData
+            //   at sun.java2d.xr.XRPMBlitLoops.cacheToTmpSurface(XRPMBlitLoops.java:145)
+            //   at sun.java2d.xr.XrSwToPMBlit.Blit(XRPMBlitLoops.java:353)
+            //   at sun.java2d.pipe.DrawImage.blitSurfaceData(DrawImage.java:959)
+            //   at sun.java2d.pipe.DrawImage.renderImageCopy(DrawImage.java:577)
+            //   at sun.java2d.pipe.DrawImage.copyImage(DrawImage.java:67)
+            //   at sun.java2d.pipe.DrawImage.copyImage(DrawImage.java:1014)
+            //   at sun.java2d.pipe.ValidatePipe.copyImage(ValidatePipe.java:186)
+            //   at sun.java2d.SunGraphics2D.drawImage(SunGraphics2D.java:3318)
+            //   at sun.java2d.SunGraphics2D.drawImage(SunGraphics2D.java:3296)
+            //   at org.openstreetmap.josm.gui.MapView.paint(MapView.java:834)
+            //
+            // It seems to be this JDK bug, but Oracle does not seem to be fixing it:
+            // https://bugs.openjdk.java.net/browse/JDK-7172749
+            //
+            // According to bug reports it can happen for a variety of reasons such as:
+            // - long period of time
+            // - change of screen resolution
+            // - addition/removal of a secondary monitor
+            //
+            // But the application seems to work fine after, so let's just log the error
+            Main.error(e);
+        }
+        super.paint(g);
+    }
+
+    private void drawWorldBorders(Graphics2D tempG) {
         tempG.setColor(Color.WHITE);
         Bounds b = getProjection().getWorldBoundsLatLon();
         double lat = b.getMinLat();
@@ -966,44 +1012,6 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
         final Area viewport = new Area(new Rectangle(-1, -1, w + 2, h + 2));
         border.intersect(viewport);
         tempG.draw(border);
-
-        if (Main.isDisplayingMapView() && Main.map.filterDialog != null) {
-            Main.map.filterDialog.drawOSDText(tempG);
-        }
-
-        if (playHeadMarker != null) {
-            playHeadMarker.paint(tempG, this);
-        }
-
-        try {
-            g.drawImage(offscreenBuffer, 0, 0, null);
-        } catch (ClassCastException e) {
-            // See #11002 and duplicate tickets. On Linux with Java >= 8 Many users face this error here:
-            //
-            // java.lang.ClassCastException: sun.awt.image.BufImgSurfaceData cannot be cast to sun.java2d.xr.XRSurfaceData
-            //   at sun.java2d.xr.XRPMBlitLoops.cacheToTmpSurface(XRPMBlitLoops.java:145)
-            //   at sun.java2d.xr.XrSwToPMBlit.Blit(XRPMBlitLoops.java:353)
-            //   at sun.java2d.pipe.DrawImage.blitSurfaceData(DrawImage.java:959)
-            //   at sun.java2d.pipe.DrawImage.renderImageCopy(DrawImage.java:577)
-            //   at sun.java2d.pipe.DrawImage.copyImage(DrawImage.java:67)
-            //   at sun.java2d.pipe.DrawImage.copyImage(DrawImage.java:1014)
-            //   at sun.java2d.pipe.ValidatePipe.copyImage(ValidatePipe.java:186)
-            //   at sun.java2d.SunGraphics2D.drawImage(SunGraphics2D.java:3318)
-            //   at sun.java2d.SunGraphics2D.drawImage(SunGraphics2D.java:3296)
-            //   at org.openstreetmap.josm.gui.MapView.paint(MapView.java:834)
-            //
-            // It seems to be this JDK bug, but Oracle does not seem to be fixing it:
-            // https://bugs.openjdk.java.net/browse/JDK-7172749
-            //
-            // According to bug reports it can happen for a variety of reasons such as:
-            // - long period of time
-            // - change of screen resolution
-            // - addition/removal of a secondary monitor
-            //
-            // But the application seems to work fine after, so let's just log the error
-            Main.error(e);
-        }
-        super.paint(g);
     }
 
     /**
@@ -1251,12 +1259,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
         }
     }
 
-    private final transient SelectionChangedListener repaintSelectionChangedListener = new SelectionChangedListener() {
-        @Override
-        public void selectionChanged(Collection<? extends OsmPrimitive> newSelection) {
-            repaint();
-        }
-    };
+    private final transient SelectionChangedListener repaintSelectionChangedListener = newSelection -> repaint();
 
     /**
      * Destroy this map view panel. Should be called once when it is not needed any more.
@@ -1305,7 +1308,9 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
      * <p>
      * This is the only safe method to find changes to the map view, since many components call MapView.repaint() directly.
      * @author Michael Zangl
+     * @since 10600 (functional interface)
      */
+    @FunctionalInterface
     public interface RepaintListener {
         /**
          * Called when any repaint method is called (using default arguments if required).
