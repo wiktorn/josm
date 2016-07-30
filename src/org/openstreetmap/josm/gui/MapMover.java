@@ -182,8 +182,8 @@ public class MapMover extends MouseAdapter implements Destroyable {
     public void mousePressed(MouseEvent e) {
         int offMask = MouseEvent.BUTTON1_DOWN_MASK | MouseEvent.BUTTON2_DOWN_MASK;
         int macMouseMask = MouseEvent.CTRL_DOWN_MASK | MouseEvent.BUTTON1_DOWN_MASK;
-        if (e.getButton() == MouseEvent.BUTTON3 && (e.getModifiersEx() & offMask) == 0 ||
-                Main.isPlatformOsx() && e.getModifiersEx() == macMouseMask) {
+        if ((e.getButton() == MouseEvent.BUTTON3 && (e.getModifiersEx() & offMask) == 0) ||
+                (Main.isPlatformOsx() && e.getModifiersEx() == macMouseMask)) {
             startMovement(e);
         }
     }
@@ -193,7 +193,7 @@ public class MapMover extends MouseAdapter implements Destroyable {
      */
     @Override
     public void mouseReleased(MouseEvent e) {
-        if (e.getButton() == MouseEvent.BUTTON3 || Main.isPlatformOsx() && e.getButton() == MouseEvent.BUTTON1) {
+        if (e.getButton() == MouseEvent.BUTTON3 || (Main.isPlatformOsx() && e.getButton() == MouseEvent.BUTTON1)) {
             endMovement();
         }
     }

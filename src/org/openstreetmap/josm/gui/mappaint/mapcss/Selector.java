@@ -24,6 +24,7 @@ import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.Geometry;
 import org.openstreetmap.josm.tools.Pair;
 import org.openstreetmap.josm.tools.Predicates;
+import org.openstreetmap.josm.tools.SubclassFilteredCollection;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -187,7 +188,7 @@ public interface Selector {
             }
         }
 
-        private abstract class AbstractFinder extends AbstractVisitor {
+        private abstract static class AbstractFinder extends AbstractVisitor {
             protected final Environment e;
 
             protected AbstractFinder(Environment e) {
@@ -275,9 +276,9 @@ public interface Selector {
             @Override
             public void visit(Node n) {
                 if (e.child == null && left.matches(new Environment(n).withParent(e.osm))) {
-                    if (e.osm instanceof Way && Geometry.nodeInsidePolygon(n, ((Way) e.osm).getNodes())
-                            || e.osm instanceof Relation && (
-                                    (Relation) e.osm).isMultipolygon() && Geometry.isNodeInsideMultiPolygon(n, (Relation) e.osm, null)) {
+                    if ((e.osm instanceof Way && Geometry.nodeInsidePolygon(n, ((Way) e.osm).getNodes()))
+                            || (e.osm instanceof Relation && (
+                                    (Relation) e.osm).isMultipolygon() && Geometry.isNodeInsideMultiPolygon(n, (Relation) e.osm, null))) {
                         e.child = n;
                     }
                 }
@@ -286,11 +287,11 @@ public interface Selector {
             @Override
             public void visit(Way w) {
                 if (e.child == null && left.matches(new Environment(w).withParent(e.osm))) {
-                    if (e.osm instanceof Way && Geometry.PolygonIntersection.FIRST_INSIDE_SECOND.equals(
-                            Geometry.polygonIntersection(w.getNodes(), ((Way) e.osm).getNodes()))
-                            || e.osm instanceof Relation && (
+                    if ((e.osm instanceof Way && Geometry.PolygonIntersection.FIRST_INSIDE_SECOND.equals(
+                            Geometry.polygonIntersection(w.getNodes(), ((Way) e.osm).getNodes())))
+                            || (e.osm instanceof Relation && (
                                     (Relation) e.osm).isMultipolygon()
-                                    && Geometry.isPolygonInsideMultiPolygon(w.getNodes(), (Relation) e.osm, null)) {
+                                    && Geometry.isPolygonInsideMultiPolygon(w.getNodes(), (Relation) e.osm, null))) {
                         e.child = w;
                     }
                 }
@@ -319,7 +320,7 @@ public interface Selector {
                             && !((OptimizedGeneralSelector) right).matchesBase(OsmPrimitiveType.RELATION))) {
                         throw new NoSuchElementException();
                     }
-                    final Collection<Relation> multipolygons = Utils.filteredCollection(Utils.filter(
+                    final Collection<Relation> multipolygons = Utils.filteredCollection(SubclassFilteredCollection.filter(
                             e.osm.getReferrers(), Predicates.hasTag("type", "multipolygon")), Relation.class);
                     final Relation multipolygon = multipolygons.iterator().next();
                     if (multipolygon == null) throw new NoSuchElementException();
@@ -463,6 +464,7 @@ public interface Selector {
          */
         @Override
         public boolean matches(Environment env) {
+            CheckParameterUtil.ensureParameterNotNull(env, "env");
             if (conds == null) return true;
             for (Condition c : conds) {
                 try {

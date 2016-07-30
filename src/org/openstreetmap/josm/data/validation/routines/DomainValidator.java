@@ -291,12 +291,13 @@ public final class DomainValidator extends AbstractValidator {
 
     // WARNING: this array MUST be sorted, otherwise it cannot be searched reliably using binary search
     private static final String[] GENERIC_TLDS = new String[] {
-        // Taken from Version 2016072400, Last Updated Sun Jul 24 07:07:01 2016 UTC
+        // Taken from Version 2016073000, Last Updated Sat Jul 30 07:07:01 2016 UTC
         "aaa", // aaa American Automobile Association, Inc.
         "aarp", // aarp AARP
         "abb", // abb ABB Ltd
         "abbott", // abbott Abbott Laboratories, Inc.
         "abbvie", // abbvie AbbVie Inc.
+        "abc", // abc Disney Enterprises, Inc.
         "able", // able Able Inc.
         "abogado", // abogado Top Level Domain Holdings Limited
         "abudhabi", // abudhabi Abu Dhabi Systems and Information Centre
@@ -328,6 +329,7 @@ public final class DomainValidator extends AbstractValidator {
         "ally", // ally Ally Financial Inc.
         "alsace", // alsace REGION D ALSACE
         "alstom", // alstom ALSTOM
+        "americanfamily", // americanfamily AmFam, Inc.
         "amfam", // amfam AmFam, Inc.
         "amica", // amica Amica Mutual Insurance Company
         "amsterdam", // amsterdam Gemeente Amsterdam
@@ -360,6 +362,7 @@ public final class DomainValidator extends AbstractValidator {
         "azure", // azure Microsoft Corporation
         "baby", // baby Johnson &amp; Johnson Services, Inc.
         "baidu", // baidu Baidu, Inc.
+        "banamex", // banamex Citigroup Inc.
         "band", // band United TLD Holdco, Ltd
         "bank", // bank fTLD Registry Services, LLC
         "bar", // bar Punto 2012 Sociedad Anonima Promotora de Inversion de Capital Variable
@@ -469,11 +472,13 @@ public final class DomainValidator extends AbstractValidator {
         "chloe", // chloe Richemont DNS Inc.
         "christmas", // christmas Uniregistry, Corp.
         "chrome", // chrome Charleston Road Registry Inc.
+        "chrysler", // chrysler FCA US LLC.
         "church", // church Holly Fileds, LLC
         "cipriani", // cipriani Hotel Cipriani Srl
         "circle", // circle Amazon Registry Services, Inc.
         "cisco", // cisco Cisco Technology, Inc.
         "citadel", // citadel Citadel Domain LLC
+        "citi", // citi Citigroup Inc.
         "citic", // citic CITIC Group Corporation
         "city", // city Snow Sky, LLC
         "cityeats", // cityeats Lifestyle Domain Holdings, Inc.
@@ -554,6 +559,7 @@ public final class DomainValidator extends AbstractValidator {
         "direct", // direct Half Trail, LLC
         "directory", // directory Extra Madison, LLC
         "discount", // discount Holly Hill, LLC
+        "discover", // discover Discover Financial Services
         "dnp", // dnp Dai Nippon Printing Co., Ltd.
         "docs", // docs Charleston Road Registry Inc.
         "doctor", // doctor Brice Trail, LLC
@@ -669,6 +675,7 @@ public final class DomainValidator extends AbstractValidator {
         "gifts", // gifts Goose Sky, LLC
         "gives", // gives United TLD Holdco Ltd.
         "giving", // giving Giving Limited
+        "glade", // glade Johnson Shareholdings, Inc.
         "glass", // glass Black Cover, LLC
         "gle", // gle Charleston Road Registry Inc.
         "global", // global Dot Global Domain Registry Limited
@@ -725,6 +732,7 @@ public final class DomainValidator extends AbstractValidator {
         "homes", // homes DERHomes, LLC
         "homesense", // homesense The TJX Companies, Inc.
         "honda", // honda Honda Motor Co., Ltd.
+        "honeywell", // honeywell Honeywell GTLD LLC
         "horse", // horse Top Level Domain Holdings Limited
         "host", // host DotHost Inc.
         "hosting", // hosting Uniregistry, Corp.
@@ -734,6 +742,7 @@ public final class DomainValidator extends AbstractValidator {
         "how", // how Charleston Road Registry Inc.
         "hsbc", // hsbc HSBC Holdings PLC
         "htc", // htc HTC corporation
+        "hyatt", // hyatt Hyatt GTLD, L.L.C.
         "hyundai", // hyundai Hyundai Motor Company
         "ibm", // ibm International Business Machines Corporation
         "icbc", // icbc Industrial and Commercial Bank of China Limited
@@ -756,6 +765,7 @@ public final class DomainValidator extends AbstractValidator {
         "insurance", // insurance fTLD Registry Services LLC
         "insure", // insure Pioneer Willow, LLC
         "int", // int Internet Assigned Numbers Authority
+        "intel", // intel Intel Corporation
         "international", // international Wild Way, LLC
         "intuit", // intuit Intuit Administrative Services, Inc.
         "investments", // investments Holly Glen, LLC
@@ -772,6 +782,7 @@ public final class DomainValidator extends AbstractValidator {
         "java", // java Oracle Corporation
         "jcb", // jcb JCB Co., Ltd.
         "jcp", // jcp JCP Media, Inc.
+        "jeep", // jeep FCA US LLC.
         "jetzt", // jetzt New TLD Company AB
         "jewelry", // jewelry Wild Bloom, LLC
         "jlc", // jlc Richemont DNS Inc.
@@ -807,6 +818,7 @@ public final class DomainValidator extends AbstractValidator {
         "kuokgroup", // kuokgroup Kerry Trading Co. Limited
         "kyoto", // kyoto Academic Institution: Kyoto Jyoho Gakuen
         "lacaixa", // lacaixa CAIXA D&#39;ESTALVIS I PENSIONS DE BARCELONA
+        "ladbrokes", // ladbrokes LADBROKES INTERNATIONAL PLC
         "lamborghini", // lamborghini Automobili Lamborghini S.p.A.
         "lamer", // lamer The Estée Lauder Companies Inc.
         "lancaster", // lancaster LANCASTER
@@ -1018,6 +1030,7 @@ public final class DomainValidator extends AbstractValidator {
         "politie", // politie Politie Nederland
         "porn", // porn ICM Registry PN LLC
         "post", // post Universal Postal Union
+        "pramerica", // pramerica Prudential Financial, Inc.
         "praxi", // praxi Praxi S.p.A.
         "press", // press DotPress Inc.
         "prime", // prime Amazon Registry Service, Inc.
@@ -1030,6 +1043,8 @@ public final class DomainValidator extends AbstractValidator {
         "properties", // properties Big Pass, LLC
         "property", // property Uniregistry, Corp.
         "protection", // protection XYZ.COM LLC
+        "pru", // pru Prudential Financial, Inc.
+        "prudential", // prudential Prudential Financial, Inc.
         "pub", // pub United TLD Holdco Ltd.
         "pwc", // pwc PricewaterhouseCoopers LLP
         "qpon", // qpon dotCOOL, Inc.
@@ -1155,6 +1170,7 @@ public final class DomainValidator extends AbstractValidator {
         "spot", // spot Amazon Registry Services, Inc.
         "spreadbetting", // spreadbetting DOTSPREADBETTING REGISTRY LTD
         "srl", // srl InterNetX Corp.
+        "srt", // srt FCA US LLC.
         "stada", // stada STADA Arzneimittel AG
         "staples", // staples Staples, Inc.
         "star", // star Star India Private Limited
@@ -1244,6 +1260,7 @@ public final class DomainValidator extends AbstractValidator {
         "tushu", // tushu Amazon Registry Services, Inc.
         "tvs", // tvs T V SUNDRAM IYENGAR  &amp; SONS PRIVATE LIMITED
         "ubs", // ubs UBS AG
+        "uconnect", // uconnect FCA US LLC.
         "unicom", // unicom China United Network Communications Corporation Limited
         "university", // university Little Station, LLC
         "uno", // uno Dot Latin LLC
@@ -1264,6 +1281,7 @@ public final class DomainValidator extends AbstractValidator {
         "vin", // vin Holly Shadow, LLC
         "vip", // vip Minds + Machines Group Limited
         "virgin", // virgin Virgin Enterprises Limited
+        "visa", // visa Visa Worldwide Pte. Limited
         "vision", // vision Koko Station, LLC
         "vista", // vista Vistaprint Limited
         "vistaprint", // vistaprint Vistaprint Limited
@@ -1813,7 +1831,7 @@ public final class DomainValidator extends AbstractValidator {
      * @throws IllegalArgumentException if one of the read-only tables is requested
      * @since 1.5.0
      */
-    public static synchronized void updateTLDOverride(ArrayType table, String[] tlds) {
+    public static synchronized void updateTLDOverride(ArrayType table, String ... tlds) {
         if (inUse) {
             throw new IllegalStateException("Can only invoke this method before calling getInstance");
         }

@@ -25,6 +25,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -65,7 +66,6 @@ import org.openstreetmap.josm.io.IllegalDataException;
 import org.openstreetmap.josm.io.UTFInputStreamReader;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.MultiMap;
-import org.openstreetmap.josm.tools.Predicate;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -389,7 +389,7 @@ public class MapCSSTagChecker extends Test.TagTest {
         }
 
         @Override
-        public boolean evaluate(OsmPrimitive primitive) {
+        public boolean test(OsmPrimitive primitive) {
             // Tests whether the primitive contains a deprecated tag which is represented by this MapCSSTagChecker.
             return whichSelectorMatchesPrimitive(primitive) != null;
         }
@@ -420,12 +420,8 @@ public class MapCSSTagChecker extends Test.TagTest {
         static String determineArgument(Selector.GeneralSelector matchingSelector, int index, String type, OsmPrimitive p) {
             try {
                 final Condition c = matchingSelector.getConditions().get(index);
-                final Tag tag = c instanceof Condition.KeyCondition
-                        ? ((Condition.KeyCondition) c).asTag(p)
-                        : c instanceof Condition.SimpleKeyValueCondition
-                        ? ((Condition.SimpleKeyValueCondition) c).asTag()
-                        : c instanceof Condition.KeyValueCondition
-                        ? ((Condition.KeyValueCondition) c).asTag()
+                final Tag tag = c instanceof Condition.ToTagConvertable
+                        ? ((Condition.ToTagConvertable) c).asTag(p)
                         : null;
                 if (tag == null) {
                     return null;
@@ -635,14 +631,14 @@ public class MapCSSTagChecker extends Test.TagTest {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public synchronized boolean equals(Object obj) {
             return super.equals(obj)
                     || (obj instanceof TagCheck && rule.equals(((TagCheck) obj).rule))
                     || (obj instanceof GroupedMapCSSRule && rule.equals(obj));
         }
 
         @Override
-        public int hashCode() {
+        public synchronized int hashCode() {
             return Objects.hash(super.hashCode(), rule);
         }
 
@@ -787,7 +783,7 @@ public class MapCSSTagChecker extends Test.TagTest {
                 if (Main.isDebugEnabled()) {
                     Main.debug("- Errors: "+pErrors);
                 }
-                final boolean isError = Utils.exists(pErrors, e -> e.getTester().equals(check.rule));
+                final boolean isError = pErrors.stream().anyMatch(e -> e.getTester().equals(check.rule));
                 if (isError != i.getValue()) {
                     final String error = MessageFormat.format("Expecting test ''{0}'' (i.e., {1}) to {2} {3} (i.e., {4})",
                             check.getMessage(p), check.rule.selectors, i.getValue() ? "match" : "not match", i.getKey(), p.getKeys());

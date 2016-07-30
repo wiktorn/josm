@@ -336,7 +336,7 @@ public class CombineWayAction extends JosmAction {
             if (obj == null || getClass() != obj.getClass()) return false;
             NodePair nodePair = (NodePair) obj;
             return Objects.equals(a, nodePair.a) &&
-                    Objects.equals(b, nodePair.b);
+                   Objects.equals(b, nodePair.b);
         }
     }
 
