@@ -52,7 +52,7 @@ public class QuadStateCheckBox extends JCheckBox {
      * @param initial The initial state
      * @param allowed The allowed states
      */
-    public QuadStateCheckBox(String text, Icon icon, State initial, State[] allowed) {
+    public QuadStateCheckBox(String text, Icon icon, State initial, State ... allowed) {
         super(text, icon);
         this.allowed = Utils.copyArray(allowed);
         // Add a listener for when the mouse is pressed
@@ -85,13 +85,13 @@ public class QuadStateCheckBox extends JCheckBox {
      * @param initial The initial state
      * @param allowed The allowed states
      */
-    public QuadStateCheckBox(String text, State initial, State[] allowed) {
+    public QuadStateCheckBox(String text, State initial, State ... allowed) {
         this(text, null, initial, allowed);
     }
 
     /** Do not let anyone add mouse listeners */
     @Override
-    public void addMouseListener(MouseListener l) {
+    public synchronized void addMouseListener(MouseListener l) {
         // Do nothing
     }
 

@@ -225,9 +225,9 @@ public class StyledMapRenderer extends AbstractMapRenderer {
                 return dz;
 
             // simple node on top of icons and shapes
-            if (this.style == NodeElement.SIMPLE_NODE_ELEMSTYLE && other.style != NodeElement.SIMPLE_NODE_ELEMSTYLE)
+            if (NodeElement.SIMPLE_NODE_ELEMSTYLE.equals(this.style) && !NodeElement.SIMPLE_NODE_ELEMSTYLE.equals(other.style))
                 return 1;
-            if (this.style != NodeElement.SIMPLE_NODE_ELEMSTYLE && other.style == NodeElement.SIMPLE_NODE_ELEMSTYLE)
+            if (!NodeElement.SIMPLE_NODE_ELEMSTYLE.equals(this.style) && NodeElement.SIMPLE_NODE_ELEMSTYLE.equals(other.style))
                 return -1;
 
             // newer primitives to the front

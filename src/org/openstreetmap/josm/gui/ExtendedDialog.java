@@ -5,6 +5,7 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.Frame;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
@@ -129,7 +130,7 @@ public class ExtendedDialog extends JDialog {
      * @param title        The text that will be shown in the window titlebar
      * @param buttonTexts  String Array of the text that will appear on the buttons. The first button is the default one.
      */
-    public ExtendedDialog(Component parent, String title, String[] buttonTexts) {
+    public ExtendedDialog(Component parent, String title, String ... buttonTexts) {
         this(parent, title, buttonTexts, true, true);
     }
 
@@ -145,7 +146,7 @@ public class ExtendedDialog extends JDialog {
     }
 
     public ExtendedDialog(Component parent, String title, String[] buttonTexts, boolean modal, boolean disposeOnClose) {
-        super(GuiHelper.getFrameForComponent(parent), title, modal ? ModalityType.DOCUMENT_MODAL : ModalityType.MODELESS);
+        super(searchRealParent(parent), title, modal ? ModalityType.DOCUMENT_MODAL : ModalityType.MODELESS);
         this.parent = parent;
         this.modal = modal;
         bTexts = Utils.copyArray(buttonTexts);
@@ -155,12 +156,20 @@ public class ExtendedDialog extends JDialog {
         this.disposeOnClose = disposeOnClose;
     }
 
+    private static Frame searchRealParent(Component parent) {
+        if (parent == null) {
+            return null;
+        } else {
+            return GuiHelper.getFrameForComponent(parent);
+        }
+    }
+
     /**
      * Allows decorating the buttons with icons.
      * @param buttonIcons The button icons
      * @return {@code this}
      */
-    public ExtendedDialog setButtonIcons(Icon[] buttonIcons) {
+    public ExtendedDialog setButtonIcons(Icon ... buttonIcons) {
         this.bIcons = Utils.copyArray(buttonIcons);
         return this;
     }
@@ -170,7 +179,7 @@ public class ExtendedDialog extends JDialog {
      * @param buttonIcons The button icon names
      * @return {@code this}
      */
-    public ExtendedDialog setButtonIcons(String[] buttonIcons) {
+    public ExtendedDialog setButtonIcons(String ... buttonIcons) {
         bIcons = new Icon[buttonIcons.length];
         for (int i = 0; i < buttonIcons.length; ++i) {
             bIcons[i] = ImageProvider.get(buttonIcons[i]);
@@ -185,7 +194,7 @@ public class ExtendedDialog extends JDialog {
      * @param toolTipTexts the tool tip texts. Ignored, if null.
      * @return {@code this}
      */
-    public ExtendedDialog setToolTipTexts(String[] toolTipTexts) {
+    public ExtendedDialog setToolTipTexts(String ... toolTipTexts) {
         this.bToolTipTexts = Utils.copyArray(toolTipTexts);
         return this;
     }

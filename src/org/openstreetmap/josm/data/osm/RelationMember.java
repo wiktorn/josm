@@ -174,7 +174,7 @@ public class RelationMember implements PrimitiveId {
         if (obj == null || getClass() != obj.getClass()) return false;
         RelationMember that = (RelationMember) obj;
         return Objects.equals(role, that.role) &&
-                Objects.equals(member, that.member);
+               Objects.equals(member, that.member);
     }
 
     /**
