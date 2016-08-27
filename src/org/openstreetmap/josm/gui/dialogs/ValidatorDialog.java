@@ -134,7 +134,7 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
 
         buttons.add(lookupButton);
 
-        buttons.add(new SideButton(Main.main.validator.validateAction));
+        buttons.add(new SideButton(OsmValidator.validateAction));
 
         fixButton = new SideButton(new AbstractAction() {
             {
@@ -150,7 +150,7 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
         fixButton.setEnabled(false);
         buttons.add(fixButton);
 
-        if (Main.pref.getBoolean(ValidatorPreference.PREF_USE_IGNORE, true)) {
+        if (ValidatorPreference.PREF_USE_IGNORE.get()) {
             ignoreButton = new SideButton(new AbstractAction() {
                 {
                     putValue(NAME, tr("Ignore"));
@@ -192,7 +192,6 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
             tree.setVisible(v);
         }
         super.setVisible(v);
-        Main.map.repaint();
     }
 
     /**

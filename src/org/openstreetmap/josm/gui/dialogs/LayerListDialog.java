@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import javax.swing.AbstractAction;
@@ -44,6 +45,7 @@ import javax.swing.table.TableModel;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.MergeLayerAction;
+import org.openstreetmap.josm.data.preferences.AbstractProperty;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.SideButton;
@@ -545,28 +547,18 @@ public class LayerListDialog extends ToggleDialog {
                 label.setFont(label.getFont().deriveFont(Font.BOLD));
             }
             if (Main.pref.getBoolean("dialog.layer.colorname", true)) {
-                Color c = layer.getColor(false);
-                if (c != null) {
-                    Color oc = null;
-                    for (Layer l : model.getLayers()) {
-                        oc = l.getColor(false);
-                        if (oc != null) {
-                            if (oc.equals(c)) {
-                                oc = null;
-                            } else {
-                                break;
-                            }
-                        }
-                    }
+                AbstractProperty<Color> prop = layer.getColorProperty();
+                Color c = prop == null ? null : prop.get();
+                if (c == null || !model.getLayers().stream()
+                        .map(Layer::getColorProperty)
+                        .filter(Objects::nonNull)
+                        .map(AbstractProperty::get)
+                        .anyMatch(oc -> oc != null && !oc.equals(c))) {
                     /* not more than one color, don't use coloring */
-                    if (oc == null) {
-                        c = null;
-                    }
+                    label.setForeground(UIManager.getColor(isSelected ? "Table.selectionForeground" : "Table.foreground"));
+                } else {
+                    label.setForeground(c);
                 }
-                if (c == null) {
-                    c = UIManager.getColor(isSelected ? "Table.selectionForeground" : "Table.foreground");
-                }
-                label.setForeground(c);
             }
             label.setIcon(layer.getIcon());
             label.setToolTipText(layer.getToolTipText());
@@ -685,7 +677,7 @@ public class LayerListDialog extends ToggleDialog {
          * @param layer the layer at this index
          * @see LayerListModelListener#makeVisible(int, Layer)
          */
-        protected void fireMakeVisible(int index, Layer layer) {
+        private void fireMakeVisible(int index, Layer layer) {
             for (LayerListModelListener listener : listeners) {
                 listener.makeVisible(index, layer);
             }
@@ -696,7 +688,7 @@ public class LayerListDialog extends ToggleDialog {
          *
          * @see LayerListModelListener#refresh()
          */
-        protected void fireRefresh() {
+        private void fireRefresh() {
             for (LayerListModelListener listener : listeners) {
                 listener.refresh();
             }
@@ -891,7 +883,7 @@ public class LayerListDialog extends ToggleDialog {
         /**
          * Make sure the first of the selected layers is visible in the views of this model.
          */
-        protected void ensureSelectedIsVisible() {
+        private void ensureSelectedIsVisible() {
             int index = selectionModel.getMinSelectionIndex();
             if (index < 0)
                 return;
@@ -940,7 +932,7 @@ public class LayerListDialog extends ToggleDialog {
          * Ensures that at least one layer is selected in the layer dialog
          *
          */
-        protected void ensureActiveSelected() {
+        private void ensureActiveSelected() {
             List<Layer> layers = getLayers();
             if (layers.isEmpty())
                 return;
@@ -962,20 +954,8 @@ public class LayerListDialog extends ToggleDialog {
          *
          * @return the active layer. null, if no active layer is available
          */
-        protected Layer getActiveLayer() {
+        private Layer getActiveLayer() {
             return getLayerManager().getActiveLayer();
-        }
-
-        /**
-         * Replies the scale layer. null, if no active layer is available.
-         *
-         * @return the scale layer. null, if no active layer is available
-         * @deprecated Deprecated since it is unused in JOSM and does not really belong here. Can be removed soon (August 2016).
-         *             You can directly query MapView.
-         */
-        @Deprecated
-        protected NativeScaleLayer getNativeScaleLayer() {
-            return Main.isDisplayingMapView() ? Main.map.mapView.getNativeScaleLayer() : null;
         }
 
         /* ------------------------------------------------------------------------------ */

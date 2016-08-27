@@ -15,7 +15,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.CRC32;
@@ -35,15 +37,13 @@ import org.openstreetmap.josm.io.XmlWriter;
 import org.openstreetmap.josm.tools.AlphanumComparator;
 import org.openstreetmap.josm.tools.ColorHelper;
 import org.openstreetmap.josm.tools.Geometry;
-import org.openstreetmap.josm.tools.Predicates;
 import org.openstreetmap.josm.tools.RightAndLefthandTraffic;
 import org.openstreetmap.josm.tools.SubclassFilteredCollection;
 import org.openstreetmap.josm.tools.Utils;
-import org.openstreetmap.josm.tools.Utils.Function;
 
 /**
- * Factory to generate Expressions.
- *
+ * Factory to generate {@link Expression}s.
+ * <p>
  * See {@link #createFunctionExpression}.
  */
 public final class ExpressionFactory {
@@ -326,7 +326,7 @@ public final class ExpressionFactory {
          * @see java.awt.Color#getRed()
          */
         public static float red(Color c) { // NO_UCD (unused code)
-            return Utils.color_int2float(c.getRed());
+            return Utils.colorInt2float(c.getRed());
         }
 
         /**
@@ -336,7 +336,7 @@ public final class ExpressionFactory {
          * @see java.awt.Color#getGreen()
          */
         public static float green(Color c) { // NO_UCD (unused code)
-            return Utils.color_int2float(c.getGreen());
+            return Utils.colorInt2float(c.getGreen());
         }
 
         /**
@@ -346,7 +346,7 @@ public final class ExpressionFactory {
          * @see java.awt.Color#getBlue()
          */
         public static float blue(Color c) { // NO_UCD (unused code)
-            return Utils.color_int2float(c.getBlue());
+            return Utils.colorInt2float(c.getBlue());
         }
 
         /**
@@ -356,7 +356,7 @@ public final class ExpressionFactory {
          * @see java.awt.Color#getAlpha()
          */
         public static float alpha(Color c) { // NO_UCD (unused code)
-            return Utils.color_int2float(c.getAlpha());
+            return Utils.colorInt2float(c.getAlpha());
         }
 
         /**
@@ -1134,7 +1134,7 @@ public final class ExpressionFactory {
 
         public Float aggregateList(List<?> lst) {
             final List<Float> floats = Utils.transform(lst, (Function<Object, Float>) x -> Cascade.convertTo(x, float.class));
-            final Collection<Float> nonNullList = SubclassFilteredCollection.filter(floats, Predicates.not(Predicates.isNull()));
+            final Collection<Float> nonNullList = SubclassFilteredCollection.filter(floats, Objects::nonNull);
             return nonNullList.isEmpty() ? (Float) Float.NaN : computeMax ? Collections.max(nonNullList) : Collections.min(nonNullList);
         }
 

@@ -3,11 +3,13 @@ package org.openstreetmap.josm.gui;
 
 import java.awt.Container;
 import java.awt.Point;
-import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.Area;
+import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Point2D.Double;
 import java.awt.geom.Rectangle2D;
+import java.io.Serializable;
 
 import javax.swing.JComponent;
 
@@ -16,6 +18,8 @@ import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.ProjectionBounds;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
+import org.openstreetmap.josm.data.osm.Node;
+import org.openstreetmap.josm.data.projection.Projecting;
 import org.openstreetmap.josm.data.projection.Projection;
 import org.openstreetmap.josm.gui.download.DownloadDialog;
 import org.openstreetmap.josm.tools.bugreport.BugReport;
@@ -25,9 +29,35 @@ import org.openstreetmap.josm.tools.bugreport.BugReport;
  * @author Michael Zangl
  * @since 10343
  */
-public final class MapViewState {
+public final class MapViewState implements Serializable {
 
-    private final Projection projection;
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * A flag indicating that the point is outside to the top of the map view.
+     * @since 10827
+     */
+    public static final int OUTSIDE_TOP = 1;
+
+    /**
+     * A flag indicating that the point is outside to the bottom of the map view.
+     * @since 10827
+     */
+    public static final int OUTSIDE_BOTTOM = 2;
+
+    /**
+     * A flag indicating that the point is outside to the left of the map view.
+     * @since 10827
+     */
+    public static final int OUTSIDE_LEFT = 4;
+
+    /**
+     * A flag indicating that the point is outside to the right of the map view.
+     * @since 10827
+     */
+    public static final int OUTSIDE_RIGHT = 8;
+
+    private final transient Projecting projecting;
 
     private final int viewWidth;
     private final int viewHeight;
@@ -50,8 +80,8 @@ public final class MapViewState {
      * @param scale The scale to use
      * @param topLeft The top left corner in east/north space.
      */
-    private MapViewState(Projection projection, int viewWidth, int viewHeight, double scale, EastNorth topLeft) {
-        this.projection = projection;
+    private MapViewState(Projecting projection, int viewWidth, int viewHeight, double scale, EastNorth topLeft) {
+        this.projecting = projection;
         this.scale = scale;
         this.topLeft = topLeft;
 
@@ -62,7 +92,7 @@ public final class MapViewState {
     }
 
     private MapViewState(EastNorth topLeft, MapViewState mapViewState) {
-        this.projection = mapViewState.projection;
+        this.projecting = mapViewState.projecting;
         this.scale = mapViewState.scale;
         this.topLeft = topLeft;
 
@@ -73,7 +103,7 @@ public final class MapViewState {
     }
 
     private MapViewState(double scale, MapViewState mapViewState) {
-        this.projection = mapViewState.projection;
+        this.projecting = mapViewState.projecting;
         this.scale = scale;
         this.topLeft = mapViewState.topLeft;
 
@@ -84,7 +114,7 @@ public final class MapViewState {
     }
 
     private MapViewState(JComponent position, MapViewState mapViewState) {
-        this.projection = mapViewState.projection;
+        this.projecting = mapViewState.projecting;
         this.scale = mapViewState.scale;
         this.topLeft = mapViewState.topLeft;
 
@@ -105,8 +135,8 @@ public final class MapViewState {
         }
     }
 
-    private MapViewState(Projection projection, MapViewState mapViewState) {
-        this.projection = projection;
+    private MapViewState(Projecting projecting, MapViewState mapViewState) {
+        this.projecting = projecting;
         this.scale = mapViewState.scale;
         this.topLeft = mapViewState.topLeft;
 
@@ -154,6 +184,17 @@ public final class MapViewState {
     }
 
     /**
+     * Gets the {@link MapViewPoint} for the given node. This is faster than {@link #getPointFor(LatLon)} because it uses the node east/north
+     * cache.
+     * @param node The node
+     * @return The position of that node.
+     * @since 10827
+     */
+    public MapViewPoint getPointFor(Node node) {
+        return getPointFor(node.getEastNorth(getProjection()));
+    }
+
+    /**
      * Gets a rectangle representing the whole view area.
      * @return The rectangle.
      */
@@ -165,9 +206,9 @@ public final class MapViewState {
      * Gets a rectangle of the view as map view area.
      * @param rectangle The rectangle to get.
      * @return The view area.
-     * @since 10458
+     * @since 10827
      */
-    public MapViewRectangle getViewArea(Rectangle rectangle) {
+    public MapViewRectangle getViewArea(Rectangle2D rectangle) {
         return getForView(rectangle.getMinX(), rectangle.getMinY()).rectTo(getForView(rectangle.getMaxX(), rectangle.getMaxY()));
     }
 
@@ -177,6 +218,15 @@ public final class MapViewState {
      */
     public MapViewPoint getCenter() {
         return getForView(viewWidth / 2.0, viewHeight / 2.0);
+    }
+
+    /**
+     * Gets the center of the view, rounded to a pixel coordinate
+     * @return The center position.
+     * @since 10856
+     */
+    public MapViewPoint getCenterAtPixel() {
+        return getForView(viewWidth / 2, viewHeight / 2);
     }
 
     /**
@@ -200,7 +250,7 @@ public final class MapViewState {
      * @return The projection.
      */
     public Projection getProjection() {
-        return projection;
+        return projecting.getBaseProjection();
     }
 
     /**
@@ -211,6 +261,20 @@ public final class MapViewState {
     public AffineTransform getAffineTransform() {
         return new AffineTransform(1.0 / scale, 0.0, 0.0, -1.0 / scale, -topLeft.east() / scale,
                 topLeft.north() / scale);
+    }
+
+    public Area getArea(Bounds bounds) {
+        Path2D area = new Path2D.Double();
+        bounds.visitEdge(getProjection(), latlon -> {
+            MapViewPoint point = getPointFor(latlon);
+            if (area.getCurrentPoint() == null) {
+                area.moveTo(point.getInViewX(), point.getInViewY());
+            } else {
+                area.lineTo(point.getInViewX(), point.getInViewY());
+            }
+        });
+        area.closePath();
+        return new Area(area);
     }
 
     /**
@@ -268,7 +332,7 @@ public final class MapViewState {
      * @since 10486
      */
     public MapViewState usingProjection(Projection projection) {
-        if (projection.equals(this.projection)) {
+        if (projection.equals(this.projecting)) {
             return this;
         } else {
             return new MapViewState(projection, this);
@@ -313,9 +377,19 @@ public final class MapViewState {
             return new Point2D.Double(getInViewX(), getInViewY());
         }
 
-        protected abstract double getInViewX();
+        /**
+         * Get the x coordinate in view space without creating an intermediate object.
+         * @return The x coordinate
+         * @since 10827
+         */
+        public abstract double getInViewX();
 
-        protected abstract double getInViewY();
+        /**
+         * Get the y coordinate in view space without creating an intermediate object.
+         * @return The y coordinate
+         * @since 10827
+         */
+        public abstract double getInViewY();
 
         /**
          * Convert this point to window coordinates.
@@ -357,9 +431,19 @@ public final class MapViewState {
         /**
          * Gets the current position in LatLon coordinates according to the current projection.
          * @return The positon as LatLon.
+         * @see #getLatLonClamped()
          */
         public LatLon getLatLon() {
-            return projection.eastNorth2latlon(getEastNorth());
+            return projecting.getBaseProjection().eastNorth2latlon(getEastNorth());
+        }
+
+        /**
+         * Gets the latlon coordinate clamped to the current world area.
+         * @return The lat/lon coordinate
+         * @since 10805
+         */
+        public LatLon getLatLonClamped() {
+            return projecting.eastNorth2latlonClamped(getEastNorth());
         }
 
         /**
@@ -370,6 +454,87 @@ public final class MapViewState {
          */
         public MapViewPoint add(EastNorth en) {
             return new MapViewEastNorthPoint(getEastNorth().add(en));
+        }
+
+        /**
+         * Check if this point is inside the view bounds.
+         *
+         * This is the case iff <code>getOutsideRectangleFlags(getViewArea())</code> returns no flags
+         * @return true if it is.
+         * @since 10827
+         */
+        public boolean isInView() {
+            return inRange(getInViewX(), 0, getViewWidth()) && inRange(getInViewY(), 0, getViewHeight());
+        }
+
+        private boolean inRange(double val, int min, double max) {
+            return val >= min && val < max;
+        }
+
+        /**
+         * Gets the direction in which this point is outside of the given view rectangle.
+         * @param rect The rectangle to check agains.
+         * @return The direction in which it is outside of the view, as OUTSIDE_... flags.
+         * @since 10827
+         */
+        public int getOutsideRectangleFlags(MapViewRectangle rect) {
+            Rectangle2D bounds = rect.getInView();
+            int flags = 0;
+            if (getInViewX() < bounds.getMinX()) {
+                flags |= OUTSIDE_LEFT;
+            } else if (getInViewX() > bounds.getMaxX()) {
+                flags |= OUTSIDE_RIGHT;
+            }
+            if (getInViewY() < bounds.getMinY()) {
+                flags |= OUTSIDE_TOP;
+            } else if (getInViewY() > bounds.getMaxY()) {
+                flags |= OUTSIDE_BOTTOM;
+            }
+
+            return flags;
+        }
+
+        /**
+         * Gets the sum of the x/y view distances between the points. |x1 - x2| + |y1 - y2|
+         * @param p2 The other point
+         * @return The norm
+         * @since 10827
+         */
+        public double oneNormInView(MapViewPoint p2) {
+            return Math.abs(getInViewX() - p2.getInViewX()) + Math.abs(getInViewY() - p2.getInViewY());
+        }
+
+        /**
+         * Gets the squared distance between this point and an other point.
+         * @param p2 The other point
+         * @return The squared distance.
+         * @since 10827
+         */
+        public double distanceToInViewSq(MapViewPoint p2) {
+            double dx = getInViewX() - p2.getInViewX();
+            double dy = getInViewY() - p2.getInViewY();
+            return dx * dx + dy * dy;
+        }
+
+        /**
+         * Gets the distance between this point and an other point.
+         * @param p2 The other point
+         * @return The distance.
+         * @since 10827
+         */
+        public double distanceToInView(MapViewPoint p2) {
+            return Math.sqrt(distanceToInViewSq(p2));
+        }
+
+        /**
+         * Do a linear interpolation to the other point
+         * @param p1 The other point
+         * @param i The interpolation factor. 0 is at the current point, 1 at the other point.
+         * @return The new point
+         * @since 10874
+         */
+        public MapViewPoint interpolate(MapViewPoint p1, int i) {
+            return new MapViewViewPoint((1 - i) * getInViewX() + i * p1.getInViewX(), (1 - i) * getInViewY() + i * p1.getInViewY());
         }
     }
 
@@ -383,12 +548,12 @@ public final class MapViewState {
         }
 
         @Override
-        protected double getInViewX() {
+        public double getInViewX() {
             return x;
         }
 
         @Override
-        protected double getInViewY() {
+        public double getInViewY() {
             return y;
         }
 
@@ -407,12 +572,12 @@ public final class MapViewState {
         }
 
         @Override
-        protected double getInViewX() {
+        public double getInViewX() {
             return (eastNorth.east() - topLeft.east()) / scale;
         }
 
         @Override
-        protected double getInViewY() {
+        public double getInViewY() {
             return (topLeft.north() - eastNorth.north()) / scale;
         }
 
@@ -473,7 +638,8 @@ public final class MapViewState {
          * @since 10458
          */
         public Bounds getLatLonBoundsBox() {
-            return projection.getLatLonBoundsBox(getProjectionBounds());
+            // TODO @michael2402: Use hillclimb.
+            return projecting.getBaseProjection().getLatLonBoundsBox(getProjectionBounds());
         }
 
         /**
@@ -487,6 +653,15 @@ public final class MapViewState {
             double x2 = p2.getInViewX();
             double y2 = p2.getInViewY();
             return new Rectangle2D.Double(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x1 - x2), Math.abs(y1 - y2));
+        }
+
+        /**
+         * Check if the rectangle intersects the map view area.
+         * @return <code>true</code> if it intersects.
+         * @since 10827
+         */
+        public boolean isInView() {
+            return getInView().intersects(getViewArea().getInView());
         }
     }
 

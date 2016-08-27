@@ -125,7 +125,8 @@ This is an overview of the files and directories in the JOSM code repository:
     - findbugs/             libs and config files for findbugs (automatically detects common bugs and potential
                             problems in source code); can be launched as an ant target in build.xml
     - groovy-all-2.4.7.jar  used for some unit tests and various scripts
-    - jacocoant.jar         used to include coverage data into JUnit test reports 
+    - jacocoant.jar         used to include coverage data into JUnit test reports
+    - japicc/               used to generate a compatibility report between optimized jar and normal one
     - javacc.jar            used in the build process to generate some .java files from a javacc source file
                             (src/org/openstreetmap/josm/gui/mappaint/mapcss/MapCSSParser.jj)
     - proguard.jar          optimize final binary jar - see build.xml (not used in production so far)
@@ -134,8 +135,9 @@ This is an overview of the files and directories in the JOSM code repository:
 
 The 'patches' directory
 -----------------------
-Some libraries that JOSM depends on, are patched for various reasons. The files in the patches directory can be used to roll back these customizations. This is useful in order to
-
+Some libraries that JOSM depends on, are patched for various reasons. The
+files in the patches directory can be used to roll back these customizations.
+This is useful in order to
  * inspect the changes
  * update to a newer version of the library but keep the modifications
 
@@ -154,25 +156,26 @@ There are some third party libraries which are directly included in the source c
     -> http://svn.openstreetmap.org/applications/viewer/jmapviewer/
 * Apache commons compress: Support for bzip2 compression when opening files
     src/org/apache/commons/compress/compressors (svn external)
-    -> http://svn.apache.org/repos/asf/commons/proper/compress/trunk/src/main/java/org/apache/commons/compress/compressors
+    -> https://github.com/apache/commons-compress
 * Apache commons validator: Improved validator routines
     src/org/openstreetmap/josm/data/validation/routines
     -> http://commons.apache.org/proper/commons-validator
 * SVG Salamander: Support for SVG image format
     src/com/kitfox/svg
-    -> https://svgsalamander.java.net/
+    -> https://github.com/blackears/svgSalamander
 * Metadata Extractor: Read EXIF Metadata of photos
     src/com/drew
-    -> https://www.drewnoakes.com/code/exif/
+    -> https://github.com/drewnoakes/metadata-extractor
 * Signpost: OAuth library
     src/oauth, src/com/google
-    -> https://code.google.com/p/oauth-signpost/
+    -> https://github.com/mttkay/signpost
 * GNU getopt Java port: Command line argument processing library
     src/gnu/getopt
-    -> http://www.urbanophile.com/arenn/hacking/download.html
+    -> https://github.com/arenn/java-getopt
 * MultiSplitPane: Small lib for GUI layout management
     src/org/openstreetmap/josm/gui/MultiSplitLayout.java, MultiSplitPane.java
     -> http://today.java.net/pub/a/today/2006/03/23/multi-split-pane.html
+    -> https://community.oracle.com/docs/DOC-983539
 * swinghelper: Class CheckThreadViolationRepaintManager to find classpath violations
     src/org/jdesktop/swinghelper/debug/CheckThreadViolationRepaintManager.java
     -> https://java.net/projects/swinghelper

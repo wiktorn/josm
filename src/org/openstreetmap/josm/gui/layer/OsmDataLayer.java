@@ -12,11 +12,11 @@ import java.awt.Composite;
 import java.awt.Graphics2D;
 import java.awt.GraphicsEnvironment;
 import java.awt.GridBagLayout;
-import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.TexturePaint;
 import java.awt.event.ActionEvent;
 import java.awt.geom.Area;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.ArrayList;
@@ -51,6 +51,7 @@ import org.openstreetmap.josm.data.ProjectionBounds;
 import org.openstreetmap.josm.data.SelectionChangedListener;
 import org.openstreetmap.josm.data.conflict.Conflict;
 import org.openstreetmap.josm.data.conflict.ConflictCollection;
+import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.gpx.GpxConstants;
 import org.openstreetmap.josm.data.gpx.GpxData;
@@ -75,12 +76,14 @@ import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
 import org.openstreetmap.josm.data.osm.visitor.paint.MapRendererFactory;
 import org.openstreetmap.josm.data.osm.visitor.paint.Rendering;
 import org.openstreetmap.josm.data.osm.visitor.paint.relations.MultipolygonCache;
+import org.openstreetmap.josm.data.preferences.ColorProperty;
 import org.openstreetmap.josm.data.preferences.IntegerProperty;
 import org.openstreetmap.josm.data.preferences.StringProperty;
 import org.openstreetmap.josm.data.projection.Projection;
 import org.openstreetmap.josm.data.validation.TestError;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.MapView;
+import org.openstreetmap.josm.gui.MapViewState.MapViewPoint;
 import org.openstreetmap.josm.gui.dialogs.LayerListDialog;
 import org.openstreetmap.josm.gui.dialogs.LayerListPopup;
 import org.openstreetmap.josm.gui.io.AbstractIOTask;
@@ -95,11 +98,11 @@ import org.openstreetmap.josm.gui.widgets.FileChooserManager;
 import org.openstreetmap.josm.gui.widgets.JosmTextArea;
 import org.openstreetmap.josm.io.OsmImporter;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
-import org.openstreetmap.josm.tools.FilteredCollection;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageOverlay;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.ImageProvider.ImageSizes;
+import org.openstreetmap.josm.tools.SubclassFilteredCollection;
 import org.openstreetmap.josm.tools.date.DateUtils;
 
 /**
@@ -110,6 +113,7 @@ import org.openstreetmap.josm.tools.date.DateUtils;
  * @since 17
  */
 public class OsmDataLayer extends AbstractModifiableLayer implements Listener, SelectionChangedListener {
+    private static final int HATCHED_SIZE = 15;
     /** Property used to know if this layer has to be saved on disk */
     public static final String REQUIRES_SAVE_TO_DISK_PROP = OsmDataLayer.class.getName() + ".requiresSaveToDisk";
     /** Property used to know if this layer has to be uploaded */
@@ -117,7 +121,6 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
 
     private boolean requiresSaveToFile;
     private boolean requiresUploadToServer;
-    private boolean isChanged = true;
     private int highlightUpdateCount;
 
     /**
@@ -131,6 +134,8 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
             DEFAULT_RECENT_RELATIONS_NUMBER);
     public static final StringProperty PROPERTY_SAVE_EXTENSION = new StringProperty("save.extension.osm", "osm");
 
+    private static final ColorProperty PROPERTY_BACKGROUND_COLOR = new ColorProperty(marktr("background"), Color.BLACK);
+    private static final ColorProperty PROPERTY_OUTSIDE_COLOR = new ColorProperty(marktr("outside downloaded area"), Color.YELLOW);
 
     /** List of recent relations */
     private final Map<Relation, Void> recentRelations = new LinkedHashMap<Relation, Void>(PROPERTY_RECENT_RELATIONS_NUMBER.get()+1, 1.1f, true) {
@@ -303,9 +308,9 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
     private final ConflictCollection conflicts;
 
     /**
-     * a paint texture for non-downloaded area
+     * a texture for non-downloaded area
      */
-    private static volatile TexturePaint hatched;
+    private static volatile BufferedImage hatched;
 
     static {
         createHatchTexture();
@@ -316,7 +321,7 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
      * @return background color for downloaded areas. Black by default
      */
     public static Color getBackgroundColor() {
-        return Main.pref != null ? Main.pref.getColor(marktr("background"), Color.BLACK) : Color.BLACK;
+        return PROPERTY_BACKGROUND_COLOR.get();
     }
 
     /**
@@ -324,24 +329,23 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
      * @return background color for non-downloaded areas. Yellow by default
      */
     public static Color getOutsideColor() {
-        return Main.pref != null ? Main.pref.getColor(marktr("outside downloaded area"), Color.YELLOW) : Color.YELLOW;
+        return PROPERTY_OUTSIDE_COLOR.get();
     }
 
     /**
      * Initialize the hatch pattern used to paint the non-downloaded area
      */
     public static void createHatchTexture() {
-        BufferedImage bi = new BufferedImage(15, 15, BufferedImage.TYPE_INT_ARGB);
+        BufferedImage bi = new BufferedImage(HATCHED_SIZE, HATCHED_SIZE, BufferedImage.TYPE_INT_ARGB);
         Graphics2D big = bi.createGraphics();
         big.setColor(getBackgroundColor());
         Composite comp = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.3f);
         big.setComposite(comp);
-        big.fillRect(0, 0, 15, 15);
+        big.fillRect(0, 0, HATCHED_SIZE, HATCHED_SIZE);
         big.setColor(getOutsideColor());
         big.drawLine(-1, 6, 6, -1);
         big.drawLine(4, 16, 16, 4);
-        Rectangle r = new Rectangle(0, 0, 15, 15);
-        hatched = new TexturePaint(bi, r);
+        hatched = bi;
     }
 
     /**
@@ -385,7 +389,6 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
      * Draw nodes last to overlap the ways they belong to.
      */
     @Override public void paint(final Graphics2D g, final MapView mv, Bounds box) {
-        isChanged = false;
         highlightUpdateCount = data.getHighlightUpdateCount();
 
         boolean active = mv.getLayerManager().getActiveLayer() == this;
@@ -407,14 +410,14 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
                 if (bounds.isCollapsed()) {
                     continue;
                 }
-                Point p1 = mv.getPoint(bounds.getMin());
-                Point p2 = mv.getPoint(bounds.getMax());
-                Rectangle r = new Rectangle(Math.min(p1.x, p2.x), Math.min(p1.y, p2.y), Math.abs(p2.x-p1.x), Math.abs(p2.y-p1.y));
-                a.subtract(new Area(r));
+                a.subtract(mv.getState().getArea(bounds));
             }
 
             // paint remainder
-            g.setPaint(hatched);
+            MapViewPoint anchor = mv.getState().getPointFor(new EastNorth(0, 0));
+            Rectangle2D anchorRect = new Rectangle2D.Double(anchor.getInView().getX() % HATCHED_SIZE,
+                    anchor.getInView().getY() % HATCHED_SIZE, HATCHED_SIZE, HATCHED_SIZE);
+            g.setPaint(new TexturePaint(hatched, anchorRect));
             g.fill(a);
         }
 
@@ -424,9 +427,9 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
     }
 
     @Override public String getToolTipText() {
-        int nodes = new FilteredCollection<>(data.getNodes(), OsmPrimitive.nonDeletedPredicate).size();
-        int ways = new FilteredCollection<>(data.getWays(), OsmPrimitive.nonDeletedPredicate).size();
-        int rels = new FilteredCollection<>(data.getRelations(), OsmPrimitive.nonDeletedPredicate).size();
+        int nodes = new SubclassFilteredCollection<>(data.getNodes(), p -> !p.isDeleted()).size();
+        int ways = new SubclassFilteredCollection<>(data.getWays(), p -> !p.isDeleted()).size();
+        int rels = new SubclassFilteredCollection<>(data.getRelations(), p -> !p.isDeleted()).size();
 
         String tool = trn("{0} node", "{0} nodes", nodes, nodes)+", ";
         tool += trn("{0} way", "{0} ways", ways, ways)+", ";
@@ -889,7 +892,7 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
 
     @Override
     public boolean isChanged() {
-        return isChanged || highlightUpdateCount != data.getHighlightUpdateCount();
+        return highlightUpdateCount != data.getHighlightUpdateCount();
     }
 
     @Override
@@ -943,12 +946,6 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, S
     @Override
     public void selectionChanged(Collection<? extends OsmPrimitive> newSelection) {
         invalidate();
-    }
-
-    @Override
-    public void invalidate() {
-        isChanged = true;
-        super.invalidate();
     }
 
     @Override

@@ -10,7 +10,6 @@ import java.util.Map;
 import javax.swing.JOptionPane;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Tag;
 import org.openstreetmap.josm.data.osm.TagCollection;
 import org.openstreetmap.josm.data.osm.Tagged;
@@ -54,7 +53,7 @@ public final class ReverseWayNoTagCorrector {
         final TagCollection collection = new TagCollection();
         for (Map.Entry<String, String> entry : way.getKeys().entrySet()) {
             final Tag tag = new Tag(entry.getKey(), entry.getValue());
-            final boolean isDirectional = directionalTags.contains(tag) || OsmPrimitive.directionalKeyPredicate.test(tag);
+            final boolean isDirectional = directionalTags.contains(tag) || tag.isDirectionKey();
             if (isDirectional) {
                 final boolean cannotBeCorrected = ReverseWayTagCorrector.getTagCorrections(tag).isEmpty();
                 if (cannotBeCorrected) {
@@ -75,7 +74,7 @@ public final class ReverseWayNoTagCorrector {
         return getDirectionalTags(way).isEmpty();
     }
 
-    protected static boolean confirmReverseWay(Way way, TagCollection tags) {
+    private static boolean confirmReverseWay(Way way, TagCollection tags) {
         String msg = trn(
                 // Singular, if a single tag is impacted
                 "<html>You are going to reverse the way ''{0}'',"

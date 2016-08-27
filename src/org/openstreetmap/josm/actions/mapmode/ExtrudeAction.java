@@ -43,9 +43,12 @@ import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.osm.WaySegment;
 import org.openstreetmap.josm.data.osm.visitor.paint.PaintColors;
+import org.openstreetmap.josm.data.preferences.ColorProperty;
 import org.openstreetmap.josm.gui.MainMenu;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.MapView;
+import org.openstreetmap.josm.gui.draw.MapViewPath;
+import org.openstreetmap.josm.gui.draw.SymbolShape;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.MapViewPaintable;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
@@ -303,9 +306,9 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
     protected void readPreferences() {
         initialMoveDelay = Main.pref.getInteger("edit.initial-move-delay", 200);
         initialMoveThreshold = Main.pref.getInteger("extrude.initial-move-threshold", 1);
-        mainColor = Main.pref.getColor(marktr("Extrude: main line"), null);
+        mainColor = new ColorProperty(marktr("Extrude: main line"), (Color) null).get();
         if (mainColor == null) mainColor = PaintColors.SELECTED.get();
-        helperColor = Main.pref.getColor(marktr("Extrude: helper line"), Color.ORANGE);
+        helperColor = new ColorProperty(marktr("Extrude: helper line"), Color.ORANGE).get();
         helperStrokeDash = GuiHelper.getCustomizedStroke(Main.pref.get("extrude.stroke.helper-line", "1 4"));
         helperStrokeRA = new BasicStroke(1);
         symbolSize = Main.pref.getDouble("extrude.angle-symbol-radius", 8);
@@ -390,8 +393,8 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
         requestFocusInMapView();
         updateKeyModifiers(e);
 
-        selectedNode = Main.map.mapView.getNearestNode(e.getPoint(), OsmPrimitive.isSelectablePredicate);
-        selectedSegment = Main.map.mapView.getNearestWaySegment(e.getPoint(), OsmPrimitive.isSelectablePredicate);
+        selectedNode = Main.map.mapView.getNearestNode(e.getPoint(), OsmPrimitive::isSelectable);
+        selectedSegment = Main.map.mapView.getNearestWaySegment(e.getPoint(), OsmPrimitive::isSelectable);
 
         // If nothing gets caught, stay in select mode
         if (selectedSegment == null && selectedNode == null) return;
@@ -569,7 +572,7 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
      */
     private static void addNewNode(MouseEvent e) {
         // Should maybe do the same as in DrawAction and fetch all nearby segments?
-        WaySegment ws = Main.map.mapView.getNearestWaySegment(e.getPoint(), OsmPrimitive.isSelectablePredicate);
+        WaySegment ws = Main.map.mapView.getNearestWaySegment(e.getPoint(), OsmPrimitive::isSelectable);
         if (ws != null) {
             Node n = new Node(Main.map.mapView.getLatLon(e.getX(), e.getY()));
             EastNorth a = ws.getFirstNode().getEastNorth();
@@ -1017,10 +1020,10 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
         } else {
             if (newN1en != null) {
 
-                Point p1 = mv.getPoint(initialN1en);
-                Point p2 = mv.getPoint(initialN2en);
-                Point p3 = mv.getPoint(newN1en);
-                Point p4 = mv.getPoint(newN2en);
+                EastNorth p1 = initialN1en;
+                EastNorth p2 = initialN2en;
+                EastNorth p3 = newN1en;
+                EastNorth p4 = newN2en;
 
                 Point2D normalUnitVector = activeMoveDirection != null ? getNormalUniVector() : null;
 
@@ -1028,12 +1031,12 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
                     g2.setColor(mainColor);
                     g2.setStroke(mainStroke);
                     // Draw rectangle around new area.
-                    GeneralPath b = new GeneralPath();
-                    b.moveTo(p1.x, p1.y);
-                    b.lineTo(p3.x, p3.y);
-                    b.lineTo(p4.x, p4.y);
-                    b.lineTo(p2.x, p2.y);
-                    b.lineTo(p1.x, p1.y);
+                    MapViewPath b = new MapViewPath(mv);
+                    b.moveTo(p1);
+                    b.lineTo(p3);
+                    b.lineTo(p4);
+                    b.lineTo(p2);
+                    b.lineTo(p1);
                     g2.draw(b);
 
                     if (dualAlignActive) {
@@ -1061,12 +1064,10 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
                     g2.setColor(mainColor);
                     if (p1.distance(p2) < 3) {
                         g2.setStroke(mainStroke);
-                        g2.drawOval((int) (p1.x-symbolSize/2), (int) (p1.y-symbolSize/2),
-                                (int) (symbolSize), (int) (symbolSize));
+                        g2.draw(new MapViewPath(mv).shapeAround(p1, SymbolShape.CIRCLE, symbolSize));
                     } else {
-                        Line2D oldline = new Line2D.Double(p1, p2);
                         g2.setStroke(oldLineStroke);
-                        g2.draw(oldline);
+                        g2.draw(new MapViewPath(mv).moveTo(p1).lineTo(p2));
                     }
 
                     if (dualAlignActive) {
@@ -1079,7 +1080,7 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
                         g2.setStroke(helperStrokeDash);
                         // Draw a guideline along the normal.
                         Line2D normline;
-                        Point2D centerpoint = new Point2D.Double((p1.getX()+p2.getX())*0.5, (p1.getY()+p2.getY())*0.5);
+                        Point2D centerpoint = mv.getPoint2D(p1.interpolate(p2, .5));
                         normline = createSemiInfiniteLine(centerpoint, normalUnitVector, g2);
                         g2.draw(normline);
                         // Draw right angle marker on initial position, only when moving at right angle
@@ -1161,14 +1162,9 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
      * @param seg the reference segment
      */
     private void drawReferenceSegment(Graphics2D g2, MapView mv, ReferenceSegment seg) {
-        Point p1 = mv.getPoint(seg.p1);
-        Point p2 = mv.getPoint(seg.p2);
-        GeneralPath b = new GeneralPath();
-        b.moveTo(p1.x, p1.y);
-        b.lineTo(p2.x, p2.y);
         g2.setColor(helperColor);
         g2.setStroke(helperStrokeDash);
-        g2.draw(b);
+        g2.draw(new MapViewPath(mv).moveTo(seg.p1).lineTo(seg.p2));
     }
 
     /**

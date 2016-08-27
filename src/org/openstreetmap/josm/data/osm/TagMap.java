@@ -6,6 +6,7 @@ import java.util.AbstractMap;
 import java.util.AbstractSet;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.List;
@@ -150,6 +151,17 @@ public class TagMap extends AbstractMap<String, String> implements Serializable 
         }
     }
 
+    /**
+     * Creates a new map using the given list of tags. For dupplicate keys the last value found is used.
+     * @param tags The tags
+     * @since 10736
+     */
+    public TagMap(Collection<Tag> tags) {
+        for (Tag tag : tags) {
+            put(tag.getKey(), tag.getValue());
+        }
+    }
+
     @Override
     public Set<Entry<String, String>> entrySet() {
         return new TagEntrySet(tags);
@@ -267,7 +279,7 @@ public class TagMap extends AbstractMap<String, String> implements Serializable 
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.append("TagMap[");
         boolean first = true;
-        for (java.util.Map.Entry<String, String> e : entrySet()) {
+        for (Map.Entry<String, String> e : entrySet()) {
             if (!first) {
                 stringBuilder.append(',');
             }

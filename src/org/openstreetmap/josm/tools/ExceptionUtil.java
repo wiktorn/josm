@@ -33,7 +33,6 @@ import org.openstreetmap.josm.io.OsmApiException;
 import org.openstreetmap.josm.io.OsmApiInitializationException;
 import org.openstreetmap.josm.io.OsmTransferException;
 import org.openstreetmap.josm.io.auth.CredentialsManager;
-import org.openstreetmap.josm.tools.Utils.Function;
 import org.openstreetmap.josm.tools.date.DateUtils;
 
 /**
@@ -141,7 +140,7 @@ public final class ExceptionUtil {
         if (conflict != null) {
             OsmPrimitive firstRefs = conflict.b.iterator().next();
             String objId = Long.toString(conflict.a.getId());
-            Collection<Long> refIds = Utils.transform(conflict.b, (Function<OsmPrimitive, Long>) x -> x.getId());
+            Collection<Long> refIds = Utils.transform(conflict.b, OsmPrimitive::getId);
             String refIdsString = refIds.size() == 1 ? refIds.iterator().next().toString() : refIds.toString();
             if (conflict.a instanceof Node) {
                 if (firstRefs instanceof Node) {

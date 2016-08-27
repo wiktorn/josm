@@ -8,14 +8,14 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 
-import javax.swing.TransferHandler;
-
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.gui.datatransfer.importers.AbstractOsmDataPaster;
 import org.openstreetmap.josm.gui.datatransfer.importers.FilePaster;
+import org.openstreetmap.josm.gui.datatransfer.importers.OsmLinkPaster;
 import org.openstreetmap.josm.gui.datatransfer.importers.PrimitiveDataPaster;
+import org.openstreetmap.josm.gui.datatransfer.importers.PrimitiveTagTransferPaster;
 import org.openstreetmap.josm.gui.datatransfer.importers.TagTransferPaster;
 import org.openstreetmap.josm.gui.datatransfer.importers.TextTagPaster;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
@@ -25,41 +25,16 @@ import org.openstreetmap.josm.gui.layer.OsmDataLayer;
  * @author Michael Zangl
  * @since 10604
  */
-public class OsmTransferHandler extends TransferHandler {
+public class OsmTransferHandler extends AbstractStackTransferHandler {
 
     private static final Collection<AbstractOsmDataPaster> SUPPORTED = Arrays.asList(
             new FilePaster(), new PrimitiveDataPaster(),
-            new TagTransferPaster(), new TextTagPaster());
+            new PrimitiveTagTransferPaster(),
+            new TagTransferPaster(), new OsmLinkPaster(), new TextTagPaster());
 
     @Override
-    public boolean canImport(TransferSupport support) {
-        // import everything for now, only support copy.
-        for (AbstractOsmDataPaster df : SUPPORTED) {
-            if (df.supports(support)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    @Override
-    public boolean importData(TransferSupport support) {
-        return importData(support, Main.getLayerManager().getEditLayer(), null);
-    }
-
-    private boolean importData(TransferSupport support, OsmDataLayer layer, EastNorth center) {
-        for (AbstractOsmDataPaster df : SUPPORTED) {
-            if (df.supports(support)) {
-                try {
-                    if (df.importData(support, layer, center)) {
-                        return true;
-                    }
-                } catch (UnsupportedFlavorException | IOException e) {
-                    Main.warn(e);
-                }
-            }
-        }
-        return super.importData(support);
+    protected Collection<AbstractOsmDataPaster> getSupportedPasters() {
+        return SUPPORTED;
     }
 
     private boolean importTags(TransferSupport support, Collection<? extends OsmPrimitive> primitives) {
@@ -80,7 +55,7 @@ public class OsmTransferHandler extends TransferHandler {
     /**
      * Paste the current clipboard current at the given position
      * @param editLayer The layer to paste on.
-     * @param mPosition The position to paste at.
+     * @param mPosition The position to paste at. If it is <code>null</code>, the original position will be used.
      */
     public void pasteOn(OsmDataLayer editLayer, EastNorth mPosition) {
         Transferable transferable = ClipboardUtils.getClipboard().getContents(null);
@@ -90,7 +65,7 @@ public class OsmTransferHandler extends TransferHandler {
     /**
      * Paste the given clipboard current at the given position
      * @param editLayer The layer to paste on.
-     * @param mPosition The position to paste at.
+     * @param mPosition The position to paste at. If it is <code>null</code>, the original position will be used.
      * @param transferable The transferable to use.
      */
     public void pasteOn(OsmDataLayer editLayer, EastNorth mPosition, Transferable transferable) {
@@ -120,6 +95,9 @@ public class OsmTransferHandler extends TransferHandler {
             }
         } catch (IllegalStateException e) {
             Main.debug(e);
+        } catch (NullPointerException e) {
+            // JDK-6322854: On Linux/X11, NPE can happen for unknown reasons, on all versions of Java
+            Main.error(e);
         }
         return false;
     }

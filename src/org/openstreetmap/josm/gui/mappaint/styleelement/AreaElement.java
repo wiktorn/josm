@@ -53,8 +53,8 @@ public class AreaElement extends StyleElement {
                     fillImage.getWidth() / 2, fillImage.getHeight() / 2)
             );
 
-            fillImage.alpha = Math.min(255, Math.max(0, Integer.valueOf(Main.pref.getInteger("mappaint.fill-image-alpha", 255))));
-            Integer pAlpha = Utils.color_float2int(c.get(FILL_OPACITY, null, float.class));
+            fillImage.alpha = Math.min(255, Math.max(0, Main.pref.getInteger("mappaint.fill-image-alpha", 255)));
+            Integer pAlpha = Utils.colorFloat2int(c.get(FILL_OPACITY, null, float.class));
             if (pAlpha != null) {
                 fillImage.alpha = pAlpha;
             }
@@ -68,9 +68,9 @@ public class AreaElement extends StyleElement {
                     // It is not an ideal solution, but a little tricky to get this
                     // right, especially as named map colors can be changed in
                     // the preference GUI and written to the preferences file.
-                    alpha = Math.min(255, Math.max(0, Integer.valueOf(Main.pref.getInteger("mappaint.fillalpha", 50))));
+                    alpha = Math.min(255, Math.max(0, Main.pref.getInteger("mappaint.fillalpha", 50)));
                 }
-                Integer pAlpha = Utils.color_float2int(c.get(FILL_OPACITY, null, float.class));
+                Integer pAlpha = Utils.colorFloat2int(c.get(FILL_OPACITY, null, float.class));
                 if (pAlpha != null) {
                     alpha = pAlpha;
                 }

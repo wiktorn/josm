@@ -17,7 +17,6 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionListener;
 import java.awt.geom.Area;
-import java.awt.geom.GeneralPath;
 import java.awt.image.BufferedImage;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
@@ -26,6 +25,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -45,7 +45,6 @@ import org.openstreetmap.josm.data.ProjectionBounds;
 import org.openstreetmap.josm.data.SelectionChangedListener;
 import org.openstreetmap.josm.data.ViewportData;
 import org.openstreetmap.josm.data.coor.EastNorth;
-import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.imagery.ImageryInfo;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.visitor.paint.PaintColors;
@@ -77,7 +76,6 @@ import org.openstreetmap.josm.tools.AudioPlayer;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.Utils;
 import org.openstreetmap.josm.tools.bugreport.BugReport;
-import org.openstreetmap.josm.tools.bugreport.BugReportExceptionHandler;
 
 /**
  * This is a component used in the {@link MapFrame} for browsing the map. It use is to
@@ -149,9 +147,17 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
      */
     private class LayerInvalidatedListener implements PaintableInvalidationListener {
         private boolean ignoreRepaint;
+
+        private final Set<MapViewPaintable> invalidatedLayers = Collections.newSetFromMap(new IdentityHashMap<MapViewPaintable, Boolean>());
+
         @Override
         public void paintableInvalidated(PaintableInvalidationEvent event) {
+            invalidate(event.getLayer());
+        }
+
+        public synchronized void invalidate(MapViewPaintable mapViewPaintable) {
             ignoreRepaint = true;
+            invalidatedLayers.add(mapViewPaintable);
             repaint();
         }
 
@@ -159,7 +165,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
          * Temporary until all {@link MapViewPaintable}s support this.
          * @param p The paintable.
          */
-        public void addTo(MapViewPaintable p) {
+        public synchronized void addTo(MapViewPaintable p) {
             if (p instanceof AbstractMapViewPaintable) {
                 ((AbstractMapViewPaintable) p).addInvalidationListener(this);
             }
@@ -169,10 +175,11 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
          * Temporary until all {@link MapViewPaintable}s support this.
          * @param p The paintable.
          */
-        public void removeFrom(MapViewPaintable p) {
+        public synchronized void removeFrom(MapViewPaintable p) {
             if (p instanceof AbstractMapViewPaintable) {
                 ((AbstractMapViewPaintable) p).removeInvalidationListener(this);
             }
+            invalidatedLayers.remove(p);
         }
 
         /**
@@ -185,15 +192,26 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
             }
             ignoreRepaint = false;
         }
+
+        /**
+         * Retrieves a set of all layers that have been marked as invalid since the last call to this method.
+         * @return The layers
+         */
+        protected synchronized Set<MapViewPaintable> collectInvalidatedLayers() {
+            Set<MapViewPaintable> layers = Collections.newSetFromMap(new IdentityHashMap<MapViewPaintable, Boolean>());
+            layers.addAll(invalidatedLayers);
+            invalidatedLayers.clear();
+            return layers;
+        }
     }
 
     /**
      * This class is an adapter for the old layer change interface.
-     * <p>
-     * New implementations should use {@link org.openstreetmap.josm.gui.layer.LayerManager.LayerChangeListener}
      * @author Michael Zangl
      * @since 10271
+     * @deprecated New implementations should use {@link org.openstreetmap.josm.gui.layer.LayerManager.LayerChangeListener}
      */
+    @Deprecated
     protected static class LayerChangeAdapter implements ActiveLayerChangeListener, LayerManager.LayerChangeListener {
 
         private final LayerChangeListener wrapped;
@@ -266,11 +284,11 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
 
     /**
      * This class is an adapter for the old layer change interface.
-     * <p>
-     * New implementations should use {@link org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeListener}
      * @author Michael Zangl
      * @since 10271
+     * @deprecated New implementations should use {@link org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeListener}
      */
+    @Deprecated
     protected static class EditLayerChangeAdapter implements ActiveLayerChangeListener {
 
         private final EditLayerChangeListener wrapped;
@@ -325,7 +343,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
      * @since 10474
      */
     private static class WarningLayerPainter implements LayerPainter {
-        boolean warningPrinted = false;
+        boolean warningPrinted;
         private final Layer layer;
 
         WarningLayerPainter(Layer layer) {
@@ -505,7 +523,6 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
     private transient BufferedImage offscreenBuffer;
     // Layers that wasn't changed since last paint
     private final transient List<Layer> nonChangedLayers = new ArrayList<>();
-    private transient Layer changedLayer;
     private int lastViewID;
     private boolean paintPreferencesChanged = true;
     private Rectangle lastClipBounds = new Rectangle();
@@ -668,7 +685,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
      * @return true if the active data layer (edit layer) is drawable, false otherwise
      */
     public boolean isActiveLayerDrawable() {
-         return getEditLayer() != null;
+         return layerManager.getEditLayer() != null;
     }
 
     /**
@@ -677,7 +694,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
      * @return true if the active data layer (edit layer) is visible, false otherwise
      */
     public boolean isActiveLayerVisible() {
-        OsmDataLayer e = getEditLayer();
+        OsmDataLayer e = layerManager.getEditLayer();
         return e != null && e.isVisible();
     }
 
@@ -826,8 +843,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
             painter.paint(paintGraphics);
             g.setPaintMode();
         } catch (RuntimeException t) {
-            //TODO: only display.
-            throw BugReport.intercept(t).put("layer", layer).put("bounds", box);
+            BugReport.intercept(t).put("layer", layer).put("bounds", box).warn();
         }
     }
 
@@ -836,15 +852,21 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
      */
     @Override
     public void paint(Graphics g) {
-        if (!prepareToDraw()) {
+        try {
+            if (!prepareToDraw()) {
+                return;
+            }
+        } catch (RuntimeException e) {
+            BugReport.intercept(e).put("center", () -> getCenter()).warn();
             return;
         }
 
         List<Layer> visibleLayers = layerManager.getVisibleLayersInZOrder();
 
         int nonChangedLayersCount = 0;
+        Set<MapViewPaintable> invalidated = invalidatedListener.collectInvalidatedLayers();
         for (Layer l: visibleLayers) {
-            if (l.isChanged() || l == changedLayer) {
+            if (l.isChanged() || invalidated.contains(l)) {
                 break;
             } else {
                 nonChangedLayersCount++;
@@ -901,7 +923,6 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
         }
 
         nonChangedLayers.clear();
-        changedLayer = null;
         for (int i = 0; i < nonChangedLayersCount; i++) {
             nonChangedLayers.add(visibleLayers.get(i));
         }
@@ -914,21 +935,18 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
             paintLayer(visibleLayers.get(i), tempG, box);
         }
 
-        synchronized (temporaryLayers) {
-            for (MapViewPaintable mvp : temporaryLayers) {
-                try {
-                    mvp.paint(tempG, this, box);
-                } catch (RuntimeException e) {
-                    throw BugReport.intercept(e).put("mvp", mvp);
-                }
-            }
+        try {
+            drawTemporaryLayers(tempG, box);
+        } catch (RuntimeException e) {
+            BugReport.intercept(e).put("temporaryLayers", temporaryLayers).warn();
         }
 
         // draw world borders
         try {
             drawWorldBorders(tempG);
         } catch (RuntimeException e) {
-            throw BugReport.intercept(e).put("bounds", getProjection()::getWorldBoundsLatLon);
+            // getProjection() needs to be inside lambda to catch errors.
+            BugReport.intercept(e).put("bounds", () -> getProjection().getWorldBoundsLatLon()).warn();
         }
 
         if (Main.isDisplayingMapView() && Main.map.filterDialog != null) {
@@ -970,44 +988,27 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
         super.paint(g);
     }
 
+    private void drawTemporaryLayers(Graphics2D tempG, Bounds box) {
+        synchronized (temporaryLayers) {
+            for (MapViewPaintable mvp : temporaryLayers) {
+                try {
+                    mvp.paint(tempG, this, box);
+                } catch (RuntimeException e) {
+                    throw BugReport.intercept(e).put("mvp", mvp);
+                }
+            }
+        }
+    }
+
     private void drawWorldBorders(Graphics2D tempG) {
         tempG.setColor(Color.WHITE);
         Bounds b = getProjection().getWorldBoundsLatLon();
-        double lat = b.getMinLat();
-        double lon = b.getMinLon();
-
-        Point p = getPoint(b.getMin());
-
-        GeneralPath path = new GeneralPath();
-
-        double d = 1.0;
-        path.moveTo(p.x, p.y);
-        double max = b.getMax().lat();
-        for (; lat <= max; lat += d) {
-            p = getPoint(new LatLon(lat >= max ? max : lat, lon));
-            path.lineTo(p.x, p.y);
-        }
-        lat = max; max = b.getMax().lon();
-        for (; lon <= max; lon += d) {
-            p = getPoint(new LatLon(lat, lon >= max ? max : lon));
-            path.lineTo(p.x, p.y);
-        }
-        lon = max; max = b.getMinLat();
-        for (; lat >= max; lat -= d) {
-            p = getPoint(new LatLon(lat <= max ? max : lat, lon));
-            path.lineTo(p.x, p.y);
-        }
-        lat = max; max = b.getMinLon();
-        for (; lon >= max; lon -= d) {
-            p = getPoint(new LatLon(lat, lon <= max ? max : lon));
-            path.lineTo(p.x, p.y);
-        }
 
         int w = getWidth();
         int h = getHeight();
 
         // Work around OpenJDK having problems when drawing out of bounds
-        final Area border = new Area(path);
+        final Area border = getState().getArea(b);
         // Make the viewport 1px larger in every direction to prevent an
         // additional 1px border when zooming in
         final Area viewport = new Area(new Rectangle(-1, -1, w + 2, h + 2));
@@ -1025,8 +1026,6 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
             zoomTo(initialViewport);
             initialViewport = null;
         }
-        if (BugReportExceptionHandler.exceptionHandlingInProgress())
-            return false;
 
         if (getCenter() == null)
             return false; // no data loaded yet.
@@ -1235,8 +1234,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
                 evt.getPropertyName().equals(Layer.FILTER_STATE_PROP)) {
             Layer l = (Layer) evt.getSource();
             if (l.isVisible()) {
-                changedLayer = l;
-                repaint();
+                invalidatedListener.invalidate(l);
             }
         }
     }
@@ -1279,6 +1277,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
             temporaryLayers.clear();
         }
         nonChangedLayersBuffer = null;
+        offscreenBuffer = null;
     }
 
     /**

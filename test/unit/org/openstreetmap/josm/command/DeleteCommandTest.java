@@ -66,7 +66,7 @@ public class DeleteCommandTest {
     }
 
     /**
-     * A delete should not delete refered objects but should should remove the reference.
+     * A delete should not delete referred objects but should should remove the reference.
      */
     @Test
     public void testDeleteIgnoresReferences() {
@@ -100,7 +100,7 @@ public class DeleteCommandTest {
      * A delete should delete all objects with references to the deleted one
      */
     @Test
-    public void testReferedDelete() {
+    public void testReferredDelete() {
         DeleteCommand.deleteWithReferences(testData.layer, Arrays.asList(testData.existingNode), true).executeCommand();
 
         assertTrue(testData.existingNode.isDeleted());
@@ -375,7 +375,7 @@ public class DeleteCommandTest {
      * Unit test of methods {@link DeleteCommand#equals} and {@link DeleteCommand#hashCode}.
      */
     @Test
-    public void equalsContract() {
+    public void testEqualsContract() {
         EqualsVerifier.forClass(DeleteCommand.class).usingGetClass()
             .withPrefabValues(DataSet.class,
                 new DataSet(), new DataSet())

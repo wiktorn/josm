@@ -49,6 +49,8 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinWorkerThread;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -105,12 +107,12 @@ public final class Utils {
      * @param collection the collection
      * @param predicate the predicate
      * @return {@code true} if {@code predicate} applies to at least one element from {@code collection}
-     * @deprecated use {@link Stream#anyMatch(java.util.function.Predicate)} instead.
+     * @deprecated use {@link Stream#anyMatch(Predicate)} instead.
      */
     @Deprecated
     public static <T> boolean exists(Iterable<? extends T> collection, Predicate<? super T> predicate) {
         for (T item : collection) {
-            if (predicate.evaluate(item)) {
+            if (predicate.test(item)) {
                 return true;
             }
         }
@@ -124,11 +126,11 @@ public final class Utils {
      * @param collection the collection
      * @param predicate the predicate
      * @return {@code true} if {@code predicate} applies to all elements from {@code collection}
-     * @deprecated use {@link Stream#allMatch(java.util.function.Predicate)} instead.
+     * @deprecated use {@link Stream#allMatch(Predicate)} instead.
      */
     @Deprecated
     public static <T> boolean forAll(Iterable<? extends T> collection, Predicate<? super T> predicate) {
-        return !exists(collection, Predicates.not(predicate));
+        return !exists(collection, predicate.negate());
     }
 
     /**
@@ -139,7 +141,8 @@ public final class Utils {
      * @return <code>true</code> if that item exists in the collection.
      */
     public static <T> boolean exists(Iterable<T> collection, Class<? extends T> clazz) {
-        return exists(collection, Predicates.<T>isInstanceOf(clazz));
+        CheckParameterUtil.ensureParameterNotNull(clazz, "clazz");
+        return StreamUtils.toStream(collection).anyMatch(clazz::isInstance);
     }
 
     /**
@@ -151,7 +154,7 @@ public final class Utils {
      */
     public static <T> T find(Iterable<? extends T> collection, Predicate<? super T> predicate) {
         for (T item : collection) {
-            if (predicate.evaluate(item)) {
+            if (predicate.test(item)) {
                 return item;
             }
         }
@@ -167,22 +170,8 @@ public final class Utils {
      */
     @SuppressWarnings("unchecked")
     public static <T> T find(Iterable<? extends Object> collection, Class<? extends T> clazz) {
-        return (T) find(collection, Predicates.<Object>isInstanceOf(clazz));
-    }
-
-    /**
-     * Creates a new {@link FilteredCollection}.
-     * @param <T> The collection type.
-     * @param collection The collection to filter.
-     * @param predicate The predicate to filter for.
-     * @return The new {@link FilteredCollection}
-     * @deprecated Use java predicates and {@link SubclassFilteredCollection#filter(Collection, java.util.function.Predicate)} instead.
-     */
-    @Deprecated
-    @SuppressWarnings("unused")
-    public static <T> Collection<T> filter(Collection<? extends T> collection, Predicate<? super T> predicate) {
-        // Diamond operator does not work with Java 9 here
-        return new FilteredCollection<T>(collection, predicate);
+        CheckParameterUtil.ensureParameterNotNull(clazz, "clazz");
+        return (T) find(collection, clazz::isInstance);
     }
 
     /**
@@ -211,7 +200,8 @@ public final class Utils {
      * @return a read-only filtered collection
      */
     public static <S, T extends S> SubclassFilteredCollection<S, T> filteredCollection(Collection<S> collection, final Class<T> clazz) {
-        return new SubclassFilteredCollection<>(collection, Predicates.<S>isInstanceOf(clazz));
+        CheckParameterUtil.ensureParameterNotNull(clazz, "clazz");
+        return new SubclassFilteredCollection<>(collection, clazz::isInstance);
     }
 
     /**
@@ -224,46 +214,11 @@ public final class Utils {
     public static <T> int indexOf(Iterable<? extends T> collection, Predicate<? super T> predicate) {
         int i = 0;
         for (T item : collection) {
-            if (predicate.evaluate(item))
+            if (predicate.test(item))
                 return i;
             i++;
         }
         return -1;
-    }
-
-    /**
-     * Returns the minimum of three values.
-     * @param   a   an argument.
-     * @param   b   another argument.
-     * @param   c   another argument.
-     * @return  the smaller of {@code a}, {@code b} and {@code c}.
-     */
-    public static int min(int a, int b, int c) {
-        if (b < c) {
-            if (a < b)
-                return a;
-            return b;
-        } else {
-            if (a < c)
-                return a;
-            return c;
-        }
-    }
-
-    /**
-     * Returns the greater of four {@code int} values. That is, the
-     * result is the argument closer to the value of
-     * {@link Integer#MAX_VALUE}. If the arguments have the same value,
-     * the result is that same value.
-     *
-     * @param   a   an argument.
-     * @param   b   another argument.
-     * @param   c   another argument.
-     * @param   d   another argument.
-     * @return  the larger of {@code a}, {@code b}, {@code c} and {@code d}.
-     */
-    public static int max(int a, int b, int c, int d) {
-        return Math.max(Math.max(a, b), Math.max(c, d));
     }
 
     /**
@@ -328,7 +283,7 @@ public final class Utils {
      * @return An unordered HTML list
      */
     public static String joinAsHtmlUnorderedList(Iterable<?> values) {
-        return StreamUtils.toStream(values.iterator()).map(x -> x.toString()).collect(StreamUtils.toHtmlList());
+        return StreamUtils.toStream(values).map(Object::toString).collect(StreamUtils.toHtmlList());
     }
 
     /**
@@ -353,7 +308,7 @@ public final class Utils {
      * @return null if val is null, the corresponding int if val is in the
      *         range 0...1. If val is outside that range, return 255
      */
-    public static Integer color_float2int(Float val) {
+    public static Integer colorFloat2int(Float val) {
         if (val == null)
             return null;
         if (val < 0 || val > 1)
@@ -367,7 +322,7 @@ public final class Utils {
      * @param val integer value
      * @return corresponding float value in range 0 &lt;= x &lt;= 1
      */
-    public static Float color_int2float(Integer val) {
+    public static Float colorInt2float(Integer val) {
         if (val == null)
             return null;
         if (val < 0 || val > 255)
@@ -574,12 +529,7 @@ public final class Utils {
      * @param zip the zip file. May be null.
      */
     public static void close(ZipFile zip) {
-        if (zip == null) return;
-        try {
-            zip.close();
-        } catch (IOException e) {
-            Main.warn(e);
-        }
+        close((Closeable) zip);
     }
 
     /**
@@ -760,28 +710,8 @@ public final class Utils {
     }
 
     /**
-     * Represents a function that can be applied to objects of {@code A} and
-     * returns objects of {@code B}.
-     * @param <A> class of input objects
-     * @param <B> class of transformed objects
-     *
-     * @deprecated Use java.util.function.Function instead.
-     */
-    @Deprecated
-    @FunctionalInterface
-    public interface Function<A, B> {
-
-        /**
-         * Applies the function on {@code x}.
-         * @param x an object of
-         * @return the transformed object
-         */
-        B apply(A x);
-    }
-
-    /**
      * Transforms the collection {@code c} into an unmodifiable collection and
-     * applies the {@link org.openstreetmap.josm.tools.Utils.Function} {@code f} on each element upon access.
+     * applies the {@link Function} {@code f} on each element upon access.
      * @param <A> class of input collection
      * @param <B> class of transformed collection
      * @param c a collection
@@ -823,7 +753,7 @@ public final class Utils {
 
     /**
      * Transforms the list {@code l} into an unmodifiable list and
-     * applies the {@link org.openstreetmap.josm.tools.Utils.Function} {@code f} on each element upon access.
+     * applies the {@link Function} {@code f} on each element upon access.
      * @param <A> class of input collection
      * @param <B> class of transformed collection
      * @param l a collection
@@ -899,7 +829,7 @@ public final class Utils {
      * @param str The string to strip
      * @return <code>str</code>, without leading and trailing characters, according to
      *         {@link Character#isWhitespace(char)} and {@link Character#isSpaceChar(char)}.
-     * @see <a href="http://closingbraces.net/2008/11/11/javastringtrim/">Java’s String.trim has a strange idea of whitespace</a>
+     * @see <a href="http://closingbraces.net/2008/11/11/javastringtrim/">Java String.trim has a strange idea of whitespace</a>
      * @see <a href="https://bugs.openjdk.java.net/browse/JDK-4080617">JDK bug 4080617</a>
      * @see <a href="https://bugs.openjdk.java.net/browse/JDK-7190385">JDK bug 7190385</a>
      * @since 5772
@@ -1317,13 +1247,15 @@ public final class Utils {
      * @since 10294
      */
     public static boolean isValidUrl(String url) {
-        try {
-            new URL(url);
-            return true;
-        } catch (MalformedURLException | NullPointerException e) {
-            Main.trace(e);
-            return false;
+        if (url != null) {
+            try {
+                new URL(url);
+                return true;
+            } catch (MalformedURLException e) {
+                Main.trace(e);
+            }
         }
+        return false;
     }
 
     /**
@@ -1370,7 +1302,7 @@ public final class Utils {
      * @return an executor
      */
     public static Executor newDirectExecutor() {
-        return command -> command.run();
+        return Runnable::run;
     }
 
     /**
@@ -1617,6 +1549,24 @@ public final class Utils {
                 }
                 return null;
             });
+        }
+    }
+
+    /**
+     * Clamp a value to the given range
+     * @param val The value
+     * @param min minimum value
+     * @param max maximum value
+     * @return the value
+     * @since 10805
+     */
+    public static double clamp(double val, double min, double max) {
+        if (val < min) {
+            return min;
+        } else if (val > max) {
+            return max;
+        } else {
+            return val;
         }
     }
 }

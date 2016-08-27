@@ -69,12 +69,16 @@ import org.openstreetmap.josm.tools.Utils;
  *
  * @author Francisco R. Santos &lt;frsantos@gmail.com&gt;
  */
-public class OsmValidator {
+public final class OsmValidator {
+
+    private OsmValidator() {
+        // Hide default constructor for utilities classes
+    }
 
     public static volatile ValidatorLayer errorLayer;
 
     /** The validate action */
-    public ValidateAction validateAction = new ValidateAction();
+    public static final ValidateAction validateAction = new ValidateAction();
 
     /** Grid detail, multiplier of east,north values for valuable cell sizing */
     public static double griddetail;
@@ -149,9 +153,9 @@ public class OsmValidator {
     }
 
     /**
-     * Constructs a new {@code OsmValidator}.
+     * Initializes {@code OsmValidator}.
      */
-    public OsmValidator() {
+    public static void initialize() {
         checkValidatorDir();
         initializeGridDetail();
         loadIgnoredErrors(); //FIXME: load only when needed
@@ -178,7 +182,7 @@ public class OsmValidator {
 
     private static void loadIgnoredErrors() {
         ignoredErrors.clear();
-        if (Main.pref.getBoolean(ValidatorPreference.PREF_USE_IGNORE, true)) {
+        if (ValidatorPreference.PREF_USE_IGNORE.get()) {
             Path path = Paths.get(getValidatorDir()).resolve("ignorederrors");
             if (Files.exists(path)) {
                 try {
@@ -212,7 +216,7 @@ public class OsmValidator {
     }
 
     public static synchronized void initializeErrorLayer() {
-        if (!Main.pref.getBoolean(ValidatorPreference.PREF_LAYER, true))
+        if (!ValidatorPreference.PREF_LAYER.get())
             return;
         if (errorLayer == null) {
             errorLayer = new ValidatorLayer();
@@ -288,7 +292,7 @@ public class OsmValidator {
      * the original value fixed for EPSG:4326 (10000) using heuristics (that is, test&amp;error
      * until most bugs were discovered while keeping the processing time reasonable)
      */
-    public static final void initializeGridDetail() {
+    public static void initializeGridDetail() {
         String code = Main.getProjection().toCode();
         if (Arrays.asList(ProjectionPreference.wgs84.allCodes()).contains(code)) {
             OsmValidator.griddetail = 10000;

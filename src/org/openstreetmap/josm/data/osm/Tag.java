@@ -1,6 +1,7 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.data.osm;
 
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -16,7 +17,9 @@ import org.openstreetmap.josm.tools.Utils;
  * It implements the {@link Tagged} interface. However, since instances of this class are immutable,
  * the modifying methods throw an {@link UnsupportedOperationException}.
  */
-public class Tag implements Tagged, Entry<String, String> {
+public class Tag implements Tagged, Entry<String, String>, Serializable {
+
+    private static final long serialVersionUID = 1;
 
     private final String key;
     private final String value;
@@ -208,4 +211,15 @@ public class Tag implements Tagged, Entry<String, String> {
     public void removeAll() {
         throw new UnsupportedOperationException();
     }
+
+    /**
+     * true if this is a direction dependent tag (e.g. oneway)
+     *
+     * @return {@code true} if this is is a direction dependent tag
+     * @since 10716
+     */
+    public boolean isDirectionKey() {
+        return OsmPrimitive.directionKeys.match(this);
+    }
+
 }

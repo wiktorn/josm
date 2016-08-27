@@ -19,6 +19,7 @@ import org.openstreetmap.josm.io.OsmApi;
 import org.openstreetmap.josm.io.OsmApiInitializationException;
 import org.openstreetmap.josm.io.OsmTransferCanceledException;
 import org.openstreetmap.josm.tools.I18n;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.MemoryManagerTest;
 import org.openstreetmap.josm.tools.date.DateUtils;
 
@@ -181,7 +182,7 @@ public class JOSMTestRules implements TestRule {
         // All tests use the same timezone.
         TimeZone.setDefault(DateUtils.UTC);
         // Set log level to info
-        Main.logLevel = 3;
+        Logging.setLogLevel(Logging.LEVEL_INFO);
 
         // Set up i18n
         if (i18n != null) {
@@ -200,7 +201,7 @@ public class JOSMTestRules implements TestRule {
 
         // Add preferences
         if (usePreferences) {
-            Main.initApplicationPreferences();
+            Main.pref.resetToInitialState();
             Main.pref.enableSaveOnPut(false);
             // No pref init -> that would only create the preferences file.
             // We force the use of a wrong API server, just in case anyone attempts an upload
@@ -246,7 +247,7 @@ public class JOSMTestRules implements TestRule {
     private void cleanUpFromJosmFixture() {
         MemoryManagerTest.resetState(true);
         Main.getLayerManager().resetState();
-        Main.pref = null;
+        Main.pref.resetToInitialState();
         Main.platform = null;
         System.gc();
     }
@@ -267,7 +268,7 @@ public class JOSMTestRules implements TestRule {
         MemoryManagerTest.resetState(allowMemoryManagerLeaks);
 
         // TODO: Remove global listeners and other global state.
-        Main.pref = null;
+        Main.pref.resetToInitialState();;
         Main.platform = null;
         // Parts of JOSM uses weak references - destroy them.
         System.gc();

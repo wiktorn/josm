@@ -18,7 +18,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Version;
@@ -27,8 +27,6 @@ import org.openstreetmap.josm.data.osm.DatasetConsistencyTest;
 import org.openstreetmap.josm.data.preferences.Setting;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.preferences.SourceEditor;
-import org.openstreetmap.josm.gui.preferences.SourceEditor.ExtendedSourceEntry;
-import org.openstreetmap.josm.gui.preferences.SourceEntry;
 import org.openstreetmap.josm.gui.preferences.map.MapPaintPreference;
 import org.openstreetmap.josm.gui.preferences.map.TaggingPresetPreference;
 import org.openstreetmap.josm.gui.preferences.validator.ValidatorTagCheckerRulesPreference;
@@ -36,6 +34,7 @@ import org.openstreetmap.josm.io.OsmApi;
 import org.openstreetmap.josm.plugins.PluginHandler;
 import org.openstreetmap.josm.tools.PlatformHookUnixoid;
 import org.openstreetmap.josm.tools.Shortcut;
+import org.openstreetmap.josm.tools.Utils;
 import org.openstreetmap.josm.tools.bugreport.BugReportSender;
 import org.openstreetmap.josm.tools.bugreport.DebugTextDisplay;
 
@@ -108,6 +107,13 @@ public final class ShowStatusReportAction extends JosmAction {
                         .append('\n');
                 }
             }
+            // Add Gnome Atk wrapper details if found
+            String atkWrapperDetails = ((PlatformHookUnixoid) Main.platform).getAtkWrapperPackageDetails();
+            if (atkWrapperDetails != null) {
+                text.append("Java ATK Wrapper package: ")
+                    .append(atkWrapperDetails)
+                    .append('\n');
+            }
         }
         try {
             // Build a new list of VM parameters to modify it below if needed (default implementation returns an UnmodifiableList instance)
@@ -152,12 +158,12 @@ public final class ShowStatusReportAction extends JosmAction {
                 }
             }
         }
-        text.append('\n').append(PluginHandler.getBugReportText()).append('\n');
-
+        text.append("\n");
+        appendCollection(text, "Plugins", Utils.transform(PluginHandler.getBugReportInformation(), i -> "+ " + i));
         appendCollection(text, "Tagging presets", getCustomUrls(TaggingPresetPreference.PresetPrefHelper.INSTANCE));
         appendCollection(text, "Map paint styles", getCustomUrls(MapPaintPreference.MapPaintPrefHelper.INSTANCE));
         appendCollection(text, "Validator rules", getCustomUrls(ValidatorTagCheckerRulesPreference.RulePrefHelper.INSTANCE));
-        appendCollection(text, "Last errors/warnings", Main.getLastErrorAndWarnings());
+        appendCollection(text, "Last errors/warnings", Utils.transform(Main.getLastErrorAndWarnings(), i -> "- " + i));
 
         String osmApi = OsmApi.getOsmApi().getServerUrl();
         if (!OsmApi.DEFAULT_API_URL.equals(osmApi.trim())) {
@@ -168,14 +174,13 @@ public final class ShowStatusReportAction extends JosmAction {
     }
 
     private static Collection<String> getCustomUrls(SourceEditor.SourcePrefHelper helper) {
-        Set<String> set = new TreeSet<>();
-        for (SourceEntry entry : helper.get()) {
-            set.add(entry.url);
-        }
-        for (ExtendedSourceEntry def : helper.getDefault()) {
-            set.remove(def.url);
-        }
-        return set;
+        final Set<String> defaultUrls = helper.getDefault().stream()
+                .map(i -> i.url)
+                .collect(Collectors.toSet());
+        return helper.get().stream()
+                .filter(i -> !defaultUrls.contains(i.url))
+                .map(i -> (i.active ? "+ " : "- ") + i.url)
+                .collect(Collectors.toList());
     }
 
     private static List<String> paramCleanup(Collection<String> params) {
@@ -215,7 +220,9 @@ public final class ShowStatusReportAction extends JosmAction {
         val = paramReplace(val, userDataDir, userDataDirAlt);
         val = paramReplace(val, userCacheDir, userCacheDirAlt);
         val = paramReplace(val, userHomeDir, userHomeDirAlt);
-        val = paramReplace(val, userName, userNameAlt);
+        if (userName.length() >= 3) {
+            val = paramReplace(val, userName, userNameAlt);
+        }
         return val;
     }
 
@@ -223,11 +230,11 @@ public final class ShowStatusReportAction extends JosmAction {
         return target == null ? str : str.replace(target, replacement);
     }
 
-    private static <T> void appendCollection(StringBuilder text, String label, Collection<T> col) {
+    private static void appendCollection(StringBuilder text, String label, Collection<String> col) {
         if (!col.isEmpty()) {
-            text.append(label+":\n");
-            for (T o : col) {
-                text.append("- ").append(paramCleanup(o.toString())).append('\n');
+            text.append(label).append(":\n");
+            for (String o : col) {
+                text.append(paramCleanup(o)).append('\n');
             }
             text.append('\n');
         }
