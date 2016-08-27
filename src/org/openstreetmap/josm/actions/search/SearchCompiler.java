@@ -96,15 +96,18 @@ public class SearchCompiler {
      */
     public static void addMatchFactory(MatchFactory factory) {
         for (String keyword : factory.getKeywords()) {
-            // TODO: check for keyword collisions
+            final MatchFactory existing;
             if (factory instanceof SimpleMatchFactory) {
-                simpleMatchFactoryMap.put(keyword, (SimpleMatchFactory) factory);
+                existing = simpleMatchFactoryMap.put(keyword, (SimpleMatchFactory) factory);
             } else if (factory instanceof UnaryMatchFactory) {
-                unaryMatchFactoryMap.put(keyword, (UnaryMatchFactory) factory);
+                existing = unaryMatchFactoryMap.put(keyword, (UnaryMatchFactory) factory);
             } else if (factory instanceof BinaryMatchFactory) {
-                binaryMatchFactoryMap.put(keyword, (BinaryMatchFactory) factory);
+                existing = binaryMatchFactoryMap.put(keyword, (BinaryMatchFactory) factory);
             } else
                 throw new AssertionError("Unknown match factory");
+            if (existing != null) {
+                Main.warn("SearchCompiler: for key ''{0}'', overriding match factory ''{1}'' with ''{2}''", keyword, existing, factory);
+            }
         }
     }
 
@@ -268,32 +271,6 @@ public class SearchCompiler {
          */
         public boolean match(Tagged tagged) {
             return false;
-        }
-
-        /**
-         * Tests whether one of the primitives matches.
-         * @param primitives primitives
-         * @return {@code true} if one of the primitives matches, {@code false} otherwise
-         */
-        protected boolean existsMatch(Collection<? extends OsmPrimitive> primitives) {
-            for (OsmPrimitive p : primitives) {
-                if (match(p))
-                    return true;
-            }
-            return false;
-        }
-
-        /**
-         * Tests whether all primitives match.
-         * @param primitives primitives
-         * @return {@code true} if all primitives match, {@code false} otherwise
-         */
-        protected boolean forallMatch(Collection<? extends OsmPrimitive> primitives) {
-            for (OsmPrimitive p : primitives) {
-                if (!match(p))
-                    return false;
-            }
-            return true;
         }
 
         @Override
@@ -638,7 +615,7 @@ public class SearchCompiler {
                     this.valuePattern = Pattern.compile(value, searchFlags);
                 } catch (PatternSyntaxException e) {
                     throw new ParseError(tr(rxErrorMsg, e.getPattern(), e.getIndex(), e.getMessage()), e);
-                } catch (IllegalArgumentException e) {
+                } catch (IllegalArgumentException | StringIndexOutOfBoundsException e) {
                     throw new ParseError(tr(rxErrorMsgNoPos, value, e.getMessage()), e);
                 }
                 this.key = key;
@@ -1302,7 +1279,7 @@ public class SearchCompiler {
     private static class Incomplete extends Match {
         @Override
         public boolean match(OsmPrimitive osm) {
-            return osm.isIncomplete();
+            return osm.isIncomplete() || (osm instanceof Relation && ((Relation) osm).hasIncompleteMembers());
         }
 
         @Override
@@ -1472,22 +1449,15 @@ public class SearchCompiler {
             if (!osm.isUsable())
                 return false;
             else if (osm instanceof Node) {
+                LatLon coordinate = ((Node) osm).getCoor();
                 Collection<Bounds> allBounds = getBounds(osm);
-                if (allBounds != null) {
-                    LatLon coor = ((Node) osm).getCoor();
-                    for (Bounds bounds: allBounds) {
-                        if (bounds.contains(coor)) {
-                            return true;
-                        }
-                    }
-                }
-                return false;
+                return allBounds != null && allBounds.stream().anyMatch(bounds -> bounds.contains(coordinate));
             } else if (osm instanceof Way) {
                 Collection<Node> nodes = ((Way) osm).getNodes();
-                return all ? forallMatch(nodes) : existsMatch(nodes);
+                return all ? nodes.stream().allMatch(this) : nodes.stream().anyMatch(this);
             } else if (osm instanceof Relation) {
-                Collection<OsmPrimitive> primitives = ((Relation) osm).getMemberPrimitives();
-                return all ? forallMatch(primitives) : existsMatch(primitives);
+                Collection<OsmPrimitive> primitives = ((Relation) osm).getMemberPrimitivesList();
+                return all ? primitives.stream().allMatch(this) : primitives.stream().anyMatch(this);
             } else
                 return false;
         }

@@ -5,6 +5,7 @@ import java.io.PrintWriter;
 import java.io.Serializable;
 import java.io.StringWriter;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Predicate;
 
 import org.openstreetmap.josm.actions.ShowStatusReportAction;
 
@@ -28,7 +29,7 @@ import org.openstreetmap.josm.actions.ShowStatusReportAction;
  * try {
  *   ... your code ...
  * } catch (RuntimeException t) {
- *   throw BugReport.intercept(t).put("id", id).put("tag", () -> x.getTag());
+ *   throw BugReport.intercept(t).put("id", id).put("tag", () -&gt; x.getTag());
  * }
  * </pre>
  *
@@ -122,7 +123,11 @@ public final class BugReport implements Serializable {
         StringWriter stringWriter = new StringWriter();
         PrintWriter out = new PrintWriter(stringWriter);
         if (isIncludeStatusReport()) {
-            out.println(ShowStatusReportAction.getReportHeader());
+            try {
+                out.println(ShowStatusReportAction.getReportHeader());
+            } catch (RuntimeException e) {
+                out.println("Could not generate status report: " + e.getMessage());
+            }
         }
         if (isIncludeData()) {
             exception.printReportDataTo(out);
@@ -180,16 +185,32 @@ public final class BugReport implements Serializable {
      * @return The method name.
      */
     public static String getCallingMethod(int offset) {
+        StackTraceElement found = getCallingMethod(offset + 1, BugReport.class.getName(), "getCallingMethod"::equals);
+        if (found != null) {
+            return found.getClassName().replaceFirst(".*\\.", "") + '#' + found.getMethodName();
+        } else {
+            return "?";
+        }
+    }
+
+    /**
+     * Find the method that called the given method on the current stack trace.
+     * @param offset
+     *           How many methods to look back in the stack trace.
+     *           1 gives the method calling this method, 0 gives you the method with the given name..
+     * @param className The name of the class to search for
+     * @param methodName The name of the method to search for
+     * @return The class and method name or null if it is unknown.
+     */
+    public static StackTraceElement getCallingMethod(int offset, String className, Predicate<String> methodName) {
         StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
-        String className = BugReport.class.getName();
         for (int i = 0; i < stackTrace.length - offset; i++) {
             StackTraceElement element = stackTrace[i];
-            if (className.equals(element.getClassName()) && "getCallingMethod".equals(element.getMethodName())) {
-                StackTraceElement toReturn = stackTrace[i + offset];
-                return toReturn.getClassName().replaceFirst(".*\\.", "") + '#' + toReturn.getMethodName();
+            if (className.equals(element.getClassName()) && methodName.test(element.getMethodName())) {
+                return stackTrace[i + offset];
             }
         }
-        return "?";
+        return null;
     }
 
     /**

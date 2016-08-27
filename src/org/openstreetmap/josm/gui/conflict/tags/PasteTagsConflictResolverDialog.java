@@ -40,6 +40,7 @@ import org.openstreetmap.josm.gui.SideButton;
 import org.openstreetmap.josm.gui.tagging.TagTableColumnModelBuilder;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.InputMapUtils;
 import org.openstreetmap.josm.tools.WindowGeometry;
 
 public class PasteTagsConflictResolverDialog extends JDialog implements PropertyChangeListener {
@@ -103,6 +104,8 @@ public class PasteTagsConflictResolverDialog extends JDialog implements Property
         gc.weightx = 1.0;
         gc.weighty = 0.0;
         getContentPane().add(buildButtonPanel(), gc);
+        InputMapUtils.addEscapeAction(getRootPane(), new CancelAction());
+
     }
 
     protected JPanel buildButtonPanel() {
@@ -289,17 +292,13 @@ public class PasteTagsConflictResolverDialog extends JDialog implements Property
             setVisible(false);
         }
 
-        protected void updateEnabledState() {
+        void updateEnabledState() {
             if (mode == null) {
                 setEnabled(false);
             } else if (mode.equals(Mode.RESOLVING_ONE_TAGCOLLECTION_ONLY)) {
                 setEnabled(allPrimitivesResolver.getModel().isResolvedCompletely());
             } else {
-                boolean enabled = true;
-                for (TagConflictResolver val: resolvers.values()) {
-                    enabled &= val.getModel().isResolvedCompletely();
-                }
-                setEnabled(enabled);
+                setEnabled(resolvers.values().stream().allMatch(val -> val.getModel().isResolvedCompletely()));
             }
         }
 
@@ -345,8 +344,7 @@ public class PasteTagsConflictResolverDialog extends JDialog implements Property
                 TagConflictResolver resolver = (TagConflictResolver) tpResolvers.getComponentAt(i);
                 if (model == resolver.getModel()) {
                     tpResolvers.setIconAt(i,
-                            (Boolean) evt.getNewValue() ? iconResolved : iconUnresolved
-
+                            (Integer) evt.getNewValue() == 0 ? iconResolved : iconUnresolved
                     );
                 }
             }

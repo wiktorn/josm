@@ -1,12 +1,18 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.data.projection;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.DoubleUnaryOperator;
+
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.ProjectionBounds;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.projection.datum.Datum;
 import org.openstreetmap.josm.data.projection.proj.Proj;
+import org.openstreetmap.josm.tools.Utils;
 
 /**
  * Implementation of the Projection interface that represents a coordinate reference system and delegates
@@ -36,10 +42,18 @@ public abstract class AbstractProjection implements Projection {
 
     private volatile ProjectionBounds projectionBoundsBox;
 
+    /**
+     * Get the base ellipsoid that this projection uses.
+     * @return The {@link Ellipsoid}
+     */
     public final Ellipsoid getEllipsoid() {
         return ellps;
     }
 
+    /**
+     * Gets the datum this projection is based on.
+     * @return The datum
+     */
     public final Datum getDatum() {
         return datum;
     }
@@ -52,14 +66,26 @@ public abstract class AbstractProjection implements Projection {
         return proj;
     }
 
+    /**
+     * Gets an east offset that gets applied when converting the coordinate
+     * @return The offset to apply in meter
+     */
     public final double getFalseEasting() {
         return x0;
     }
 
+    /**
+     * Gets an north offset that gets applied when converting the coordinate
+     * @return The offset to apply in meter
+     */
     public final double getFalseNorthing() {
         return y0;
     }
 
+    /**
+     * Gets the meridian that this projection is centered on.
+     * @return The longitude of the meridian.
+     */
     public final double getCentralMeridian() {
         return lon0;
     }
@@ -75,7 +101,7 @@ public abstract class AbstractProjection implements Projection {
      * always given in meters, which means the preliminary projection result will
      * be in meters as well. This factor is used to convert to the intended units
      * of east/north coordinates (e.g. feet in the US).
-     * 
+     *
      * For geographic coordinate systems, the preliminary "projection" result will
      * be in degrees, so there is no reason to convert anything and this factor
      * will by 1 by default.
@@ -95,9 +121,48 @@ public abstract class AbstractProjection implements Projection {
 
     @Override
     public LatLon eastNorth2latlon(EastNorth en) {
+        return eastNorth2latlon(en, LatLon::normalizeLon);
+    }
+
+    @Override
+    public LatLon eastNorth2latlonClamped(EastNorth en) {
+        LatLon ll = eastNorth2latlon(en, lon -> Utils.clamp(lon, -180, 180));
+        Bounds bounds = getWorldBoundsLatLon();
+        return new LatLon(Utils.clamp(ll.lat(), bounds.getMinLat(), bounds.getMaxLat()),
+                Utils.clamp(ll.lon(), bounds.getMinLon(), bounds.getMaxLon()));
+    }
+
+    private LatLon eastNorth2latlon(EastNorth en, DoubleUnaryOperator normalizeLon) {
         double[] latlonRad = proj.invproject((en.east() * toMeter - x0) / ellps.a / k0, (en.north() * toMeter - y0) / ellps.a / k0);
-        LatLon ll = new LatLon(Math.toDegrees(latlonRad[0]), LatLon.normalizeLon(Math.toDegrees(latlonRad[1]) + lon0 + pm));
+        double lon = Math.toDegrees(latlonRad[1]) + lon0 + pm;
+        LatLon ll = new LatLon(Math.toDegrees(latlonRad[0]), normalizeLon.applyAsDouble(lon));
         return datum.toWGS84(ll);
+    }
+
+    @Override
+    public Map<ProjectionBounds, Projecting> getProjectingsForArea(ProjectionBounds area) {
+        if (proj.lonIsLinearToEast()) {
+            //FIXME: Respect datum?
+            // wrap the wrold around
+            Bounds bounds = getWorldBoundsLatLon();
+            double minEast = latlon2eastNorth(bounds.getMin()).east();
+            double maxEast = latlon2eastNorth(bounds.getMax()).east();
+            double dEast = maxEast - minEast;
+            if ((area.minEast < minEast || area.maxEast > maxEast) && dEast > 0) {
+                // We could handle the dEast < 0 case but we don't need it atm.
+                int minChunk = (int) Math.floor((area.minEast - minEast) / dEast);
+                int maxChunk = (int) Math.floor((area.maxEast - minEast) / dEast);
+                HashMap<ProjectionBounds, Projecting> ret = new HashMap<>();
+                for (int chunk = minChunk; chunk <= maxChunk; chunk++) {
+                    ret.put(new ProjectionBounds(Math.max(area.minEast, minEast + chunk * dEast), area.minNorth,
+                            Math.min(area.maxEast, maxEast + chunk * dEast), area.maxNorth),
+                            new ShiftedProjecting(this, new EastNorth(-chunk * dEast, 0)));
+                }
+                return ret;
+            }
+        }
+
+        return Collections.singletonMap(area, this);
     }
 
     @Override
@@ -157,5 +222,10 @@ public abstract class AbstractProjection implements Projection {
             }
         }
         return projectionBoundsBox;
+    }
+
+    @Override
+    public Projection getBaseProjection() {
+        return this;
     }
 }

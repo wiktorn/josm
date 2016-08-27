@@ -1,8 +1,6 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.gui;
 
-import static org.openstreetmap.josm.data.osm.OsmPrimitive.isSelectablePredicate;
-import static org.openstreetmap.josm.data.osm.OsmPrimitive.isUsablePredicate;
 import static org.openstreetmap.josm.gui.help.HelpUtil.ht;
 import static org.openstreetmap.josm.tools.I18n.marktr;
 import static org.openstreetmap.josm.tools.I18n.tr;
@@ -66,7 +64,10 @@ import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
+import org.openstreetmap.josm.data.preferences.AbstractProperty;
+import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.data.preferences.ColorProperty;
+import org.openstreetmap.josm.data.preferences.DoubleProperty;
 import org.openstreetmap.josm.gui.help.Helpful;
 import org.openstreetmap.josm.gui.preferences.projection.ProjectionPreference;
 import org.openstreetmap.josm.gui.progress.PleaseWaitProgressMonitor;
@@ -94,21 +95,23 @@ import org.openstreetmap.josm.tools.ImageProvider;
 public final class MapStatus extends JPanel implements Helpful, Destroyable, PreferenceChangedListener, SoMChangeListener {
 
     private final DecimalFormat DECIMAL_FORMAT = new DecimalFormat(Main.pref.get("statusbar.decimal-format", "0.0"));
-    private final double DISTANCE_THRESHOLD = Main.pref.getDouble("statusbar.distance-threshold", 0.01);
+    private static final AbstractProperty<Double> DISTANCE_THRESHOLD = new DoubleProperty("statusbar.distance-threshold", 0.01).cached();
+
+    private static final AbstractProperty<Boolean> SHOW_ID = new BooleanProperty("osm-primitives.showid", false);
 
     /**
      * Property for map status background color.
      * @since 6789
      */
     public static final ColorProperty PROP_BACKGROUND_COLOR = new ColorProperty(
-            marktr("Status bar background"), Color.decode("#b8cfe5"));
+            marktr("Status bar background"), "#b8cfe5");
 
     /**
      * Property for map status background color (active state).
      * @since 6789
      */
     public static final ColorProperty PROP_ACTIVE_BACKGROUND_COLOR = new ColorProperty(
-            marktr("Status bar background: active"), Color.decode("#aaff5e"));
+            marktr("Status bar background: active"), "#aaff5e");
 
     /**
      * Property for map status foreground color.
@@ -292,8 +295,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
                     // Popup Information
                     // display them if the middle mouse button is pressed and keep them until the mouse is moved
                     if (middleMouseDown || isAtOldPosition) {
-                        Collection<OsmPrimitive> osms = mv.getAllNearest(ms.mousePos,
-                                o -> isUsablePredicate.test(o) && isSelectablePredicate.test(o));
+                        Collection<OsmPrimitive> osms = mv.getAllNearest(ms.mousePos, OsmPrimitive::isSelectable);
 
                         final JPanel c = new JPanel(new GridBagLayout());
                         final JLabel lbl = new JLabel(
@@ -440,7 +442,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
          * @param ms mouse state
          */
         private void statusBarElementUpdate(MouseState ms) {
-            final OsmPrimitive osmNearest = mv.getNearestNodeOrWay(ms.mousePos, isUsablePredicate, false);
+            final OsmPrimitive osmNearest = mv.getNearestNodeOrWay(ms.mousePos, OsmPrimitive::isUsable, false);
             if (osmNearest != null) {
                 nameText.setText(osmNearest.getDisplayName(DefaultNameFormatter.getInstance()));
             } else {
@@ -570,7 +572,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
             }
             text.append(name);
 
-            boolean idShown = Main.pref.getBoolean("osm-primitives.showid");
+            boolean idShown = SHOW_ID.get();
             // fix #7557 - do not show ID twice
 
             if (!osm.isNew() && !idShown) {
@@ -1023,7 +1025,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
      */
     public void setDist(double dist) {
         distValue = dist;
-        distText.setText(dist < 0 ? "--" : NavigatableComponent.getDistText(dist, DECIMAL_FORMAT, DISTANCE_THRESHOLD));
+        distText.setText(dist < 0 ? "--" : NavigatableComponent.getDistText(dist, DECIMAL_FORMAT, DISTANCE_THRESHOLD.get()));
     }
 
     /**

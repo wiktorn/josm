@@ -66,6 +66,7 @@ import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.I18n;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.SubclassFilteredCollection;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -130,6 +131,7 @@ public final class PluginHandler {
             new DeprecatedPlugin("trafficFlowDirection", tr("replaced by new {0} plugin", "ImproveOsm")),
             new DeprecatedPlugin("kendzi3d-jogl", tr("replaced by new {0} plugin", "jogl")),
             new DeprecatedPlugin("josm-geojson", tr("replaced by new {0} plugin", "geojson")),
+            new DeprecatedPlugin("proj4j", inCore),
         });
     }
 
@@ -859,7 +861,7 @@ public final class PluginHandler {
             monitor = NullProgressMonitor.INSTANCE;
         }
         try {
-            monitor.beginTask(tr("Determine plugins to load..."));
+            monitor.beginTask(tr("Determining plugins to load..."));
             Set<String> plugins = new HashSet<>(Main.pref.getCollection("plugins", new LinkedList<String>()));
             if (Main.isDebugEnabled()) {
                 Main.debug("Plugins list initialized to " + plugins);
@@ -973,32 +975,19 @@ public final class PluginHandler {
             monitor.beginTask("");
 
             // try to download the plugin lists
-            //
             ReadRemotePluginInformationTask task1 = new ReadRemotePluginInformationTask(
                     monitor.createSubTaskMonitor(1, false),
                     Main.pref.getOnlinePluginSites(), displayErrMsg
             );
             task1.run();
-            List<PluginInformation> allPlugins = null;
+            List<PluginInformation> allPlugins = task1.getAvailablePlugins();
 
             try {
-                allPlugins = task1.getAvailablePlugins();
                 plugins = buildListOfPluginsToLoad(parent, monitor.createSubTaskMonitor(1, false));
                 // If only some plugins have to be updated, filter the list
                 if (pluginsWanted != null && !pluginsWanted.isEmpty()) {
-                    for (Iterator<PluginInformation> it = plugins.iterator(); it.hasNext();) {
-                        PluginInformation pi = it.next();
-                        boolean found = false;
-                        for (PluginInformation piw : pluginsWanted) {
-                            if (pi.name.equals(piw.name)) {
-                                found = true;
-                                break;
-                            }
-                        }
-                        if (!found) {
-                            it.remove();
-                        }
-                    }
+                    final Collection<String> pluginsWantedName = Utils.transform(pluginsWanted, piw -> piw.name);
+                    plugins = SubclassFilteredCollection.filter(plugins, pi -> pluginsWantedName.contains(pi.name));
                 }
             } catch (RuntimeException e) {
                 Main.warn(tr("Failed to download plugin information list"));
@@ -1007,11 +996,12 @@ public final class PluginHandler {
             }
 
             // filter plugins which actually have to be updated
-            //
             Collection<PluginInformation> pluginsToUpdate = new ArrayList<>();
-            for (PluginInformation pi: plugins) {
-                if (pi.isUpdateRequired()) {
-                    pluginsToUpdate.add(pi);
+            if (plugins != null) {
+                for (PluginInformation pi: plugins) {
+                    if (pi.isUpdateRequired()) {
+                        pluginsToUpdate.add(pi);
+                    }
                 }
             }
 
@@ -1028,14 +1018,14 @@ public final class PluginHandler {
                     // Iterate on required plugins, if they need themselves another plugins (i.e A needs B, but B needs C)
                     while (!additionalPlugins.isEmpty()) {
                         // Install the additional plugins to load them later
-                        plugins.addAll(additionalPlugins);
+                        if (plugins != null)
+                            plugins.addAll(additionalPlugins);
                         additionalPlugins = findRequiredPluginsToDownload(additionalPlugins, allPlugins, pluginsToDownload);
                         pluginsToDownload.addAll(additionalPlugins);
                     }
                 }
 
                 // try to update the locally installed plugins
-                //
                 pluginDownloadTask = new PluginDownloadTask(
                         monitor.createSubTaskMonitor(1, false),
                         pluginsToDownload,
@@ -1051,11 +1041,9 @@ public final class PluginHandler {
                 }
 
                 // Update Plugin info for downloaded plugins
-                //
                 refreshLocalUpdatedPluginInfo(pluginDownloadTask.getDownloadedPlugins());
 
                 // notify user if downloading a locally installed plugin failed
-                //
                 if (!pluginDownloadTask.getFailedPlugins().isEmpty()) {
                     alertFailedPluginUpdate(parent, pluginDownloadTask.getFailedPlugins());
                     return plugins;
@@ -1066,7 +1054,6 @@ public final class PluginHandler {
         }
         if (pluginsWanted == null) {
             // if all plugins updated, remember the update because it was successful
-            //
             Main.pref.putInteger("pluginmanager.version", Version.getInstance().getVersion());
             Main.pref.put("pluginmanager.lastupdate", Long.toString(System.currentTimeMillis()));
         }
@@ -1376,25 +1363,17 @@ public final class PluginHandler {
 
     /**
      * Returns the list of loaded plugins as a {@code String} to be displayed in status report. Useful for bug reports.
-     * @return The list of loaded plugins (one plugin per line)
+     * @return The list of loaded plugins
      */
-    public static String getBugReportText() {
-        StringBuilder text = new StringBuilder();
-        List<String> pl = new LinkedList<>(Main.pref.getCollection("plugins", new LinkedList<String>()));
+    public static Collection<String> getBugReportInformation() {
+        final Collection<String> pl = new TreeSet<>(Main.pref.getCollection("plugins", new LinkedList<>()));
         for (final PluginProxy pp : pluginList) {
             PluginInformation pi = pp.getPluginInformation();
             pl.remove(pi.name);
             pl.add(pi.name + " (" + (pi.localversion != null && !pi.localversion.isEmpty()
                     ? pi.localversion : "unknown") + ')');
         }
-        Collections.sort(pl);
-        if (!pl.isEmpty()) {
-            text.append("Plugins:\n");
-        }
-        for (String s : pl) {
-            text.append("- ").append(s).append('\n');
-        }
-        return text.toString();
+        return pl;
     }
 
     /**

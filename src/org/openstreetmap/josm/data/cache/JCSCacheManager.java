@@ -32,10 +32,10 @@ import org.openstreetmap.josm.data.preferences.IntegerProperty;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
- * @author Wiktor Niesiobędzki
- *
  * Wrapper class for JCS Cache. Sets some sane environment and returns instances of cache objects.
  * Static configuration for now assumes some small LRU cache in memory and larger LRU cache on disk
+ *
+ * @author Wiktor Niesiobędzki
  * @since 8168
  */
 public final class JCSCacheManager {
@@ -199,7 +199,7 @@ public final class JCSCacheManager {
 
     private static IDiskCacheAttributes getDiskCacheAttributes(int maxDiskObjects, String cachePath, String cacheName) {
         IDiskCacheAttributes ret;
-        removeStaleFiles(cachePath + File.separator + cacheName, (USE_BLOCK_CACHE.get() ? "_INDEX_v2" : "_BLOCK_v2"));
+        removeStaleFiles(cachePath + File.separator + cacheName, USE_BLOCK_CACHE.get() ? "_INDEX_v2" : "_BLOCK_v2");
         cacheName = cacheName + (USE_BLOCK_CACHE.get() ? "_BLOCK_v2" : "_INDEX_v2");
 
         if (USE_BLOCK_CACHE.get()) {

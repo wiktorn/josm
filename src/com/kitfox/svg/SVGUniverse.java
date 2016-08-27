@@ -55,19 +55,20 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.GZIPInputStream;
 import javax.imageio.ImageIO;
-import javax.xml.bind.DatatypeConverter;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParserFactory;
 import org.xml.sax.EntityResolver;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 import org.xml.sax.XMLReader;
-import org.xml.sax.helpers.XMLReaderFactory;
 
 /**
  * Many SVG files can be loaded at one time. These files will quite likely need
@@ -129,34 +130,6 @@ public class SVGUniverse implements Serializable
     }
 
     /**
-     * Returns the current animation time in milliseconds.
-     */
-    public double getCurTime()
-    {
-        return curTime;
-    }
-
-    public void setCurTime(double curTime)
-    {
-        double oldTime = this.curTime;
-        this.curTime = curTime;
-        changes.firePropertyChange("curTime", new Double(oldTime), new Double(curTime));
-    }
-
-    /**
-     * Updates all time influenced style and presentation attributes in all SVG
-     * documents in this universe.
-     */
-    public void updateTime() throws SVGException
-    {
-        for (Iterator it = loadedDocs.values().iterator(); it.hasNext();)
-        {
-            SVGDiagram dia = (SVGDiagram) it.next();
-            dia.updateTime(curTime);
-        }
-    }
-
-    /**
      * Called by the Font element to let the universe know that a font has been
      * loaded and is available.
      */
@@ -193,7 +166,7 @@ public class SVGUniverse implements Serializable
             {
                 try
                 {
-                    byte[] buf = DatatypeConverter.parseBase64Binary(content.substring(6));
+                    byte[] buf = Base64.getDecoder().decode(content.substring(6));
                     ByteArrayInputStream bais = new ByteArrayInputStream(buf);
                     BufferedImage img = ImageIO.read(bais);
 
@@ -573,11 +546,13 @@ public class SVGUniverse implements Serializable
         }
     }
 
-    private XMLReader getXMLReaderCached() throws SAXException
+    private XMLReader getXMLReaderCached() throws SAXException, ParserConfigurationException
     {
         if (cachedReader == null)
         {
-            cachedReader = XMLReaderFactory.createXMLReader();
+            SAXParserFactory factory = SAXParserFactory.newInstance();
+            factory.setNamespaceAware(true);
+            cachedReader = factory.newSAXParser().getXMLReader();
         }
         return cachedReader;
     }

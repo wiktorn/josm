@@ -31,6 +31,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -39,6 +40,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
@@ -53,7 +55,7 @@ import javax.imageio.ImageReader;
 import javax.imageio.metadata.IIOMetadata;
 import javax.imageio.stream.ImageInputStream;
 import javax.swing.ImageIcon;
-import javax.xml.bind.DatatypeConverter;
+import javax.xml.parsers.ParserConfigurationException;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.osm.DataSet;
@@ -78,7 +80,6 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.DefaultHandler;
-import org.xml.sax.helpers.XMLReaderFactory;
 
 import com.kitfox.svg.SVGDiagram;
 import com.kitfox.svg.SVGException;
@@ -104,20 +105,6 @@ public class ImageProvider {
     private static final String HTTPS_PROTOCOL = "https://";
     private static final String WIKI_PROTOCOL  = "wiki://";
     // CHECKSTYLE.ON: SingleSpaceSeparator
-
-    /**
-     * Position of an overlay icon
-     */
-    public enum OverlayPosition {
-        /** North west */
-        NORTHWEST,
-        /** North east */
-        NORTHEAST,
-        /** South west */
-        SOUTHWEST,
-        /** South east */
-        SOUTHEAST
-    }
 
     /**
      * Supported image types
@@ -289,7 +276,7 @@ public class ImageProvider {
     /** ordered list of overlay images */
     protected List<ImageOverlay> overlayInfo;
     /** <code>true</code> if icon must be grayed out */
-    protected boolean isDisabled = false;
+    protected boolean isDisabled;
 
     private static SVGUniverse svgUniverse;
 
@@ -305,33 +292,6 @@ public class ImageProvider {
 
     private static final ExecutorService IMAGE_FETCHER =
             Executors.newSingleThreadExecutor(Utils.newThreadFactory("image-fetcher-%d", Thread.NORM_PRIORITY));
-
-    /**
-     * Callback interface for asynchronous image loading.
-     * @since 10600 (functional interface)
-     */
-    @FunctionalInterface
-    public interface ImageCallback {
-        /**
-         * Called when image loading has finished.
-         * @param result the loaded image icon
-         */
-        void finished(ImageIcon result);
-    }
-
-    /**
-     * Callback interface for asynchronous image loading (with delayed scaling possibility).
-     * @since 7693
-     * @since 10600 (functional interface)
-     */
-    @FunctionalInterface
-    public interface ImageResourceCallback {
-        /**
-         * Called when image loading has finished.
-         * @param result the loaded image resource
-         */
-        void finished(ImageResource result);
-    }
 
     /**
      * Constructs a new {@code ImageProvider} from a filename in a given directory.
@@ -652,6 +612,20 @@ public class ImageProvider {
     }
 
     /**
+     * Load the image in a background thread.
+     *
+     * This method returns immediately and runs the image request asynchronously.
+     *
+     * @return the future of the requested image
+     * @since 10714
+     */
+    public CompletableFuture<ImageIcon> getAsync() {
+        return name.startsWith(HTTP_PROTOCOL) || name.startsWith(WIKI_PROTOCOL)
+                ? CompletableFuture.supplyAsync(this::get, IMAGE_FETCHER)
+                : CompletableFuture.completedFuture(get());
+    }
+
+    /**
      * Execute the image request.
      *
      * @return the requested image or null if the request failed
@@ -686,36 +660,13 @@ public class ImageProvider {
      *
      * This method returns immediately and runs the image request asynchronously.
      *
-     * @param callback a callback. It is called, when the image is ready.
-     * This can happen before the call to this method returns or it may be
-     * invoked some time (seconds) later. If no image is available, a null
-     * value is returned to callback (just like {@link #get}).
+     * @return the future of the requested image
+     * @since 10714
      */
-    public void getInBackground(final ImageCallback callback) {
-        if (name.startsWith(HTTP_PROTOCOL) || name.startsWith(WIKI_PROTOCOL)) {
-            IMAGE_FETCHER.submit(() -> callback.finished(get()));
-        } else {
-            callback.finished(get());
-        }
-    }
-
-    /**
-     * Load the image in a background thread.
-     *
-     * This method returns immediately and runs the image request asynchronously.
-     *
-     * @param callback a callback. It is called, when the image is ready.
-     * This can happen before the call to this method returns or it may be
-     * invoked some time (seconds) later. If no image is available, a null
-     * value is returned to callback (just like {@link #get}).
-     * @since 7693
-     */
-    public void getInBackground(final ImageResourceCallback callback) {
-        if (name.startsWith(HTTP_PROTOCOL) || name.startsWith(WIKI_PROTOCOL)) {
-            IMAGE_FETCHER.submit(() -> callback.finished(getResource()));
-        } else {
-            callback.finished(getResource());
-        }
+    public CompletableFuture<ImageResource> getResourceAsync() {
+        return name.startsWith(HTTP_PROTOCOL) || name.startsWith(WIKI_PROTOCOL)
+                ? CompletableFuture.supplyAsync(this::getResource, IMAGE_FETCHER)
+                : CompletableFuture.completedFuture(getResource());
     }
 
     /**
@@ -985,7 +936,7 @@ public class ImageProvider {
             String data = m.group(3);
             byte[] bytes;
             if (";base64".equals(base64)) {
-                bytes = DatatypeConverter.parseBase64Binary(data);
+                bytes = Base64.getDecoder().decode(data);
             } else {
                 try {
                     bytes = Utils.decodeUrl(data).getBytes(StandardCharsets.UTF_8);
@@ -1250,7 +1201,7 @@ public class ImageProvider {
      */
     private static String getImgUrlFromWikiInfoPage(final String base, final String fn) {
         try {
-            final XMLReader parser = XMLReaderFactory.createXMLReader();
+            final XMLReader parser = Utils.newSafeSAXParser().getXMLReader();
             parser.setContentHandler(new DefaultHandler() {
                 @Override
                 public void startElement(String uri, String localName, String qName, Attributes atts) throws SAXException {
@@ -1273,7 +1224,7 @@ public class ImageProvider {
         } catch (SAXReturnException r) {
             Main.trace(r);
             return r.getResult();
-        } catch (IOException | SAXException e) {
+        } catch (IOException | SAXException | ParserConfigurationException e) {
             Main.warn("Parsing " + base + fn + " failed:\n" + e);
             return null;
         }
@@ -1510,6 +1461,9 @@ public class ImageProvider {
      * @return an image from the given SVG data at the desired dimension.
      */
     public static BufferedImage createImageFromSvg(SVGDiagram svg, Dimension dim) {
+        if (Main.isTraceEnabled()) {
+            Main.trace(String.format("createImageFromSvg: %s %s", svg.getXMLBase(), dim));
+        }
         float sourceWidth = svg.getWidth();
         float sourceHeight = svg.getHeight();
         int realWidth = Math.round(GuiSizesHelper.getSizeDpiAdjusted(sourceWidth));

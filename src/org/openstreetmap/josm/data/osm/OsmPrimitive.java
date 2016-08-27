@@ -27,7 +27,6 @@ import org.openstreetmap.josm.actions.search.SearchCompiler.ParseError;
 import org.openstreetmap.josm.data.osm.visitor.Visitor;
 import org.openstreetmap.josm.gui.mappaint.StyleCache;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
-import org.openstreetmap.josm.tools.Predicates;
 import org.openstreetmap.josm.tools.Utils;
 import org.openstreetmap.josm.tools.template_engine.TemplateEngineDataProvider;
 
@@ -113,7 +112,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      * A tagged way that matches this pattern has a direction.
      * @see #FLAG_HAS_DIRECTIONS
      */
-    private static volatile Match directionKeys;
+    static volatile Match directionKeys;
 
     /**
      * A tagged way that matches this pattern has a direction that is reversed.
@@ -128,7 +127,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
 
         String directionDefault = "oneway? | (aerialway=* -aerialway=station) | "+
                 "waterway=stream | waterway=river | waterway=ditch | waterway=drain | "+
-                "\"piste:type\"=downhill | \"piste:type\"=sled | man_made=\"piste:halfpipe\" | "+
+                "(\"piste:type\"=downhill & -area=yes) | (\"piste:type\"=sled & -area=yes) | (man_made=\"piste:halfpipe\" & -area=yes) | "+
                 "junction=roundabout | (highway=motorway & -oneway=no & -oneway=reversible) | "+
                 "(highway=motorway_link & -oneway=no & -oneway=reversible)";
 
@@ -200,62 +199,83 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
     /**
      * A predicate that filters primitives that are usable.
      * @see OsmPrimitive#isUsable()
+     * @deprecated Use {@code OsmPrimitive::isUsable} instead
      */
-    public static final Predicate<OsmPrimitive> isUsablePredicate = primitive -> primitive.isUsable();
+    @Deprecated
+    public static final Predicate<OsmPrimitive> isUsablePredicate = OsmPrimitive::isUsable;
 
     /**
      * A predicate filtering primitives that are selectable.
+     * @deprecated Use {@code OsmPrimitive::isSelectable} instead
      */
-    public static final Predicate<OsmPrimitive> isSelectablePredicate = primitive -> primitive.isSelectable();
+    @Deprecated
+    public static final Predicate<OsmPrimitive> isSelectablePredicate = OsmPrimitive::isSelectable;
 
     /**
      * A predicate filtering primitives that are not deleted.
+     * @deprecated Use {@code p -> !p.isDeleted()} instead
      */
-    public static final Predicate<OsmPrimitive> nonDeletedPredicate = primitive -> !primitive.isDeleted();
+    @Deprecated
+    public static final Predicate<OsmPrimitive> nonDeletedPredicate = p -> !p.isDeleted();
 
     /**
      * A predicate filtering primitives that are not deleted and not incomplete.
+     * @deprecated use lambda instead
      */
+    @Deprecated
     public static final Predicate<OsmPrimitive> nonDeletedCompletePredicate =
             primitive -> !primitive.isDeleted() && !primitive.isIncomplete();
 
     /**
      * A predicate filtering primitives that are not deleted and not incomplete and that are not a relation.
+     * @deprecated use lambda instead
      */
+    @Deprecated
     public static final Predicate<OsmPrimitive> nonDeletedPhysicalPredicate =
             primitive -> !primitive.isDeleted() && !primitive.isIncomplete() && !(primitive instanceof Relation);
 
     /**
      * A predicate filtering primitives that are modified
+     * @deprecated Use {@code OsmPrimitive::isModified} instead
      */
-    public static final Predicate<OsmPrimitive> modifiedPredicate = primitive -> primitive.isModified();
+    @Deprecated
+    public static final Predicate<OsmPrimitive> modifiedPredicate = OsmPrimitive::isModified;
 
     /**
      * A predicate filtering nodes.
+     * @deprecated Use {@code Node.class::isInstance} instead
      */
-    public static final Predicate<OsmPrimitive> nodePredicate = Predicates.<OsmPrimitive>isOfClass(Node.class);
+    @Deprecated
+    public static final Predicate<OsmPrimitive> nodePredicate = Node.class::isInstance;
 
     /**
      * A predicate filtering ways.
+     * @deprecated Use {@code Way.class::isInstance} instead
      */
-    public static final Predicate<OsmPrimitive> wayPredicate = Predicates.<OsmPrimitive>isOfClass(Way.class);
+    @Deprecated
+    public static final Predicate<OsmPrimitive> wayPredicate = Way.class::isInstance;
 
     /**
      * A predicate filtering relations.
+     * @deprecated Use {@code Relation.class::isInstance} instead
      */
-    public static final Predicate<OsmPrimitive> relationPredicate = Predicates.<OsmPrimitive>isOfClass(Relation.class);
+    @Deprecated
+    public static final Predicate<OsmPrimitive> relationPredicate = Relation.class::isInstance;
 
     /**
      * A predicate filtering multipolygon relations.
+     * @deprecated Use {@code OsmPrimitive::isMultipolygon} instead
      */
-    public static final Predicate<OsmPrimitive> multipolygonPredicate =
-            primitive -> primitive.getClass() == Relation.class && ((Relation) primitive).isMultipolygon();
+    @Deprecated
+    public static final Predicate<OsmPrimitive> multipolygonPredicate = OsmPrimitive::isMultipolygon;
 
     /**
      * This matches all ways that have a direction
      *
      * @see #FLAG_HAS_DIRECTIONS
+     * @deprecated use {@code directionKeys::match}
      */
+    @Deprecated
     public static final Predicate<Tag> directionalKeyPredicate = directionKeys::match;
 
     /**
@@ -1452,4 +1472,13 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      * @return {@code true} if this primitive lies outside of the downloaded area
      */
     public abstract boolean isOutsideDownloadArea();
+
+    /**
+     * Determines if this object is a relation and behaves as a multipolygon.
+     * @return {@code true} if it is a real mutlipolygon or a boundary relation
+     * @since 10716
+     */
+    public boolean isMultipolygon() {
+        return false;
+    }
 }

@@ -208,7 +208,6 @@ public class WMSImagery {
             return;
         }
 
-        Main.info("GET " + getCapabilitiesUrl);
         final String incomingData = HttpClient.create(getCapabilitiesUrl).connect().fetchContent();
         Main.debug("Server response to Capabilities request:");
         Main.debug(incomingData);
@@ -233,7 +232,7 @@ public class WMSImagery {
             child = getChild(child, "GetMap");
 
             formats = getChildrenStream(child, "Format")
-                    .map(x -> x.getTextContent())
+                    .map(Node::getTextContent)
                     .filter(WMSImagery::isImageFormatSupportedWarn)
                     .collect(Collectors.toList());
 

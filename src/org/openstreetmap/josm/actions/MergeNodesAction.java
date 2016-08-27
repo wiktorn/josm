@@ -13,6 +13,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import javax.swing.JOptionPane;
@@ -72,7 +73,7 @@ public class MergeNodesAction extends JosmAction {
 
         if (selectedNodes.size() == 1) {
             List<Node> nearestNodes = Main.map.mapView.getNearestNodes(
-                    Main.map.mapView.getPoint(selectedNodes.get(0)), selectedNodes, OsmPrimitive.isUsablePredicate);
+                    Main.map.mapView.getPoint(selectedNodes.get(0)), selectedNodes, OsmPrimitive::isUsable);
             if (nearestNodes.isEmpty()) {
                 new Notification(
                         tr("Please select at least two nodes to merge or one node that is close to another node."))
@@ -331,7 +332,7 @@ public class MergeNodesAction extends JosmAction {
             //
             if (!targetNode.equals(targetLocationNode)) {
                 LatLon targetLocationCoor = targetLocationNode.getCoor();
-                if (!targetNode.getCoor().equals(targetLocationCoor)) {
+                if (!Objects.equals(targetNode.getCoor(), targetLocationCoor)) {
                     Node newTargetNode = new Node(targetNode);
                     newTargetNode.setCoor(targetLocationCoor);
                     cmds.add(new ChangeCommand(targetNode, newTargetNode));

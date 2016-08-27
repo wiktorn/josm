@@ -842,9 +842,9 @@ public class MultiSplitLayout implements LayoutManager {
          * with recursive object creation when using XmlDecoder.
          *
          * @return the value of the parent property.
-         * @see #parent_set
+         * @see #setParent
          */
-        public Split parent_get() {
+        public Split getParent() {
             return parent;
         }
 
@@ -856,9 +856,9 @@ public class MultiSplitLayout implements LayoutManager {
          * with recursive object creation when using XmlEncoder.
          *
          * @param parent a Split or null
-         * @see #parent_get
+         * @see #getParent
          */
-        public void parent_set(Split parent) {
+        public void setParent(Split parent) {
             this.parent = parent;
         }
 
@@ -919,7 +919,7 @@ public class MultiSplitLayout implements LayoutManager {
         }
 
         private Node siblingAtOffset(int offset) {
-            Split parent = parent_get();
+            Split parent = getParent();
             if (parent == null)
                 return null;
             List<Node> siblings = parent.getChildren();
@@ -937,7 +937,7 @@ public class MultiSplitLayout implements LayoutManager {
          *
          * @return the Node that comes after this one in the parent's list of children.
          * @see #previousSibling
-         * @see #parent_get
+         * @see #getParent
          */
         public Node nextSibling() {
             return siblingAtOffset(+1);
@@ -950,7 +950,7 @@ public class MultiSplitLayout implements LayoutManager {
          *
          * @return the Node that comes before this one in the parent's list of children.
          * @see #nextSibling
-         * @see #parent_get
+         * @see #getParent
          */
         public Node previousSibling() {
             return siblingAtOffset(-1);
@@ -1016,11 +1016,11 @@ public class MultiSplitLayout implements LayoutManager {
             if (children == null)
                 throw new IllegalArgumentException("children must be a non-null List");
             for (Node child : this.children) {
-                child.parent_set(null);
+                child.setParent(null);
             }
             this.children = new ArrayList<>(children);
             for (Node child : this.children) {
-                child.parent_set(this);
+                child.setParent(this);
             }
         }
 
@@ -1125,7 +1125,7 @@ public class MultiSplitLayout implements LayoutManager {
          * @return true if this Divider is part of a Split row.
          */
         public final boolean isVertical() {
-            Split parent = parent_get();
+            Split parent = getParent();
             return parent != null && parent.isRowLayout();
         }
 

@@ -63,7 +63,7 @@ import org.openstreetmap.josm.actions.search.SearchCompiler;
 import org.openstreetmap.josm.command.ChangeCommand;
 import org.openstreetmap.josm.command.ChangePropertyCommand;
 import org.openstreetmap.josm.command.Command;
-import org.openstreetmap.josm.data.Preferences.PreferenceChangeEvent;
+import org.openstreetmap.josm.data.Preferences.PreferenceChangedListener;
 import org.openstreetmap.josm.data.SelectionChangedListener;
 import org.openstreetmap.josm.data.osm.IRelation;
 import org.openstreetmap.josm.data.osm.Node;
@@ -104,7 +104,6 @@ import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.InputMapUtils;
 import org.openstreetmap.josm.tools.LanguageInfo;
 import org.openstreetmap.josm.tools.OpenBrowser;
-import org.openstreetmap.josm.tools.Predicates;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -226,6 +225,13 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
     private final JLabel selectSth = new JLabel("<html><p>"
             + tr("Select objects for which to change tags.") + "</p></html>");
 
+    private final PreferenceChangedListener preferenceListener = e -> {
+                if (Main.getLayerManager().getEditDataSet() != null) {
+                    // Re-load data when display preference change
+                    updateSelection();
+                }
+            };
+
     private final transient TaggingPresetHandler presetHandler = new TaggingPresetHandler() {
         @Override
         public void updateTags(List<Tag> tags) {
@@ -298,7 +304,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
 
         editHelper.loadTagsIfNeeded();
 
-        Main.pref.addPreferenceChangeListener(this);
+        Main.pref.addKeyPreferenceChangeListener("display.discardable-keys", preferenceListener);
     }
 
     private void buildTagsTable() {
@@ -496,12 +502,8 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
     private void setupKeyboardShortcuts() {
 
         // ENTER = editAction, open "edit" dialog
-        tagTable.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
-                .put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "onTableEnter");
-        tagTable.getActionMap().put("onTableEnter", editAction);
-        membershipTable.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
-                .put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "onTableEnter");
-        membershipTable.getActionMap().put("onTableEnter", editAction);
+        InputMapUtils.addEnterActionWhenAncestor(tagTable, editAction);
+        InputMapUtils.addEnterActionWhenAncestor(membershipTable, editAction);
 
         // INSERT button = addAction, open "add tag" dialog
         tagTable.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
@@ -606,7 +608,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
     @Override
     public void destroy() {
         super.destroy();
-        Main.pref.removePreferenceChangeListener(this);
+        Main.pref.removeKeyPreferenceChangeListener("display.discardable-keys", preferenceListener);
         Container parent = pluginHook.getParent();
         if (parent != null) {
             parent.remove(pluginHook);
@@ -756,7 +758,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
     /* ---------------------------------------------------------------------------------- */
     @Override
     public void activeOrEditLayerChanged(ActiveLayerChangeEvent e) {
-        if (e.getSource().getEditLayer() != null) {
+        if (e.getSource().getEditLayer() == null) {
             editHelper.saveTagsIfNeeded();
         }
         // it is time to save history of tags
@@ -895,7 +897,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
             if (positionString == null) {
                 positionString = Utils.getPositionListString(position);
                 // if not all objects from the selection are member of this relation
-                if (selection.stream().anyMatch(Predicates.not(Predicates.inCollection(members)))) {
+                if (selection.stream().anyMatch(p -> !members.contains(p))) {
                     positionString += ",\u2717";
                 }
                 members = null;
@@ -1392,15 +1394,6 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
         ss.text = s.toString();
         ss.caseSensitive = true;
         return ss;
-    }
-
-    @Override
-    public void preferenceChanged(PreferenceChangeEvent e) {
-        super.preferenceChanged(e);
-        if ("display.discardable-keys".equals(e.getKey()) && Main.getLayerManager().getEditDataSet() != null) {
-            // Re-load data when display preference change
-            updateSelection();
-        }
     }
 
     /**

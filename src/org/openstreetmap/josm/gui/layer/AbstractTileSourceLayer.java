@@ -34,9 +34,14 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import javax.swing.AbstractAction;
@@ -50,6 +55,7 @@ import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JSeparator;
 import javax.swing.JTextField;
+import javax.swing.Timer;
 
 import org.openstreetmap.gui.jmapviewer.AttributionSupport;
 import org.openstreetmap.gui.jmapviewer.MemoryTileCache;
@@ -136,7 +142,6 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
      * Initial zoom lvl is set to bestZoom
      */
     public int currentZoomLevel;
-    private boolean needRedraw;
 
     private final AttributionSupport attribution = new AttributionSupport();
     private final TileHolder clickedTileHolder = new TileHolder();
@@ -157,6 +162,11 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
     protected TileCache tileCache; // initialized together with tileSource
     protected T tileSource;
     protected TileLoader tileLoader;
+
+    /**
+     * A timer that is used to delay invalidation events if required.
+     */
+    private final Timer invalidateLaterTimer = new Timer(100, e -> this.invalidate());
 
     private final MouseAdapter adapter = new MouseAdapter() {
         @Override
@@ -230,7 +240,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
     }
 
     protected void initTileSource(T tileSource) {
-        coordinateConverter = new TileCoordinateConverter(Main.map.mapView, getDisplaySettings());
+        coordinateConverter = new TileCoordinateConverter(Main.map.mapView, tileSource, getDisplaySettings());
         attribution.initialize(tileSource);
 
         currentZoomLevel = getBestZoom();
@@ -263,10 +273,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             tile.setImage(null);
         }
         tile.setLoaded(success);
-        needRedraw = true;
-        if (Main.map != null) {
-            Main.map.repaint(100);
-        }
+        invalidateLater();
         if (Main.isDebugEnabled()) {
             Main.debug("tileLoadingFinished() tile: " + tile + " success: " + success);
         }
@@ -296,14 +303,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
      * @see #invalidate() To trigger a repaint of all places where the layer is displayed.
      */
     protected void redraw() {
-        needRedraw = true;
-        if (isVisible()) Main.map.repaint();
-    }
-
-    @Override
-    public void invalidate() {
-        needRedraw = true;
-        super.invalidate();
+        invalidate();
     }
 
     /**
@@ -367,17 +367,11 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
      * @return average number of screen pixels per tile pixel
      */
     private double getScaleFactor(int zoom) {
-        if (!Main.isDisplayingMapView()) return 1;
-        MapView mv = Main.map.mapView;
-        LatLon topLeft = mv.getLatLon(0, 0);
-        LatLon botRight = mv.getLatLon(mv.getWidth(), mv.getHeight());
-        TileXY t1 = tileSource.latLonToTileXY(topLeft.toCoordinate(), zoom);
-        TileXY t2 = tileSource.latLonToTileXY(botRight.toCoordinate(), zoom);
-
-        int screenPixels = mv.getWidth()*mv.getHeight();
-        double tilePixels = Math.abs((t2.getY()-t1.getY())*(t2.getX()-t1.getX())*tileSource.getTileSize()*tileSource.getTileSize());
-        if (screenPixels == 0 || tilePixels == 0) return 1;
-        return screenPixels/tilePixels;
+        if (coordinateConverter != null) {
+            return coordinateConverter.getScaleFactor(zoom);
+        } else {
+            return 1;
+        }
     }
 
     protected int getBestZoom() {
@@ -968,6 +962,10 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         return new Tile(tileSource, x, y, zoom);
     }
 
+    private Tile getOrCreateTile(TilePosition tilePosition) {
+        return getOrCreateTile(tilePosition.getX(), tilePosition.getY(), tilePosition.getZoom());
+    }
+
     private Tile getOrCreateTile(int x, int y, int zoom) {
         Tile tile = getTile(x, y, zoom);
         if (tile == null) {
@@ -979,6 +977,10 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             tile.loadPlaceholderFromCache(tileCache);
         }
         return tile;
+    }
+
+    private Tile getTile(TilePosition tilePosition) {
+        return getTile(tilePosition.getX(), tilePosition.getY(), tilePosition.getZoom());
     }
 
     /**
@@ -1035,12 +1037,28 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
     @Override
     public boolean imageUpdate(Image img, int infoflags, int x, int y, int width, int height) {
         boolean done = (infoflags & (ERROR | FRAMEBITS | ALLBITS)) != 0;
-        needRedraw = true;
         if (Main.isDebugEnabled()) {
             Main.debug("imageUpdate() done: " + done + " calling repaint");
         }
-        Main.map.repaint(done ? 0 : 100);
+
+        if (done) {
+            invalidate();
+        } else {
+            invalidateLater();
+        }
         return !done;
+    }
+
+    /**
+     * Invalidate the layer at a time in the future so taht the user still sees the interface responsive.
+     */
+    private void invalidateLater() {
+        GuiHelper.runInEDT(() -> {
+            if (!invalidateLaterTimer.isRunning()) {
+                invalidateLaterTimer.setRepeats(false);
+                invalidateLaterTimer.start();
+            }
+        });
     }
 
     private boolean imageLoaded(Image i) {
@@ -1121,6 +1139,26 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         }
     }
 
+    private List<Tile> paintTileImages(Graphics g, TileSet ts) {
+        Object paintMutex = new Object();
+        List<TilePosition> missed = Collections.synchronizedList(new ArrayList<>());
+        ts.visitTiles(tile -> {
+            Image img = getLoadedTileImage(tile);
+            if (img == null) {
+                missed.add(new TilePosition(tile));
+                return;
+            }
+            img = applyImageProcessors((BufferedImage) img);
+            Rectangle2D sourceRect = coordinateConverter.getRectangleForTile(tile);
+            synchronized (paintMutex) {
+                //cannot paint in parallel
+                drawImageInside(g, img, sourceRect, null);
+            }
+        }, missed::add);
+
+        return missed.stream().map(this::getOrCreateTile).collect(Collectors.toList());
+    }
+
     // This function is called for several zoom levels, not just
     // the current one.  It should not trigger any tiles to be
     // downloaded.  It should also avoid polluting the tile cache
@@ -1132,10 +1170,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
     // border is null and we draw the entire tile set.
     private List<Tile> paintTileImages(Graphics g, TileSet ts, int zoom, Tile border) {
         if (zoom <= 0) return Collections.emptyList();
-        Rectangle2D borderRect = null;
-        if (border != null) {
-            borderRect = coordinateConverter.getRectangleForTile(border);
-        }
+        Rectangle2D borderRect = coordinateConverter.getRectangleForTile(border);
         List<Tile> missedTiles = new LinkedList<>();
         // The callers of this code *require* that we return any tiles
         // that we do not draw in missedTiles.  ts.allExistingTiles() by
@@ -1245,7 +1280,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
     }
 
     private LatLon getShiftedLatLon(EastNorth en) {
-        return Main.getProjection().eastNorth2latlon(en.add(-getDx(), -getDy()));
+        return coordinateConverter.getProjecting().eastNorth2latlonClamped(en);
     }
 
     private ICoordinate getShiftedCoord(EastNorth en) {
@@ -1263,7 +1298,10 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
      * This is a rectangular range of tiles.
      */
     private static class TileRange {
-        int minX, maxX, minY, maxY;
+        int minX;
+        int maxX;
+        int minY;
+        int maxY;
         int zoom;
 
         private TileRange() {
@@ -1286,6 +1324,67 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             int ySpan = maxY - minY + 1;
             return xSpan * ySpan;
         }
+
+        /**
+         * Gets a stream of all tile positions in this set
+         * @return A stream of all positions
+         */
+        public Stream<TilePosition> tilePositions() {
+            if (zoom == 0) {
+                return Stream.empty();
+            } else {
+                return IntStream.rangeClosed(minX, maxX).mapToObj(
+                        x -> IntStream.rangeClosed(minY, maxY).mapToObj(y -> new TilePosition(x, y, zoom))
+                        ).flatMap(Function.identity());
+            }
+        }
+    }
+
+    /**
+     * The position of a single tile.
+     * @author Michael Zangl
+     * @since xxx
+     */
+    private static class TilePosition {
+        private final int x;
+        private final int y;
+        private final int zoom;
+        TilePosition(int x, int y, int zoom) {
+            super();
+            this.x = x;
+            this.y = y;
+            this.zoom = zoom;
+        }
+
+        TilePosition(Tile tile) {
+            this(tile.getXtile(), tile.getYtile(), tile.getZoom());
+        }
+
+        /**
+         * @return the x position
+         */
+        public int getX() {
+            return x;
+        }
+
+        /**
+         * @return the y position
+         */
+        public int getY() {
+            return y;
+        }
+
+        /**
+         * @return the zoom
+         */
+        public int getZoom() {
+            return zoom;
+        }
+
+        @Override
+        public String toString() {
+            return "TilePosition [x=" + x + ", y=" + y + ", zoom=" + zoom + "]";
+        }
     }
 
     private class TileSet extends TileRange {
@@ -1299,7 +1398,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
          * null tile set
          */
         private TileSet() {
-            return;
+            // default
         }
 
         protected void sanitize() {
@@ -1329,46 +1428,34 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             return tileCache == null || size() > tileCache.getCacheSize();
         }
 
-        /*
-         * Get all tiles represented by this TileSet that are
-         * already in the tileCache.
+        /**
+         * Get all tiles represented by this TileSet that are already in the tileCache.
+         * @return all tiles represented by this TileSet that are already in the tileCache
          */
         private List<Tile> allExistingTiles() {
-            return this.__allTiles(false);
+            return allTiles(p -> getTile(p));
         }
 
         private List<Tile> allTilesCreate() {
-            return this.__allTiles(true);
+            return allTiles(p -> getOrCreateTile(p));
         }
 
-        private List<Tile> __allTiles(boolean create) {
-            // Tileset is either empty or too large
-            if (zoom == 0 || this.insane())
-                return Collections.emptyList();
-            List<Tile> ret = new ArrayList<>();
-            for (int x = minX; x <= maxX; x++) {
-                for (int y = minY; y <= maxY; y++) {
-                    Tile t;
-                    if (create) {
-                        t = getOrCreateTile(x, y, zoom);
-                    } else {
-                        t = getTile(x, y, zoom);
-                    }
-                    if (t != null) {
-                        ret.add(t);
-                    }
-                }
+        private List<Tile> allTiles(Function<TilePosition, Tile> mapper) {
+            return tilePositions().map(mapper).filter(Objects::nonNull).collect(Collectors.toList());
+        }
+
+        @Override
+        public Stream<TilePosition> tilePositions() {
+            if (this.insane()) {
+                // Tileset is either empty or too large
+                return Stream.empty();
+            } else {
+                return super.tilePositions();
             }
-            return ret;
         }
 
         private List<Tile> allLoadedTiles() {
-            List<Tile> ret = new ArrayList<>();
-            for (Tile t : this.allExistingTiles()) {
-                if (t.isLoaded())
-                    ret.add(t);
-            }
-            return ret;
+            return allExistingTiles().stream().filter(Tile::isLoaded).collect(Collectors.toList());
         }
 
         /**
@@ -1377,18 +1464,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         private Comparator<Tile> getTileDistanceComparator() {
             final int centerX = (int) Math.ceil((minX + maxX) / 2d);
             final int centerY = (int) Math.ceil((minY + maxY) / 2d);
-            return new Comparator<Tile>() {
-                private int getDistance(Tile t) {
-                    return Math.abs(t.getXtile() - centerX) + Math.abs(t.getYtile() - centerY);
-                }
-
-                @Override
-                public int compare(Tile o1, Tile o2) {
-                    int distance1 = getDistance(o1);
-                    int distance2 = getDistance(o2);
-                    return Integer.compare(distance1, distance2);
-                }
-            };
+            return Comparator.comparingInt(t -> Math.abs(t.getXtile() - centerX) + Math.abs(t.getYtile() - centerY));
         }
 
         private void loadAllTiles(boolean force) {
@@ -1408,6 +1484,26 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
                 if (t.hasError()) {
                     tileLoader.createTileLoaderJob(t).submit(force);
                 }
+            }
+        }
+
+        /**
+         * Call the given paint method for all tiles in this tile set.
+         * <p>
+         * Uses a parallel stream.
+         * @param visitor A visitor to call for each tile.
+         * @param missed a consumer to call for each missed tile.
+         */
+        public void visitTiles(Consumer<Tile> visitor, Consumer<TilePosition> missed) {
+            tilePositions().parallel().forEach(tp -> visitTilePosition(visitor, tp, missed));
+        }
+
+        private void visitTilePosition(Consumer<Tile> visitor, TilePosition tp, Consumer<TilePosition> missed) {
+            Tile tile = getTile(tp);
+            if (tile == null) {
+                missed.accept(tp);
+            } else {
+                visitor.accept(tile);
             }
         }
 
@@ -1516,10 +1612,10 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
 
     @Override
     public void paint(Graphics2D g, MapView mv, Bounds bounds) {
-        ProjectionBounds pb = mv.getState().getViewArea().getProjectionBounds();
+        // old and unused.
+    }
 
-        needRedraw = false;
-
+    private void drawInViewArea(Graphics2D g, MapView mv, ProjectionBounds pb) {
         int zoom = currentZoomLevel;
         if (getDisplaySettings().isAutoZoom()) {
             zoom = getBestZoom();
@@ -1583,7 +1679,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
 
         g.setColor(Color.DARK_GRAY);
 
-        List<Tile> missedTiles = this.paintTileImages(g, ts, displayZoomLevel, null);
+        List<Tile> missedTiles = this.paintTileImages(g, ts);
         int[] otherZooms = {-1, 1, -2, 2, -3, -4, -5};
         for (int zoomOffset : otherZooms) {
             if (!getDisplaySettings().isAutoZoom()) {
@@ -1755,7 +1851,8 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
 
     @Override
     public boolean isChanged() {
-        return needRedraw;
+        // we use #invalidate()
+        return false;
     }
 
     /**
@@ -1894,8 +1991,14 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         public void paint(MapViewGraphics graphics) {
             allocateCacheMemory();
             if (memory != null) {
-                super.paint(graphics);
+                doPaint(graphics);
             }
+        }
+
+        private void doPaint(MapViewGraphics graphics) {
+            ProjectionBounds pb = graphics.getClipBounds().getProjectionBounds();
+
+            drawInViewArea(graphics.getDefaultGraphics(), graphics.getMapView(), pb);
         }
 
         private void allocateCacheMemory() {

@@ -43,6 +43,7 @@ import org.openstreetmap.josm.actions.DialogsToggleAction;
 import org.openstreetmap.josm.actions.DistributeAction;
 import org.openstreetmap.josm.actions.DownloadAction;
 import org.openstreetmap.josm.actions.DownloadNotesInViewAction;
+import org.openstreetmap.josm.actions.DownloadOsmInViewAction;
 import org.openstreetmap.josm.actions.DownloadPrimitiveAction;
 import org.openstreetmap.josm.actions.DownloadReferrersAction;
 import org.openstreetmap.josm.actions.DuplicateAction;
@@ -73,6 +74,7 @@ import org.openstreetmap.josm.actions.OrthogonalizeAction;
 import org.openstreetmap.josm.actions.OrthogonalizeAction.Undo;
 import org.openstreetmap.josm.actions.OverpassDownloadAction;
 import org.openstreetmap.josm.actions.PasteAction;
+import org.openstreetmap.josm.actions.PasteAtSourcePositionAction;
 import org.openstreetmap.josm.actions.PasteTagsAction;
 import org.openstreetmap.josm.actions.PreferenceToggleAction;
 import org.openstreetmap.josm.actions.PreferencesAction;
@@ -156,6 +158,8 @@ public class MainMenu extends JMenuBar {
     public final GpxExportAction gpxExport = new GpxExportAction();
     /** File / Download from OSM... **/
     public final DownloadAction download = new DownloadAction();
+    /** File / Download in current view **/
+    public final DownloadOsmInViewAction downloadInView = new DownloadOsmInViewAction();
     /** File / Download from Overpass API... **/
     public final OverpassDownloadAction overpassDownload = new OverpassDownloadAction();
     /** File / Download object... **/
@@ -194,6 +198,8 @@ public class MainMenu extends JMenuBar {
     public final JosmAction copyCoordinates = new CopyCoordinatesAction();
     /** Edit / Paste */
     public final PasteAction paste = new PasteAction();
+    /** Edit / Paste at source */
+    private final PasteAtSourcePositionAction pasteAtSource = new PasteAtSourcePositionAction();
     /** Edit / Paste Tags */
     public final PasteTagsAction pasteTags = new PasteTagsAction();
     /** Edit / Duplicate */
@@ -652,6 +658,7 @@ public class MainMenu extends JMenuBar {
         add(fileMenu, gpxExport, true);
         fileMenu.addSeparator();
         add(fileMenu, download);
+        add(fileMenu, downloadInView, true);
         add(fileMenu, overpassDownload, true);
         add(fileMenu, downloadPrimitive);
         add(fileMenu, searchNotes);
@@ -679,6 +686,7 @@ public class MainMenu extends JMenuBar {
         add(editMenu, copy);
         add(editMenu, copyCoordinates, true);
         add(editMenu, paste);
+        add(editMenu, pasteAtSource, true);
         add(editMenu, pasteTags);
         add(editMenu, duplicate);
         add(editMenu, delete);

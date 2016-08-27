@@ -16,7 +16,6 @@ import org.openstreetmap.josm.data.osm.visitor.Visitor;
 import org.openstreetmap.josm.tools.CopyList;
 import org.openstreetmap.josm.tools.SubclassFilteredCollection;
 import org.openstreetmap.josm.tools.Utils;
-import org.openstreetmap.josm.tools.Utils.Function;
 
 /**
  * A relation, having a set of tags and any number (0...n) of members.
@@ -400,7 +399,7 @@ public final class Relation extends OsmPrimitive implements IRelation {
     }
 
     public List<OsmPrimitive> getMemberPrimitivesList() {
-        return Utils.transform(getMembers(), (Function<RelationMember, OsmPrimitive>) x -> x.getMember());
+        return Utils.transform(getMembers(), RelationMember::getMember);
     }
 
     @Override
@@ -421,10 +420,7 @@ public final class Relation extends OsmPrimitive implements IRelation {
         return "boundary".equals(get("type"));
     }
 
-    /**
-     * Determines if this relation behaves as a multipolygon.
-     * @return {@code true} if it's a real mutlipolygon or a boundary relation
-     */
+    @Override
     public boolean isMultipolygon() {
         return "multipolygon".equals(get("type")) || isBoundary();
     }

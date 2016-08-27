@@ -225,18 +225,37 @@ Build-Date: ${build.tstamp}
             destdir="build" target="1.8" source="1.8" debug="on" includeAntRuntime="false" createMissingPackageInfoClass="false">
             <!-- get rid of "internal proprietary API" warning -->
             <compilerarg value="-XDignore.symbol.file"/>
+            <exclude name="org/apache/commons/compress/compressors/bzip2/BZip2Utils.java"/>
             <exclude name="org/apache/commons/compress/compressors/lzma/**"/>
             <exclude name="org/apache/commons/compress/compressors/xz/**"/>
             <exclude name="org/apache/commons/compress/compressors/CompressorStreamFactory.java"/>
+            <exclude name="org/apache/commons/compress/compressors/CompressorException.java"/>
+            <exclude name="org/apache/commons/compress/compressors/FileNameUtil.java"/>
             <exclude name="org/apache/commons/compress/compressors/deflate/**"/>
             <exclude name="org/apache/commons/compress/compressors/gzip/**"/>
             <exclude name="org/apache/commons/compress/compressors/lzw/**"/>
             <exclude name="org/apache/commons/compress/compressors/pack200/**"/>
             <exclude name="org/apache/commons/compress/compressors/snappy/**"/>
             <exclude name="org/apache/commons/compress/compressors/z/**"/>
-            <exclude name="org/apache/commons/jcs/admin/**"/>
+            <exclude name="org/apache/commons/jcs/JCS.java"/>
+            <exclude name="org/apache/commons/jcs/access/GroupCacheAccess.java"/>
+            <exclude name="org/apache/commons/jcs/access/PartitionedCacheAccess.java"/>
+            <exclude name="org/apache/commons/jcs/access/behavior/IGroupCacheAccess.java"/>
+            <exclude name="org/apache/commons/jcs/access/exception/InvalidGroupException.java"/>
+            <exclude name="org/apache/commons/jcs/admin/servlet/**"/>
+            <exclude name="org/apache/commons/jcs/auxiliary/AbstractAuxiliaryCacheMonitor.java"/>
             <exclude name="org/apache/commons/jcs/auxiliary/disk/jdbc/**"/>
+            <exclude name="org/apache/commons/jcs/auxiliary/lateral/**"/>
             <exclude name="org/apache/commons/jcs/auxiliary/remote/**"/>
+            <exclude name="org/apache/commons/jcs/engine/CacheAdaptor.java"/>
+            <exclude name="org/apache/commons/jcs/engine/CacheGroup.java"/>
+            <exclude name="org/apache/commons/jcs/engine/CacheWatchRepairable.java"/>
+            <exclude name="org/apache/commons/jcs/engine/Zombie*.java"/>
+            <exclude name="org/apache/commons/jcs/engine/logging/CacheEventLoggerDebugLogger.java"/>
+            <exclude name="org/apache/commons/jcs/utils/access/**"/>
+            <exclude name="org/apache/commons/jcs/utils/discovery/**"/>
+            <exclude name="org/apache/commons/jcs/utils/net/**"/>
+            <exclude name="org/apache/commons/jcs/utils/props/**"/>
             <exclude name="org/apache/commons/jcs/utils/servlet/**"/>
             <exclude name="org/apache/commons/logging/impl/AvalonLogger.java"/>
             <exclude name="org/apache/commons/logging/impl/Jdk13LumberjackLogger.java"/>
@@ -246,7 +265,7 @@ Build-Date: ${build.tstamp}
         </javac>
         <!-- JMapViewer -->
         <javac compiler="${javac.compiler}" sourcepath="" srcdir="${src.dir}" 
-            excludes="com/**,oauth/**,org/apache/commons/**,org/glassfish/**,org/openstreetmap/gui/jmapviewer/Demo.java,org/openstreetmap/josm/**,JOSM.java,gnu/**"
+            excludes="com/**,oauth/**,org/apache/commons/**,org/glassfish/**,org/openstreetmap/gui/jmapviewer/Demo.java,org/openstreetmap/gui/jmapviewer/JMapViewerTree.java,org/openstreetmap/josm/**,JOSM.java,gnu/**"
             destdir="build" target="1.8" source="1.8" debug="on" includeantruntime="false" createMissingPackageInfoClass="false" encoding="UTF-8">
             <compilerclasspath>
                 <pathelement location="${error_prone_ant.jar}"/>
@@ -264,7 +283,7 @@ Build-Date: ${build.tstamp}
             <compilerarg value="-Xlint:unchecked"/>
             <!-- Undocumented argument to ignore "Sun internal proprietary API" warning, see http://stackoverflow.com/a/13862308/2257172 -->
             <compilerarg value="-XDignore.symbol.file"/>
-            <compilerarg value="-Xep:ReferenceEquality:OFF"/>
+            <compilerarg value="-Xep:ReferenceEquality:OFF" compiler="com.google.errorprone.ErrorProneAntCompilerAdapter"/>
             <compilerarg line="-Xmaxwarns 1000"/>
         </javac>
         <!-- JOSM -->
@@ -287,7 +306,7 @@ Build-Date: ${build.tstamp}
             <compilerarg value="-Xlint:unchecked"/>
             <!-- Undocumented argument to ignore "Sun internal proprietary API" warning, see http://stackoverflow.com/a/13862308/2257172 -->
             <compilerarg value="-XDignore.symbol.file"/>
-            <compilerarg value="-Xep:ReferenceEquality:OFF"/>
+            <compilerarg value="-Xep:ReferenceEquality:OFF" compiler="com.google.errorprone.ErrorProneAntCompilerAdapter"/>
             <compilerarg line="-Xmaxwarns 1000"/>
         </javac>
 
@@ -351,12 +370,9 @@ Build-Date: ${build.tstamp}
         <delete dir="${test.dir}/report"/>
         <delete file="${test.dir}/jacoco.exec" />
         <delete file="${test.dir}/jacocoIT.exec" />
-        <delete file="${test.dir}/config/unit-josm.home/preferences.xml" />
-        <delete file="${test.dir}/config/functional-josm.home/preferences.xml" />
-        <delete file="${test.dir}/config/performance-josm.home/preferences.xml" />
-        <delete dir="${test.dir}/config/unit-josm.home/cache" failonerror="false"/>
-        <delete dir="${test.dir}/config/functional-josm.home/cache" failonerror="false"/>
-        <delete dir="${test.dir}/config/performance-josm.home/cache" failonerror="false"/>
+        <delete file="${test.dir}/config/unit-josm.home" failonerror="false"/>
+        <delete file="${test.dir}/config/functional-josm.home" failonerror="false"/>
+        <delete file="${test.dir}/config/performance-josm.home" failonerror="false"/>
     </target>
     <macrodef name="call-groovyc">
         <attribute name="testfamily"/>
@@ -402,10 +418,8 @@ Build-Date: ${build.tstamp}
             <jacoco:coverage destfile="${test.dir}/jacoco@{testITsuffix}.exec" enabled="@{coverage}" excludes="jdk.dynalink.*:jdk.nashorn.*">
                 <junit printsummary="yes" fork="true" forkmode="once">
                     <jvmarg value="-Dfile.encoding=UTF-8"/>
-                    <jvmarg line="-addmods java.xml.bind" if:set="isJava9" />
                     <jvmarg value="-XaddExports:java.base/sun.security.util=ALL-UNNAMED" if:set="isJava9" />
                     <jvmarg value="-XaddExports:java.base/sun.security.x509=ALL-UNNAMED" if:set="isJava9" />
-                    <jvmarg value="-XaddExports:java.xml.bind/javax.xml.bind=ALL-UNNAMED" if:set="isJava9" />
                     <sysproperty key="josm.home" value="${test.dir}/config/@{testfamily}-josm.home"/>
                     <sysproperty key="josm.test.data" value="${test.dir}/data"/>
                     <sysproperty key="java.awt.headless" value="true"/>
@@ -508,6 +522,20 @@ Build-Date: ${build.tstamp}
         # This note should not be a problem as we don't use obfuscation
         -dontnote
         </proguard>
+    </target>
+    <!-- Proguard does not support Java 9 : http://sourceforge.net/p/proguard/bugs/551/ -->
+    <target name="dist-optimized-report" depends="dist-optimized" unless="isJava9">
+        <!-- generate difference report between optimized jar and normal one -->
+        <exec executable="perl" dir="${basedir}">
+            <arg value="tools/japicc/japi-compliance-checker.pl"/>
+            <arg value="--lib=JOSM"/>
+            <arg value="--keep-internal"/>
+            <arg value="--v1=${version.entry.commit.revision}"/>
+            <arg value="--v2=${version.entry.commit.revision}-optimized"/>
+            <arg value="--report-path=${dist.dir}/compat_report.html"/>
+            <arg value="${dist.dir}/josm-custom.jar"/>
+            <arg value="${dist.dir}/josm-custom-optimized.jar"/>
+        </exec>
     </target>
     <target name="check-plugins" depends="dist-optimized">
         <echo message="Check of plugins binary compatibility (needs ant 1.8)"/>
@@ -673,7 +701,7 @@ Build-Date: ${build.tstamp}
 
     <target name="checkstyle" depends="init-properties">
         <taskdef resource="com/puppycrawl/tools/checkstyle/ant/checkstyle-ant-task.properties"
-             classpath="tools/checkstyle/checkstyle-7.0-all.jar"/>
+             classpath="tools/checkstyle/checkstyle-7.1-all.jar"/>
         <checkstyle config="tools/checkstyle/josm_checks.xml">
             <fileset dir="${base.dir}/src/org/openstreetmap/josm" includes="**/*.java"
                 excludes="gui/mappaint/mapcss/parsergen/*.java"/>
@@ -713,7 +741,7 @@ Build-Date: ${build.tstamp}
     <!--
       ** Compile build script for generating projection list.
     -->
-    <target name="epsg-compile">
+    <target name="epsg-compile" depends="init-properties">
         <property name="proj-classpath" location="${build.dir}"/>
         <mkdir dir="${proj-build.dir}"/>
         <javac sourcepath="" srcdir="${base.dir}/scripts" failonerror="true"

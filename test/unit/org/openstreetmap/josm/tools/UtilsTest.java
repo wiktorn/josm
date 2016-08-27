@@ -154,8 +154,8 @@ public class UtilsTest {
      * Test {@link Utils#joinAsHtmlUnorderedList(Iterable)}
      */
     @Test
-    public void joinAsHtmlUnorderedList() {
-        List<? extends Object> items = Arrays.asList("1", new Integer(2));
+    public void testJoinAsHtmlUnorderedList() {
+        List<? extends Object> items = Arrays.asList("1", Integer.valueOf(2));
         assertEquals("<ul><li>1</li><li>2</li></ul>", Utils.joinAsHtmlUnorderedList(items));
         assertEquals("<ul></ul>", Utils.joinAsHtmlUnorderedList(Collections.emptyList()));
     }

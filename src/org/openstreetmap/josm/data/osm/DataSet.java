@@ -20,6 +20,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Predicate;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Bounds;
@@ -45,8 +46,6 @@ import org.openstreetmap.josm.data.projection.Projection;
 import org.openstreetmap.josm.data.projection.ProjectionChangeListener;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
 import org.openstreetmap.josm.gui.tagging.ac.AutoCompletionManager;
-import org.openstreetmap.josm.tools.FilteredCollection;
-import org.openstreetmap.josm.tools.Predicates;
 import org.openstreetmap.josm.tools.SubclassFilteredCollection;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -318,7 +317,7 @@ public final class DataSet implements Data, Cloneable, ProjectionChangeListener 
      * @return The list of primtives.
      * @since 10590
      */
-    public <T extends OsmPrimitive> Collection<T> getPrimitives(java.util.function.Predicate<? super OsmPrimitive> predicate) {
+    public <T extends OsmPrimitive> Collection<T> getPrimitives(Predicate<? super OsmPrimitive> predicate) {
         return new SubclassFilteredCollection<>(allPrimitives, predicate);
     }
 
@@ -328,7 +327,7 @@ public final class DataSet implements Data, Cloneable, ProjectionChangeListener 
      * @return an unmodifiable collection of nodes in this dataset
      */
     public Collection<Node> getNodes() {
-        return getPrimitives(OsmPrimitive.nodePredicate);
+        return getPrimitives(Node.class::isInstance);
     }
 
     /**
@@ -370,7 +369,7 @@ public final class DataSet implements Data, Cloneable, ProjectionChangeListener 
      * @return an unmodifiable collection of ways in this dataset
      */
     public Collection<Way> getWays() {
-        return getPrimitives(OsmPrimitive.wayPredicate);
+        return getPrimitives(Way.class::isInstance);
     }
 
     /**
@@ -410,7 +409,7 @@ public final class DataSet implements Data, Cloneable, ProjectionChangeListener 
      * @return an unmodifiable collection of relations in this dataset
      */
     public Collection<Relation> getRelations() {
-        return getPrimitives(OsmPrimitive.relationPredicate);
+        return getPrimitives(Relation.class::isInstance);
     }
 
     /**
@@ -456,7 +455,7 @@ public final class DataSet implements Data, Cloneable, ProjectionChangeListener 
      * @return A collection containing all primitives of the dataset. Data is not ordered
      */
     public Collection<OsmPrimitive> allPrimitives() {
-        return getPrimitives(Predicates.alwaysTrue());
+        return getPrimitives(o -> true);
     }
 
     /**
@@ -465,7 +464,7 @@ public final class DataSet implements Data, Cloneable, ProjectionChangeListener 
      * @see OsmPrimitive#isDeleted
      */
     public Collection<OsmPrimitive> allNonDeletedPrimitives() {
-        return getPrimitives(OsmPrimitive.nonDeletedPredicate);
+        return getPrimitives(p -> !p.isDeleted());
     }
 
     /**
@@ -475,7 +474,7 @@ public final class DataSet implements Data, Cloneable, ProjectionChangeListener 
      * @see OsmPrimitive#isIncomplete
      */
     public Collection<OsmPrimitive> allNonDeletedCompletePrimitives() {
-        return getPrimitives(OsmPrimitive.nonDeletedCompletePredicate);
+        return getPrimitives(primitive -> !primitive.isDeleted() && !primitive.isIncomplete());
     }
 
     /**
@@ -485,7 +484,7 @@ public final class DataSet implements Data, Cloneable, ProjectionChangeListener 
      * @see OsmPrimitive#isIncomplete
      */
     public Collection<OsmPrimitive> allNonDeletedPhysicalPrimitives() {
-        return getPrimitives(OsmPrimitive.nonDeletedPhysicalPredicate);
+        return getPrimitives(primitive -> !primitive.isDeleted() && !primitive.isIncomplete() && !(primitive instanceof Relation));
     }
 
     /**
@@ -494,7 +493,7 @@ public final class DataSet implements Data, Cloneable, ProjectionChangeListener 
      * @see OsmPrimitive#isModified
      */
     public Collection<OsmPrimitive> allModifiedPrimitives() {
-        return getPrimitives(OsmPrimitive.modifiedPredicate);
+        return getPrimitives(OsmPrimitive::isModified);
     }
 
     /**
@@ -612,7 +611,7 @@ public final class DataSet implements Data, Cloneable, ProjectionChangeListener 
      * @return selected nodes and ways
      */
     public Collection<OsmPrimitive> getSelectedNodesAndWays() {
-        return new FilteredCollection<>(getSelected(), primitive -> primitive instanceof Node || primitive instanceof Way);
+        return new SubclassFilteredCollection<>(getSelected(), primitive -> primitive instanceof Node || primitive instanceof Way);
     }
 
     /**
@@ -642,7 +641,7 @@ public final class DataSet implements Data, Cloneable, ProjectionChangeListener 
      * @return unmodifiable collection of primitives
      */
     public Collection<OsmPrimitive> getSelected() {
-        return new SubclassFilteredCollection<>(getAllSelected(), OsmPrimitive.nonDeletedPredicate);
+        return new SubclassFilteredCollection<>(getAllSelected(), p -> !p.isDeleted());
     }
 
     /**
@@ -667,7 +666,7 @@ public final class DataSet implements Data, Cloneable, ProjectionChangeListener 
      * @return selected nodes
      */
     public Collection<Node> getSelectedNodes() {
-        return new SubclassFilteredCollection<>(getSelected(), OsmPrimitive.nodePredicate);
+        return new SubclassFilteredCollection<>(getSelected(), Node.class::isInstance);
     }
 
     /**
@@ -675,7 +674,7 @@ public final class DataSet implements Data, Cloneable, ProjectionChangeListener 
      * @return selected ways
      */
     public Collection<Way> getSelectedWays() {
-        return new SubclassFilteredCollection<>(getSelected(), OsmPrimitive.wayPredicate);
+        return new SubclassFilteredCollection<>(getSelected(), Way.class::isInstance);
     }
 
     /**
@@ -683,7 +682,7 @@ public final class DataSet implements Data, Cloneable, ProjectionChangeListener 
      * @return selected relations
      */
     public Collection<Relation> getSelectedRelations() {
-        return new SubclassFilteredCollection<>(getSelected(), OsmPrimitive.relationPredicate);
+        return new SubclassFilteredCollection<>(getSelected(), Relation.class::isInstance);
     }
 
     /**
@@ -711,7 +710,7 @@ public final class DataSet implements Data, Cloneable, ProjectionChangeListener 
         boolean changed = false;
         synchronized (selectionLock) {
             for (PrimitiveId o : osm) {
-                changed = changed | this.__toggleSelected(o);
+                changed = changed | this.dotoggleSelected(o);
             }
             if (changed) {
                 selectionSnapshot = null;
@@ -730,7 +729,7 @@ public final class DataSet implements Data, Cloneable, ProjectionChangeListener 
         toggleSelected(Arrays.asList(osm));
     }
 
-    private boolean __toggleSelected(PrimitiveId primitiveId) {
+    private boolean dotoggleSelected(PrimitiveId primitiveId) {
         OsmPrimitive primitive = getPrimitiveByIdChecked(primitiveId);
         if (primitive == null)
             return false;
@@ -752,8 +751,7 @@ public final class DataSet implements Data, Cloneable, ProjectionChangeListener 
             return;
 
         highlightedVirtualNodes = waySegments;
-        // can't use fireHighlightingChanged because it requires an OsmPrimitive
-        highlightUpdateCount++;
+        fireHighlightingChanged();
     }
 
     /**
@@ -765,8 +763,7 @@ public final class DataSet implements Data, Cloneable, ProjectionChangeListener 
             return;
 
         highlightedWaySegments = waySegments;
-        // can't use fireHighlightingChanged because it requires an OsmPrimitive
-        highlightUpdateCount++;
+        fireHighlightingChanged();
     }
 
     /**
@@ -1163,26 +1160,27 @@ public final class DataSet implements Data, Cloneable, ProjectionChangeListener 
     public void endUpdate() {
         if (updateCount > 0) {
             updateCount--;
+            List<AbstractDatasetChangedEvent> eventsToFire = Collections.emptyList();
             if (updateCount == 0) {
-                List<AbstractDatasetChangedEvent> eventsCopy = new ArrayList<>(cachedEvents);
+                eventsToFire = new ArrayList<>(cachedEvents);
                 cachedEvents.clear();
-                lock.writeLock().unlock();
+            }
 
-                if (!eventsCopy.isEmpty()) {
-                    lock.readLock().lock();
-                    try {
-                        if (eventsCopy.size() < MAX_SINGLE_EVENTS) {
-                            for (AbstractDatasetChangedEvent event: eventsCopy) {
-                                fireEventToListeners(event);
-                            }
-                        } else if (eventsCopy.size() == MAX_EVENTS) {
-                            fireEventToListeners(new DataChangedEvent(this));
-                        } else {
-                            fireEventToListeners(new DataChangedEvent(this, eventsCopy));
+            if (!eventsToFire.isEmpty()) {
+                lock.readLock().lock();
+                lock.writeLock().unlock();
+                try {
+                    if (eventsToFire.size() < MAX_SINGLE_EVENTS) {
+                        for (AbstractDatasetChangedEvent event: eventsToFire) {
+                            fireEventToListeners(event);
                         }
-                    } finally {
-                        lock.readLock().unlock();
+                    } else if (eventsToFire.size() == MAX_EVENTS) {
+                        fireEventToListeners(new DataChangedEvent(this));
+                    } else {
+                        fireEventToListeners(new DataChangedEvent(this, eventsToFire));
                     }
+                } finally {
+                    lock.readLock().unlock();
                 }
             } else {
                 lock.writeLock().unlock();

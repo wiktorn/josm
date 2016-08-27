@@ -11,7 +11,6 @@ import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.Point;
-import java.awt.Polygon;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Shape;
@@ -21,13 +20,14 @@ import java.awt.font.GlyphVector;
 import java.awt.font.LineMetrics;
 import java.awt.font.TextLayout;
 import java.awt.geom.AffineTransform;
-import java.awt.geom.GeneralPath;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
+import java.awt.geom.RoundRectangle2D;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -36,6 +36,8 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.RecursiveTask;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import javax.swing.AbstractButton;
 import javax.swing.FocusManager;
@@ -57,21 +59,23 @@ import org.openstreetmap.josm.data.osm.visitor.Visitor;
 import org.openstreetmap.josm.data.osm.visitor.paint.relations.Multipolygon;
 import org.openstreetmap.josm.data.osm.visitor.paint.relations.Multipolygon.PolyData;
 import org.openstreetmap.josm.data.osm.visitor.paint.relations.MultipolygonCache;
+import org.openstreetmap.josm.gui.MapViewState.MapViewPoint;
 import org.openstreetmap.josm.gui.NavigatableComponent;
+import org.openstreetmap.josm.gui.draw.MapPath2D;
+import org.openstreetmap.josm.gui.draw.MapViewPath;
 import org.openstreetmap.josm.gui.mappaint.ElemStyles;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
 import org.openstreetmap.josm.gui.mappaint.StyleElementList;
 import org.openstreetmap.josm.gui.mappaint.mapcss.MapCSSStyleSource;
-import org.openstreetmap.josm.gui.mappaint.mapcss.Selector;
 import org.openstreetmap.josm.gui.mappaint.styleelement.AreaElement;
 import org.openstreetmap.josm.gui.mappaint.styleelement.BoxTextElement;
 import org.openstreetmap.josm.gui.mappaint.styleelement.BoxTextElement.HorizontalTextAlignment;
 import org.openstreetmap.josm.gui.mappaint.styleelement.BoxTextElement.VerticalTextAlignment;
 import org.openstreetmap.josm.gui.mappaint.styleelement.MapImage;
 import org.openstreetmap.josm.gui.mappaint.styleelement.NodeElement;
-import org.openstreetmap.josm.gui.mappaint.styleelement.NodeElement.Symbol;
 import org.openstreetmap.josm.gui.mappaint.styleelement.RepeatImageElement.LineImageAlignment;
 import org.openstreetmap.josm.gui.mappaint.styleelement.StyleElement;
+import org.openstreetmap.josm.gui.mappaint.styleelement.Symbol;
 import org.openstreetmap.josm.gui.mappaint.styleelement.TextLabel;
 import org.openstreetmap.josm.tools.CompositeList;
 import org.openstreetmap.josm.tools.Geometry;
@@ -96,18 +100,19 @@ public class StyledMapRenderer extends AbstractMapRenderer {
      * There is no intention, to handle consecutive duplicate Nodes in a
      * perfect way, but it should not throw an exception.
      */
-    private class OffsetIterator implements Iterator<Point> {
+    private class OffsetIterator implements Iterator<MapViewPoint> {
 
         private final List<Node> nodes;
         private final double offset;
         private int idx;
 
-        private Point prev;
+        private MapViewPoint prev;
         /* 'prev0' is a point that has distance 'offset' from 'prev' and the
          * line from 'prev' to 'prev0' is perpendicular to the way segment from
-         * 'prev' to the next point.
+         * 'prev' to the current point.
          */
-        private int xPrev0, yPrev0;
+        private double xPrev0;
+        private double yPrev0;
 
         OffsetIterator(List<Node> nodes, double offset) {
             this.nodes = nodes;
@@ -121,68 +126,113 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         }
 
         @Override
-        public Point next() {
+        public MapViewPoint next() {
             if (!hasNext())
                 throw new NoSuchElementException();
 
-            if (Math.abs(offset) < 0.1d)
-                return nc.getPoint(nodes.get(idx++));
+            MapViewPoint current = getForIndex(idx);
 
-            Point current = nc.getPoint(nodes.get(idx));
+            if (Math.abs(offset) < 0.1d) {
+                idx++;
+                return current;
+            }
 
+            double xCurrent = current.getInViewX();
+            double yCurrent = current.getInViewY();
             if (idx == nodes.size() - 1) {
                 ++idx;
                 if (prev != null) {
-                    return new Point(xPrev0 + current.x - prev.x, yPrev0 + current.y - prev.y);
+                    return mapState.getForView(xPrev0 + xCurrent - prev.getInViewX(),
+                                               yPrev0 + yCurrent - prev.getInViewY());
                 } else {
                     return current;
                 }
             }
 
-            Point next = nc.getPoint(nodes.get(idx+1));
+            MapViewPoint next = getForIndex(idx + 1);
+            double dxNext = next.getInViewX() - xCurrent;
+            double dyNext = next.getInViewY() - yCurrent;
+            double lenNext = Math.sqrt(dxNext*dxNext + dyNext*dyNext);
 
-            int dxNext = next.x - current.x;
-            int dyNext = next.y - current.y;
-            double lenNext = Math.sqrt((double) dxNext*dxNext + (double) dyNext*dyNext);
-
-            if (lenNext == 0) {
+            if (lenNext < 1e-11) {
                 lenNext = 1; // value does not matter, because dy_next and dx_next is 0
             }
 
-            int xCurrent0 = current.x + (int) Math.round(offset * dyNext / lenNext);
-            int yCurrent0 = current.y - (int) Math.round(offset * dxNext / lenNext);
+            // calculate the position of the translated current point
+            double om = offset / lenNext;
+            double xCurrent0 = xCurrent + om * dyNext;
+            double yCurrent0 = yCurrent - om * dxNext;
 
             if (idx == 0) {
                 ++idx;
                 prev = current;
                 xPrev0 = xCurrent0;
                 yPrev0 = yCurrent0;
-                return new Point(xCurrent0, yCurrent0);
+                return mapState.getForView(xCurrent0, yCurrent0);
             } else {
-                int dxPrev = current.x - prev.x;
-                int dyPrev = current.y - prev.y;
-
+                double dxPrev = xCurrent - prev.getInViewX();
+                double dyPrev = yCurrent - prev.getInViewY();
                 // determine intersection of the lines parallel to the two segments
-                int det = dxNext*dyPrev - dxPrev*dyNext;
+                double det = dxNext*dyPrev - dxPrev*dyNext;
+                double m = dxNext*(yCurrent0 - yPrev0) - dyNext*(xCurrent0 - xPrev0);
 
-                if (det == 0) {
+                if (Utils.equalsEpsilon(det, 0) || Math.signum(det) != Math.signum(m)) {
                     ++idx;
                     prev = current;
                     xPrev0 = xCurrent0;
                     yPrev0 = yCurrent0;
-                    return new Point(xCurrent0, yCurrent0);
+                    return mapState.getForView(xCurrent0, yCurrent0);
                 }
 
-                int m = dxNext*(yCurrent0 - yPrev0) - dyNext*(xCurrent0 - xPrev0);
+                double f = m / det;
+                if (f < 0) {
+                    ++idx;
+                    prev = current;
+                    xPrev0 = xCurrent0;
+                    yPrev0 = yCurrent0;
+                    return mapState.getForView(xCurrent0, yCurrent0);
+                }
+                // the position of the intersection or intermittent point
+                double cx = xPrev0 + f * dxPrev;
+                double cy = yPrev0 + f * dyPrev;
 
-                int cx = xPrev0 + (int) Math.round((double) m * dxPrev / det);
-                int cy = yPrev0 + (int) Math.round((double) m * dyPrev / det);
+                if (f > 1) {
+                    // check if the intersection point is too far away, this will happen for sharp angles
+                    double dxI = cx - xCurrent;
+                    double dyI = cy - yCurrent;
+                    double lenISq = dxI * dxI + dyI * dyI;
+
+                    if (lenISq > Math.abs(2 * offset * offset)) {
+                        // intersection point is too far away, calculate intermittent points for capping
+                        double dxPrev0 = xCurrent0 - xPrev0;
+                        double dyPrev0 = yCurrent0 - yPrev0;
+                        double lenPrev0 = Math.sqrt(dxPrev0 * dxPrev0 + dyPrev0 * dyPrev0);
+                        f = 1 + Math.abs(offset / lenPrev0);
+                        double cxCap = xPrev0 + f * dxPrev;
+                        double cyCap = yPrev0 + f * dyPrev;
+                        xPrev0 = cxCap;
+                        yPrev0 = cyCap;
+                        // calculate a virtual prev point which lies on a line that goes through current and
+                        // is perpendicular to the line that goes through current and the intersection
+                        // so that the next capping point is calculated with it.
+                        double lenI = Math.sqrt(lenISq);
+                        double xv = xCurrent + dyI / lenI;
+                        double yv = yCurrent - dxI / lenI;
+
+                        prev = mapState.getForView(xv, yv);
+                        return mapState.getForView(cxCap, cyCap);
+                    }
+                }
                 ++idx;
                 prev = current;
                 xPrev0 = xCurrent0;
                 yPrev0 = yCurrent0;
-                return new Point(cx, cy);
+                return mapState.getForView(cx, cy);
             }
+        }
+
+        private MapViewPoint getForIndex(int i) {
+            return mapState.getPointFor(nodes.get(i));
         }
 
         @Override
@@ -191,7 +241,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         }
     }
 
-    private static class StyleRecord implements Comparable<StyleRecord> {
+    public static class StyleRecord implements Comparable<StyleRecord> {
         private final StyleElement style;
         private final OsmPrimitive osm;
         private final int flags;
@@ -239,34 +289,15 @@ public class StyledMapRenderer extends AbstractMapRenderer {
 
             return Float.compare(this.style.objectZIndex, other.style.objectZIndex);
         }
-    }
 
-    /**
-     * Saves benchmark data for tests.
-     */
-    public static class BenchmarkData {
-        public long generateTime;
-        public long sortTime;
-        public long drawTime;
-        public Map<Class<? extends StyleElement>, Integer> styleElementCount;
-        public boolean skipDraw;
-
-        private void recordElementStats(List<StyleRecord> srs) {
-            styleElementCount = new HashMap<>();
-            for (StyleRecord r : srs) {
-                Class<? extends StyleElement> klass = r.style.getClass();
-                Integer count = styleElementCount.get(klass);
-                if (count == null) {
-                    count = 0;
-                }
-                styleElementCount.put(klass, count + 1);
-            }
-
+        /**
+         * Get the style for this style element.
+         * @return The style
+         */
+        public StyleElement getStyle() {
+            return style;
         }
     }
-
-    /* can be set by tests, if detailed benchmark data is requested */
-    public BenchmarkData benchmarkData;
 
     private static Map<Font, Boolean> IS_GLYPH_VECTOR_DOUBLE_TRANSLATION_BUG = new HashMap<>();
 
@@ -373,6 +404,8 @@ public class StyledMapRenderer extends AbstractMapRenderer {
     private boolean leftHandTraffic;
     private Object antialiasing;
 
+    private Supplier<RenderBenchmarkCollector> benchmarkFactory = RenderBenchmarkCollector.defaultBenchmarkSupplier();
+
     /**
      * Constructs a new {@code StyledMapRenderer}.
      *
@@ -392,22 +425,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         }
     }
 
-    private static Polygon buildPolygon(Point center, int radius, int sides) {
-        return buildPolygon(center, radius, sides, 0.0);
-    }
-
-    private static Polygon buildPolygon(Point center, int radius, int sides, double rotation) {
-        Polygon polygon = new Polygon();
-        for (int i = 0; i < sides; i++) {
-            double angle = ((2 * Math.PI / sides) * i) - rotation;
-            int x = (int) Math.round(center.x + radius * Math.cos(angle));
-            int y = (int) Math.round(center.y + radius * Math.sin(angle));
-            polygon.addPoint(x, y);
-        }
-        return polygon;
-    }
-
-    private void displaySegments(GeneralPath path, GeneralPath orientationArrows, GeneralPath onewayArrows, GeneralPath onewayArrowsCasing,
+    private void displaySegments(Path2D path, Path2D orientationArrows, Path2D onewayArrows, Path2D onewayArrowsCasing,
             Color color, BasicStroke line, BasicStroke dashes, Color dashedColor) {
         g.setColor(isInactiveMode ? inactiveColor : color);
         if (useStrokes) {
@@ -505,7 +523,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
     protected void drawArea(OsmPrimitive osm, Path2D.Double path, Color color,
             MapImage fillImage, Float extent, Path2D.Double pfClip, boolean disabled, TextLabel text) {
 
-        Shape area = path.createTransformedShape(nc.getAffineTransform());
+        Shape area = path.createTransformedShape(mapState.getAffineTransform());
 
         if (!isOutlineOnly) {
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
@@ -520,7 +538,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
                     Shape oldClip = g.getClip();
                     Shape clip = area;
                     if (pfClip != null) {
-                        clip = pfClip.createTransformedShape(nc.getAffineTransform());
+                        clip = pfClip.createTransformedShape(mapState.getAffineTransform());
                     }
                     g.clip(clip);
                     g.setStroke(new BasicStroke(2 * extent, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 4));
@@ -543,7 +561,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
                     g.clip(stroke.createStrokedShape(area));
                     Shape fill = area;
                     if (pfClip != null) {
-                        fill = pfClip.createTransformedShape(nc.getAffineTransform());
+                        fill = pfClip.createTransformedShape(mapState.getAffineTransform());
                     }
                     g.fill(fill);
                     g.setClip(oldClip);
@@ -715,7 +733,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         if (!isShowNames() || bs == null)
             return;
 
-        Point p = nc.getPoint(n);
+        MapViewPoint p = mapState.getPointFor(n);
         TextLabel text = bs.text;
         String s = text.labelCompositionStrategy.compose(n);
         if (s == null) return;
@@ -723,8 +741,8 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         Font defaultFont = g.getFont();
         g.setFont(text.font);
 
-        int x = p.x + text.xOffset;
-        int y = p.y + text.yOffset;
+        int x = (int) (Math.round(p.getInViewX()) + text.xOffset);
+        int y = (int) (Math.round(p.getInViewY()) + text.yOffset);
         /**
          *
          *       left-above __center-above___ right-above
@@ -786,7 +804,6 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         final double repeat = imgWidth + spacing;
         final int imgHeight = pattern.getHeight();
 
-        Point lastP = null;
         double currentWayLength = phase % repeat;
         if (currentWayLength < 0) {
             currentWayLength += repeat;
@@ -810,22 +827,23 @@ public class StyledMapRenderer extends AbstractMapRenderer {
                 throw new AssertionError();
         }
 
+        MapViewPoint lastP = null;
         OffsetIterator it = new OffsetIterator(way.getNodes(), offset);
         while (it.hasNext()) {
-            Point thisP = it.next();
+            MapViewPoint thisP = it.next();
 
             if (lastP != null) {
-                final double segmentLength = thisP.distance(lastP);
+                final double segmentLength = thisP.distanceToInView(lastP);
 
-                final double dx = (double) thisP.x - lastP.x;
-                final double dy = (double) thisP.y - lastP.y;
+                final double dx = thisP.getInViewX() - lastP.getInViewX();
+                final double dy = thisP.getInViewY() - lastP.getInViewY();
 
                 // pos is the position from the beginning of the current segment
                 // where an image should be painted
                 double pos = repeat - (currentWayLength % repeat);
 
                 AffineTransform saveTransform = g.getTransform();
-                g.translate(lastP.x, lastP.y);
+                g.translate(lastP.getInViewX(), lastP.getInViewY());
                 g.rotate(Math.atan2(dy, dx));
 
                 // draw the rest of the image from the last segment in case it
@@ -866,14 +884,13 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         if (size <= 0 && !n.isHighlighted())
             return;
 
-        Point p = nc.getPoint(n);
+        MapViewPoint p = mapState.getPointFor(n);
 
         if (n.isHighlighted()) {
-            drawPointHighlight(p, size);
+            drawPointHighlight(p.getInView(), size);
         }
 
-        if (size > 1) {
-            if ((p.x < 0) || (p.y < 0) || (p.x > nc.getWidth()) || (p.y > nc.getHeight())) return;
+        if (size > 1 && p.isInView()) {
             int radius = size / 2;
 
             if (isInactiveMode || n.isDisabled()) {
@@ -881,31 +898,43 @@ public class StyledMapRenderer extends AbstractMapRenderer {
             } else {
                 g.setColor(color);
             }
+            Rectangle2D rect = new Rectangle2D.Double(p.getInViewX()-radius-1, p.getInViewY()-radius-1, size + 1, size + 1);
             if (fill) {
-                g.fillRect(p.x-radius-1, p.y-radius-1, size + 1, size + 1);
+                g.fill(rect);
             } else {
-                g.drawRect(p.x-radius-1, p.y-radius-1, size, size);
+                g.draw(rect);
             }
         }
     }
 
+    /**
+     * Draw the icon for a given node.
+     * @param n The node
+     * @param img The icon to draw at the node position
+     */
     public void drawNodeIcon(Node n, MapImage img, boolean disabled, boolean selected, boolean member, double theta) {
-        Point p = nc.getPoint(n);
+        MapViewPoint p = mapState.getPointFor(n);
 
-        final int w = img.getWidth(), h = img.getHeight();
+        int w = img.getWidth();
+        int h = img.getHeight();
         if (n.isHighlighted()) {
-            drawPointHighlight(p, Math.max(w, h));
+            drawPointHighlight(p.getInView(), Math.max(w, h));
         }
 
         float alpha = img.getAlphaFloat();
 
+        Graphics2D temporaryGraphics = (Graphics2D) g.create();
         if (!Utils.equalsEpsilon(alpha, 1f)) {
-            g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
+            temporaryGraphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
         }
-        g.rotate(theta, p.x, p.y);
-        g.drawImage(img.getImage(disabled), p.x - w/2 + img.offsetX, p.y - h/2 + img.offsetY, nc);
-        g.rotate(-theta, p.x, p.y);
-        g.setPaintMode();
+
+        double x = Math.round(p.getInViewX());
+        double y = Math.round(p.getInViewY());
+        temporaryGraphics.translate(x, y);
+        temporaryGraphics.rotate(theta);
+        int drawX = -w/2 + img.offsetX;
+        int drawY = -h/2 + img.offsetY;
+        temporaryGraphics.drawImage(img.getImage(disabled), drawX, drawY, nc);
         if (selected || member) {
             Color color;
             if (disabled) {
@@ -915,88 +944,38 @@ public class StyledMapRenderer extends AbstractMapRenderer {
             } else {
                 color = relationSelectedColor;
             }
-            g.setColor(color);
-            g.drawRect(p.x - w/2 + img.offsetX - 2, p.y - h/2 + img.offsetY - 2, w + 4, h + 4);
+            temporaryGraphics.setColor(color);
+            temporaryGraphics.draw(new Rectangle2D.Double(drawX - 2, drawY - 2, w + 4, h + 4));
         }
     }
 
+    /**
+     * Draw the symbol and possibly a highlight marking on a given node.
+     * @param n The position to draw the symbol on
+     * @param s The symbol to draw
+     * @param fillColor The color to fill the symbol with
+     * @param strokeColor The color to use for the outer corner of the symbol
+     */
     public void drawNodeSymbol(Node n, Symbol s, Color fillColor, Color strokeColor) {
-        Point p = nc.getPoint(n);
-        int radius = s.size / 2;
+        MapViewPoint p = mapState.getPointFor(n);
 
         if (n.isHighlighted()) {
-            drawPointHighlight(p, s.size);
+            drawPointHighlight(p.getInView(), s.size);
         }
 
-        if (fillColor != null) {
-            g.setColor(fillColor);
-            switch (s.symbol) {
-            case SQUARE:
-                g.fillRect(p.x - radius, p.y - radius, s.size, s.size);
-                break;
-            case CIRCLE:
-                g.fillOval(p.x - radius, p.y - radius, s.size, s.size);
-                break;
-            case TRIANGLE:
-                g.fillPolygon(buildPolygon(p, radius, 3, Math.PI / 2));
-                break;
-            case PENTAGON:
-                g.fillPolygon(buildPolygon(p, radius, 5, Math.PI / 2));
-                break;
-            case HEXAGON:
-                g.fillPolygon(buildPolygon(p, radius, 6));
-                break;
-            case HEPTAGON:
-                g.fillPolygon(buildPolygon(p, radius, 7, Math.PI / 2));
-                break;
-            case OCTAGON:
-                g.fillPolygon(buildPolygon(p, radius, 8, Math.PI / 8));
-                break;
-            case NONAGON:
-                g.fillPolygon(buildPolygon(p, radius, 9, Math.PI / 2));
-                break;
-            case DECAGON:
-                g.fillPolygon(buildPolygon(p, radius, 10));
-                break;
-            default:
-                throw new AssertionError();
+        if (fillColor != null || strokeColor != null) {
+            Shape shape = s.buildShapeAround(p.getInViewX(), p.getInViewY());
+
+            if (fillColor != null) {
+                g.setColor(fillColor);
+                g.fill(shape);
             }
-        }
-        if (s.stroke != null) {
-            g.setStroke(s.stroke);
-            g.setColor(strokeColor);
-            switch (s.symbol) {
-            case SQUARE:
-                g.drawRect(p.x - radius, p.y - radius, s.size - 1, s.size - 1);
-                break;
-            case CIRCLE:
-                g.drawOval(p.x - radius, p.y - radius, s.size - 1, s.size - 1);
-                break;
-            case TRIANGLE:
-                g.drawPolygon(buildPolygon(p, radius, 3, Math.PI / 2));
-                break;
-            case PENTAGON:
-                g.drawPolygon(buildPolygon(p, radius, 5, Math.PI / 2));
-                break;
-            case HEXAGON:
-                g.drawPolygon(buildPolygon(p, radius, 6));
-                break;
-            case HEPTAGON:
-                g.drawPolygon(buildPolygon(p, radius, 7, Math.PI / 2));
-                break;
-            case OCTAGON:
-                g.drawPolygon(buildPolygon(p, radius, 8, Math.PI / 8));
-                break;
-            case NONAGON:
-                g.drawPolygon(buildPolygon(p, radius, 9, Math.PI / 2));
-                break;
-            case DECAGON:
-                g.drawPolygon(buildPolygon(p, radius, 10));
-                break;
-            default:
-                throw new AssertionError();
+            if (s.stroke != null) {
+                g.setStroke(s.stroke);
+                g.setColor(strokeColor);
+                g.draw(shape);
+                g.setStroke(new BasicStroke());
             }
-            g.setStroke(new BasicStroke());
         }
     }
 
@@ -1010,8 +989,8 @@ public class StyledMapRenderer extends AbstractMapRenderer {
      * @param clr The color to use for drawing the text.
      */
     public void drawOrderNumber(Node n1, Node n2, int orderNumber, Color clr) {
-        Point p1 = nc.getPoint(n1);
-        Point p2 = nc.getPoint(n2);
+        MapViewPoint p1 = mapState.getPointFor(n1);
+        MapViewPoint p2 = mapState.getPointFor(n2);
         drawOrderNumber(p1, p2, orderNumber, clr);
     }
 
@@ -1021,7 +1000,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
      * @param path path to draw
      * @param line line style
      */
-    private void drawPathHighlight(GeneralPath path, BasicStroke line) {
+    private void drawPathHighlight(Path2D path, BasicStroke line) {
         if (path == null)
             return;
         g.setColor(highlightColorTransparent);
@@ -1040,13 +1019,13 @@ public class StyledMapRenderer extends AbstractMapRenderer {
      * @param p point
      * @param size highlight size
      */
-    private void drawPointHighlight(Point p, int size) {
+    private void drawPointHighlight(Point2D p, int size) {
         g.setColor(highlightColorTransparent);
         int s = size + highlightPointRadius;
         if (useWiderHighlight) s += widerHighlight;
         while (s >= size) {
             int r = (int) Math.floor(s/2d);
-            g.fillRoundRect(p.x-r, p.y-r, s, s, r, r);
+            g.fill(new RoundRectangle2D.Double(p.getX()-r, p.getY()-r, s, s, r, r));
             s -= highlightStep;
         }
     }
@@ -1235,6 +1214,43 @@ public class StyledMapRenderer extends AbstractMapRenderer {
     }
 
     /**
+     * A half segment that can be used to place text on it. Used in the drawTextOnPath algorithm.
+     * @author Michael Zangl
+     */
+    private static class HalfSegment {
+        /**
+         * start point of half segment (as length along the way)
+         */
+        final double start;
+        /**
+         * end point of half segment (as length along the way)
+         */
+        final double end;
+        /**
+         * quality factor (off screen / partly on screen / fully on screen)
+         */
+        final double quality;
+
+        /**
+         * Create a new half segment
+         * @param start The start along the way
+         * @param end The end of the segment
+         * @param quality A quality factor.
+         */
+        HalfSegment(double start, double end, double quality) {
+            super();
+            this.start = start;
+            this.end = end;
+            this.quality = quality;
+        }
+
+        @Override
+        public String toString() {
+            return "HalfSegment [start=" + start + ", end=" + end + ", quality=" + quality + "]";
+        }
+    }
+
+    /**
      * Draws a text along a given way.
      * @param way The way to draw the text on.
      * @param text The text definition (font/.../text content) to draw.
@@ -1251,97 +1267,34 @@ public class StyledMapRenderer extends AbstractMapRenderer {
 
         Rectangle bounds = g.getClipBounds();
 
-        Polygon poly = new Polygon();
-        Point lastPoint = null;
-        Iterator<Node> it = way.getNodes().iterator();
-        double pathLength = 0;
-        long dx, dy;
+        List<MapViewPoint> points = way.getNodes().stream().map(mapState::getPointFor).collect(Collectors.toList());
 
         // find half segments that are long enough to draw text on (don't draw text over the cross hair in the center of each segment)
-        List<Double> longHalfSegmentStart = new ArrayList<>(); // start point of half segment (as length along the way)
-        List<Double> longHalfSegmentEnd = new ArrayList<>(); // end point of half segment (as length along the way)
-        List<Double> longHalfsegmentQuality = new ArrayList<>(); // quality factor (off screen / partly on screen / fully on screen)
+        List<HalfSegment> longHalfSegment = new ArrayList<>();
 
-        while (it.hasNext()) {
-            Node n = it.next();
-            Point p = nc.getPoint(n);
-            poly.addPoint(p.x, p.y);
-
-            if (lastPoint != null) {
-                dx = (long) p.x - lastPoint.x;
-                dy = (long) p.y - lastPoint.y;
-                double segmentLength = Math.sqrt(dx*dx + dy*dy);
-                if (segmentLength > 2*(rec.getWidth()+4)) {
-                    Point center = new Point((lastPoint.x + p.x)/2, (lastPoint.y + p.y)/2);
-                    double q = 0;
-                    if (bounds != null) {
-                        if (bounds.contains(lastPoint) && bounds.contains(center)) {
-                            q = 2;
-                        } else if (bounds.contains(lastPoint) || bounds.contains(center)) {
-                            q = 1;
-                        }
-                    }
-                    longHalfSegmentStart.add(pathLength);
-                    longHalfSegmentEnd.add(pathLength + segmentLength / 2);
-                    longHalfsegmentQuality.add(q);
-
-                    q = 0;
-                    if (bounds != null) {
-                        if (bounds.contains(center) && bounds.contains(p)) {
-                            q = 2;
-                        } else if (bounds.contains(center) || bounds.contains(p)) {
-                            q = 1;
-                        }
-                    }
-                    longHalfSegmentStart.add(pathLength + segmentLength / 2);
-                    longHalfSegmentEnd.add(pathLength + segmentLength);
-                    longHalfsegmentQuality.add(q);
-                }
-                pathLength += segmentLength;
-            }
-            lastPoint = p;
-        }
+        double pathLength = computePath(2 * (rec.getWidth() + 4), bounds, points, longHalfSegment);
 
         if (rec.getWidth() > pathLength)
             return;
 
         double t1, t2;
 
-        if (!longHalfSegmentStart.isEmpty()) {
-            if (way.getNodesCount() == 2) {
-                // For 2 node ways, the two half segments are exactly the same size and distance from the center.
-                // Prefer the first one for consistency.
-                longHalfsegmentQuality.set(0, longHalfsegmentQuality.get(0) + 0.5);
-            }
-
-            // find the long half segment that is closest to the center of the way
-            // candidates with higher quality value are preferred
-            double bestStart = Double.NaN;
-            double bestEnd = Double.NaN;
-            double bestDistanceToCenter = Double.MAX_VALUE;
-            double bestQuality = -1;
-            for (int i = 0; i < longHalfSegmentStart.size(); i++) {
-                double start = longHalfSegmentStart.get(i);
-                double end = longHalfSegmentEnd.get(i);
-                double dist = Math.abs(0.5 * (end + start) - 0.5 * pathLength);
-                if (longHalfsegmentQuality.get(i) > bestQuality
-                        || (dist < bestDistanceToCenter && Utils.equalsEpsilon(longHalfsegmentQuality.get(i), bestQuality))) {
-                    bestStart = start;
-                    bestEnd = end;
-                    bestDistanceToCenter = dist;
-                    bestQuality = longHalfsegmentQuality.get(i);
-                }
-            }
-            double remaining = bestEnd - bestStart - rec.getWidth(); // total space left and right from the text
+        if (!longHalfSegment.isEmpty()) {
+            // find the segment with the best quality. If there are several with best quality, the one close to the center is prefered.
+            HalfSegment best = longHalfSegment.stream().max(
+                    Comparator.comparingDouble(segment ->
+                        segment.quality - 1e-5 * Math.abs(0.5 * (segment.end + segment.start) - 0.5 * pathLength)
+                    )).get();
+            double remaining = best.end - best.start - rec.getWidth(); // total space left and right from the text
             // The space left and right of the text should be distributed 20% - 80% (towards the center),
             // but the smaller space should not be less than 7 px.
             // However, if the total remaining space is less than 14 px, then distribute it evenly.
             double smallerSpace = Math.min(Math.max(0.2 * remaining, 7), 0.5 * remaining);
-            if ((bestEnd + bestStart)/2 < pathLength/2) {
-                t2 = bestEnd - smallerSpace;
+            if ((best.end + best.start)/2 < pathLength/2) {
+                t2 = best.end - smallerSpace;
                 t1 = t2 - rec.getWidth();
             } else {
-                t1 = bestStart + smallerSpace;
+                t1 = best.start + smallerSpace;
                 t2 = t1 + rec.getWidth();
             }
         } else {
@@ -1352,8 +1305,8 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         t1 /= pathLength;
         t2 /= pathLength;
 
-        double[] p1 = pointAt(t1, poly, pathLength);
-        double[] p2 = pointAt(t2, poly, pathLength);
+        double[] p1 = pointAt(t1, points, pathLength);
+        double[] p2 = pointAt(t2, points, pathLength);
 
         if (p1 == null || p2 == null)
             return;
@@ -1381,7 +1334,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
             for (int i = 0; i < gv.getNumGlyphs(); ++i) {
                 Rectangle2D rect = gv.getGlyphLogicalBounds(i).getBounds2D();
                 double t = tStart + offsetSign * (gvOffset + rect.getX() + rect.getWidth()/2) / pathLength;
-                double[] p = pointAt(t, poly, pathLength);
+                double[] p = pointAt(t, points, pathLength);
                 if (p != null) {
                     AffineTransform trfm = AffineTransform.getTranslateInstance(p[0] - rect.getX(), p[1]);
                     trfm.rotate(p[2]+angleOffset);
@@ -1399,6 +1352,47 @@ public class StyledMapRenderer extends AbstractMapRenderer {
             displayText(gv, null, 0, 0, way.isDisabled(), text);
             gvOffset += gvWidth;
         }
+    }
+
+    private double computePath(double minSegmentLength, Rectangle bounds, List<MapViewPoint> points,
+            List<HalfSegment> longHalfSegment) {
+        MapViewPoint lastPoint = points.get(0);
+        double pathLength = 0;
+        for (MapViewPoint p : points.subList(1, points.size())) {
+            double segmentLength = p.distanceToInView(lastPoint);
+            if (segmentLength > minSegmentLength) {
+                Point2D center = new Point2D.Double((lastPoint.getInViewX() + p.getInViewX())/2, (lastPoint.getInViewY() + p.getInViewY())/2);
+                double q = computeQuality(bounds, lastPoint, center);
+                // prefer the first one for quality equality.
+                longHalfSegment.add(new HalfSegment(pathLength, pathLength + segmentLength / 2, q));
+
+                q = 0;
+                if (bounds != null) {
+                    if (bounds.contains(center) && bounds.contains(p.getInView())) {
+                        q = 2;
+                    } else if (bounds.contains(center) || bounds.contains(p.getInView())) {
+                        q = 1;
+                    }
+                }
+                longHalfSegment.add(new HalfSegment(pathLength + segmentLength / 2, pathLength + segmentLength, q));
+            }
+            pathLength += segmentLength;
+            lastPoint = p;
+        }
+        return pathLength;
+    }
+
+    private static double computeQuality(Rectangle bounds, MapViewPoint p1, Point2D p2) {
+        double q = 0;
+        if (bounds != null) {
+            if (bounds.contains(p1.getInView())) {
+                q += 1;
+            }
+            if (bounds.contains(p2)) {
+                q += 1;
+            }
+        }
+        return q;
     }
 
     /**
@@ -1420,115 +1414,76 @@ public class StyledMapRenderer extends AbstractMapRenderer {
             boolean showOrientation, boolean showHeadArrowOnly,
             boolean showOneway, boolean onewayReversed) {
 
-        GeneralPath path = new GeneralPath();
-        GeneralPath orientationArrows = showOrientation ? new GeneralPath() : null;
-        GeneralPath onewayArrows = showOneway ? new GeneralPath() : null;
-        GeneralPath onewayArrowsCasing = showOneway ? new GeneralPath() : null;
+        MapPath2D path = new MapPath2D();
+        MapPath2D orientationArrows = showOrientation ? new MapPath2D() : null;
+        MapPath2D onewayArrows = showOneway ? new MapPath2D() : null;
+        MapPath2D onewayArrowsCasing = showOneway ? new MapPath2D() : null;
         Rectangle bounds = g.getClipBounds();
         if (bounds != null) {
             // avoid arrow heads at the border
             bounds.grow(100, 100);
         }
 
-        double wayLength = 0;
-        Point lastPoint = null;
         boolean initialMoveToNeeded = true;
         List<Node> wayNodes = way.getNodes();
         if (wayNodes.size() < 2) return;
 
         // only highlight the segment if the way itself is not highlighted
         if (!way.isHighlighted() && highlightWaySegments != null) {
-            GeneralPath highlightSegs = null;
+            MapViewPath highlightSegs = null;
             for (WaySegment ws : highlightWaySegments) {
                 if (ws.way != way || ws.lowerIndex < offset) {
                     continue;
                 }
                 if (highlightSegs == null) {
-                    highlightSegs = new GeneralPath();
+                    highlightSegs = new MapViewPath(mapState);
                 }
 
-                Point p1 = nc.getPoint(ws.getFirstNode());
-                Point p2 = nc.getPoint(ws.getSecondNode());
-                highlightSegs.moveTo(p1.x, p1.y);
-                highlightSegs.lineTo(p2.x, p2.y);
+                highlightSegs.moveTo(ws.getFirstNode());
+                highlightSegs.lineTo(ws.getSecondNode());
             }
 
             drawPathHighlight(highlightSegs, line);
         }
 
-        Iterator<Point> it = new OffsetIterator(wayNodes, offset);
+        MapViewPoint lastPoint = null;
+        double wayLength = 0;
+        Iterator<MapViewPoint> it = new OffsetIterator(wayNodes, offset);
         while (it.hasNext()) {
-            Point p = it.next();
+            MapViewPoint p = it.next();
             if (lastPoint != null) {
-                Point p1 = lastPoint;
-                Point p2 = p;
+                MapViewPoint p1 = lastPoint;
+                MapViewPoint p2 = p;
 
-                /**
-                 * Do custom clipping to work around openjdk bug. It leads to
-                 * drawing artefacts when zooming in a lot. (#4289, #4424)
-                 * (Looks like int overflow.)
-                 */
-                LineClip clip = new LineClip(p1, p2, bounds);
-                if (clip.execute()) {
-                    if (!p1.equals(clip.getP1())) {
-                        p1 = clip.getP1();
-                        path.moveTo(p1.x, p1.y);
-                    } else if (initialMoveToNeeded) {
-                        initialMoveToNeeded = false;
-                        path.moveTo(p1.x, p1.y);
-                    }
-                    p2 = clip.getP2();
-                    path.lineTo(p2.x, p2.y);
+                if (initialMoveToNeeded) {
+                    initialMoveToNeeded = false;
+                    path.moveTo(p1);
+                }
+                path.lineTo(p2);
 
-                    /* draw arrow */
-                    if (showHeadArrowOnly ? !it.hasNext() : showOrientation) {
-                        final double segmentLength = p1.distance(p2);
-                        if (segmentLength != 0) {
-                            final double l = (10. + line.getLineWidth()) / segmentLength;
+                /* draw arrow */
+                if (showHeadArrowOnly ? !it.hasNext() : showOrientation) {
+                    //TODO: Cache
+                    ArrowPaintHelper drawHelper = new ArrowPaintHelper(PHI, 10 + line.getLineWidth());
+                    drawHelper.paintArrowAt(orientationArrows, p2, p1);
+                }
+                if (showOneway) {
+                    final double segmentLength = p1.distanceToInView(p2);
+                    if (segmentLength != 0) {
+                        final double nx = (p2.getInViewX() - p1.getInViewX()) / segmentLength;
+                        final double ny = (p2.getInViewY() - p1.getInViewY()) / segmentLength;
 
-                            final double sx = l * (p1.x - p2.x);
-                            final double sy = l * (p1.y - p2.y);
+                        final double interval = 60;
+                        // distance from p1
+                        double dist = interval - (wayLength % interval);
 
-                            orientationArrows.moveTo(p2.x + cosPHI * sx - sinPHI * sy, p2.y + sinPHI * sx + cosPHI * sy);
-                            orientationArrows.lineTo(p2.x, p2.y);
-                            orientationArrows.lineTo(p2.x + cosPHI * sx + sinPHI * sy, p2.y - sinPHI * sx + cosPHI * sy);
+                        while (dist < segmentLength) {
+                            appenOnewayPath(onewayReversed, p1, nx, ny, dist, 3d, onewayArrowsCasing);
+                            appenOnewayPath(onewayReversed, p1, nx, ny, dist, 2d, onewayArrows);
+                            dist += interval;
                         }
                     }
-                    if (showOneway) {
-                        final double segmentLength = p1.distance(p2);
-                        if (segmentLength != 0) {
-                            final double nx = (p2.x - p1.x) / segmentLength;
-                            final double ny = (p2.y - p1.y) / segmentLength;
-
-                            final double interval = 60;
-                            // distance from p1
-                            double dist = interval - (wayLength % interval);
-
-                            while (dist < segmentLength) {
-                                for (int i = 0; i < 2; ++i) {
-                                    double onewaySize = i == 0 ? 3d : 2d;
-                                    GeneralPath onewayPath = i == 0 ? onewayArrowsCasing : onewayArrows;
-
-                                    // scale such that border is 1 px
-                                    final double fac = -(onewayReversed ? -1 : 1) * onewaySize * (1 + sinPHI) / (sinPHI * cosPHI);
-                                    final double sx = nx * fac;
-                                    final double sy = ny * fac;
-
-                                    // Attach the triangle at the incenter and not at the tip.
-                                    // Makes the border even at all sides.
-                                    final double x = p1.x + nx * (dist + (onewayReversed ? -1 : 1) * (onewaySize / sinPHI));
-                                    final double y = p1.y + ny * (dist + (onewayReversed ? -1 : 1) * (onewaySize / sinPHI));
-
-                                    onewayPath.moveTo(x, y);
-                                    onewayPath.lineTo(x + cosPHI * sx - sinPHI * sy, y + sinPHI * sx + cosPHI * sy);
-                                    onewayPath.lineTo(x + cosPHI * sx + sinPHI * sy, y - sinPHI * sx + cosPHI * sy);
-                                    onewayPath.lineTo(x, y);
-                                }
-                                dist += interval;
-                            }
-                        }
-                        wayLength += segmentLength;
-                    }
+                    wayLength += segmentLength;
                 }
             }
             lastPoint = p;
@@ -1537,6 +1492,24 @@ public class StyledMapRenderer extends AbstractMapRenderer {
             drawPathHighlight(path, line);
         }
         displaySegments(path, orientationArrows, onewayArrows, onewayArrowsCasing, color, line, dashes, dashedColor);
+    }
+
+    private void appenOnewayPath(boolean onewayReversed, MapViewPoint p1, double nx, double ny, double dist,
+            double onewaySize, Path2D onewayPath) {
+        // scale such that border is 1 px
+        final double fac = -(onewayReversed ? -1 : 1) * onewaySize * (1 + sinPHI) / (sinPHI * cosPHI);
+        final double sx = nx * fac;
+        final double sy = ny * fac;
+
+        // Attach the triangle at the incenter and not at the tip.
+        // Makes the border even at all sides.
+        final double x = p1.getInViewX() + nx * (dist + (onewayReversed ? -1 : 1) * (onewaySize / sinPHI));
+        final double y = p1.getInViewY() + ny * (dist + (onewayReversed ? -1 : 1) * (onewaySize / sinPHI));
+
+        onewayPath.moveTo(x, y);
+        onewayPath.lineTo(x + cosPHI * sx - sinPHI * sy, y + sinPHI * sx + cosPHI * sy);
+        onewayPath.lineTo(x + cosPHI * sx + sinPHI * sy, y - sinPHI * sx + cosPHI * sy);
+        onewayPath.lineTo(x, y);
     }
 
     /**
@@ -1728,15 +1701,20 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         return null;
     }
 
+    /**
+     * Test if the area is visible
+     * @param area The area, interpreted in east/north space.
+     * @return true if it is visible.
+     */
     private boolean isAreaVisible(Path2D.Double area) {
         Rectangle2D bounds = area.getBounds2D();
         if (bounds.isEmpty()) return false;
-        Point2D p = nc.getPoint2D(new EastNorth(bounds.getX(), bounds.getY()));
-        if (p.getX() > nc.getWidth()) return false;
-        if (p.getY() < 0) return false;
-        p = nc.getPoint2D(new EastNorth(bounds.getX() + bounds.getWidth(), bounds.getY() + bounds.getHeight()));
-        if (p.getX() < 0) return false;
-        if (p.getY() > nc.getHeight()) return false;
+        MapViewPoint p = mapState.getPointFor(new EastNorth(bounds.getX(), bounds.getY()));
+        if (p.getInViewX() > mapState.getViewWidth()) return false;
+        if (p.getInViewY() < 0) return false;
+        p = mapState.getPointFor(new EastNorth(bounds.getX() + bounds.getWidth(), bounds.getY() + bounds.getHeight()));
+        if (p.getInViewX() < 0) return false;
+        if (p.getInViewY() > mapState.getViewHeight()) return false;
         return true;
     }
 
@@ -1752,25 +1730,25 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         return showNames;
     }
 
-    private static double[] pointAt(double t, Polygon poly, double pathLength) {
+    private static double[] pointAt(double t, List<MapViewPoint> poly, double pathLength) {
         double totalLen = t * pathLength;
         double curLen = 0;
-        long dx, dy;
+        double dx, dy;
         double segLen;
 
         // Yes, it is inefficient to iterate from the beginning for each glyph.
         // Can be optimized if it turns out to be slow.
-        for (int i = 1; i < poly.npoints; ++i) {
-            dx = (long) poly.xpoints[i] - poly.xpoints[i-1];
-            dy = (long) poly.ypoints[i] - poly.ypoints[i-1];
+        for (int i = 1; i < poly.size(); ++i) {
+            dx = poly.get(i).getInViewX() - poly.get(i - 1).getInViewX();
+            dy = poly.get(i).getInViewY() - poly.get(i - 1).getInViewY();
             segLen = Math.sqrt(dx*dx + dy*dy);
             if (totalLen > curLen + segLen) {
                 curLen += segLen;
                 continue;
             }
             return new double[] {
-                    poly.xpoints[i-1]+(totalLen - curLen)/segLen*dx,
-                    poly.ypoints[i-1]+(totalLen - curLen)/segLen*dy,
+                    poly.get(i - 1).getInViewX() + (totalLen - curLen) / segLen * dx,
+                    poly.get(i - 1).getInViewY() + (totalLen - curLen) / segLen * dy,
                     Math.atan2(dy, dx)};
         }
         return null;
@@ -1901,24 +1879,26 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         }
     }
 
+    /**
+     * Sets the factory that creates the benchmark data receivers.
+     * @param benchmarkFactory The factory.
+     * @since 10697
+     */
+    public void setBenchmarkFactory(Supplier<RenderBenchmarkCollector> benchmarkFactory) {
+        this.benchmarkFactory = benchmarkFactory;
+    }
+
     @Override
     public void render(final DataSet data, boolean renderVirtualNodes, Bounds bounds) {
+        RenderBenchmarkCollector benchmark = benchmarkFactory.get();
         BBox bbox = bounds.toBBox();
         getSettings(renderVirtualNodes);
-        boolean benchmarkOutput = Main.isTraceEnabled() || Main.pref.getBoolean("mappaint.render.benchmark", false);
-        boolean benchmark = benchmarkOutput || benchmarkData != null;
 
         data.getReadLock().lock();
         try {
             highlightWaySegments = data.getHighlightedWaySegments();
 
-            long timeStart = 0, timeGenerateDone = 0, timeSortingDone = 0, timeFinished;
-            if (benchmark) {
-                timeStart = System.currentTimeMillis();
-                if (benchmarkOutput) {
-                    System.err.print("BENCHMARK: rendering ");
-                }
-            }
+            benchmark.renderStart(circum);
 
             List<Node> nodes = data.searchNodes(bbox);
             List<Way> ways = data.searchWays(bbox);
@@ -1936,25 +1916,14 @@ public class StyledMapRenderer extends AbstractMapRenderer {
             THREAD_POOL.invoke(new ComputeStyleListWorker(new CompositeList<>(nodes, ways), allStyleElems,
                     Math.max(100, (nodes.size() + ways.size()) / THREAD_POOL.getParallelism() / 3)));
 
-            if (benchmark) {
-                timeGenerateDone = System.currentTimeMillis();
-                if (benchmarkOutput) {
-                    System.err.print("phase 1 (calculate styles): " + Utils.getDurationString(timeGenerateDone - timeStart));
-                }
-                if (benchmarkData != null) {
-                    benchmarkData.generateTime = timeGenerateDone - timeStart;
-                }
+            if (!benchmark.renderSort()) {
+                return;
             }
 
             Collections.sort(allStyleElems); // TODO: try parallel sort when switching to Java 8
 
-            if (benchmarkData != null) {
-                timeSortingDone = System.currentTimeMillis();
-                benchmarkData.sortTime = timeSortingDone - timeGenerateDone;
-                if (benchmarkData.skipDraw) {
-                    benchmarkData.recordElementStats(allStyleElems);
-                    return;
-                }
+            if (!benchmark.renderDraw(allStyleElems)) {
+                return;
             }
 
             for (StyleRecord r : allStyleElems) {
@@ -1968,20 +1937,9 @@ public class StyledMapRenderer extends AbstractMapRenderer {
                 );
             }
 
-            if (benchmark) {
-                timeFinished = System.currentTimeMillis();
-                if (benchmarkData != null) {
-                    benchmarkData.drawTime = timeFinished - timeGenerateDone;
-                    benchmarkData.recordElementStats(allStyleElems);
-                }
-                if (benchmarkOutput) {
-                    System.err.println("; phase 2 (draw): " + Utils.getDurationString(timeFinished - timeGenerateDone) +
-                        "; total: " + Utils.getDurationString(timeFinished - timeStart) +
-                        " (scale: " + circum + " zoom level: " + Selector.GeneralSelector.scale2level(circum) + ')');
-                }
-            }
-
             drawVirtualNodes(data, bbox);
+
+            benchmark.renderDone();
         } finally {
             data.getReadLock().unlock();
         }

@@ -6,13 +6,13 @@ import static org.openstreetmap.josm.tools.I18n.marktr;
 import java.awt.Color;
 import java.util.List;
 
-import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.data.Preferences.ColorKey;
+import org.openstreetmap.josm.data.preferences.CachingProperty;
+import org.openstreetmap.josm.data.preferences.ColorProperty;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles.MapPaintSylesUpdateListener;
 import org.openstreetmap.josm.gui.mappaint.StyleSource;
 
-public enum PaintColors implements ColorKey {
+public enum PaintColors {
 
     INACTIVE(marktr("inactive"), Color.darkGray),
     SELECTED(marktr("selected"), Color.red),
@@ -33,11 +33,13 @@ public enum PaintColors implements ColorKey {
 
     private final String name;
     private final Color defaultColor;
+    private final ColorProperty baseProperty;
+    private final CachingProperty<Color> property;
 
     private static volatile Color backgroundColorCache;
 
     private static final MapPaintSylesUpdateListener styleOverrideListener = new MapPaintSylesUpdateListener() {
-
+        //TODO: Listen to wireframe map mode changes.
         @Override
         public void mapPaintStylesUpdated() {
             backgroundColorCache = null;
@@ -54,33 +56,26 @@ public enum PaintColors implements ColorKey {
     }
 
     PaintColors(String name, Color defaultColor) {
+        baseProperty = new ColorProperty(name, defaultColor);
+        property = baseProperty.cached();
         this.name = name;
         this.defaultColor = defaultColor;
     }
 
-    @Override
-    public String getColorName() {
-        return name;
-    }
-
-    @Override
+    /**
+     * Gets the default value for this color.
+     * @return The default value
+     */
     public Color getDefaultValue() {
-        return defaultColor;
+        return property.getDefaultValue();
     }
 
-    @Override
-    public String getSpecialName() {
-        return null;
-    }
-
+    /**
+     * Get the given color
+     * @return The color
+     */
     public Color get() {
-        return Main.pref.getColor(this);
-    }
-
-    public static void getColors() {
-        for (PaintColors c:values()) {
-            c.get();
-        }
+        return property.get();
     }
 
     public static Color getBackgroundColor() {
@@ -97,8 +92,18 @@ public enum PaintColors implements ColorKey {
             }
         }
         if (backgroundColorCache == null) {
-            backgroundColorCache = BACKGROUND.get();
+            return BACKGROUND.get();
+        } else {
+            return backgroundColorCache;
         }
-        return backgroundColorCache;
+    }
+
+    /**
+     * Get the color property
+     * @return The property that is used to access the color.
+     * @since 10874
+     */
+    public ColorProperty getProperty() {
+        return baseProperty;
     }
 }

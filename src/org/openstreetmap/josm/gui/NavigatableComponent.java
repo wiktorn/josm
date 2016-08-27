@@ -293,14 +293,14 @@ public class NavigatableComponent extends JComponent implements Helpful {
      * Zoom in current view. Use configured zoom step and scaling settings.
      */
     public void zoomIn() {
-        zoomTo(getCenter(), scaleZoomIn());
+        zoomTo(state.getCenterAtPixel().getEastNorth(), scaleZoomIn());
     }
 
     /**
      * Zoom out current view. Use configured zoom step and scaling settings.
      */
     public void zoomOut() {
-        zoomTo(getCenter(), scaleZoomOut());
+        zoomTo(state.getCenterAtPixel().getEastNorth(), scaleZoomOut());
     }
 
     /**
@@ -407,7 +407,7 @@ public class NavigatableComponent extends JComponent implements Helpful {
      * @return the current center of the viewport
      */
     public EastNorth getCenter() {
-        return state.getCenter().getEastNorth();
+        return state.getCenterAtPixel().getEastNorth();
     }
 
     /**
@@ -503,22 +503,28 @@ public class NavigatableComponent extends JComponent implements Helpful {
         return getPoint2D(n.getEastNorth());
     }
 
-    // looses precision, may overflow (depends on p and current scale)
-    //@Deprecated
+    /**
+     * looses precision, may overflow (depends on p and current scale)
+     * @see #getPoint2D(EastNorth)
+     */
     public Point getPoint(EastNorth p) {
         Point2D d = getPoint2D(p);
         return new Point((int) d.getX(), (int) d.getY());
     }
 
-    // looses precision, may overflow (depends on p and current scale)
-    //@Deprecated
+    /**
+     * looses precision, may overflow (depends on p and current scale)
+     * @see #getPoint2D(LatLon)
+     */
     public Point getPoint(LatLon latlon) {
         Point2D d = getPoint2D(latlon);
         return new Point((int) d.getX(), (int) d.getY());
     }
 
-    // looses precision, may overflow (depends on p and current scale)
-    //@Deprecated
+    /**
+     * looses precision, may overflow (depends on p and current scale)
+     * @see #getPoint2D(Node)
+     */
     public Point getPoint(Node n) {
         Point2D d = getPoint2D(n);
         return new Point((int) d.getX(), (int) d.getY());
@@ -601,7 +607,7 @@ public class NavigatableComponent extends JComponent implements Helpful {
     private void zoomNoUndoTo(EastNorth newCenter, double newScale, boolean initial) {
         if (!newCenter.equals(getCenter())) {
             EastNorth oldCenter = getCenter();
-            state = state.usingCenter(newCenter);
+            state = state.movedTo(state.getCenterAtPixel(), newCenter);
             if (!initial) {
                 firePropertyChange(PROPNAME_CENTER, oldCenter, newCenter);
             }
@@ -610,7 +616,7 @@ public class NavigatableComponent extends JComponent implements Helpful {
             double oldScale = getScale();
             state = state.usingScale(newScale);
             // temporary. Zoom logic needs to be moved.
-            state = state.movedTo(state.getCenter(), newCenter);
+            state = state.movedTo(state.getCenterAtPixel(), newCenter);
             if (!initial) {
                 firePropertyChange(PROPNAME_SCALE, oldScale, newScale);
             }

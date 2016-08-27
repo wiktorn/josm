@@ -54,6 +54,7 @@ public class MapCSSTagCheckerTest {
     public void testNaturalMarsh() throws Exception {
         ParseResult result = MapCSSTagChecker.TagCheck.readMapCSS(new StringReader("" +
                 "*[natural=marsh] {\n" +
+                "   group: tr(\"deprecated\");\n" +
                 "   throwWarning: tr(\"{0}={1} is deprecated\", \"{0.key}\", tag(\"natural\"));\n" +
                 "   fixRemove: \"{0.key}\";\n" +
                 "   fixAdd: \"natural=wetland\";\n" +
@@ -71,7 +72,8 @@ public class MapCSSTagCheckerTest {
         final Node n1 = new Node();
         n1.put("natural", "marsh");
         assertTrue(check.test(n1));
-        assertEquals("natural=marsh is deprecated", check.getErrorForPrimitive(n1).getMessage());
+        assertEquals("deprecated", check.getErrorForPrimitive(n1).getMessage());
+        assertEquals("natural=marsh is deprecated", check.getErrorForPrimitive(n1).getDescription());
         assertEquals(Severity.WARNING, check.getErrorForPrimitive(n1).getSeverity());
         assertEquals("Sequence: Fix of natural=marsh is deprecated", check.fixPrimitive(n1).getDescriptionText());
         assertEquals("{natural=}", ((ChangePropertyCommand) check.fixPrimitive(n1).getChildren().iterator().next()).getTags().toString());
@@ -83,7 +85,7 @@ public class MapCSSTagCheckerTest {
     }
 
     @Test
-    public void test10913() throws Exception {
+    public void testTicket10913() throws Exception {
         final OsmPrimitive p = OsmUtils.createPrimitive("way highway=tertiary construction=yes");
         final TagCheck check = TagCheck.readMapCSS(new StringReader("way {" +
                 "throwError: \"error\";" +
@@ -98,7 +100,7 @@ public class MapCSSTagCheckerTest {
     }
 
     @Test
-    public void test9782() throws Exception {
+    public void testTicket9782() throws Exception {
         final MapCSSTagChecker test = buildTagChecker("*[/.+_name/][!name] {" +
                 "throwWarning: tr(\"has {0} but not {1}\", \"{0.key}\", \"{1.key}\");}");
         final OsmPrimitive p = OsmUtils.createPrimitive("way alt_name=Foo");
@@ -109,7 +111,7 @@ public class MapCSSTagCheckerTest {
     }
 
     @Test
-    public void test10859() throws Exception {
+    public void testTicket10859() throws Exception {
         final MapCSSTagChecker test = buildTagChecker("way[highway=footway][foot?!] {\n" +
                 "  throwWarning: tr(\"{0} used with {1}\", \"{0.value}\", \"{1.tag}\");}");
         final OsmPrimitive p = OsmUtils.createPrimitive("way highway=footway foot=no");

@@ -11,10 +11,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumSet;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.command.AddCommand;
@@ -24,12 +24,11 @@ import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.BBox;
 import org.openstreetmap.josm.data.osm.MultipolygonBuilder;
+import org.openstreetmap.josm.data.osm.MultipolygonBuilder.JoinedPolygon;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.NodePositionComparator;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
-import org.openstreetmap.josm.data.osm.OsmPrimitiveType;
 import org.openstreetmap.josm.data.osm.Relation;
-import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.osm.visitor.paint.relations.Multipolygon;
 import org.openstreetmap.josm.data.osm.visitor.paint.relations.MultipolygonCache;
@@ -563,9 +562,9 @@ public final class Geometry {
 
         if (inter.isEmpty() || bounds.getHeight()*bounds.getWidth() <= eps) {
             return PolygonIntersection.OUTSIDE;
-        } else if (inter.equals(a1)) {
+        } else if (a2.getBounds2D().contains(a1.getBounds2D()) && inter.equals(a1)) {
             return PolygonIntersection.FIRST_INSIDE_SECOND;
-        } else if (inter.equals(a2)) {
+        } else if (a1.getBounds2D().contains(a2.getBounds2D()) && inter.equals(a2)) {
             return PolygonIntersection.SECOND_INSIDE_FIRST;
         } else {
             return PolygonIntersection.CROSSING;
@@ -861,23 +860,6 @@ public final class Geometry {
         return new EastNorth(xC, yC);
     }
 
-    public static class MultiPolygonMembers {
-        public final Set<Way> outers = new HashSet<>();
-        public final Set<Way> inners = new HashSet<>();
-
-        public MultiPolygonMembers(Relation multiPolygon) {
-            for (RelationMember m : multiPolygon.getMembers()) {
-                if (m.getType().equals(OsmPrimitiveType.WAY)) {
-                    if ("outer".equals(m.getRole())) {
-                        outers.add(m.getWay());
-                    } else if ("inner".equals(m.getRole())) {
-                        inners.add(m.getWay());
-                    }
-                }
-            }
-        }
-    }
-
     /**
      * Tests if the {@code node} is inside the multipolygon {@code multiPolygon}. The nullable argument
      * {@code isOuterWayAMatch} allows to decide if the immediate {@code outer} way of the multipolygon is a match.
@@ -886,7 +868,7 @@ public final class Geometry {
      * @param isOuterWayAMatch allows to decide if the immediate {@code outer} way of the multipolygon is a match
      * @return {@code true} if the node is inside the multipolygon
      */
-    public static boolean isNodeInsideMultiPolygon(Node node, Relation multiPolygon, java.util.function.Predicate<Way> isOuterWayAMatch) {
+    public static boolean isNodeInsideMultiPolygon(Node node, Relation multiPolygon, Predicate<Way> isOuterWayAMatch) {
         return isPolygonInsideMultiPolygon(Collections.singletonList(node), multiPolygon, isOuterWayAMatch);
     }
 
@@ -900,30 +882,25 @@ public final class Geometry {
      * @param isOuterWayAMatch allows to decide if the immediate {@code outer} way of the multipolygon is a match
      * @return {@code true} if the polygon formed by nodes is inside the multipolygon
      */
-    public static boolean isPolygonInsideMultiPolygon(List<Node> nodes, Relation multiPolygon,
-            java.util.function.Predicate<Way> isOuterWayAMatch) {
+    public static boolean isPolygonInsideMultiPolygon(List<Node> nodes, Relation multiPolygon, Predicate<Way> isOuterWayAMatch) {
         // Extract outer/inner members from multipolygon
-        final MultiPolygonMembers mpm = new MultiPolygonMembers(multiPolygon);
-        // Construct complete rings for the inner/outer members
-        final List<MultipolygonBuilder.JoinedPolygon> outerRings;
-        final List<MultipolygonBuilder.JoinedPolygon> innerRings;
+        final Pair<List<JoinedPolygon>, List<JoinedPolygon>> outerInner;
         try {
-            outerRings = MultipolygonBuilder.joinWays(mpm.outers);
-            innerRings = MultipolygonBuilder.joinWays(mpm.inners);
+            outerInner = MultipolygonBuilder.joinWays(multiPolygon);
         } catch (MultipolygonBuilder.JoinedPolygonCreationException ex) {
             Main.trace(ex);
             Main.debug("Invalid multipolygon " + multiPolygon);
             return false;
         }
         // Test if object is inside an outer member
-        for (MultipolygonBuilder.JoinedPolygon out : outerRings) {
+        for (JoinedPolygon out : outerInner.a) {
             if (nodes.size() == 1
                     ? nodeInsidePolygon(nodes.get(0), out.getNodes())
                     : EnumSet.of(PolygonIntersection.FIRST_INSIDE_SECOND, PolygonIntersection.CROSSING).contains(
                             polygonIntersection(nodes, out.getNodes()))) {
                 boolean insideInner = false;
                 // If inside an outer, check it is not inside an inner
-                for (MultipolygonBuilder.JoinedPolygon in : innerRings) {
+                for (JoinedPolygon in : outerInner.b) {
                     if (polygonIntersection(in.getNodes(), out.getNodes()) == PolygonIntersection.FIRST_INSIDE_SECOND
                             && (nodes.size() == 1
                             ? nodeInsidePolygon(nodes.get(0), in.getNodes())
@@ -996,8 +973,10 @@ public final class Geometry {
             for (int i = 1; i <= numSegments; i++) {
                 final Node node = nodes.get(i == numSegments ? 0 : i);
                 final EastNorth p2 = projection == null ? node.getEastNorth() : projection.latlon2eastNorth(node.getCoor());
-                area += p1.east() * p2.north() - p2.east() * p1.north();
-                perimeter += p1.distance(p2);
+                if (p1 != null && p2 != null) {
+                    area += p1.east() * p2.north() - p2.east() * p1.north();
+                    perimeter += p1.distance(p2);
+                }
                 p1 = p2;
             }
         }
