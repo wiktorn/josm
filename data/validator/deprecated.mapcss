@@ -14,11 +14,15 @@
   fixAdd: "fence_type=wood";
 }
   
-*[highway=ford] {
+node[highway=ford] {
   throwWarning: tr("{0} is deprecated", "{0.tag}");
   suggestAlternative: "ford=yes";
   fixRemove: "highway";
   fixAdd: "ford=yes";
+}
+way[highway=ford] {
+  throwWarning: tr("{0} is deprecated", "{0.tag}");
+  suggestAlternative: "highway=* + ford=yes";
 }
   
 *[class] {
@@ -889,4 +893,18 @@ area[landuse=pond] {
   fixAdd: "natural=water";
   fixAdd: "water=pond";
   fixRemove: "landuse";
+}
+
+*[shop=souvenir],
+*[shop=souvenirs],
+*[shop=souveniers] {
+  throwWarning: tr("{0} is deprecated", "{0.tag}");
+  suggestAlternative: "shop=gift";
+  fixAdd: "shop=gift";
+}
+
+*[vending=animal_food] {
+  throwWarning: tr("{0} is deprecated", "{0.tag}");
+  suggestAlternative: "vending=animal_feed";
+  fixAdd: "vending=animal_feed";
 }
