@@ -202,7 +202,7 @@ public final class MapPaintStyles {
                     if (style instanceof NodeElement) {
                         MapImage mapImage = ((NodeElement) style).mapImage;
                         if (mapImage != null) {
-                            if (includeDeprecatedIcon || mapImage.name == null || !"misc/deprecated.png".equals(mapImage.name)) {
+                            if (includeDeprecatedIcon || mapImage.name == null || !"presets/misc/deprecated.svg".equals(mapImage.name)) {
                                 return new ImageIcon(mapImage.getImage(false));
                             } else {
                                 return null; // Deprecated icon found but not wanted
