@@ -33,6 +33,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.RecursiveTask;
@@ -1285,10 +1286,13 @@ public class StyledMapRenderer extends AbstractMapRenderer {
 
         if (!longHalfSegment.isEmpty()) {
             // find the segment with the best quality. If there are several with best quality, the one close to the center is prefered.
-            HalfSegment best = longHalfSegment.stream().max(
+            Optional<HalfSegment> besto = longHalfSegment.stream().max(
                     Comparator.comparingDouble(segment ->
                         segment.quality - 1e-5 * Math.abs(0.5 * (segment.end + segment.start) - 0.5 * pathLength)
-                    )).get();
+                    ));
+            if (!besto.isPresent())
+                throw new IllegalStateException("Unable to find the segment with the best quality for " + way);
+            HalfSegment best = besto.get();
             double remaining = best.end - best.start - rec.getWidth(); // total space left and right from the text
             // The space left and right of the text should be distributed 20% - 80% (towards the center),
             // but the smaller space should not be less than 7 px.
@@ -1358,7 +1362,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         }
     }
 
-    private double computePath(double minSegmentLength, Rectangle bounds, List<MapViewPoint> points,
+    private static double computePath(double minSegmentLength, Rectangle bounds, List<MapViewPoint> points,
             List<HalfSegment> longHalfSegment) {
         MapViewPoint lastPoint = points.get(0);
         double pathLength = 0;
@@ -1498,7 +1502,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         displaySegments(path, orientationArrows, onewayArrows, onewayArrowsCasing, color, line, dashes, dashedColor);
     }
 
-    private void appenOnewayPath(boolean onewayReversed, MapViewPoint p1, double nx, double ny, double dist,
+    private static void appenOnewayPath(boolean onewayReversed, MapViewPoint p1, double nx, double ny, double dist,
             double onewaySize, Path2D onewayPath) {
         // scale such that border is 1 px
         final double fac = -(onewayReversed ? -1 : 1) * onewaySize * (1 + sinPHI) / (sinPHI * cosPHI);

@@ -91,6 +91,7 @@ public class ImageryAdjustAction extends MapMode implements AWTEventListener {
                 layer.getDisplaySettings().setDisplacement(old);
             }
             offsetDialog.setVisible(false);
+            // do not restore old mode here - this is called when the new mode is already known.
             offsetDialog = null;
         }
         removeListeners();
@@ -300,20 +301,24 @@ public class ImageryAdjustAction extends MapMode implements AWTEventListener {
                 }
             }
             Main.main.menu.imageryMenu.refreshOffsetMenu();
-            if (Main.map == null)
-                return;
-            if (oldMapMode != null) {
-                Main.map.selectMapMode(oldMapMode);
-                oldMapMode = null;
-            } else {
-                Main.map.selectSelectTool(false);
-            }
         }
 
         class WindowEventHandler extends WindowAdapter {
             @Override
             public void windowClosing(WindowEvent e) {
                 setVisible(false);
+                restoreMapModeState();
+            }
+
+            private void restoreMapModeState() {
+                if (Main.map == null)
+                    return;
+                if (oldMapMode != null) {
+                    Main.map.selectMapMode(oldMapMode);
+                    oldMapMode = null;
+                } else {
+                    Main.map.selectSelectTool(false);
+                }
             }
         }
     }

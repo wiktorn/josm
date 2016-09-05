@@ -3,7 +3,6 @@ package org.openstreetmap.josm.actions;
 
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import java.awt.geom.Area;
 import java.lang.reflect.Field;
@@ -13,9 +12,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
-import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
-import org.openstreetmap.josm.JOSMFixture;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
@@ -25,11 +23,14 @@ import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
+import org.openstreetmap.josm.testutils.JOSMTestRules;
 import org.openstreetmap.josm.tools.GeoPropertyIndex;
 import org.openstreetmap.josm.tools.GeoPropertyIndex.GeoProperty;
 import org.openstreetmap.josm.tools.Geometry;
 import org.openstreetmap.josm.tools.RightAndLefthandTraffic;
 import org.openstreetmap.josm.tools.Utils;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Unit tests for class {@link CreateCircleAction}.
@@ -39,10 +40,9 @@ public final class CreateCircleActionTest {
     /**
      * Setup test.
      */
-    @BeforeClass
-    public static void setUp() {
-        JOSMFixture.createUnitTestFixture().init(true);
-    }
+    @Rule
+    @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
+    public JOSMTestRules test = new JOSMTestRules().platform();
 
     /**
      * FIXME: Conveniance method to prevent Selection Change events.
@@ -53,27 +53,23 @@ public final class CreateCircleActionTest {
      * but in this case there is a problem with an even listener of selection change.
      * @param p primitive
      * @param ds data set
+     * @throws ReflectiveOperationException if an error occurs
      */
-    public void addSelected(OsmPrimitive p, DataSet ds) {
-        try {
-            Method method = ds.getClass()
-                .getDeclaredMethod("addSelected",
-                                   new Class<?>[] {Collection.class, boolean.class});
-            Utils.setObjectsAccessible(method);
-            method.invoke(ds, Collections.singleton(p), false);
-        } catch (ReflectiveOperationException e) {
-            e.printStackTrace();
-            fail("Can't add OsmPrimitive to dataset: " + e.getMessage());
-        }
+    public void addSelected(OsmPrimitive p, DataSet ds) throws ReflectiveOperationException {
+        Method method = ds.getClass().getDeclaredMethod("addSelected",
+                                                        new Class<?>[] {Collection.class, boolean.class});
+        Utils.setObjectsAccessible(method);
+        method.invoke(ds, Collections.singleton(p), false);
     }
 
     /**
      * Test case: When Create Circle action is performed with a single way selected,
      * circle direction must equals way direction.
      * see #7421
+     * @throws ReflectiveOperationException if an error occurs
      */
     @Test
-    public void testTicket7421case0() {
+    public void testTicket7421case0() throws ReflectiveOperationException {
         DataSet dataSet = new DataSet();
         OsmDataLayer layer = new OsmDataLayer(dataSet, OsmDataLayer.createNewName(), null);
 
@@ -136,9 +132,10 @@ public final class CreateCircleActionTest {
      * Test case: When Create Circle action is performed with nodes, resulting
      * circle direction depend on traffic hand. Simulate a left hand traffic.
      * see #7421
+     * @throws ReflectiveOperationException if an error occurs
      */
     @Test
-    public void testTicket7421case1() {
+    public void testTicket7421case1() throws ReflectiveOperationException {
         DataSet dataSet = new DataSet();
         OsmDataLayer layer = new OsmDataLayer(dataSet, OsmDataLayer.createNewName(), null);
 
@@ -154,17 +151,12 @@ public final class CreateCircleActionTest {
         addSelected(n3, dataSet);
 
         // Mock left/right hand traffic database
-        try {
-            Field leftHandTrafficPolygons = RightAndLefthandTraffic.class
-                .getDeclaredField("leftHandTrafficPolygons");
-            Field rlCache = RightAndLefthandTraffic.class.getDeclaredField("rlCache");
-            Utils.setObjectsAccessible(leftHandTrafficPolygons, rlCache);
-            leftHandTrafficPolygons.set(null, new ArrayList<Area>());
-            rlCache.set(null, new GeoPropertyIndex<>(new ConstantTrafficHand(true), 24));
-        } catch (ReflectiveOperationException e) {
-            e.printStackTrace();
-            fail("Impossible to mock left/right hand database: " + e.getMessage());
-        }
+        Field leftHandTrafficPolygons = RightAndLefthandTraffic.class
+            .getDeclaredField("leftHandTrafficPolygons");
+        Field rlCache = RightAndLefthandTraffic.class.getDeclaredField("rlCache");
+        Utils.setObjectsAccessible(leftHandTrafficPolygons, rlCache);
+        leftHandTrafficPolygons.set(null, new ArrayList<Area>());
+        rlCache.set(null, new GeoPropertyIndex<>(new ConstantTrafficHand(true), 24));
 
         CreateCircleAction action = new CreateCircleAction();
         action.setEnabled(true);

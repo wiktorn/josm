@@ -6,7 +6,6 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.Dimension;
 import java.awt.DisplayMode;
-import java.awt.GraphicsDevice;
 import java.awt.GraphicsEnvironment;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
@@ -93,24 +92,22 @@ public final class ShowStatusReportAction extends JosmAction {
             .append(" MB allocated, but free)\nJava version: ")
             .append(runtimeVersion != null ? runtimeVersion : System.getProperty("java.version")).append(", ")
             .append(System.getProperty("java.vendor")).append(", ")
-            .append(System.getProperty("java.vm.name")).append('\n');
-
-        text.append("Screen: ");
-        for (GraphicsDevice gd: GraphicsEnvironment.getLocalGraphicsEnvironment().getScreenDevices()) {
-            DisplayMode dm = gd.getDisplayMode();
-            if (dm != null) {
-                text.append(gd.getIDstring());
-                text.append(' ').
-                append(dm.getWidth()).
-                append('x').
-                append(dm.getHeight()).
-                append(", ");
-            }
+            .append(System.getProperty("java.vm.name"))
+            .append("\nScreen: ");
+        if (!GraphicsEnvironment.isHeadless()) {
+            text.append(Arrays.stream(GraphicsEnvironment.getLocalGraphicsEnvironment().getScreenDevices()).map(gd -> {
+                        StringBuilder b = new StringBuilder(gd.getIDstring());
+                        DisplayMode dm = gd.getDisplayMode();
+                        if (dm != null) {
+                            b.append(' ').append(dm.getWidth()).append('x').append(dm.getHeight());
+                        }
+                        return b.toString();
+                    }).collect(Collectors.joining(", ")));
         }
         Dimension maxScreenSize = GuiHelper.getMaximumScreenSize();
-        text.append("\nMaximum Screen Size: ").
-        append((int)maxScreenSize.getWidth()).append('x').
-        append((int)maxScreenSize.getHeight()).append('\n');
+        text.append("\nMaximum Screen Size: ")
+            .append((int) maxScreenSize.getWidth()).append('x')
+            .append((int) maxScreenSize.getHeight()).append('\n');
 
         if (Main.platform.getClass() == PlatformHookUnixoid.class) {
             // Add Java package details
