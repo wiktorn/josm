@@ -56,6 +56,7 @@ import org.openstreetmap.josm.io.MessageNotifier;
 import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.io.auth.CredentialsManager;
 import org.openstreetmap.josm.io.auth.DefaultAuthenticator;
+import org.openstreetmap.josm.io.protocols.data.Handler;
 import org.openstreetmap.josm.io.remotecontrol.RemoteControl;
 import org.openstreetmap.josm.plugins.PluginHandler;
 import org.openstreetmap.josm.plugins.PluginInformation;
@@ -259,6 +260,8 @@ public class MainApplication extends Main {
 
         I18n.setupLanguageFonts();
 
+        Handler.install();
+
         WindowGeometry geometry = WindowGeometry.mainWindow("gui.geometry",
                 args.getSingle(Option.GEOMETRY).orElse(null),
                 !args.hasOption(Option.NO_MAXIMIZE) && Main.pref.getBoolean("gui.maximized", false));
@@ -315,7 +318,7 @@ public class MainApplication extends Main {
         }
 
         monitor.indeterminateSubTask(tr("Setting defaults"));
-        preConstructorInit(args);
+        preConstructorInit();
 
         monitor.indeterminateSubTask(tr("Creating main GUI"));
         final Main main = new MainApplication(mainFrame);

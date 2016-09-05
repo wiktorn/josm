@@ -592,7 +592,7 @@ public abstract class Main {
     private static class InitializationTask implements Callable<Void> {
 
         private final String name;
-        private Runnable task;
+        private final Runnable task;
 
         protected InitializationTask(String name, Runnable task) {
             this.name = name;
@@ -825,9 +825,8 @@ public abstract class Main {
 
     /**
      * Should be called before the main constructor to setup some parameter stuff
-     * @param args The parsed argument list.
      */
-    public static void preConstructorInit(ProgramArguments args) {
+    public static void preConstructorInit() {
         ProjectionPreference.setProjection();
 
         String defaultlaf = platform.getDefaultStyle();
