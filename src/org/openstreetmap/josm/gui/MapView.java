@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.AbstractButton;
 import javax.swing.JComponent;
@@ -214,7 +215,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
     // Layers that wasn't changed since last paint
     private final transient List<Layer> nonChangedLayers = new ArrayList<>();
     private int lastViewID;
-    private boolean paintPreferencesChanged = true;
+    private AtomicBoolean paintPreferencesChanged = new AtomicBoolean(true);
     private Rectangle lastClipBounds = new Rectangle();
     private transient MapMover mapMover;
 
@@ -465,22 +466,11 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
             }
         }
 
-        boolean canUseBuffer;
-
-        synchronized (this) {
-            canUseBuffer = !paintPreferencesChanged;
-            paintPreferencesChanged = false;
-        }
-        canUseBuffer = canUseBuffer && nonChangedLayers.size() <= nonChangedLayersCount &&
-        lastViewID == getViewID() && lastClipBounds.contains(g.getClipBounds());
-        if (canUseBuffer) {
-            for (int i = 0; i < nonChangedLayers.size(); i++) {
-                if (visibleLayers.get(i) != nonChangedLayers.get(i)) {
-                    canUseBuffer = false;
-                    break;
-                }
-            }
-        }
+        boolean canUseBuffer = !paintPreferencesChanged.getAndSet(false)
+                && nonChangedLayers.size() <= nonChangedLayersCount
+                && lastViewID == getViewID()
+                && lastClipBounds.contains(g.getClipBounds())
+                && nonChangedLayers.equals(visibleLayers.subList(0, nonChangedLayers.size()));
 
         if (null == offscreenBuffer || offscreenBuffer.getWidth() != getWidth() || offscreenBuffer.getHeight() != getHeight()) {
             offscreenBuffer = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_3BYTE_BGR);
@@ -515,9 +505,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
         }
 
         nonChangedLayers.clear();
-        for (int i = 0; i < nonChangedLayersCount; i++) {
-            nonChangedLayers.add(visibleLayers.get(i));
-        }
+        nonChangedLayers.addAll(visibleLayers.subList(0, nonChangedLayersCount));
         lastViewID = getViewID();
         lastClipBounds = g.getClipBounds();
 
@@ -717,9 +705,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
 
     @Override
     public void preferenceChanged(PreferenceChangeEvent e) {
-        synchronized (this) {
-            paintPreferencesChanged = true;
-        }
+        paintPreferencesChanged.set(true);
     }
 
     private final transient SelectionChangedListener repaintSelectionChangedListener = newSelection -> repaint();

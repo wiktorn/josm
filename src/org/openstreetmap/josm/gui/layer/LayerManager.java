@@ -9,6 +9,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.gui.util.GuiHelper;
@@ -20,8 +21,10 @@ import org.openstreetmap.josm.tools.bugreport.BugReport;
  * <p>
  * This manager handles a list of layers with the first layer being the front layer.
  * <h1>Threading</h1>
+ * Synchronization of the layer manager is done by synchronizing all read/write access. All changes are internally done in the EDT thread.
+ *
  * Methods of this manager may be called from any thread in any order.
- * Listeners are called while this layer manager is locked, so they should not block.
+ * Listeners are called while this layer manager is locked, so they should not block on other threads.
  *
  * @author Michael Zangl
  * @since 10273
@@ -34,15 +37,17 @@ public class LayerManager {
         /**
          * Notifies this listener that a layer has been added.
          * <p>
-         * Listeners are called in the EDT thread and you can manipulate the layer manager in the current thread.
+         * Listeners are called in the EDT thread. You should not do blocking or long-running tasks in this method.
          * @param e The new added layer event
          */
         void layerAdded(LayerAddEvent e);
 
         /**
-         * Notifies this listener that a layer is about to be removed.
+         * Notifies this listener that a alayer was just removed.
          * <p>
-         * Listeners are called in the EDT thread and you can manipulate the layer manager in the current thread.
+         * Listeners are called in the EDT thread after the layer was removed.
+         * Use {@link LayerRemoveEvent#scheduleRemoval(Collection)} to remove more layers.
+         * You should not do blocking or long-running tasks in this method.
          * @param e The layer to be removed (as event)
          */
         void layerRemoving(LayerRemoveEvent e);
@@ -50,7 +55,8 @@ public class LayerManager {
         /**
          * Notifies this listener that the order of layers was changed.
          * <p>
-         * Listeners are called in the EDT thread and you can manipulate the layer manager in the current thread.
+         * Listeners are called in the EDT thread.
+         *  You should not do blocking or long-running tasks in this method.
          * @param e The order change event.
          */
         void layerOrderChanged(LayerOrderChangeEvent e);
@@ -164,9 +170,12 @@ public class LayerManager {
     }
 
     /**
-     * This is the list of layers we manage.
+     * This is the list of layers we manage. The list is unmodifyable. That way, read access does not need to be synchronized.
+     *
+     * It is only changed in the EDT.
+     * @see LayerManager#updateLayers(Consumer)
      */
-    private final List<Layer> layers = new ArrayList<>();
+    private volatile List<Layer> layers = Collections.emptyList();
 
     private final List<LayerChangeListener> layerChangeListeners = new CopyOnWriteArrayList<>();
 
@@ -222,9 +231,8 @@ public class LayerManager {
     }
 
     protected Collection<Layer> realRemoveSingleLayer(Layer layerToRemove) {
-        Collection<Layer> newToRemove = fireLayerRemoving(layerToRemove);
-        layers.remove(layerToRemove);
-        return newToRemove;
+        updateLayers(mutableLayers -> mutableLayers.remove(layerToRemove));
+        return fireLayerRemoving(layerToRemove);
     }
 
     /**
@@ -243,11 +251,14 @@ public class LayerManager {
         checkContainsLayer(layer);
         checkPosition(position);
 
-        int curLayerPos = layers.indexOf(layer);
+        int curLayerPos = getLayers().indexOf(layer);
         if (position == curLayerPos)
             return; // already in place.
-        layers.remove(curLayerPos);
-        insertLayerAt(layer, position);
+        // update needs to be done in one run
+        updateLayers(mutableLayers -> {
+            mutableLayers.remove(curLayerPos);
+            insertLayerAt(mutableLayers, layer, position);
+        });
         fireLayerOrderChanged();
     }
 
@@ -257,6 +268,10 @@ public class LayerManager {
      * @param position The position on which we should add it.
      */
     private void insertLayerAt(Layer layer, int position) {
+        updateLayers(mutableLayers -> insertLayerAt(mutableLayers, layer, position));
+    }
+
+    private static void insertLayerAt(List<Layer> layers, Layer layer, int position) {
         if (position == layers.size()) {
             layers.add(layer);
         } else {
@@ -270,9 +285,20 @@ public class LayerManager {
      * @throws IndexOutOfBoundsException if it is not.
      */
     private void checkPosition(int position) {
-        if (position < 0 || position > layers.size()) {
+        if (position < 0 || position > getLayers().size()) {
             throw new IndexOutOfBoundsException("Position " + position + " out of range.");
         }
+    }
+
+    /**
+     * Update the {@link #layers} field. This method should be used instead of a direct field access.
+     * @param mutator A method that gets the writable list of layers and should modify it.
+     */
+    private void updateLayers(Consumer<List<Layer>> mutator) {
+        GuiHelper.assertCallFromEdt();
+        ArrayList<Layer> newLayers = new ArrayList<>(getLayers());
+        mutator.accept(newLayers);
+        layers = Collections.unmodifiableList(newLayers);
     }
 
     /**
@@ -280,7 +306,7 @@ public class LayerManager {
      * @return The list of layers.
      */
     public List<Layer> getLayers() {
-        return Collections.unmodifiableList(new ArrayList<>(layers));
+        return layers;
     }
 
     /**
@@ -304,8 +330,8 @@ public class LayerManager {
      * @param layer the layer
      * @return true if the list of layers managed by this map view contain layer
      */
-    public synchronized boolean containsLayer(Layer layer) {
-        return layers.contains(layer);
+    public boolean containsLayer(Layer layer) {
+        return getLayers().contains(layer);
     }
 
     protected void checkContainsLayer(Layer layer) {
@@ -385,7 +411,7 @@ public class LayerManager {
 
     /**
      * Fire the layer remove event
-     * @param layer The layer to remove
+     * @param layer The layer that was removed
      * @return A list of layers that should be removed afterwards.
      */
     private Collection<Layer> fireLayerRemoving(Layer layer) {
@@ -418,7 +444,13 @@ public class LayerManager {
      * @since 10432
      */
     public void resetState() {
-        // some layer remove listeners remove other layers.
+        // we force this on to the EDT Thread to have a clean synchronization
+        // The synchronization lock needs to be held by the EDT.
+        GuiHelper.runInEDTAndWaitWithException(this::realResetState);
+    }
+
+    protected synchronized void realResetState() {
+        // The listeners trigger the removal of other layers
         while (!getLayers().isEmpty()) {
             removeLayer(getLayers().get(0));
         }
