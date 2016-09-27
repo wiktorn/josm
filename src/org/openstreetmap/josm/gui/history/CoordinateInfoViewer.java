@@ -6,6 +6,8 @@ import java.awt.Color;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 
 import javax.swing.BorderFactory;
 import javax.swing.JLabel;
@@ -16,6 +18,7 @@ import javax.swing.event.ChangeListener;
 
 import org.openstreetmap.gui.jmapviewer.JMapViewer;
 import org.openstreetmap.gui.jmapviewer.MapMarkerDot;
+import org.openstreetmap.gui.jmapviewer.tilesources.OsmTileSource;
 import org.openstreetmap.josm.data.coor.CoordinateFormat;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.history.HistoryNode;
@@ -334,7 +337,16 @@ public class CoordinateInfoViewer extends JPanel {
 
         MapViewer(HistoryBrowserModel model) {
             this.updater = new Updater(model, PointInTimeType.REFERENCE_POINT_IN_TIME);
+            setTileSource(new OsmTileSource.Mapnik()); // for attribution
             setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY));
+            addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    if (e.getButton() == MouseEvent.BUTTON1) {
+                        getAttribution().handleAttribution(e.getPoint(), true);
+                    }
+                }
+            });
         }
 
         @Override
