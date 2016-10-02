@@ -291,7 +291,7 @@ public final class DomainValidator extends AbstractValidator {
 
     // WARNING: this array MUST be sorted, otherwise it cannot be searched reliably using binary search
     private static final String[] GENERIC_TLDS = new String[] {
-        // Taken from Version 2016092200, Last Updated Thu Sep 22 07:07:01 2016 UTC
+        // Taken from Version 2016093001, Last Updated Sat Oct  1 07:07:01 2016 UTC
         "aaa", // aaa American Automobile Association, Inc.
         "aarp", // aarp AARP
         "abarth", // abarth Fiat Chrysler Automobiles N.V.
@@ -595,6 +595,7 @@ public final class DomainValidator extends AbstractValidator {
         "dupont", // dupont E. I. du Pont de Nemours and Company
         "durban", // durban ZA Central Registry NPC trading as ZA Central Registry
         "dvag", // dvag Deutsche Vermögensberatung Aktiengesellschaft DVAG
+        "dvr", // dvr Hughes Satellite Systems Corporation
         "earth", // earth Interlink Co., Ltd.
         "eat", // eat Charleston Road Registry Inc.
         "eco", // eco Big Room Inc.
@@ -1008,6 +1009,7 @@ public final class DomainValidator extends AbstractValidator {
         "ntt", // ntt NIPPON TELEGRAPH AND TELEPHONE CORPORATION
         "nyc", // nyc The City of New York by and through the New York City Department of Information Technology &amp; Telecommunications
         "obi", // obi OBI Group Holding SE &amp; Co. KGaA
+        "observer", // observer Top Level Spectrum, Inc.
         "off", // off Johnson Shareholdings, Inc.
         "office", // office Microsoft Corporation
         "okinawa", // okinawa BusinessRalliart inc.
@@ -1379,6 +1381,7 @@ public final class DomainValidator extends AbstractValidator {
         "work", // work Top Level Domain Holdings Limited
         "works", // works Little Dynamite, LLC
         "world", // world Bitter Fields, LLC
+        "wow", // wow Amazon Registry Services, Inc.
         "wtc", // wtc World Trade Centers Association, Inc.
         "wtf", // wtf Hidden Way, LLC
         "xbox", // xbox Microsoft Corporation
@@ -1433,6 +1436,7 @@ public final class DomainValidator extends AbstractValidator {
         "xn--fzys8d69uvgm", // 電訊盈科 PCCW Enterprises Limited
         "xn--g2xx48c", // 购物 Minds + Machines Group Limited
         "xn--gckr3f0f", // クラウド Amazon Registry Services, Inc.
+        "xn--gk3at1e", // 通販 Amazon Registry Services, Inc.
         "xn--hxt814e", // 网店 Zodiac Libra Limited
         "xn--i1b6b1a6a2e", // संगठन Public Interest Registry
         "xn--imr513n", // 餐厅 HU YI GLOBAL INFORMATION RESOURCES (HOLDING) COMPANY. HONGKONG LIMITED
