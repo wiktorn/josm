@@ -8,10 +8,14 @@ import java.awt.Graphics2D;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 
+import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.data.osm.Node;
+import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.OsmUtils;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
@@ -160,6 +164,19 @@ public final class TestUtils {
     }
 
     /**
+     * Returns a private field value.
+     * @param obj object
+     * @param fieldName private field name
+     * @return private field value
+     * @throws ReflectiveOperationException if a reflection operation error occurs
+     */
+    public static Object getPrivateField(Object obj, String fieldName) throws ReflectiveOperationException {
+        Field f = obj.getClass().getDeclaredField(fieldName);
+        f.setAccessible(true);
+        return f.get(obj);
+    }
+
+    /**
      * Returns an instance of {@link AbstractProgressMonitor} which keeps track of the monitor state,
      * but does not show the progress.
      * @return a progress monitor
@@ -243,5 +260,24 @@ public final class TestUtils {
             relation.addMember(member);
         }
         return relation;
+    }
+
+    /**
+     * Creates a new empty command.
+     * @return a new empty command
+     */
+    public static Command newCommand() {
+        return new Command() {
+            @Override
+            public String getDescriptionText() {
+                return "";
+            }
+
+            @Override
+            public void fillModifiedData(Collection<OsmPrimitive> modified, Collection<OsmPrimitive> deleted,
+                    Collection<OsmPrimitive> added) {
+                // Do nothing
+            }
+        };
     }
 }

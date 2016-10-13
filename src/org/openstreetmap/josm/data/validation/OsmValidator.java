@@ -182,7 +182,7 @@ public final class OsmValidator {
         ignoredErrors.clear();
         if (ValidatorPreference.PREF_USE_IGNORE.get()) {
             Path path = Paths.get(getValidatorDir()).resolve("ignorederrors");
-            if (Files.exists(path)) {
+            if (path.toFile().exists()) {
                 try {
                     ignoredErrors.addAll(Files.readAllLines(path, StandardCharsets.UTF_8));
                 } catch (final FileNotFoundException e) {
@@ -292,7 +292,7 @@ public final class OsmValidator {
     public static void initializeGridDetail() {
         String code = Main.getProjection().toCode();
         if (Arrays.asList(ProjectionPreference.wgs84.allCodes()).contains(code)) {
-            OsmValidator.griddetail = 10000;
+            OsmValidator.griddetail = 10_000;
         } else if (Arrays.asList(ProjectionPreference.mercator.allCodes()).contains(code)) {
             OsmValidator.griddetail = 0.01;
         } else if (Arrays.asList(ProjectionPreference.lambert.allCodes()).contains(code)) {

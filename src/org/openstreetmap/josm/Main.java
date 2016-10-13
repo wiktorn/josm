@@ -5,6 +5,7 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.GraphicsEnvironment;
 import java.awt.Window;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
@@ -76,10 +77,10 @@ import org.openstreetmap.josm.gui.MapFrameListener;
 import org.openstreetmap.josm.gui.ProgramArguments;
 import org.openstreetmap.josm.gui.ProgramArguments.Option;
 import org.openstreetmap.josm.gui.io.SaveLayersDialog;
-import org.openstreetmap.josm.gui.layer.AbstractModifiableLayer;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.MainLayerManager;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer.CommandQueueListener;
+import org.openstreetmap.josm.gui.layer.TMSLayer;
 import org.openstreetmap.josm.gui.preferences.ToolbarPreferences;
 import org.openstreetmap.josm.gui.preferences.imagery.ImageryPreference;
 import org.openstreetmap.josm.gui.preferences.map.MapPaintPreference;
@@ -100,6 +101,7 @@ import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.OpenBrowser;
 import org.openstreetmap.josm.tools.OsmUrlToBounds;
+import org.openstreetmap.josm.tools.OverpassTurboQueryWizard;
 import org.openstreetmap.josm.tools.PlatformHook;
 import org.openstreetmap.josm.tools.PlatformHookOsx;
 import org.openstreetmap.josm.tools.PlatformHookUnixoid;
@@ -527,6 +529,10 @@ public abstract class Main {
             for (Future<Void> i : service.invokeAll(tasks)) {
                 i.get();
             }
+            // asynchronous initializations to be completed eventually
+            service.submit((Runnable) TMSLayer::getCache);
+            service.submit((Runnable) OsmValidator::initializeTests);
+            service.submit(OverpassTurboQueryWizard::getInstance);
             service.shutdown();
         } catch (InterruptedException | ExecutionException ex) {
             throw new RuntimeException(ex);
@@ -788,69 +794,16 @@ public abstract class Main {
     }
 
     /**
-     * Asks user to perform "save layer" operations (save on disk and/or upload data to server) for all
-     * {@link AbstractModifiableLayer} before JOSM exits.
-     * @return {@code true} if there was nothing to save, or if the user wants to proceed to save operations.
-     *         {@code false} if the user cancels.
-     * @since 2025
-     */
-    public static boolean saveUnsavedModifications() {
-        if (!isDisplayingMapView()) return true;
-        return saveUnsavedModifications(getLayerManager().getLayersOfType(AbstractModifiableLayer.class), true);
-    }
-
-    /**
-     * Asks user to perform "save layer" operations (save on disk and/or upload data to server) before data layers deletion.
-     *
-     * @param selectedLayers The layers to check. Only instances of {@link AbstractModifiableLayer} are considered.
-     * @param exit {@code true} if JOSM is exiting, {@code false} otherwise.
-     * @return {@code true} if there was nothing to save, or if the user wants to proceed to save operations.
-     *         {@code false} if the user cancels.
-     * @since 5519
-     */
-    public static boolean saveUnsavedModifications(Iterable<? extends Layer> selectedLayers, boolean exit) {
-        SaveLayersDialog dialog = new SaveLayersDialog(parent);
-        List<AbstractModifiableLayer> layersWithUnmodifiedChanges = new ArrayList<>();
-        for (Layer l: selectedLayers) {
-            if (!(l instanceof AbstractModifiableLayer)) {
-                continue;
-            }
-            AbstractModifiableLayer odl = (AbstractModifiableLayer) l;
-            if (odl.isModified() &&
-                    ((!odl.isSavable() && !odl.isUploadable()) ||
-                     odl.requiresSaveToFile() ||
-                     (odl.requiresUploadToServer() && !odl.isUploadDiscouraged()))) {
-                layersWithUnmodifiedChanges.add(odl);
-            }
-        }
-        if (exit) {
-            dialog.prepareForSavingAndUpdatingLayersBeforeExit();
-        } else {
-            dialog.prepareForSavingAndUpdatingLayersBeforeDelete();
-        }
-        if (!layersWithUnmodifiedChanges.isEmpty()) {
-            dialog.getModel().populate(layersWithUnmodifiedChanges);
-            dialog.setVisible(true);
-            switch(dialog.getUserAction()) {
-            case PROCEED: return true;
-            case CANCEL:
-            default: return false;
-            }
-        }
-
-        return true;
-    }
-
-    /**
      * Closes JOSM and optionally terminates the Java Virtual Machine (JVM).
      * If there are some unsaved data layers, asks first for user confirmation.
      * @param exit If {@code true}, the JVM is terminated by running {@link System#exit} with a given return code.
      * @param exitCode The return code
+     * @param reason the reason for exiting
      * @return {@code true} if JOSM has been closed, {@code false} if the user has cancelled the operation.
-     * @since 3378
+     * @since 11093 (3378 with a different function signature)
      */
-    public static boolean exitJosm(boolean exit, int exitCode) {
-        if (Main.saveUnsavedModifications()) {
+    public static boolean exitJosm(boolean exit, int exitCode, SaveLayersDialog.Reason reason) {
+        if (SaveLayersDialog.saveUnsavedModifications(getLayerManager().getLayers(), reason != null ? reason : SaveLayersDialog.Reason.EXIT)) {
             if (Main.main != null) {
                 Main.main.shutdown();
             }
@@ -864,9 +817,11 @@ public abstract class Main {
     }
 
     protected void shutdown() {
-        worker.shutdown();
-        ImageProvider.shutdown(false);
-        JCSCacheManager.shutdown();
+        if (!GraphicsEnvironment.isHeadless()) {
+            worker.shutdown();
+            ImageProvider.shutdown(false);
+            JCSCacheManager.shutdown();
+        }
         if (map != null) {
             map.rememberToggleDialogWidth();
         }
@@ -877,8 +832,10 @@ public abstract class Main {
         } catch (IOException ex) {
             Main.warn(ex, tr("Failed to save default preferences."));
         }
-        worker.shutdownNow();
-        ImageProvider.shutdown(true);
+        if (!GraphicsEnvironment.isHeadless()) {
+            worker.shutdownNow();
+            ImageProvider.shutdown(true);
+        }
     }
 
     /**

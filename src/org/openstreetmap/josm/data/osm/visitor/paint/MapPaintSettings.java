@@ -25,6 +25,8 @@ public final class MapPaintSettings implements PreferenceChangedListener {
     private int defaultSegmentWidth;
     /** Preference: should the segment numbers of ways be displayed */
     private boolean showOrderNumber;
+    /** Preference: should the segment numbers of ways be displayed on selected way */
+    private boolean showOrderNumberOnSelectedWay;
     /** Preference: should only the last arrow of a way be displayed */
     private boolean showHeadArrowOnly;
     private int showNamesDistance;
@@ -89,11 +91,12 @@ public final class MapPaintSettings implements PreferenceChangedListener {
         }
 
         showOrderNumber = Main.pref.getBoolean("draw.segment.order_number", false);
+        showOrderNumberOnSelectedWay = Main.pref.getBoolean("draw.segment.order_number.on_selected", false);
         showHeadArrowOnly = Main.pref.getBoolean("draw.segment.head_only", false);
 
-        showNamesDistance = Main.pref.getInteger("mappaint.shownames", 10000000);
-        useStrokesDistance = Main.pref.getInteger("mappaint.strokes", 10000000);
-        showIconsDistance = Main.pref.getInteger("mappaint.showicons", 10000000);
+        showNamesDistance = Main.pref.getInteger("mappaint.shownames", 10_000_000);
+        useStrokesDistance = Main.pref.getInteger("mappaint.strokes", 10_000_000);
+        showIconsDistance = Main.pref.getInteger("mappaint.showicons", 10_000_000);
 
         selectedNodeSize = Main.pref.getInteger("mappaint.node.selected-size", 5);
         unselectedNodeSize = Main.pref.getInteger("mappaint.node.unselected-size", 3);
@@ -232,6 +235,14 @@ public final class MapPaintSettings implements PreferenceChangedListener {
      */
     public boolean isShowOrderNumber() {
         return showOrderNumber;
+    }
+
+    /**
+     * Determines if the segment numbers of the selected way should be displayed
+     * @return {@code true} if the segment numbers of the selected way should be displayed
+     */
+    public boolean isShowOrderNumberOnSelectedWay() {
+        return showOrderNumberOnSelectedWay;
     }
 
     /**

@@ -177,7 +177,7 @@ public final class ShowStatusReportAction extends JosmAction {
                 }
             }
         }
-        text.append("\n");
+        text.append('\n');
         appendCollection(text, "Plugins", Utils.transform(PluginHandler.getBugReportInformation(), i -> "+ " + i));
         appendCollection(text, "Tagging presets", getCustomUrls(TaggingPresetPreference.PresetPrefHelper.INSTANCE));
         appendCollection(text, "Map paint styles", getCustomUrls(MapPaintPreference.MapPaintPrefHelper.INSTANCE));
@@ -293,7 +293,7 @@ public final class ShowStatusReportAction extends JosmAction {
         ed.setPreferredSize(new Dimension(700, Main.parent.getHeight()-50));
 
         switch (ed.showDialog().getValue()) {
-            case 1: ta.copyToClippboard(); break;
+            case 1: ta.copyToClipboard(); break;
             case 2: BugReportSender.reportBug(reportHeader); break;
             default: // Do nothing
         }

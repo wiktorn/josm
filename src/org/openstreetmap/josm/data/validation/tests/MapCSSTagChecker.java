@@ -1,7 +1,6 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.data.validation.tests;
 
-import static org.openstreetmap.josm.data.validation.tests.MapCSSTagChecker.FixCommand.evaluateObject;
 import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.io.BufferedReader;
@@ -310,8 +309,7 @@ public class MapCSSTagChecker extends Test.TagTest {
                                 : null;
                         if (ai.key.startsWith("throw")) {
                             try {
-                                final Severity severity = Severity.valueOf(ai.key.substring("throw".length()).toUpperCase(Locale.ENGLISH));
-                                check.errors.put(ai, severity);
+                                check.errors.put(ai, Severity.valueOf(ai.key.substring("throw".length()).toUpperCase(Locale.ENGLISH)));
                             } catch (IllegalArgumentException e) {
                                 Main.warn(e, "Unsupported "+ai.key+" instruction. Allowed instructions are "+POSSIBLE_THROWS+'.');
                             }
@@ -394,7 +392,7 @@ public class MapCSSTagChecker extends Test.TagTest {
                 MapCSSRule x = it.next();
                 if (x.selector instanceof GeneralSelector) {
                     GeneralSelector gs = (GeneralSelector) x.selector;
-                    if ("meta".equals(gs.base) && gs.getConditions().isEmpty()) {
+                    if ("meta".equals(gs.base)) {
                         it.remove();
                     }
                 }
@@ -717,10 +715,10 @@ public class MapCSSTagChecker extends Test.TagTest {
      */
     public synchronized ParseResult addMapCSS(String url) throws ParseException, IOException {
         CheckParameterUtil.ensureParameterNotNull(url, "url");
-        CachedFile cache = new CachedFile(url);
-        InputStream zip = cache.findZipEntryInputStream("validator.mapcss", "");
         ParseResult result;
-        try (InputStream s = zip != null ? zip : cache.getInputStream()) {
+        try (CachedFile cache = new CachedFile(url);
+             InputStream zip = cache.findZipEntryInputStream("validator.mapcss", "");
+             InputStream s = zip != null ? zip : cache.getInputStream()) {
             result = TagCheck.readMapCSS(new BufferedReader(UTFInputStreamReader.create(s)));
             checks.remove(url);
             checks.putAll(url, result.parseChecks);
@@ -730,8 +728,6 @@ public class MapCSSTagChecker extends Test.TagTest {
                     Main.warn(msg);
                 }
             }
-        } finally {
-            cache.close();
         }
         return result;
     }
@@ -752,11 +748,7 @@ public class MapCSSTagChecker extends Test.TagTest {
                 }
                 addMapCSS(i);
                 if (Main.pref.getBoolean("validator.auto_reload_local_rules", true) && source.isLocal()) {
-                    try {
-                        Main.fileWatcher.registerValidatorRule(source);
-                    } catch (IOException e) {
-                        Main.error(e);
-                    }
+                    Main.fileWatcher.registerValidatorRule(source);
                 }
             } catch (IOException ex) {
                 Main.warn(tr("Failed to add {0} to tag checker", i));
