@@ -139,7 +139,7 @@ public class RemoteControlHttpsServer extends Thread {
             throws GeneralSecurityException, IOException {
         X509CertInfo info = new X509CertInfo();
         Date from = new Date();
-        Date to = new Date(from.getTime() + days * 86400000L);
+        Date to = new Date(from.getTime() + days * 86_400_000L);
         CertificateValidity interval = new CertificateValidity(from, to);
         BigInteger sn = new BigInteger(64, new SecureRandom());
         X500Name owner = new X500Name(dn);
@@ -206,7 +206,7 @@ public class RemoteControlHttpsServer extends Thread {
         Path path = dir.resolve(KEYSTORE_FILENAME);
         Files.createDirectories(dir);
 
-        if (!Files.exists(path)) {
+        if (!path.toFile().exists()) {
             Main.debug("No keystore found, creating a new one");
 
             // Create new keystore like previous one generated with JDK keytool as follows:

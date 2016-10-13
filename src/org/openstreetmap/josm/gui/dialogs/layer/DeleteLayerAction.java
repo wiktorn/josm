@@ -10,10 +10,10 @@ import java.util.List;
 import javax.swing.AbstractAction;
 import javax.swing.JMenuItem;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.gui.dialogs.IEnabledStateUpdating;
 import org.openstreetmap.josm.gui.dialogs.LayerListDialog.LayerListModel;
 import org.openstreetmap.josm.gui.help.HelpUtil;
+import org.openstreetmap.josm.gui.io.SaveLayersDialog;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.Layer.LayerAction;
 import org.openstreetmap.josm.tools.ImageProvider;
@@ -43,10 +43,14 @@ public final class DeleteLayerAction extends AbstractAction implements IEnabledS
         List<Layer> selectedLayers = model.getSelectedLayers();
         if (selectedLayers.isEmpty())
             return;
-        if (!Main.saveUnsavedModifications(selectedLayers, false))
+        if (!SaveLayersDialog.saveUnsavedModifications(selectedLayers, SaveLayersDialog.Reason.DELETE))
             return;
         for (Layer l: selectedLayers) {
-            Main.getLayerManager().removeLayer(l);
+            if (model.getLayerManager().containsLayer(l)) {
+                // it may happen that this call removes other layers.
+                // this is why we need to check if every layer is still in the list of selected layers.
+                model.getLayerManager().removeLayer(l);
+            }
         }
     }
 

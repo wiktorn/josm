@@ -3,7 +3,6 @@ package org.openstreetmap.josm.data.osm;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
 
-import java.awt.geom.Area;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -21,9 +20,9 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.Data;
 import org.openstreetmap.josm.data.DataSource;
 import org.openstreetmap.josm.data.ProjectionBounds;
@@ -421,13 +420,9 @@ public final class DataSet implements Data, ProjectionChangeListener {
         lock.readLock().lock();
         try {
             // QuadBuckets might be useful here (don't forget to do reindexing after some of rm is changed)
-            List<Relation> result = new ArrayList<>();
-            for (Relation r: relations) {
-                if (r.getBBox().intersects(bbox)) {
-                    result.add(r);
-                }
-            }
-            return result;
+            return relations.stream()
+                    .filter(r -> r.getBBox().intersects(bbox))
+                    .collect(Collectors.toList());
         } finally {
             lock.readLock().unlock();
         }
@@ -922,12 +917,7 @@ public final class DataSet implements Data, ProjectionChangeListener {
 
     @Override
     public Collection<DataSource> getDataSources() {
-        return dataSources;
-    }
-
-    @Override
-    public Area getDataSourceArea() {
-        return DataSource.getDataSourceArea(dataSources);
+        return Collections.unmodifiableCollection(dataSources);
     }
 
     /**
@@ -1325,11 +1315,6 @@ public final class DataSet implements Data, ProjectionChangeListener {
                 primitive.setDeleted(true);
             }
         }
-    }
-
-    @Override
-    public List<Bounds> getDataSourceBounds() {
-        return DataSource.getDataSourceBounds(dataSources);
     }
 
     /**
