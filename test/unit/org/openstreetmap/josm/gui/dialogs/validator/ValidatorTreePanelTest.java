@@ -8,6 +8,7 @@ import static org.junit.Assert.assertNull;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -41,14 +42,35 @@ public class ValidatorTreePanelTest {
         assertNotNull(new ValidatorTreePanel());
 
         ValidatorTreePanel vtp = new ValidatorTreePanel(new ArrayList<>(Arrays.asList(
-                new TestError(null, Severity.ERROR, "err", 0, new Node(1)),
-                new TestError(null, Severity.WARNING, "warn", 0, new Node(2)))));
+                TestError.builder(null, Severity.ERROR, 0)
+                        .message("err")
+                        .primitives(new Node(1))
+                        .build(),
+                TestError.builder(null, Severity.WARNING, 0)
+                        .message("warn", "foo")
+                        .primitives(new Node(2))
+                        .build(),
+                TestError.builder(null, Severity.WARNING, 0)
+                        .message("warn", "bar")
+                        .primitives(new Node(2))
+                        .build())));
         assertNotNull(vtp);
-        assertEquals(2, vtp.getErrors().size());
+        final Enumeration nodes = vtp.getRoot().breadthFirstEnumeration();
+        assertEquals("", nodes.nextElement().toString());
+        assertEquals("Errors (1)", nodes.nextElement().toString());
+        assertEquals("Warnings (2)", nodes.nextElement().toString());
+        assertEquals("err (1)", nodes.nextElement().toString());
+        assertEquals("warn (2)", nodes.nextElement().toString());
+        nodes.nextElement();
+        assertEquals("bar (1)", nodes.nextElement().toString());
+        assertEquals("foo (1)", nodes.nextElement().toString());
         vtp.setVisible(true);
         vtp.setVisible(false);
         Node n = new Node(10);
-        vtp.setErrors(Arrays.asList(new TestError(null, Severity.ERROR, "", 0, n)));
+        vtp.setErrors(Arrays.asList(TestError.builder(null, Severity.ERROR, 0)
+                .message("")
+                .primitives(n)
+                .build()));
         assertEquals(1, vtp.getErrors().size());
         vtp.selectRelatedErrors(Collections.<OsmPrimitive>singleton(n));
         vtp.expandAll();

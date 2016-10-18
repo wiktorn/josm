@@ -1,10 +1,10 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.data.validation.tests;
 
+import static org.openstreetmap.josm.tools.I18n.marktr;
 import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.util.HashSet;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -50,10 +50,10 @@ public class NameMismatch extends Test.TagTest {
      * @param name The name whose translation is missing
      */
     private void missingTranslation(OsmPrimitive p, String name) {
-        errors.add(new TestError(this, Severity.OTHER,
-                tr("Missing name:* translation"),
-                tr("Missing name:*={0}. Add tag with correct language key.", name),
-                String.format("Missing name:*=%s. Add tag with correct language key.", name), NAME_TRANSLATION_MISSING, p));
+        errors.add(TestError.builder(this, Severity.OTHER, NAME_TRANSLATION_MISSING)
+                .message(tr("Missing name:* translation"), marktr("Missing name:*={0}. Add tag with correct language key."), name)
+                .primitives(p)
+                .build());
     }
 
     /**
@@ -65,23 +65,23 @@ public class NameMismatch extends Test.TagTest {
     public void check(OsmPrimitive p) {
         Set<String> names = new HashSet<>();
 
-        for (Entry<String, String> entry : p.getKeys().entrySet()) {
-            if (entry.getKey().startsWith("name:")) {
-                String n = entry.getValue();
+        p.getKeys().forEach((key, n) -> {
+            if (key.startsWith("name:") && !"name:etymology:wikidata".equals(key)) {
                 if (n != null) {
                     names.add(n);
                 }
             }
-        }
+        });
 
         if (names.isEmpty()) return;
 
         String name = p.get("name");
 
         if (name == null) {
-            errors.add(new TestError(this, Severity.OTHER,
-                    tr("A name is missing, even though name:* exists."),
-                    NAME_MISSING, p));
+            errors.add(TestError.builder(this, Severity.OTHER, NAME_MISSING)
+                    .message(tr("A name is missing, even though name:* exists."))
+                    .primitives(p)
+                    .build());
             return;
         }
 
