@@ -3,7 +3,6 @@ package org.openstreetmap.josm.data.validation.tests;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
 
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -32,13 +31,20 @@ public class SelfIntersectingWay extends Test {
     @Override
     public void visit(Way w) {
         Set<Node> nodes = new HashSet<>();
-
-        for (int i = 1; i < w.getNodesCount() - 1; i++) {
+        int last = w.getNodesCount();
+        if (last < 2)
+            return;
+        if (w.firstNode() == w.lastNode())
+            last--; // closed way, ignore last node
+        nodes.add(w.firstNode());
+        for (int i = 1; i < last; i++) {
             Node n = w.getNode(i);
             if (nodes.contains(n)) {
-                errors.add(new TestError(this,
-                        Severity.WARNING, tr("Self-intersecting ways"), SELF_INTERSECT,
-                        Arrays.asList(w), Arrays.asList(n)));
+                errors.add(TestError.builder(this, Severity.WARNING, SELF_INTERSECT)
+                        .message(tr("Self-intersecting ways"))
+                        .primitives(w)
+                        .highlight(n)
+                        .build());
                 break;
             } else {
                 nodes.add(n);
