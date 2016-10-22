@@ -913,7 +913,7 @@
             <label text="Vehicles per use" />
             <space />
             <combo key="agricultural" text="Agricultural" values="yes,official,designated,destination,permissive,private,no" match="key" />
-            <combo key="emergency" text="Emergency vehicles" values="yes,official,designated,destination,permissive,private,no" match="keyvalue" />
+            <combo key="emergency" text="Emergency vehicles" values="yes,official,designated,destination,no" match="keyvalue" />
             <combo key="hov" text="High-occupancy vehicles (hov)" values="yes,official,designated,destination,permissive,private,no" match="key" />
             <combo key="psv" text="Public Service Vehicles (psv)" values="yes,official,designated,destination,permissive,private,no" match="key" />
             <combo key="tourist_bus" text="Tourist buses" values="yes,no" match="key" />
@@ -4950,7 +4950,10 @@
             <space />
             <key key="emergency" value="defibrillator" />
             <reference ref="oh_wheelchair" />
-            <text  key="operator" text="Operator" />
+            <text key="operator" text="Operator" />
+            <text key="defibrillator:location" text="Location description" />
+            <text key="phone" text="Phone Number" />
+            <combo key="access" text="Access" values="yes,private,customers,permissive,no" />
             <check key="indoor" text="Located inside a building?" />
             <!-- lastcheck is in use for aed devices, but not yet well discussed or documented
             <optional>

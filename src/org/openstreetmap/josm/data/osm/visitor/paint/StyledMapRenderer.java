@@ -24,6 +24,7 @@ import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.geom.RoundRectangle2D;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -829,79 +830,54 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         final double repeat = imgWidth + spacing;
         final int imgHeight = pattern.getHeight();
 
-        double currentWayLength = phase % repeat;
-        if (currentWayLength < 0) {
-            currentWayLength += repeat;
-        }
+        int dy1 = (int) ((align.getAlignmentOffset() - .5) * imgHeight);
+        int dy2 = dy1 + imgHeight;
 
-        int dy1, dy2;
-        switch (align) {
-            case TOP:
-                dy1 = 0;
-                dy2 = imgHeight;
-                break;
-            case CENTER:
-                dy1 = -imgHeight / 2;
-                dy2 = imgHeight + dy1;
-                break;
-            case BOTTOM:
-                dy1 = -imgHeight;
-                dy2 = 0;
-                break;
-            default:
-                throw new AssertionError();
-        }
-
-        MapViewPoint lastP = null;
         OffsetIterator it = new OffsetIterator(way.getNodes(), offset);
-        while (it.hasNext()) {
-            MapViewPoint thisP = it.next();
-
-            if (lastP != null) {
-                final double segmentLength = thisP.distanceToInView(lastP);
-
-                final double dx = thisP.getInViewX() - lastP.getInViewX();
-                final double dy = thisP.getInViewY() - lastP.getInViewY();
-
-                // pos is the position from the beginning of the current segment
-                // where an image should be painted
-                double pos = repeat - (currentWayLength % repeat);
-
-                AffineTransform saveTransform = g.getTransform();
-                g.translate(lastP.getInViewX(), lastP.getInViewY());
-                g.rotate(Math.atan2(dy, dx));
-
-                // draw the rest of the image from the last segment in case it
-                // is cut off
-                if (pos > spacing) {
-                    // segment is too short for a complete image
-                    if (pos > segmentLength + spacing) {
-                        g.drawImage(pattern.getImage(disabled), 0, dy1, (int) segmentLength, dy2,
-                                (int) (repeat - pos), 0,
-                                (int) (repeat - pos + segmentLength), imgHeight, null);
-                    } else {
-                        // rest of the image fits fully on the current segment
-                        g.drawImage(pattern.getImage(disabled), 0, dy1, (int) (pos - spacing), dy2,
-                                (int) (repeat - pos), 0, imgWidth, imgHeight, null);
-                    }
-                }
-                // draw remaining images for this segment
-                while (pos < segmentLength) {
-                    // cut off at the end?
-                    if (pos + imgWidth > segmentLength) {
-                        g.drawImage(pattern.getImage(disabled), (int) pos, dy1, (int) segmentLength, dy2,
-                                0, 0, (int) segmentLength - (int) pos, imgHeight, null);
-                    } else {
-                        g.drawImage(pattern.getImage(disabled), (int) pos, dy1, nc);
-                    }
-                    pos += repeat;
-                }
-                g.setTransform(saveTransform);
-
-                currentWayLength += segmentLength;
-            }
-            lastP = thisP;
+        MapViewPath path = new MapViewPath(mapState);
+        if (it.hasNext()) {
+            path.moveTo(it.next());
         }
+        while (it.hasNext()) {
+            path.lineTo(it.next());
+        }
+
+        double startOffset = phase % repeat;
+        if (startOffset < 0) {
+            startOffset += repeat;
+        }
+
+        BufferedImage image = pattern.getImage(disabled);
+
+        path.visitClippedLine(startOffset, repeat, (inLineOffset, start, end, startIsOldEnd) -> {
+            final double segmentLength = start.distanceToInView(end);
+            if (segmentLength < 0.1) {
+                // avoid odd patterns when zoomed out.
+                return;
+            }
+            if (segmentLength > repeat * 500) {
+                // simply skip drawing so many images - something must be wrong.
+                return;
+            }
+            AffineTransform saveTransform = g.getTransform();
+            g.translate(start.getInViewX(), start.getInViewY());
+            double dx = end.getInViewX() - start.getInViewX();
+            double dy = end.getInViewY() - start.getInViewY();
+            g.rotate(Math.atan2(dy, dx));
+
+            // The start of the next image
+            double imageStart = -(inLineOffset % repeat);
+
+            while (imageStart < segmentLength) {
+                int x = (int) imageStart;
+                int sx1 = Math.max(0, -x);
+                int sx2 = imgWidth - Math.max(0, x + imgWidth - (int) Math.ceil(segmentLength));
+                g.drawImage(image, x + sx1, dy1, x + sx2, dy2, sx1, 0, sx2, imgHeight, null);
+                imageStart += repeat;
+            }
+
+            g.setTransform(saveTransform);
+        });
     }
 
     @Override
@@ -1448,15 +1424,14 @@ public class StyledMapRenderer extends AbstractMapRenderer {
 
         MapViewPath path = new MapViewPath(mapState);
         MapViewPath orientationArrows = showOrientation ? new MapViewPath(mapState) : null;
-        MapViewPath onewayArrows = showOneway ? new MapViewPath(mapState) : null;
-        MapViewPath onewayArrowsCasing = showOneway ? new MapViewPath(mapState) : null;
+        MapViewPath onewayArrows;
+        MapViewPath onewayArrowsCasing;
         Rectangle bounds = g.getClipBounds();
         if (bounds != null) {
             // avoid arrow heads at the border
             bounds.grow(100, 100);
         }
 
-        boolean initialMoveToNeeded = true;
         List<Node> wayNodes = way.getNodes();
         if (wayNodes.size() < 2) return;
 
@@ -1481,6 +1456,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         MapViewPoint lastPoint = null;
         double wayLength = 0;
         Iterator<MapViewPoint> it = new OffsetIterator(wayNodes, offset);
+        boolean initialMoveToNeeded = true;
         while (it.hasNext()) {
             MapViewPoint p = it.next();
             if (lastPoint != null) {
@@ -1502,24 +1478,38 @@ public class StyledMapRenderer extends AbstractMapRenderer {
                 if (showOneway) {
                     final double segmentLength = p1.distanceToInView(p2);
                     if (segmentLength != 0) {
-                        final double nx = (p2.getInViewX() - p1.getInViewX()) / segmentLength;
-                        final double ny = (p2.getInViewY() - p1.getInViewY()) / segmentLength;
-
-                        final double interval = 60;
-                        // distance from p1
-                        double dist = interval - (wayLength % interval);
-
-                        while (dist < segmentLength) {
-                            appenOnewayPath(onewayReversed, p1, nx, ny, dist, 3d, onewayArrowsCasing);
-                            appenOnewayPath(onewayReversed, p1, nx, ny, dist, 2d, onewayArrows);
-                            dist += interval;
-                        }
                     }
                     wayLength += segmentLength;
                 }
             }
             lastPoint = p;
         }
+        if (showOneway) {
+            onewayArrows = new MapViewPath(mapState);
+            onewayArrowsCasing = new MapViewPath(mapState);
+            double interval = 60;
+
+            path.visitClippedLine(0, 60, (inLineOffset, start, end, startIsOldEnd) -> {
+                double segmentLength = start.distanceToInView(end);
+                if (segmentLength > 0.001) {
+                    final double nx = (end.getInViewX() - start.getInViewX()) / segmentLength;
+                    final double ny = (end.getInViewY() - start.getInViewY()) / segmentLength;
+
+                    // distance from p1
+                    double dist = interval - (inLineOffset % interval);
+
+                    while (dist < segmentLength) {
+                        appenOnewayPath(onewayReversed, start, nx, ny, dist, 3d, onewayArrowsCasing);
+                        appenOnewayPath(onewayReversed, start, nx, ny, dist, 2d, onewayArrows);
+                        dist += interval;
+                    }
+                }
+            });
+        } else {
+            onewayArrows = null;
+            onewayArrowsCasing = null;
+        }
+
         if (way.isHighlighted()) {
             drawPathHighlight(path, line);
         }
