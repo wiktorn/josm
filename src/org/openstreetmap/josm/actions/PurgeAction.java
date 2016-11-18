@@ -57,20 +57,9 @@ import org.openstreetmap.josm.tools.Shortcut;
  */
 public class PurgeAction extends JosmAction {
 
-    /**
-     * Constructs a new {@code PurgeAction}.
-     */
-    public PurgeAction() {
-        /* translator note: other expressions for "purge" might be "forget", "clean", "obliterate", "prune" */
-        super(tr("Purge..."), "purge", tr("Forget objects but do not delete them on server when uploading."),
-                Shortcut.registerShortcut("system:purge", tr("Edit: {0}", tr("Purge")),
-                KeyEvent.VK_P, Shortcut.CTRL_SHIFT),
-                true);
-        putValue("help", HelpUtil.ht("/Action/Purge"));
-    }
-
     protected transient OsmDataLayer layer;
     protected JCheckBox cbClearUndoRedo;
+    protected boolean modified;
 
     protected transient Set<OsmPrimitive> toPurge;
     /**
@@ -87,12 +76,51 @@ public class PurgeAction extends JosmAction {
      */
     protected transient List<OsmPrimitive> toPurgeAdditionally;
 
+    /**
+     * Constructs a new {@code PurgeAction}.
+     */
+    public PurgeAction() {
+        /* translator note: other expressions for "purge" might be "forget", "clean", "obliterate", "prune" */
+        super(tr("Purge..."), "purge", tr("Forget objects but do not delete them on server when uploading."),
+                Shortcut.registerShortcut("system:purge", tr("Edit: {0}", tr("Purge")),
+                KeyEvent.VK_P, Shortcut.CTRL_SHIFT),
+                true);
+        putValue("help", HelpUtil.ht("/Action/Purge"));
+    }
+
     @Override
     public void actionPerformed(ActionEvent e) {
         if (!isEnabled())
             return;
 
-        Collection<OsmPrimitive> sel = getLayerManager().getEditDataSet().getAllSelected();
+        PurgeCommand cmd = getPurgeCommand(getLayerManager().getEditDataSet().getAllSelected());
+        boolean clearUndoRedo = false;
+
+        if (!GraphicsEnvironment.isHeadless()) {
+            final boolean answer = ConditionalOptionPaneUtil.showConfirmationDialog(
+                    "purge", Main.parent, buildPanel(modified), tr("Confirm Purging"),
+                    JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_OPTION);
+            if (!answer)
+                return;
+
+            clearUndoRedo = cbClearUndoRedo.isSelected();
+            Main.pref.put("purge.clear_undo_redo", clearUndoRedo);
+        }
+
+        Main.main.undoRedo.add(cmd);
+        if (clearUndoRedo) {
+            Main.main.undoRedo.clean();
+            getLayerManager().getEditDataSet().clearSelectionHistory();
+        }
+    }
+
+    /**
+     * Creates command to purge selected OSM primitives.
+     * @param sel selected OSM primitives
+     * @return command to purge selected OSM primitives
+     * @since 11252
+     */
+    public PurgeCommand getPurgeCommand(Collection<OsmPrimitive> sel) {
         layer = Main.getLayerManager().getEditLayer();
 
         toPurge = new HashSet<>(sel);
@@ -194,7 +222,7 @@ public class PurgeAction extends JosmAction {
             toPurgeAdditionally.addAll(relSet);
         }
 
-        boolean modified = false;
+        modified = false;
         for (OsmPrimitive osm : toPurgeChecked) {
             if (osm.isModified()) {
                 modified = true;
@@ -202,25 +230,8 @@ public class PurgeAction extends JosmAction {
             }
         }
 
-        boolean clearUndoRedo = false;
-
-        if (!GraphicsEnvironment.isHeadless()) {
-            final boolean answer = ConditionalOptionPaneUtil.showConfirmationDialog(
-                    "purge", Main.parent, buildPanel(modified), tr("Confirm Purging"),
-                    JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_OPTION);
-            if (!answer)
-                return;
-
-            clearUndoRedo = cbClearUndoRedo.isSelected();
-            Main.pref.put("purge.clear_undo_redo", clearUndoRedo);
-        }
-
-        Main.main.undoRedo.add(new PurgeCommand(Main.getLayerManager().getEditLayer(), toPurgeChecked, makeIncomplete));
-
-        if (clearUndoRedo) {
-            Main.main.undoRedo.clean();
-            getLayerManager().getEditDataSet().clearSelectionHistory();
-        }
+        return layer != null ? new PurgeCommand(layer, toPurgeChecked, makeIncomplete) :
+            new PurgeCommand(toPurgeChecked.iterator().next().getDataSet(), toPurgeChecked, makeIncomplete);
     }
 
     private JPanel buildPanel(boolean modified) {

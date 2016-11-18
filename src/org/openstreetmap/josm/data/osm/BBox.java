@@ -5,16 +5,29 @@ import java.awt.geom.Rectangle2D;
 import java.util.Arrays;
 import java.util.Objects;
 
+import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.coor.QuadTiling;
 import org.openstreetmap.josm.tools.Utils;
 
+/**
+ * A BBox represents an area in lat/lon space. It is used for the quad tree.
+ *
+ * In contrast to a {@link Bounds} object, a BBox can represent an invalid (empty) area.
+ */
 public class BBox {
 
-    private double xmin = Double.POSITIVE_INFINITY;
-    private double xmax = Double.NEGATIVE_INFINITY;
-    private double ymin = Double.POSITIVE_INFINITY;
-    private double ymax = Double.NEGATIVE_INFINITY;
+    protected double xmin = Double.POSITIVE_INFINITY;
+    protected double xmax = Double.NEGATIVE_INFINITY;
+    protected double ymin = Double.POSITIVE_INFINITY;
+    protected double ymax = Double.NEGATIVE_INFINITY;
+
+    /**
+     * Constructs a new (invalid) BBox
+     */
+    public BBox() {
+        // Nothing to do
+    }
 
     /**
      * Constructs a new {@code BBox} defined by a single point.
@@ -24,14 +37,12 @@ public class BBox {
      * @since 6203
      */
     public BBox(final double x, final double y) {
-        xmax = xmin = x;
-        ymax = ymin = y;
-        sanity();
+        add(x, y);
     }
 
     /**
      * Constructs a new {@code BBox} defined by points <code>a</code> and <code>b</code>.
-     * Result is minimal BBox containing both points.
+     * Result is minimal BBox containing both points if they are both valid, else undefined
      *
      * @param a first point
      * @param b second point
@@ -52,64 +63,49 @@ public class BBox {
         this.ymax = copy.ymax;
     }
 
+    /**
+     * Create minimal  BBox so that {@code this.bounds(ax,ay)} and {@code this.bounds(bx,by)} will both return true
+     * @param ax left or right X value (-180 .. 180)
+     * @param ay top or bottom Y value (-90 .. 90)
+     * @param bx left or right X value (-180 .. 180)
+     * @param by top or bottom Y value (-90 .. 90)
+     */
     public BBox(double ax, double ay, double bx, double by) {
-
-        if (ax > bx) {
-            xmax = ax;
-            xmin = bx;
-        } else {
-            xmax = bx;
-            xmin = ax;
+        if (!(Double.isNaN(ax) || Double.isNaN(ay) || Double.isNaN(bx) || Double.isNaN(by))) {
+            add(ax, ay);
+            add(bx, by);
         }
-
-        if (ay > by) {
-            ymax = ay;
-            ymin = by;
-        } else {
-            ymax = by;
-            ymin = ay;
-        }
-
-        sanity();
+        // otherwise use default which is an invalid BBox
     }
 
+    /**
+     * Create BBox for all nodes of the way with known coordinates.
+     * If no node has a known coordinate, an invalid BBox is returned.
+     * @param w the way
+     */
     public BBox(Way w) {
-        for (Node n : w.getNodes()) {
-            LatLon coor = n.getCoor();
-            if (coor == null) {
-                continue;
-            }
-            add(coor);
-        }
+        w.getNodes().forEach(n -> add(n.getCoor()));
     }
 
+    /**
+     * Create BBox for a node. An invalid BBox is returned if the coordinates are not known.
+     * @param n the node
+     */
     public BBox(Node n) {
-        LatLon coor = n.getCoor();
-        if (coor == null) {
-            xmin = xmax = ymin = ymax = 0;
-        } else {
-            xmin = xmax = coor.lon();
-            ymin = ymax = coor.lat();
+        if (n.isLatLonKnown()) {
+            add(n.getCoor());
         }
     }
 
-    private void sanity() {
-        if (xmin < -180.0) {
-            xmin = -180.0;
-        }
-        if (xmax > 180.0) {
-            xmax = 180.0;
-        }
-        if (ymin < -90.0) {
-            ymin = -90.0;
-        }
-        if (ymax > 90.0) {
-            ymax = 90.0;
-        }
-    }
-
+    /**
+     * Add a point to an existing BBox. Extends this bbox if necessary so that this.bounds(c) will return true
+     * if c is a valid LatLon instance.
+     * @param c a LatLon point
+     */
     public final void add(LatLon c) {
-        add(c.lon(), c.lat());
+        if (c != null && c.isValid()) {
+            add(c.lon(), c.lat());
+        }
     }
 
     /**
@@ -118,33 +114,60 @@ public class BBox {
      * @param y Y coordinate
      */
     public final void add(double x, double y) {
-        xmin = Math.min(xmin, x);
-        xmax = Math.max(xmax, x);
-        ymin = Math.min(ymin, y);
-        ymax = Math.max(ymax, y);
-        sanity();
+        if (!Double.isNaN(x) && !Double.isNaN(y)) {
+            xmin = Math.min(xmin, x);
+            xmax = Math.max(xmax, x);
+            ymin = Math.min(ymin, y);
+            ymax = Math.max(ymax, y);
+        }
     }
 
-    public final void add(BBox box) {
-        xmin = Math.min(xmin, box.xmin);
-        xmax = Math.max(xmax, box.xmax);
-        ymin = Math.min(ymin, box.ymin);
-        ymax = Math.max(ymax, box.ymax);
-        sanity();
+    /**
+     * Extends this bbox to include the bbox other. Does nothing if other is not valid.
+     * @param other a bbox
+     */
+    public final void add(BBox other) {
+        if (other.isValid()) {
+            xmin = Math.min(xmin, other.xmin);
+            xmax = Math.max(xmax, other.xmax);
+            ymin = Math.min(ymin, other.ymin);
+            ymax = Math.max(ymax, other.ymax);
+        }
     }
 
+    /**
+     * Extends this bbox to include the bbox of the primitive extended by extraSpace.
+     * @param primitive an OSM primitive
+     * @param extraSpace the value to extend the primitives bbox. Unit is in LatLon degrees.
+     */
     public void addPrimitive(OsmPrimitive primitive, double extraSpace) {
         BBox primBbox = primitive.getBBox();
         add(primBbox.xmin - extraSpace, primBbox.ymin - extraSpace);
         add(primBbox.xmax + extraSpace, primBbox.ymax + extraSpace);
     }
 
+    /**
+     * Gets the height of the bbox.
+     * @return The difference between ymax and ymin. 0 for invalid bboxes.
+     */
     public double height() {
-        return ymax-ymin;
+        if (isValid()) {
+            return ymax - ymin;
+        } else {
+            return 0;
+        }
     }
 
+    /**
+     * Gets the width of the bbox.
+     * @return The difference between xmax and xmin. 0 for invalid bboxes.
+     */
     public double width() {
-        return xmax-xmin;
+        if (isValid()) {
+            return xmax - xmin;
+        } else {
+            return 0;
+        }
     }
 
     /**
@@ -174,15 +197,8 @@ public class BBox {
      * @return {@code true} if this bbox intersects with the other
      */
     public boolean intersects(BBox b) {
-        if (xmin > b.xmax)
-            return false;
-        if (xmax < b.xmin)
-            return false;
-        if (ymin > b.ymax)
-            return false;
-        if (ymax < b.ymin)
-            return false;
-        return true;
+        return xmin <= b.xmax && xmax >= b.xmin
+            && ymin <= b.ymax && ymax >= b.ymin;
     }
 
     /**
@@ -237,23 +253,27 @@ public class BBox {
         return xmax;
     }
 
+    /**
+     * Gets the center of this BBox.
+     * @return The center.
+     */
     public LatLon getCenter() {
         return new LatLon(ymin + (ymax-ymin)/2.0, xmin + (xmax-xmin)/2.0);
     }
 
-    int getIndex(final int level) {
+    byte getIndex(final int level) {
 
-        int idx1 = QuadTiling.index(ymin, xmin, level);
+        byte idx1 = QuadTiling.index(ymin, xmin, level);
 
-        final int idx2 = QuadTiling.index(ymin, xmax, level);
+        final byte idx2 = QuadTiling.index(ymin, xmax, level);
         if (idx1 == -1) idx1 = idx2;
         else if (idx1 != idx2) return -1;
 
-        final int idx3 = QuadTiling.index(ymax, xmin, level);
+        final byte idx3 = QuadTiling.index(ymax, xmin, level);
         if (idx1 == -1) idx1 = idx3;
         else if (idx1 != idx3) return -1;
 
-        final int idx4 = QuadTiling.index(ymax, xmax, level);
+        final byte idx4 = QuadTiling.index(ymax, xmax, level);
         if (idx1 == -1) idx1 = idx4;
         else if (idx1 != idx4) return -1;
 
@@ -276,6 +296,23 @@ public class BBox {
         BBox b = (BBox) o;
         return Double.compare(b.xmax, xmax) == 0 && Double.compare(b.ymax, ymax) == 0
             && Double.compare(b.xmin, xmin) == 0 && Double.compare(b.ymin, ymin) == 0;
+    }
+
+    /**
+     * @return true if the bbox covers a part of the planets surface
+     * Height and width must be non-negative, but may (both) be 0.
+     * @since 11269
+     */
+    public boolean isValid() {
+        return xmin <= xmax && ymin <= ymax;
+    }
+
+    /**
+     * @return true if the bbox  is avalid and covers a part of the planets surface
+     * @since 11269
+     */
+    public boolean isInWorld() {
+        return isValid() && xmin >= -180.0 && xmax <= 180.0 && ymin >= -90.0 && ymax <= 90.0;
     }
 
     @Override
