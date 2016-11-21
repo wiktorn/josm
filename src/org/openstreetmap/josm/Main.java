@@ -88,6 +88,7 @@ import org.openstreetmap.josm.gui.preferences.projection.ProjectionPreference;
 import org.openstreetmap.josm.gui.progress.PleaseWaitProgressMonitor;
 import org.openstreetmap.josm.gui.progress.ProgressMonitorExecutor;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPresets;
+import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.util.RedirectInputMap;
 import org.openstreetmap.josm.io.FileWatcher;
 import org.openstreetmap.josm.io.OnlineResource;
@@ -106,7 +107,9 @@ import org.openstreetmap.josm.tools.PlatformHook;
 import org.openstreetmap.josm.tools.PlatformHookOsx;
 import org.openstreetmap.josm.tools.PlatformHookUnixoid;
 import org.openstreetmap.josm.tools.PlatformHookWindows;
+import org.openstreetmap.josm.tools.RightAndLefthandTraffic;
 import org.openstreetmap.josm.tools.Shortcut;
+import org.openstreetmap.josm.tools.Territories;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -501,6 +504,9 @@ public abstract class Main {
         registerActionShortcut(menu.help, Shortcut.registerShortcut("system:help", tr("Help"),
                 KeyEvent.VK_F1, Shortcut.DIRECT));
 
+        // This needs to be done before RightAndLefthandTraffic::initialize is called
+        new InitializationTask(tr("Initializing internal boundaries data"), Territories::initialize).call();
+
         // contains several initialization tasks to be executed (in parallel) by a ExecutorService
         List<Callable<Void>> tasks = new ArrayList<>();
 
@@ -514,6 +520,8 @@ public abstract class Main {
                     Main.warn(getErrorMessage(Utils.getRootCause(e)));
                 }
             }));
+
+        tasks.add(new InitializationTask(tr("Initializing internal traffic data"), RightAndLefthandTraffic::initialize));
 
         tasks.add(new InitializationTask(tr("Initializing validator"), OsmValidator::initialize));
 
@@ -803,7 +811,10 @@ public abstract class Main {
      * @since 11093 (3378 with a different function signature)
      */
     public static boolean exitJosm(boolean exit, int exitCode, SaveLayersDialog.Reason reason) {
-        if (SaveLayersDialog.saveUnsavedModifications(getLayerManager().getLayers(), reason != null ? reason : SaveLayersDialog.Reason.EXIT)) {
+        final boolean proceed = Boolean.TRUE.equals(GuiHelper.runInEDTAndWaitAndReturn(() ->
+                SaveLayersDialog.saveUnsavedModifications(getLayerManager().getLayers(),
+                        reason != null ? reason : SaveLayersDialog.Reason.EXIT)));
+        if (proceed) {
             if (Main.main != null) {
                 Main.main.shutdown();
             }
@@ -1381,14 +1392,27 @@ public abstract class Main {
     }
 
     /**
+     * Returns the OSM website URL depending on the selected {@link OsmApi}.
+     * @return the OSM website URL depending on the selected {@link OsmApi}
+     */
+    private static String getOSMWebsiteDependingOnSelectedApi() {
+        final String api = OsmApi.getOsmApi().getServerUrl();
+        if (OsmApi.DEFAULT_API_URL.equals(api)) {
+            return getOSMWebsite();
+        } else {
+            return api.replaceAll("/api$", "");
+        }
+    }
+
+    /**
      * Replies the base URL for browsing information about a primitive.
      * @return the base URL, i.e. https://www.openstreetmap.org
      * @since 7678
      */
     public static String getBaseBrowseUrl() {
         if (Main.pref != null)
-            return Main.pref.get("osm-browse.url", getOSMWebsite());
-        return getOSMWebsite();
+            return Main.pref.get("osm-browse.url", getOSMWebsiteDependingOnSelectedApi());
+        return getOSMWebsiteDependingOnSelectedApi();
     }
 
     /**
@@ -1398,8 +1422,8 @@ public abstract class Main {
      */
     public static String getBaseUserUrl() {
         if (Main.pref != null)
-            return Main.pref.get("osm-user.url", getOSMWebsite() + "/user");
-        return getOSMWebsite() + "/user";
+            return Main.pref.get("osm-user.url", getOSMWebsiteDependingOnSelectedApi() + "/user");
+        return getOSMWebsiteDependingOnSelectedApi() + "/user";
     }
 
     /**

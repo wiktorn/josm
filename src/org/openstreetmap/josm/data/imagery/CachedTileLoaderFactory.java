@@ -5,6 +5,7 @@ import java.io.File;
 import java.lang.reflect.Constructor;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.jcs.access.behavior.ICacheAccess;
 import org.openstreetmap.gui.jmapviewer.interfaces.TileLoader;
@@ -13,6 +14,7 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Version;
 import org.openstreetmap.josm.data.cache.BufferedImageCacheEntry;
 import org.openstreetmap.josm.data.preferences.StringProperty;
+import org.openstreetmap.josm.tools.CheckParameterUtil;
 
 /**
  * TileLoaderFactory creating JCS cached TileLoaders
@@ -34,6 +36,7 @@ public class CachedTileLoaderFactory implements TileLoaderFactory {
      * @throws IllegalArgumentException if a suitable constructor cannot be found for {@code tileLoaderClass}
      */
     public CachedTileLoaderFactory(ICacheAccess<String, BufferedImageCacheEntry> cache, Class<? extends TileLoader> tileLoaderClass) {
+        CheckParameterUtil.ensureParameterNotNull(cache, "cache");
         this.cache = cache;
         try {
             tileLoaderConstructor = tileLoaderClass.getConstructor(
@@ -67,8 +70,8 @@ public class CachedTileLoaderFactory implements TileLoaderFactory {
             headers.putAll(inputHeaders);
 
         return getLoader(listener, cache,
-                Main.pref.getInteger("socket.timeout.connect", 15) * 1000,
-                Main.pref.getInteger("socket.timeout.read", 30) * 1000,
+                (int) TimeUnit.SECONDS.toMillis(Main.pref.getInteger("socket.timeout.connect", 15)),
+                (int) TimeUnit.SECONDS.toMillis(Main.pref.getInteger("socket.timeout.read", 30)),
                 headers);
     }
 
