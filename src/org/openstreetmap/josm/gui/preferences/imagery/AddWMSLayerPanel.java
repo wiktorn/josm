@@ -18,6 +18,7 @@ import javax.swing.JScrollPane;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.imagery.ImageryInfo;
+import org.openstreetmap.josm.data.imagery.ImageryInfo.ImageryType;
 import org.openstreetmap.josm.gui.bbox.SlippyMapBBoxChooser;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.JosmTextArea;
@@ -36,7 +37,7 @@ public class AddWMSLayerPanel extends AddImageryPanel {
     private final transient WMSLayerTree tree = new WMSLayerTree();
     private final JComboBox<String> formats = new JComboBox<>();
     private final JLabel wmsInstruction;
-    private final JosmTextArea wmsUrl = new JosmTextArea(3, 40);
+    private final JosmTextArea wmsUrl = new JosmTextArea(3, 40).transferFocusOnTab();
     private final JButton showBounds = new JButton(tr("Show bounds"));
 
     /**
@@ -154,6 +155,7 @@ public class AddWMSLayerPanel extends AddImageryPanel {
         } else {
             info = wms.toImageryInfo(getImageryName(), tree.getSelectedLayers());
             info.setUrl(getWmsUrl());
+            info.setImageryType(ImageryType.WMS);
         }
         return info;
     }
