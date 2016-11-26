@@ -243,7 +243,7 @@ public class BingAerialTileSource extends TMSTileSource {
                         return r;
                     } catch (IOException ex) {
                         System.err.println("Could not connect to Bing API. Will retry in " + waitTimeSec + " seconds.");
-                        Thread.sleep(waitTimeSec * 1000L);
+                        Thread.sleep(TimeUnit.SECONDS.toMillis(waitTimeSec));
                         waitTimeSec *= 2;
                     }
                 }
@@ -303,10 +303,10 @@ public class BingAerialTileSource extends TMSTileSource {
             char digit = 48;
             int mask = 1 << (i - 1);
             if ((tilex & mask) != 0) {
-                digit += 1;
+                digit += (char) 1;
             }
             if ((tiley & mask) != 0) {
-                digit += 2;
+                digit += (char) 2;
             }
             k.append(digit);
         }
