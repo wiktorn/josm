@@ -3,6 +3,7 @@ package org.openstreetmap.josm.tools;
 
 import static org.junit.Assert.assertEquals;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -13,6 +14,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * Unit tests of {@link Utils} class.
  */
@@ -21,6 +24,7 @@ public class UtilsTest {
      * Use default, basic test rules.
      */
     @Rule
+    @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
     public JOSMTestRules rules = new JOSMTestRules();
 
     /**
@@ -160,5 +164,14 @@ public class UtilsTest {
         List<? extends Object> items = Arrays.asList("1", Integer.valueOf(2));
         assertEquals("<ul><li>1</li><li>2</li></ul>", Utils.joinAsHtmlUnorderedList(items));
         assertEquals("<ul></ul>", Utils.joinAsHtmlUnorderedList(Collections.emptyList()));
+    }
+
+    /**
+     * Tests if readBytesFromStream handles null streams (might happen when there is no data on error stream)
+     * @throws IOException in case of I/O error
+     */
+    @Test
+    public void testNullStreamForReadBytesFromStream() throws IOException {
+        assertEquals("Empty on null stream", 0, Utils.readBytesFromStream(null).length);
     }
 }
