@@ -17,38 +17,49 @@ import org.openstreetmap.josm.gui.tagging.ac.AutoCompletingTextField;
 
 public class RelationMemberConflictResolverColumnModel extends DefaultTableColumnModel {
 
-    private final DefaultTableCellRenderer defaultTableCellRenderer = new DefaultTableCellRenderer();
-
-    private final transient OsmPrimitivRenderer primitiveRenderer = new OsmPrimitivRenderer() {
+    static final class MemberRenderer extends OsmPrimitivRenderer {
         @Override
         public Component getTableCellRendererComponent(JTable table,
                 Object value, boolean isSelected, boolean hasFocus, int row, int column) {
             return setColors(super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column),
                     table, isSelected, row);
         }
-    };
+    }
+
+    private final DefaultTableCellRenderer defaultTableCellRenderer = new DefaultTableCellRenderer();
+
+    private final transient OsmPrimitivRenderer primitiveRenderer = new MemberRenderer();
 
     private final transient TableCellRenderer tableRenderer = (table, value, isSelected, hasFocus, row, column)
             -> setColors(defaultTableCellRenderer.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column),
             table, isSelected, row);
 
-    private static Component setColors(Component comp, JTable table, boolean isSelected, int row) {
-        RelationMemberConflictResolverModel model = (RelationMemberConflictResolverModel) table.getModel();
+    /**
+     * Constructs a new {@code RelationMemberConflictResolverColumnModel}.
+     */
+    public RelationMemberConflictResolverColumnModel() {
+        createColumns();
+    }
 
-        if (!isSelected && comp != null) {
-            switch (model.getDecision(row).getDecision()) {
-            case UNDECIDED:
-                comp.setForeground(ConflictColors.FGCOLOR_UNDECIDED.get());
-                comp.setBackground(ConflictColors.BGCOLOR_UNDECIDED.get());
-                break;
-            case KEEP:
-                comp.setForeground(ConflictColors.FGCOLOR_MEMBER_KEEP.get());
-                comp.setBackground(ConflictColors.BGCOLOR_MEMBER_KEEP.get());
-                break;
-            case REMOVE:
-                comp.setForeground(ConflictColors.FGCOLOR_MEMBER_REMOVE.get());
-                comp.setBackground(ConflictColors.BGCOLOR_MEMBER_REMOVE.get());
-                break;
+    private static Component setColors(Component comp, JTable table, boolean isSelected, int row) {
+        if (table.getModel() instanceof RelationMemberConflictResolverModel) {
+            RelationMemberConflictResolverModel model = (RelationMemberConflictResolverModel) table.getModel();
+
+            if (!isSelected && comp != null) {
+                switch (model.getDecision(row).getDecision()) {
+                case UNDECIDED:
+                    comp.setForeground(ConflictColors.FGCOLOR_UNDECIDED.get());
+                    comp.setBackground(ConflictColors.BGCOLOR_UNDECIDED.get());
+                    break;
+                case KEEP:
+                    comp.setForeground(ConflictColors.FGCOLOR_MEMBER_KEEP.get());
+                    comp.setBackground(ConflictColors.BGCOLOR_MEMBER_KEEP.get());
+                    break;
+                case REMOVE:
+                    comp.setForeground(ConflictColors.FGCOLOR_MEMBER_REMOVE.get());
+                    comp.setBackground(ConflictColors.BGCOLOR_MEMBER_REMOVE.get());
+                    break;
+                }
             }
         }
         return comp;
@@ -108,12 +119,5 @@ public class RelationMemberConflictResolverColumnModel extends DefaultTableColum
         col.setPreferredWidth(100);
         col.setMaxWidth(100);
         addColumn(col);
-    }
-
-    /**
-     * Constructs a new {@code RelationMemberConflictResolverColumnModel}.
-     */
-    public RelationMemberConflictResolverColumnModel() {
-        createColumns();
     }
 }

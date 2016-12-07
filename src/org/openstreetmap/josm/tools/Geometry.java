@@ -477,8 +477,8 @@ public final class Geometry {
 
     /**
      * Returns the Area of a polygon, from its list of nodes.
-     * @param polygon List of nodes forming polygon (EastNorth coordinates)
-     * @return Area for the given list of nodes
+     * @param polygon List of nodes forming polygon
+     * @return Area for the given list of nodes  (EastNorth coordinates)
      * @since 6841
      */
     public static Area getArea(List<Node> polygon) {
@@ -504,14 +504,15 @@ public final class Geometry {
     }
 
     /**
-     * Returns the Area of a polygon, from its list of nodes.
-     * @param polygon List of nodes forming polygon (LatLon coordinates)
-     * @return Area for the given list of nodes
-     * @since 6841
+     * Builds a path from a list of nodes
+     * @param polygon Nodes, forming a closed polygon
+     * @param path path to add to; can be null, then a new path is created
+     * @return the path (LatLon coordinates)
      */
-    public static Area getAreaLatLon(List<Node> polygon) {
-        Path2D path = new Path2D.Double();
-
+    public static Path2D buildPath2DLatLon(List<Node> polygon, Path2D path) {
+        if (path == null) {
+            path = new Path2D.Double();
+        }
         boolean begin = true;
         for (Node n : polygon) {
             if (begin) {
@@ -524,7 +525,26 @@ public final class Geometry {
         if (!begin) {
             path.closePath();
         }
+        return path;
+    }
 
+    /**
+     * Returns the Area of a polygon, from the multipolygon relation.
+     * @param multipolygon the multipolygon relation
+     * @return Area for the multipolygon (LatLon coordinates)
+     */
+    public static Area getAreaLatLon(Relation multipolygon) {
+        final Multipolygon mp = Main.map == null || Main.map.mapView == null
+                ? new Multipolygon(multipolygon)
+                : MultipolygonCache.getInstance().get(Main.map.mapView, multipolygon);
+        Path2D path = new Path2D.Double();
+        path.setWindingRule(Path2D.WIND_EVEN_ODD);
+        for (Multipolygon.PolyData pd : mp.getCombinedPolygons()) {
+            buildPath2DLatLon(pd.getNodes(), path);
+            for (Multipolygon.PolyData pdInner : pd.getInners()) {
+                buildPath2DLatLon(pdInner.getNodes(), path);
+            }
+        }
         return new Area(path);
     }
 

@@ -2,10 +2,12 @@
 package org.openstreetmap.josm.tools;
 
 import java.awt.geom.Area;
+import java.awt.geom.Path2D;
 import java.util.Collection;
 
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.BBox;
+import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.Way;
 
 /**
@@ -13,7 +15,7 @@ import org.openstreetmap.josm.data.osm.Way;
  */
 public class DefaultGeoProperty implements GeoProperty<Boolean> {
 
-    private Area area;
+    private final Area area;
 
     /**
      * Create DefaultGeoProperty based on a collection of closed ways.
@@ -21,14 +23,21 @@ public class DefaultGeoProperty implements GeoProperty<Boolean> {
      * @param ways the ways forming the area
      */
     public DefaultGeoProperty(Collection<Way> ways) {
+        Path2D path = new Path2D.Double();
+        path.setWindingRule(Path2D.WIND_EVEN_ODD);
         for (Way w : ways) {
-            Area tmp = Geometry.getAreaLatLon(w.getNodes());
-            if (area == null) {
-                area = tmp;
-            } else {
-                area.add(tmp);
-            }
+            Geometry.buildPath2DLatLon(w.getNodes(), path);
         }
+        this.area = new Area(path);
+    }
+
+    /**
+     * Create DefaultGeoProperty based on a multipolygon relation.
+     *
+     * @param multipolygon the multipolygon
+     */
+    public DefaultGeoProperty(Relation multipolygon) {
+        this.area = Geometry.getAreaLatLon(multipolygon);
     }
 
     @Override

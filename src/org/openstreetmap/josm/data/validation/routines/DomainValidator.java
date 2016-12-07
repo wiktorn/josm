@@ -291,7 +291,7 @@ public final class DomainValidator extends AbstractValidator {
 
     // WARNING: this array MUST be sorted, otherwise it cannot be searched reliably using binary search
     private static final String[] GENERIC_TLDS = new String[] {
-        // Taken from Version 2016112500, Last Updated Fri Nov 25 07:07:01 2016 UTC
+        // Taken from Version 2016120300, Last Updated Sat Dec  3 07:07:02 2016 UTC
         "aaa", // aaa American Automobile Association, Inc.
         "aarp", // aarp AARP
         "abarth", // abarth Fiat Chrysler Automobiles N.V.
@@ -429,6 +429,7 @@ public final class DomainValidator extends AbstractValidator {
         "boots", // boots THE BOOTS COMPANY PLC
         "bosch", // bosch Robert Bosch GMBH
         "bostik", // bostik Bostik SA
+        "boston", // boston Boston TLD Management, LLC
         "bot", // bot Amazon Registry Services, Inc.
         "boutique", // boutique Over Galley, LLC
         "box", // box NS1 Limited
@@ -474,6 +475,7 @@ public final class DomainValidator extends AbstractValidator {
         "casino", // casino Binky Sky, LLC
         "cat", // cat Fundacio puntCAT
         "catering", // catering New Falls. LLC
+        "catholic", // catholic Pontificium Consilium de Comunicationibus Socialibus (PCCS) (Pontifical Council for Social Communication)
         "cba", // cba COMMONWEALTH BANK OF AUSTRALIA
         "cbn", // cbn The Christian Broadcasting Network, Inc.
         "cbre", // cbre CBRE, Inc.
@@ -742,6 +744,7 @@ public final class DomainValidator extends AbstractValidator {
         "guide", // guide Snow Moon, LLC
         "guitars", // guitars Uniregistry, Corp.
         "guru", // guru Pioneer Cypress, LLC
+        "hair", // hair L&#39;Oreal
         "hamburg", // hamburg Hamburg Top-Level-Domain GmbH
         "hangout", // hangout Charleston Road Registry Inc.
         "haus", // haus United TLD Holdco, LTD.
@@ -1426,6 +1429,7 @@ public final class DomainValidator extends AbstractValidator {
         "xn--6frz82g", // 移动 Afilias Limited
         "xn--6qq986b3xl", // 我爱你 Tycoon Treasure Limited
         "xn--80adxhks", // москва Foundation for Assistance for Internet Technologies and Infrastructure Development (FAITID)
+        "xn--80aqecdr1a", // католик Pontificium Consilium de Comunicationibus Socialibus (PCCS) (Pontifical Council for Social Communication)
         "xn--80asehdb", // онлайн CORE Association
         "xn--80aswg", // сайт CORE Association
         "xn--8y0a063a", // 联通 China United Network Communications Corporation Limited
@@ -1471,6 +1475,7 @@ public final class DomainValidator extends AbstractValidator {
         "xn--mgbab2bd", // بازار CORE Association
         "xn--mgbb9fbpob", // موبايلي GreenTech Consultancy Company W.L.L.
         "xn--mgbca7dzdo", // ابوظبي Abu Dhabi Systems and Information Centre
+        "xn--mgbi4ecexp", // كاثوليك Pontificium Consilium de Comunicationibus Socialibus (PCCS) (Pontifical Council for Social Communication)
         "xn--mgbt3dhd", // همراه Asia Green IT System Bilgisayar San. ve Tic. Ltd. Sti.
         "xn--mk1bu44c", // 닷컴 VeriSign Sarl
         "xn--mxtq1m", // 政府 Net-Chinese Co., Ltd.
@@ -1489,6 +1494,7 @@ public final class DomainValidator extends AbstractValidator {
         "xn--ses554g", // 网址 KNET Co., Ltd
         "xn--t60b56a", // 닷넷 VeriSign Sarl
         "xn--tckwe", // コム VeriSign Sarl
+        "xn--tiq49xqyj", // 天主教 Pontificium Consilium de Comunicationibus Socialibus (PCCS) (Pontifical Council for Social Communication)
         "xn--unup4y", // 游戏 Spring Fields, LLC
         "xn--vermgensberater-ctb", // VERMöGENSBERATER Deutsche Vermögensberatung Aktiengesellschaft DVAG
         "xn--vermgensberatung-pwb", // VERMöGENSBERATUNG Deutsche Vermögensberatung Aktiengesellschaft DVAG
