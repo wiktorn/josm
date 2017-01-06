@@ -45,69 +45,6 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
     private static final String SPECIAL_VALUE_LOCAL_NAME = "localname";
 
     /**
-     * An object can be disabled by the filter mechanism.
-     * Then it will show in a shade of gray on the map or it is completely
-     * hidden from the view.
-     * Disabled objects usually cannot be selected or modified
-     * while the filter is active.
-     */
-    protected static final short FLAG_DISABLED = 1 << 4;
-
-    /**
-     * This flag is only relevant if an object is disabled by the
-     * filter mechanism (i.e.&nbsp;FLAG_DISABLED is set).
-     * Then it indicates, whether it is completely hidden or
-     * just shown in gray color.
-     *
-     * When the primitive is not disabled, this flag should be
-     * unset as well (for efficient access).
-     */
-    protected static final short FLAG_HIDE_IF_DISABLED = 1 << 5;
-
-    /**
-     * Flag used internally by the filter mechanism.
-     */
-    protected static final short FLAG_DISABLED_TYPE = 1 << 6;
-
-    /**
-     * Flag used internally by the filter mechanism.
-     */
-    protected static final short FLAG_HIDDEN_TYPE = 1 << 7;
-
-    /**
-     * This flag is set if the primitive is a way and
-     * according to the tags, the direction of the way is important.
-     * (e.g. one way street.)
-     */
-    protected static final short FLAG_HAS_DIRECTIONS = 1 << 8;
-
-    /**
-     * If the primitive is tagged.
-     * Some trivial tags like source=* are ignored here.
-     */
-    protected static final short FLAG_TAGGED = 1 << 9;
-
-    /**
-     * This flag is only relevant if FLAG_HAS_DIRECTIONS is set.
-     * It shows, that direction of the arrows should be reversed.
-     * (E.g. oneway=-1.)
-     */
-    protected static final short FLAG_DIRECTION_REVERSED = 1 << 10;
-
-    /**
-     * When hovering over ways and nodes in add mode, the
-     * "target" objects are visually highlighted. This flag indicates
-     * that the primitive is currently highlighted.
-     */
-    protected static final short FLAG_HIGHLIGHTED = 1 << 11;
-
-    /**
-     * If the primitive is annotated with a tag such as note, fixme, etc.
-     * Match the "work in progress" tags in default map style.
-     */
-    protected static final short FLAG_ANNOTATED = 1 << 12;
-
-    /**
      * A tagged way that matches this pattern has a direction.
      * @see #FLAG_HAS_DIRECTIONS
      */
@@ -247,7 +184,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      * MAPPAINT
      *--------*/
     public StyleCache mappaintStyle;
-    public int mappaintCacheIdx;
+    private short mappaintCacheIdx;
 
     /* This should not be called from outside. Fixing the UI to add relevant
        get/set functions calling this implicitely is preferred, so we can have
@@ -255,6 +192,23 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
     public void clearCachedStyle() {
         mappaintStyle = null;
     }
+
+    /**
+     * Returns mappaint cache index.
+     * @return mappaint cache index
+     */
+    public final short getMappaintCacheIdx() {
+        return mappaintCacheIdx;
+    }
+
+    /**
+     * Sets the mappaint cache index.
+     * @param mappaintCacheIdx mappaint cache index
+     */
+    public final void setMappaintCacheIdx(short mappaintCacheIdx) {
+        this.mappaintCacheIdx = mappaintCacheIdx;
+    }
+
     /* end of mappaint data */
 
     /*---------
@@ -1095,10 +1049,8 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
         else {
             int counter = 0;
             for (OsmPrimitive o : (OsmPrimitive[]) referrers) {
-                if (dataSet == o.dataSet && o instanceof Way) {
-                    if (++counter >= n)
-                        return true;
-                }
+                if (dataSet == o.dataSet && o instanceof Way && ++counter >= n)
+                    return true;
             }
             return false;
         }
@@ -1133,7 +1085,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      * Merges the technical and semantical attributes from <code>other</code> onto this.
      *
      * Both this and other must be new, or both must be assigned an OSM ID. If both this and <code>other</code>
-     * have an assigend OSM id, the IDs have to be the same.
+     * have an assigned OSM id, the IDs have to be the same.
      *
      * @param other the other primitive. Must not be null.
      * @throws IllegalArgumentException if other is null.

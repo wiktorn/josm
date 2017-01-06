@@ -44,6 +44,7 @@ import org.openstreetmap.josm.gui.Notification;
 import org.openstreetmap.josm.gui.conflict.tags.CombinePrimitiveResolverDialog;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.tools.Geometry;
+import org.openstreetmap.josm.tools.JosmRuntimeException;
 import org.openstreetmap.josm.tools.Pair;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.UserCancelException;
@@ -65,18 +66,63 @@ public class JoinAreasAction extends JosmAction {
      */
     public static class JoinAreasResult {
 
-        public boolean hasChanges;
+        private final boolean hasChanges;
+        private final List<Multipolygon> polygons;
 
-        public List<Multipolygon> polygons;
+        /**
+         * Constructs a new {@code JoinAreasResult}.
+         * @param hasChanges whether the result has changes
+         * @param polygons the result polygons, can be null
+         */
+        public JoinAreasResult(boolean hasChanges, List<Multipolygon> polygons) {
+            this.hasChanges = hasChanges;
+            this.polygons = polygons;
+        }
+
+        /**
+         * Determines if the result has changes.
+         * @return {@code true} if the result has changes
+         */
+        public final boolean hasChanges() {
+            return hasChanges;
+        }
+
+        /**
+         * Returns the result polygons, can be null.
+         * @return the result polygons, can be null
+         */
+        public final List<Multipolygon> getPolygons() {
+            return polygons;
+        }
     }
 
     public static class Multipolygon {
-        public Way outerWay;
-        public List<Way> innerWays;
+        private final Way outerWay;
+        private final List<Way> innerWays;
 
+        /**
+         * Constructs a new {@code Multipolygon}.
+         * @param way outer way
+         */
         public Multipolygon(Way way) {
             outerWay = way;
             innerWays = new ArrayList<>();
+        }
+
+        /**
+         * Returns the outer way.
+         * @return the outer way
+         */
+        public final Way getOuterWay() {
+            return outerWay;
+        }
+
+        /**
+         * Returns the inner ways.
+         * @return the inner ways
+         */
+        public final List<Way> getInnerWays() {
+            return innerWays;
         }
     }
 
@@ -543,8 +589,7 @@ public class JoinAreasAction extends JosmAction {
      */
     public JoinAreasResult joinAreas(List<Multipolygon> areas) throws UserCancelException {
 
-        JoinAreasResult result = new JoinAreasResult();
-        result.hasChanges = false;
+        boolean hasChanges = false;
 
         List<Way> allStartingWays = new ArrayList<>();
         List<Way> innerStartingWays = new ArrayList<>();
@@ -563,7 +608,7 @@ public class JoinAreasAction extends JosmAction {
         removedDuplicates |= removeDuplicateNodes(allStartingWays);
 
         if (removedDuplicates) {
-            result.hasChanges = true;
+            hasChanges = true;
             commitCommands(marktr("Removed duplicate nodes"));
         }
 
@@ -572,7 +617,7 @@ public class JoinAreasAction extends JosmAction {
 
         //no intersections, return.
         if (nodes.isEmpty())
-            return result;
+            return new JoinAreasResult(hasChanges, null);
         commitCommands(marktr("Added node on all intersections"));
 
         List<RelationRole> relations = new ArrayList<>();
@@ -653,9 +698,7 @@ public class JoinAreasAction extends JosmAction {
                     .show();
         }
 
-        result.hasChanges = true;
-        result.polygons = polygons;
-        return result;
+        return new JoinAreasResult(true, polygons);
     }
 
     /**
@@ -1124,7 +1167,7 @@ public class JoinAreasAction extends JosmAction {
                 }
                 WayInPolygon nextWay = traverser.walk();
                 if (nextWay == null)
-                    throw new RuntimeException("Join areas internal error.");
+                    throw new JosmRuntimeException("Join areas internal error.");
                 if (path.get(0) == nextWay) {
                     // path is closed -> stop here
                     AssembledPolygon ring = new AssembledPolygon(path);
@@ -1179,7 +1222,7 @@ public class JoinAreasAction extends JosmAction {
                 WayInPolygon nextWay;
                 while ((nextWay = traverser.walk()) != startWay) {
                     if (nextWay == null)
-                        throw new RuntimeException("Join areas internal error.");
+                        throw new JosmRuntimeException("Join areas internal error.");
                     simpleRingWays.add(nextWay);
                 }
                 traverser.removeWays(simpleRingWays);
@@ -1215,7 +1258,7 @@ public class JoinAreasAction extends JosmAction {
 
     /**
      * Joins the lists of ways.
-     * @param polygon The list of outer ways that belong to that multigon.
+     * @param polygon The list of outer ways that belong to that multipolygon.
      * @return The newly created outer way
      * @throws UserCancelException if user cancels the operation
      */
@@ -1253,7 +1296,7 @@ public class JoinAreasAction extends JosmAction {
 
         //should not happen
         if (joinedWay == null || !joinedWay.isClosed())
-            throw new RuntimeException("Join areas internal error.");
+            throw new JosmRuntimeException("Join areas internal error.");
 
         return joinedWay;
     }

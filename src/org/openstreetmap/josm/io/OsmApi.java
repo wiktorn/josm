@@ -666,12 +666,10 @@ public class OsmApi extends OsmConnection {
                 Main.info(response.getResponseMessage());
                 int retCode = response.getResponseCode();
 
-                if (retCode >= 500) {
-                    if (retries-- > 0) {
-                        sleepAndListen(retries, monitor);
-                        Main.info(tr("Starting retry {0} of {1}.", getMaxRetries() - retries, getMaxRetries()));
-                        continue;
-                    }
+                if (retCode >= 500 && retries-- > 0) {
+                    sleepAndListen(retries, monitor);
+                    Main.info(tr("Starting retry {0} of {1}.", getMaxRetries() - retries, getMaxRetries()));
+                    continue;
                 }
 
                 final String responseBody = response.fetchContent();
@@ -826,7 +824,7 @@ public class OsmApi extends OsmConnection {
         String encodedMessage = Utils.encodeUrl(closeMessage);
         StringBuilder urlBuilder = noteStringBuilder(note)
             .append("/close");
-        if (encodedMessage != null && !encodedMessage.trim().isEmpty()) {
+        if (!encodedMessage.trim().isEmpty()) {
             urlBuilder.append("?text=");
             urlBuilder.append(encodedMessage);
         }
@@ -848,7 +846,7 @@ public class OsmApi extends OsmConnection {
         String encodedMessage = Utils.encodeUrl(reactivateMessage);
         StringBuilder urlBuilder = noteStringBuilder(note)
             .append("/reopen");
-        if (encodedMessage != null && !encodedMessage.trim().isEmpty()) {
+        if (!encodedMessage.trim().isEmpty()) {
             urlBuilder.append("?text=");
             urlBuilder.append(encodedMessage);
         }

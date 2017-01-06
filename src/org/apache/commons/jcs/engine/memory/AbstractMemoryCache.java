@@ -20,28 +20,28 @@ package org.apache.commons.jcs.engine.memory;
  */
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.apache.commons.jcs.engine.CacheStatus;
 import org.apache.commons.jcs.engine.behavior.ICacheElement;
 import org.apache.commons.jcs.engine.behavior.ICompositeCacheAttributes;
 import org.apache.commons.jcs.engine.control.CompositeCache;
 import org.apache.commons.jcs.engine.memory.behavior.IMemoryCache;
 import org.apache.commons.jcs.engine.memory.util.MemoryElementDescriptor;
+import org.apache.commons.jcs.engine.stats.StatElement;
 import org.apache.commons.jcs.engine.stats.Stats;
+import org.apache.commons.jcs.engine.stats.behavior.IStatElement;
 import org.apache.commons.jcs.engine.stats.behavior.IStats;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 /**
  * This base includes some common code for memory caches.
- * <p>
- * This keeps a static reference to a memory shrinker clock daemon. If this region is configured to
- * use the shrinker, the clock daemon will be setup to run the shrinker on this region.
  */
 public abstract class AbstractMemoryCache<K, V>
     implements IMemoryCache<K, V>
@@ -49,17 +49,11 @@ public abstract class AbstractMemoryCache<K, V>
     /** Log instance */
     private static final Log log = LogFactory.getLog( AbstractMemoryCache.class );
 
-    /** The region name. This defines a namespace of sorts. */
-    private String cacheName;
-
     /** Cache Attributes.  Regions settings. */
     private ICompositeCacheAttributes cacheAttributes;
 
     /** The cache region this store is associated with */
     private CompositeCache<K, V> cache;
-
-    /** status */
-    private CacheStatus status;
 
     /** How many to spool at a time. */
     protected int chunkSize;
@@ -69,6 +63,15 @@ public abstract class AbstractMemoryCache<K, V>
     /** Map where items are stored by key.  This is created by the concrete child class. */
     protected Map<K, MemoryElementDescriptor<K, V>> map;// TODO privatise
 
+    /** number of hits */
+    protected AtomicLong hitCnt;
+
+    /** number of misses */
+    protected AtomicLong missCnt;
+
+    /** number of puts */
+    protected AtomicLong putCnt;
+
     /**
      * For post reflection creation initialization
      * <p>
@@ -77,21 +80,15 @@ public abstract class AbstractMemoryCache<K, V>
     @Override
     public void initialize( CompositeCache<K, V> hub )
     {
-        lock.lock();
-        try
-        {
-            this.cacheName = hub.getCacheName();
-            this.cacheAttributes = hub.getCacheAttributes();
-            this.cache = hub;
-            map = createMap();
+        hitCnt = new AtomicLong(0);
+        missCnt = new AtomicLong(0);
+        putCnt = new AtomicLong(0);
 
-            chunkSize = cacheAttributes.getSpoolChunkSize();
-            status = CacheStatus.ALIVE;
-        }
-        finally
-        {
-            lock.unlock();
-        }
+        this.cacheAttributes = hub.getCacheAttributes();
+        this.chunkSize = cacheAttributes.getSpoolChunkSize();
+        this.cache = hub;
+
+        this.map = createMap();
     }
 
     /**
@@ -173,14 +170,14 @@ public abstract class AbstractMemoryCache<K, V>
         {
             if ( log.isDebugEnabled() )
             {
-                log.debug( cacheName + ": MemoryCache quiet hit for " + key );
+                log.debug( getCacheName() + ": MemoryCache quiet hit for " + key );
             }
 
             ce = me.getCacheElement();
         }
         else if ( log.isDebugEnabled() )
         {
-            log.debug( cacheName + ": MemoryCache quiet miss for " + key );
+            log.debug( getCacheName() + ": MemoryCache quiet miss for " + key );
         }
 
         return ce;
@@ -217,7 +214,7 @@ public abstract class AbstractMemoryCache<K, V>
     }
 
     /**
-     * Prepares for shutdown.
+     * Prepares for shutdown. Reset statistics
      * <p>
      * @throws IOException
      */
@@ -225,6 +222,10 @@ public abstract class AbstractMemoryCache<K, V>
     public void dispose()
         throws IOException
     {
+        removeAll();
+        hitCnt.set(0);
+        missCnt.set(0);
+        putCnt.set(0);
         log.info( "Memory Cache dispose called." );
     }
 
@@ -236,6 +237,15 @@ public abstract class AbstractMemoryCache<K, V>
     {
         IStats stats = new Stats();
         stats.setTypeName( "Abstract Memory Cache" );
+
+        ArrayList<IStatElement<?>> elems = new ArrayList<IStatElement<?>>();
+        stats.setStatElements(elems);
+
+        elems.add(new StatElement<AtomicLong>("Put Count", putCnt));
+        elems.add(new StatElement<AtomicLong>("Hit Count", hitCnt));
+        elems.add(new StatElement<AtomicLong>("Miss Count", missCnt));
+        elems.add(new StatElement<Integer>( "Map Size", Integer.valueOf(getSize()) ) );
+
         return stats;
     }
 
@@ -251,16 +261,6 @@ public abstract class AbstractMemoryCache<K, V>
     }
 
     /**
-     * Returns the cache status.
-     * <p>
-     * @return The status value
-     */
-    public CacheStatus getStatus()
-    {
-        return this.status;
-    }
-
-    /**
      * Returns the cache (aka "region") name.
      * <p>
      * @return The cacheName value
@@ -272,18 +272,16 @@ public abstract class AbstractMemoryCache<K, V>
         {
             return attributeCacheName;
         }
-        return cacheName;
+        return cache.getCacheName();
     }
 
     /**
      * Puts an item to the cache.
      * <p>
-     * @param ce
-     * @throws IOException
+     * @param ce the item
      */
     @Override
     public void waterfal( ICacheElement<K, V> ce )
-        throws IOException
     {
         this.cache.spoolToDisk( ce );
     }

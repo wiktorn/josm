@@ -42,6 +42,7 @@ import org.openstreetmap.josm.gui.progress.NullProgressMonitor;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
 import org.openstreetmap.josm.io.Compression;
 import org.openstreetmap.josm.io.IllegalDataException;
+import org.openstreetmap.josm.tools.JosmRuntimeException;
 import org.openstreetmap.josm.tools.MultiMap;
 import org.openstreetmap.josm.tools.Utils;
 import org.w3c.dom.Document;
@@ -98,7 +99,7 @@ public class SessionReader {
         try {
             importer = importerClass.getConstructor().newInstance();
         } catch (ReflectiveOperationException e) {
-            throw new RuntimeException(e);
+            throw new JosmRuntimeException(e);
         }
         return importer;
     }
@@ -378,7 +379,7 @@ public class SessionReader {
 
         String activeAtt = layersEl.getAttribute("active");
         try {
-            active = (activeAtt != null && !activeAtt.isEmpty()) ? Integer.parseInt(activeAtt)-1 : -1;
+            active = !activeAtt.isEmpty() ? (Integer.parseInt(activeAtt)-1) : -1;
         } catch (NumberFormatException e) {
             Main.warn("Unsupported value for 'active' layer attribute. Ignoring it. Error was: "+e.getMessage());
             active = -1;
@@ -405,15 +406,14 @@ public class SessionReader {
                     }
                     if (idx == null) {
                         error(tr("unexpected format of attribute ''index'' for element ''layer''"));
-                    }
-                    if (elems.containsKey(idx)) {
+                    } else if (elems.containsKey(idx)) {
                         error(tr("attribute ''index'' ({0}) for element ''layer'' must be unique", Integer.toString(idx)));
                     }
                     elems.put(idx, e);
 
                     deps.putVoid(idx);
                     String depStr = e.getAttribute("depends");
-                    if (depStr != null && !depStr.isEmpty()) {
+                    if (!depStr.isEmpty()) {
                         for (String sd : depStr.split(",")) {
                             Integer d = null;
                             try {
@@ -573,7 +573,7 @@ public class SessionReader {
                     cancel = dlg.getValue() != 2;
                 });
             } catch (InvocationTargetException | InterruptedException ex) {
-                throw new RuntimeException(ex);
+                throw new JosmRuntimeException(ex);
             }
         }
 

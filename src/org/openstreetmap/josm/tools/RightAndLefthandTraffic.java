@@ -110,13 +110,16 @@ public final class RightAndLefthandTraffic {
         if (areas != null) {
             try {
                 JoinAreasResult result = new JoinAreasAction().joinAreas(areas);
-                if (result.hasChanges) {
-                    for (Multipolygon mp : result.polygons) {
-                        optimizedWays.add(mp.outerWay);
+                if (result.hasChanges()) {
+                    for (Multipolygon mp : result.getPolygons()) {
+                        optimizedWays.add(mp.getOuterWay());
                     }
                 }
             } catch (UserCancelException ex) {
                 Main.warn(ex);
+            } catch (JosmRuntimeException ex) {
+                // Workaround to #10511 / #14185. To remove when #10511 is solved
+                Main.error(ex);
             }
         }
         if (optimizedWays.isEmpty()) {
@@ -157,7 +160,7 @@ public final class RightAndLefthandTraffic {
             w.writeContent(ds);
             w.footer();
         } catch (IOException ex) {
-            throw new RuntimeException(ex);
+            throw new JosmRuntimeException(ex);
         }
     }
 

@@ -4,7 +4,7 @@
 
 /* {0.key} without {1.key} (warning level) */
 way[junction                   ][!highway][junction!=yes],
-way[lanes                      ][!highway],
+way[lanes                      ][!highway][leisure!=track][leisure!=swimming_pool],
 way[living_street              ][!highway],
 way[maintenance                ][!highway],
 way[median                     ][!highway],
@@ -128,12 +128,14 @@ relation[route=ski][!piste:type][type=route],
 *[leisure=pitch][!sport],
 *[aeroway=terminal][!building],
 *[power=generator][!generator:source],
+*[amenity=social_facility][!social_facility],
 *[amenity=place_of_worship][!religion] {
   throwWarning: tr("{0} without {1}", "{0.tag}", "{1.key}");
   group: tr("missing tag");
 }
 
 /* {0.tag} without {1.key} (info level) */
+way[highway=track              ][!tracktype],
 way[power=cable                ][!location],
 node[power=transformer         ][!voltage],
 way[power=line                 ][!voltage],
@@ -304,7 +306,7 @@ way[highway=footway][cycleway=lane] {
 *[tunnel  ][!highway][!railway][!waterway][public_transport != platform][man_made != pipeline],
 *[bridge  ][!highway][!railway][!waterway][!piste:type][public_transport != platform][man_made !~ /^(bridge|pipeline)$/][building != bridge],
 *[psv     ][!highway][!railway][!waterway][amenity !~ /^parking.*/],
-*[width   ][!highway][!railway][!waterway][!aeroway][!cycleway][!footway][!barrier][!man_made][!entrance],
+*[width   ][!highway][!railway][!waterway][!aeroway][!cycleway][!footway][!barrier][!man_made][!entrance][natural!=stone],
 *[maxspeed][!highway][!railway][traffic_sign !~ /^((.*;)?maxspeed(;.*)?|[A-Z][A-Z]:.+)$/][type != enforcement][waterway !~ /^(river|canal|lock)$/][!traffic_calming] {
   throwWarning: tr("{0} on suspicious object", "{0.key}");
   group: tr("suspicious tag combination");
@@ -320,7 +322,7 @@ node[amenity][amenity =~ /^(restaurant|cafe|fast_food)$/][!name][noname!=yes] {
 
 way[highway][barrier],
 *[highway][waterway][waterway!=dam][waterway!=weir],
-way[highway][natural],
+way[highway][natural][natural!=ridge],
 *[landuse][building] {
   throwWarning: tr("{0} together with {1}", "{0.key}", "{1.key}");
   group: tr("suspicious tag combination");
@@ -473,4 +475,15 @@ way["addr:housenumber"][!building][!"building:part"][!"demolished:building"][!no
   /* don't exclude shop because a lot of real missing bulding tag cases have a shop tag. */
   throwOther: tr("possibly missing {0} tag", "{1.key}");
   group: tr("missing tag");
+}
+
+/* #14125 */
+way[highway][lanes][!lanes:forward][!lanes:backward][oneway!=yes][oneway!=-1][lanes>2][get(split(".", tag(lanes)/2), 1)=5] {
+  throwWarning: tr("street with odd number of {0}, but without {1} and {2} or {3}", "{1.key}", "{2.key}", "{3.key}", "{4.key}");
+  group: tr("missing tag");
+  assertNoMatch: "way highway=primary lanes=2";
+  assertNoMatch: "way highway=primary lanes=3 lanes:backward=2";
+  assertNoMatch: "way highway=primary lanes=3 oneway=-1";
+  assertNoMatch: "way highway=primary lanes=4";
+  assertMatch: "way highway=primary lanes=3";
 }

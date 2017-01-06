@@ -148,7 +148,9 @@ public class RelationListDialog extends ToggleDialog
 
         filter = setupFilter();
 
-        displaylist.addListSelectionListener(e -> updateActionsRelationLists());
+        displaylist.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) updateActionsRelationLists();
+        });
 
         // Setup popup menu handler
         setupPopupMenuHandler();
@@ -202,10 +204,8 @@ public class RelationListDialog extends ToggleDialog
         Component focused = FocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
 
         //update highlights
-        if (highlightEnabled && focused == displaylist && Main.isDisplayingMapView()) {
-            if (highlightHelper.highlightOnly(sel)) {
-                Main.map.mapView.repaint();
-            }
+        if (highlightEnabled && focused == displaylist && Main.isDisplayingMapView() && highlightHelper.highlightOnly(sel)) {
+            Main.map.mapView.repaint();
         }
     }
 
@@ -562,18 +562,20 @@ public class RelationListDialog extends ToggleDialog
          * @param sel the list of selected relations
          */
         public void setSelectedRelations(Collection<Relation> sel) {
+            selectionModel.setValueIsAdjusting(true);
             selectionModel.clearSelection();
-            if (sel == null || sel.isEmpty())
-                return;
-            if (!getVisibleRelations().containsAll(sel)) {
-                resetFilter();
-            }
-            for (Relation r: sel) {
-                Integer i = getVisibleRelationIndex(r);
-                if (i != null) {
-                    selectionModel.addSelectionInterval(i, i);
+            if (sel != null && !sel.isEmpty()) {
+                if (!getVisibleRelations().containsAll(sel)) {
+                    resetFilter();
+                }
+                for (Relation r: sel) {
+                    Integer i = getVisibleRelationIndex(r);
+                    if (i != null) {
+                        selectionModel.addSelectionInterval(i, i);
+                    }
                 }
             }
+            selectionModel.setValueIsAdjusting(false);
         }
 
         private Integer getVisibleRelationIndex(Relation rel) {

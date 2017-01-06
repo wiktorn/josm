@@ -1,6 +1,7 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.data.osm;
 
+import java.awt.geom.Area;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.Set;
@@ -237,6 +238,8 @@ public final class Node extends OsmPrimitive implements INode {
 
     @Override
     public void cloneFrom(OsmPrimitive osm) {
+        if (!(osm instanceof Node))
+            throw new IllegalArgumentException("Not a node: " + osm);
         boolean locked = writeLock();
         try {
             super.cloneFrom(osm);
@@ -259,6 +262,8 @@ public final class Node extends OsmPrimitive implements INode {
      */
     @Override
     public void mergeFrom(OsmPrimitive other) {
+        if (!(other instanceof Node))
+            throw new IllegalArgumentException("Not a node: " + other);
         boolean locked = writeLock();
         try {
             super.mergeFrom(other);
@@ -270,7 +275,10 @@ public final class Node extends OsmPrimitive implements INode {
         }
     }
 
-    @Override public void load(PrimitiveData data) {
+    @Override
+    public void load(PrimitiveData data) {
+        if (!(data instanceof NodeData))
+            throw new IllegalArgumentException("Not a node data: " + data);
         boolean locked = writeLock();
         try {
             super.load(data);
@@ -280,7 +288,8 @@ public final class Node extends OsmPrimitive implements INode {
         }
     }
 
-    @Override public NodeData save() {
+    @Override
+    public NodeData save() {
         NodeData data = new NodeData();
         saveCommonAttributes(data);
         if (!isIncomplete()) {
@@ -411,7 +420,12 @@ public final class Node extends OsmPrimitive implements INode {
 
     @Override
     public boolean isOutsideDownloadArea() {
-        return !isNewOrUndeleted() && getDataSet() != null && getDataSet().getDataSourceArea() != null
-                && getCoor() != null && !getCoor().isIn(getDataSet().getDataSourceArea());
+        if (isNewOrUndeleted() || getDataSet() == null)
+            return false;
+        Area area = getDataSet().getDataSourceArea();
+        if (area == null)
+            return false;
+        LatLon coor = getCoor();
+        return coor != null && !coor.isIn(area);
     }
 }

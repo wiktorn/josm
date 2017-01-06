@@ -30,6 +30,7 @@ import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.gui.ConditionalOptionPaneUtil;
 import org.openstreetmap.josm.gui.Notification;
+import org.openstreetmap.josm.tools.JosmRuntimeException;
 import org.openstreetmap.josm.tools.Shortcut;
 
 /**
@@ -44,6 +45,8 @@ public final class OrthogonalizeAction extends JosmAction {
             "You can add two nodes to the selection. Then, the direction is fixed by these two reference nodes. "+
             "(Afterwards, you can undo the movement for certain nodes:<br>"+
             "Select them and press the shortcut for Orthogonalize / Undo. The default is Shift-Q.)");
+
+    private static final double EPSILON = 1E-6;
 
     /**
      * Constructs a new {@code OrthogonalizeAction}.
@@ -293,7 +296,7 @@ public final class OrthogonalizeAction extends JosmAction {
                     int directionOffset = angleToDirectionChange(w.heading - refHeading, TOLERANCE2);
                     w.calcDirections(Direction.RIGHT.changeBy(directionOffset));
                     if (angleToDirectionChange(refHeading - w.heading, TOLERANCE2) != 0)
-                        throw new RuntimeException();
+                        throw new JosmRuntimeException("orthogonalize error");
                     totSum = EN.sum(totSum, w.segSum);
                 }
                 headingAll = EN.polar(new EastNorth(0., 0.), totSum);
@@ -402,7 +405,7 @@ public final class OrthogonalizeAction extends JosmAction {
                     nC.put(n, average);
                 }
             }
-            if (!s.isEmpty()) throw new RuntimeException();
+            if (!s.isEmpty()) throw new JosmRuntimeException("orthogonalize error");
         }
 
         // rotate back and log the change
@@ -413,10 +416,9 @@ public final class OrthogonalizeAction extends JosmAction {
             final double dx = tmp.east() - n.getEastNorth().east();
             final double dy = tmp.north() - n.getEastNorth().north();
             if (headingNodes.contains(n)) { // The heading nodes should not have changed
-                final double epsilon = 1E-6;
-                if (Math.abs(dx) > Math.abs(epsilon * tmp.east()) ||
-                        Math.abs(dy) > Math.abs(epsilon * tmp.east()))
-                    throw new AssertionError();
+                if (Math.abs(dx) > Math.abs(EPSILON * tmp.east()) ||
+                    Math.abs(dy) > Math.abs(EPSILON * tmp.east()))
+                    throw new AssertionError("heading node has changed");
             } else {
                 OrthogonalizeAction.rememberMovements.put(n, new EastNorth(dx, dy));
                 commands.add(new MoveCommand(n, dx, dy));

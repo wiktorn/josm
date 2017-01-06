@@ -67,11 +67,14 @@ import org.openstreetmap.josm.data.preferences.PreferencesReader;
 import org.openstreetmap.josm.data.preferences.PreferencesWriter;
 import org.openstreetmap.josm.data.preferences.Setting;
 import org.openstreetmap.josm.data.preferences.StringSetting;
+import org.openstreetmap.josm.gui.preferences.validator.ValidatorTagCheckerRulesPreference;
+import org.openstreetmap.josm.gui.preferences.validator.ValidatorTagCheckerRulesPreference.RulePrefHelper;
 import org.openstreetmap.josm.io.OfflineAccessException;
 import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.ColorHelper;
 import org.openstreetmap.josm.tools.I18n;
+import org.openstreetmap.josm.tools.JosmRuntimeException;
 import org.openstreetmap.josm.tools.ListenerList;
 import org.openstreetmap.josm.tools.MultiMap;
 import org.openstreetmap.josm.tools.Utils;
@@ -1326,7 +1329,7 @@ public class Preferences {
                     }
                 }
             } catch (IllegalAccessException ex) {
-                throw new RuntimeException(ex);
+                throw new JosmRuntimeException(ex);
             }
         }
         return hash;
@@ -1386,14 +1389,14 @@ public class Preferences {
             } else if (f.getType().isAssignableFrom(MultiMap.class)) {
                 value = multiMapFromJson(key_value.getValue());
             } else
-                throw new RuntimeException("unsupported preference primitive type");
+                throw new JosmRuntimeException("unsupported preference primitive type");
 
             try {
                 f.set(struct, value);
             } catch (IllegalArgumentException ex) {
                 throw new AssertionError(ex);
             } catch (IllegalAccessException ex) {
-                throw new RuntimeException(ex);
+                throw new JosmRuntimeException(ex);
             }
         }
         return struct;
@@ -1511,42 +1514,19 @@ public class Preferences {
      * @param loadedVersion JOSM version when the preferences file was written
      */
     private void removeObsolete(int loadedVersion) {
-        /* drop in October 2016 */
-        if (loadedVersion < 9715) {
-            Setting<?> setting = settingsMap.get("imagery.entries");
-            if (setting instanceof MapListSetting) {
-                List<Map<String, String>> l = new LinkedList<>();
-                boolean modified = false;
-                for (Map<String, String> map: ((MapListSetting) setting).getValue()) {
-                    Map<String, String> newMap = new HashMap<>();
-                    for (Entry<String, String> entry: map.entrySet()) {
-                        String value = entry.getValue();
-                        if ("noTileHeaders".equals(entry.getKey())) {
-                            value = value.replaceFirst("\":(\".*\")\\}", "\":[$1]}");
-                            if (!value.equals(entry.getValue())) {
-                                modified = true;
-                            }
-                        }
-                        newMap.put(entry.getKey(), value);
-                    }
-                    l.add(newMap);
-                }
-                if (modified) {
-                    putListOfStructs("imagery.entries", l);
-                }
-            }
-        }
-        // drop in November 2016
-        removeUrlFromEntries(loadedVersion, 9965,
-                "mappaint.style.entries",
-                "josm.openstreetmap.de/josmfile?page=Styles/LegacyStandard");
-        // drop in December 2016
+        // drop in March 2017
         removeUrlFromEntries(loadedVersion, 10063,
                 "validator.org.openstreetmap.josm.data.validation.tests.MapCSSTagChecker.entries",
                 "resource://data/validator/power.mapcss");
         // drop in March 2017
         if (loadedVersion < 11058) {
             migrateOldColorKeys();
+        }
+        // drop in September 2017
+        if (loadedVersion < 11424) {
+            addNewerDefaultEntry(
+                    "validator.org.openstreetmap.josm.data.validation.tests.MapCSSTagChecker.entries",
+                    "resource://data/validator/territories.mapcss");
         }
 
         for (String key : OBSOLETE_PREF_KEYS) {
@@ -1593,6 +1573,18 @@ public class Preferences {
                 if (modified) {
                     putListOfStructs(key, l);
                 }
+            }
+        }
+    }
+
+    private void addNewerDefaultEntry(String key, final String url) {
+        Setting<?> setting = settingsMap.get(key);
+        if (setting instanceof MapListSetting) {
+            List<Map<String, String>> l = new ArrayList<>(((MapListSetting) setting).getValue());
+            if (l.stream().noneMatch(x -> x.values().contains(url))) {
+                RulePrefHelper helper = ValidatorTagCheckerRulesPreference.RulePrefHelper.INSTANCE;
+                l.add(helper.serialize(helper.getDefault().stream().filter(x -> url.equals(x.url)).findFirst().get()));
+                putListOfStructs(key, l);
             }
         }
     }

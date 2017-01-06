@@ -210,10 +210,8 @@ public class SelectionListDialog extends ToggleDialog {
                     // else open relation editor if applicable
                     actEditRelationSelection.actionPerformed(null);
                 }
-            } else if (highlightEnabled && Main.isDisplayingMapView()) {
-                if (helper.highlightOnly(model.getElementAt(idx))) {
-                    Main.map.mapView.repaint();
-                }
+            } else if (highlightEnabled && Main.isDisplayingMapView() && helper.highlightOnly(model.getElementAt(idx))) {
+                Main.map.mapView.repaint();
             }
         }
 
@@ -577,14 +575,17 @@ public class SelectionListDialog extends ToggleDialog {
          * @param sel the collection of primitives to select
          */
         public synchronized void setSelected(Collection<OsmPrimitive> sel) {
+            selectionModel.setValueIsAdjusting(true);
             selectionModel.clearSelection();
-            if (sel == null) return;
-            for (OsmPrimitive p: sel) {
-                int i = selection.indexOf(p);
-                if (i >= 0) {
-                    selectionModel.addSelectionInterval(i, i);
+            if (sel != null) {
+                for (OsmPrimitive p: sel) {
+                    int i = selection.indexOf(p);
+                    if (i >= 0) {
+                        selectionModel.addSelectionInterval(i, i);
+                    }
                 }
             }
+            selectionModel.setValueIsAdjusting(false);
         }
 
         @Override

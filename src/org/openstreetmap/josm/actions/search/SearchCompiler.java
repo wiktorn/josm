@@ -79,9 +79,7 @@ public class SearchCompiler {
         this.regexSearch = regexSearch;
         this.tokenizer = tokenizer;
 
-        /* register core match factories at first instance, so plugins should
-         * never be able to generate a NPE
-         */
+        // register core match factories at first instance, so plugins should never be able to generate a NPE
         if (simpleMatchFactoryMap.isEmpty()) {
             addMatchFactory(new CoreSimpleMatchFactory());
         }
@@ -848,12 +846,10 @@ public class SearchCompiler {
                 return false;
             case ANY_VALUE_REGEXP:
             case EXACT_REGEXP:
-                for (String key: osm.keySet()) {
-                    if (keyPattern.matcher(key).matches()) {
-                        if (mode == Mode.ANY_VALUE_REGEXP
-                                || valuePattern.matcher(osm.get(key)).matches())
-                            return true;
-                    }
+                for (String k : osm.keySet()) {
+                    if (keyPattern.matcher(k).matches()
+                            && (mode == Mode.ANY_VALUE_REGEXP || valuePattern.matcher(osm.get(k)).matches()))
+                        return true;
                 }
                 return false;
             case MISSING_KEY_REGEXP:
