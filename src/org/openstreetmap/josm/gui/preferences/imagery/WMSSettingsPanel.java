@@ -12,6 +12,7 @@ import javax.swing.JPanel;
 import javax.swing.JSpinner;
 import javax.swing.SpinnerNumberModel;
 
+import org.openstreetmap.josm.data.imagery.WMSCachedTileLoader;
 import org.openstreetmap.josm.data.imagery.WMSCachedTileLoaderJob;
 import org.openstreetmap.josm.gui.layer.WMSLayer;
 import org.openstreetmap.josm.tools.GBC;
@@ -48,7 +49,7 @@ public class WMSSettingsPanel extends JPanel {
         // Simultaneous connections
         add(Box.createHorizontalGlue(), GBC.eol().fill(GBC.HORIZONTAL));
         JLabel labelSimConn = new JLabel(tr("Simultaneous connections:"));
-        int threadLimitValue = Utils.clamp(WMSCachedTileLoaderJob.THREAD_LIMIT.get(), THREADS_MIN, THREADS_MAX);
+        int threadLimitValue = Utils.clamp(WMSCachedTileLoader.THREAD_LIMIT.get(), THREADS_MIN, THREADS_MAX);
         spinSimConn = new JSpinner(new SpinnerNumberModel(threadLimitValue, THREADS_MIN, THREADS_MAX, 1));
         labelSimConn.setLabelFor(spinSimConn);
         add(labelSimConn, GBC.std());
