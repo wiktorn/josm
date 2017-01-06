@@ -20,8 +20,10 @@ import javax.json.Json
 import javax.json.JsonArray
 import javax.json.JsonObject
 import javax.json.JsonReader
+import javax.json.JsonValue
 
 import org.openstreetmap.josm.data.imagery.ImageryInfo
+import org.openstreetmap.josm.data.imagery.Shape
 import org.openstreetmap.josm.io.imagery.ImageryReader
 
 class SyncEditorImageryIndex {
@@ -31,8 +33,9 @@ class SyncEditorImageryIndex {
 
     def eiiUrls = new HashMap<String, JsonObject>()
     def josmUrls = new HashMap<String, ImageryInfo>()
+    def josmMirrors = new HashMap<String, ImageryInfo>()
 
-    static String eiiInputFile = 'imagery.json'
+    static String eiiInputFile = 'imagery.geojson'
     static String josmInputFile = 'maps.xml'
     static String ignoreInputFile = 'maps_ignores.txt'
     static FileWriter outputFile = null
@@ -147,7 +150,7 @@ class SyncEditorImageryIndex {
                 return;
             }
         } else if(options.xhtmlbody || options.xhtml) {
-            String color = s.startsWith("***") ? "black" : (s.startsWith("+ ") ? "blue" : "red")
+            String color = s.startsWith("***") ? "black" : ((s.startsWith("+ ") || s.startsWith("+++ EII")) ? "blue" : "red")
             s = "<pre style=\"margin:3px;color:"+color+"\">"+s.replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")+"</pre>"
         }
         myprintlnfinal(s)
@@ -172,7 +175,7 @@ class SyncEditorImageryIndex {
     void loadEIIEntries() {
         FileReader fr = new FileReader(eiiInputFile)
         JsonReader jr = Json.createReader(fr)
-        eiiEntries = jr.readArray()
+        eiiEntries = jr.readObject().get("features")
         jr.close()
 
         for (def e : eiiEntries) {
@@ -203,14 +206,15 @@ class SyncEditorImageryIndex {
             if (josmUrls.containsKey(url)) {
                 myprintln "+++ JOSM-URL is not unique: "+url
             } else {
-              josmUrls.put(url, e)
+                josmUrls.put(url, e)
             }
             for (def m : e.getMirrors()) {
                 url = getUrl(m)
                 if (josmUrls.containsKey(url)) {
                     myprintln "+++ JOSM-Mirror-URL is not unique: "+url
                 } else {
-                  josmUrls.put(url, m)
+                    josmUrls.put(url, m)
+                    josmMirrors.put(url, m)
                 }
             }
         }
@@ -232,8 +236,9 @@ class SyncEditorImageryIndex {
         def l1 = inOneButNotTheOther(eiiUrls, josmUrls)
         myprintln "*** URLs found in EII but not in JOSM (${l1.size()}): ***"
         if (!l1.isEmpty()) {
-            for (def l : l1)
-                myprintln "-"+l
+            for (def l : l1) {
+                myprintln "-" + l
+            }
         }
 
         if (options.nomissingeii)
@@ -241,8 +246,9 @@ class SyncEditorImageryIndex {
         def l2 = inOneButNotTheOther(josmUrls, eiiUrls)
         myprintln "*** URLs found in JOSM but not in EII (${l2.size()}): ***"
         if (!l2.isEmpty()) {
-            for (def l : l2)
+            for (def l : l2) {
                 myprintln "+" + l
+            }
         }
     }
 
@@ -321,6 +327,121 @@ class SyncEditorImageryIndex {
                 myprintln "     (JOSM):    ${getQuality(j)}"
             }
         }*/
+        myprintln "*** Mismatching shapes: ***"
+        for (def url : josmUrls.keySet()) {
+            def j = josmUrls.get(url)
+            def num = 1
+            for (def shape : getShapes(j)) {
+                def p = shape.getPoints()
+                if(!p[0].equals(p[p.size()-1])) {
+                    myprintln "+++ JOSM shape $num unclosed: ${getDescription(j)}"
+                }
+                ++num
+            }
+        }
+        for (def url : eiiUrls.keySet()) {
+            def e = eiiUrls.get(url)
+            def num = 1
+            def s = getShapes(e)
+            for (def shape : s) {
+                def p = shape.getPoints()
+                if(!p[0].equals(p[p.size()-1]) && !options.nomissingeii) {
+                    myprintln "+++ EII shape $num unclosed: ${getDescription(e)}"
+                }
+                ++num
+            }
+            if (!josmUrls.containsKey(url)) {
+                continue
+            }
+            def j = josmUrls.get(url)
+            def js = getShapes(j)
+            if(!s.size() && js.size()) {
+                if(!options.nomissingeii) {
+                    myprintln "+ No EII shape: ${getDescription(j)}"
+                }
+            } else if(!js.size() && s.size()) {
+                // don't report boundary like 5 point shapes as difference
+                if (s.size() != 1 || s[0].getPoints().size() != 5) {
+                    myprintln "- No JOSM shape: ${getDescription(j)}"
+                }
+            } else if(s.size() != js.size()) {
+                myprintln "* Different number of shapes (${s.size()} != ${js.size()}): ${getDescription(j)}"
+            } else {
+                for(def nums = 0; nums < s.size(); ++nums) {
+                    def ep = s[nums].getPoints()
+                    def jp = js[nums].getPoints()
+                    if(ep.size() != jp.size()) {
+                        myprintln "* Different number of points for shape ${nums+1} (${ep.size()} ! = ${jp.size()})): ${getDescription(j)}"
+                    } else {
+                        for(def nump = 0; nump < ep.size(); ++nump) {
+                            def ept = ep[nump]
+                            def jpt = jp[nump]
+                            if(Math.abs(ept.getLat()-jpt.getLat()) > 0.000001 || Math.abs(ept.getLon()-jpt.getLon()) > 0.000001) {
+                                myprintln "* Different coordinate for point ${nump+1} of shape ${nums+1}: ${getDescription(j)}"
+                                nump = ep.size()
+                                num = s.size()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        myprintln "*** Mismatching icons: ***"
+        for (def url : eiiUrls.keySet()) {
+            def e = eiiUrls.get(url)
+            if (!josmUrls.containsKey(url)) {
+                continue
+            }
+            def j = josmUrls.get(url)
+            def ij = getIcon(j)
+            def ie = getIcon(e)
+            if(ij != null && ie == null) {
+                if(!options.nomissingeii) {
+                    myprintln "+ No EII icon: ${getDescription(j)}"
+                }
+            } else if(ij == null && ie != null) {
+                myprintln "- No JOSM icon: ${getDescription(j)}"
+            } else if(!ij.equals(ie)) {
+                myprintln "* Different icons: ${getDescription(j)}"
+            }
+        }
+        myprintln "*** Miscellaneous checks: ***"
+        def josmIds = new HashMap<String, ImageryInfo>()
+        for (def url : josmUrls.keySet()) {
+            def j = josmUrls.get(url)
+            def id = getId(j)
+            if(josmMirrors.containsKey(url)) {
+                continue;
+            }
+            if(id == null) {
+                myprintln "* No JOSM-ID: ${getDescription(j)}"
+            } else if(josmIds.containsKey(id)) {
+                myprintln "* JOSM-ID ${id} not unique: ${getDescription(j)}"
+            } else {
+                josmIds.put(id, j);
+            }
+            def js = getShapes(j)
+            if(js.size()) {
+                def minlat = 1000;
+                def minlon = 1000;
+                def maxlat = -1000;
+                def maxlon = -1000;
+                for(def s: js) {
+                    for(def p: s.getPoints()) {
+                        def lat = p.getLat();
+                        def lon = p.getLon();
+                        if(lat > maxlat) maxlat = lat;
+                        if(lon > maxlon) maxlon = lon;
+                        if(lat < minlat) minlat = lat;
+                        if(lon < minlon) minlon = lon;
+                    }
+                }
+                def b = j.getBounds();
+                if(b.getMinLat() != minlat || b.getMinLon() != minlon || b.getMaxLat() != maxlat || b.getMaxLon() != maxlon) {
+                    myprintln "* Bounds do not match shape (is ${b.getMinLat()},${b.getMinLon()},${b.getMaxLat()},${b.getMaxLon()}, calculated <bounds min-lat='${minlat}' min-lon='${minlon}' max-lat='${maxlat}' max-lon='${maxlon}'>): ${getDescription(j)}"
+                }
+            }
+        }
     }
 
     /**
@@ -328,24 +449,53 @@ class SyncEditorImageryIndex {
      */
     static String getUrl(Object e) {
         if (e instanceof ImageryInfo) return e.url
-        return e.getString("url")
+        return e.get("properties").getString("url")
+    }
+    static String getId(Object e) {
+        if (e instanceof ImageryInfo) return e.getId()
+        return e.get("properties").getString("id")
     }
     static String getName(Object e) {
         if (e instanceof ImageryInfo) return e.getOriginalName()
-        return e.getString("name")
+        return e.get("properties").getString("name")
+    }
+    static List<Shape> getShapes(Object e) {
+        if (e instanceof ImageryInfo) {
+            def bounds = e.getBounds();
+            if(bounds != null) {
+                return bounds.getShapes();
+            }
+            return []
+        }
+        if(!e.isNull("geometry")) {
+            def ex = e.get("geometry")
+            if(ex != null && !ex.isNull("coordinates")) {
+                def poly = ex.get("coordinates")
+                List<Shape> l = []
+                for(def shapes: poly) {
+                    def s = new Shape()
+                    for(def point: shapes) {
+                        def lon = point[0].toString()
+                        def lat = point[1].toString()
+                        s.addPoint(lat, lon)
+                    }
+                    l.add(s)
+                }
+                return l
+            }
+        }
+        return []
     }
     static String getType(Object e) {
         if (e instanceof ImageryInfo) return e.getImageryType().getTypeString()
-        return e.getString("type")
+        return e.get("properties").getString("type")
     }
     static Integer getMinZoom(Object e) {
         if (e instanceof ImageryInfo) {
             int mz = e.getMinZoom()
             return mz == 0 ? null : mz
         } else {
-            def ext = e.getJsonObject("extent")
-            if (ext == null) return null
-            def num = ext.getJsonNumber("min_zoom")
+            def num = e.get("properties").getJsonNumber("min_zoom")
             if (num == null) return null
             return num.intValue()
         }
@@ -355,21 +505,23 @@ class SyncEditorImageryIndex {
             int mz = e.getMaxZoom()
             return mz == 0 ? null : mz
         } else {
-            def ext = e.getJsonObject("extent")
-            if (ext == null) return null
-            def num = ext.getJsonNumber("max_zoom")
+            def num = e.get("properties").getJsonNumber("max_zoom")
             if (num == null) return null
             return num.intValue()
         }
     }
     static String getCountryCode(Object e) {
         if (e instanceof ImageryInfo) return "".equals(e.getCountryCode()) ? null : e.getCountryCode()
-        return e.getString("country_code", null)
+        return e.get("properties").getString("country_code", null)
     }
     static String getQuality(Object e) {
         //if (e instanceof ImageryInfo) return "".equals(e.getQuality()) ? null : e.getQuality()
         if (e instanceof ImageryInfo) return null
-        return e.get("best") ? "best" : null
+        return e.get("properties").get("best") ? "best" : null
+    }
+    static String getIcon(Object e) {
+        if (e instanceof ImageryInfo) return e.getIcon()
+        return e.get("properties").getString("icon", null)
     }
     String getDescription(Object o) {
         def url = getUrl(o)

@@ -9,7 +9,6 @@ import java.util.Collection;
 import java.util.List;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.command.ChangePropertyCommand;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
@@ -32,15 +31,15 @@ public class PowerLines extends Test {
     protected static final int POWER_LINES = 2501;
 
     /** Values for {@code power} key interpreted as power lines */
-    protected static final Collection<String> POWER_LINE_TAGS = Arrays.asList("line", "minor_line");
+    static final Collection<String> POWER_LINE_TAGS = Arrays.asList("line", "minor_line");
     /** Values for {@code power} key interpreted as power towers */
-    protected static final Collection<String> POWER_TOWER_TAGS = Arrays.asList("tower", "pole");
+    static final Collection<String> POWER_TOWER_TAGS = Arrays.asList("tower", "pole");
     /** Values for {@code power} key interpreted as power stations */
-    protected static final Collection<String> POWER_STATION_TAGS = Arrays.asList("station", "sub_station", "substation", "plant", "generator");
+    static final Collection<String> POWER_STATION_TAGS = Arrays.asList("station", "sub_station", "substation", "plant", "generator");
     /** Values for {@code building} key interpreted as power stations */
-    protected static final Collection<String> BUILDING_STATION_TAGS = Arrays.asList("transformer_tower");
+    static final Collection<String> BUILDING_STATION_TAGS = Arrays.asList("transformer_tower");
     /** Values for {@code power} key interpreted as allowed power items */
-    protected static final Collection<String> POWER_ALLOWED_TAGS = Arrays.asList("switch", "transformer", "busbar", "generator", "switchgear",
+    static final Collection<String> POWER_ALLOWED_TAGS = Arrays.asList("switch", "transformer", "busbar", "generator", "switchgear",
             "portal", "terminal", "insulator");
 
     private final List<TestError> potentialErrors = new ArrayList<>();
@@ -58,34 +57,14 @@ public class PowerLines extends Test {
     public void visit(Way w) {
         if (w.isUsable()) {
             if (isPowerLine(w) && !w.hasTag("location", "underground")) {
-                String fixValue = null;
-                TestError.Builder error = null;
-                Node errorNode = null;
-                boolean canFix = false;
                 for (Node n : w.getNodes()) {
-                    if (!isPowerTower(n)) {
-                        if (!isPowerAllowed(n) && IN_DOWNLOADED_AREA.test(n)) {
-                            if (!w.isFirstLastNode(n) || !isPowerStation(n)) {
-                                error = TestError.builder(this, Severity.WARNING, POWER_LINES)
-                                        .message(tr("Missing power tower/pole within power line"))
-                                        .primitives(n);
-                                errorNode = n;
-                            }
-                        }
-                    } else if (fixValue == null) {
-                        // First tower/pole tag found, remember it
-                        fixValue = n.get("power");
-                        canFix = true;
-                    } else if (!fixValue.equals(n.get("power"))) {
-                        // The power line contains both "tower" and "pole" -> cannot fix this error
-                        canFix = false;
+                    if (!isPowerTower(n) && !isPowerAllowed(n) && IN_DOWNLOADED_AREA.test(n)
+                        && (!w.isFirstLastNode(n) || !isPowerStation(n))) {
+                        potentialErrors.add(TestError.builder(this, Severity.WARNING, POWER_LINES)
+                                .message(tr("Missing power tower/pole within power line"))
+                                .primitives(n)
+                                .build());
                     }
-                }
-                if (error != null && canFix) {
-                    final ChangePropertyCommand fix = new ChangePropertyCommand(errorNode, "power", fixValue);
-                    potentialErrors.add(error.fix(() -> fix).build());
-                } else if (error != null) {
-                    potentialErrors.add(error.build());
                 }
             } else if (w.isClosed() && isPowerStation(w)) {
                 powerStations.add(w);

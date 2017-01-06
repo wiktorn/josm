@@ -51,17 +51,19 @@ import org.openstreetmap.josm.tools.Utils;
  * </ol>
  * The results are cached with respect to the current scale.
  *
- * Use {@link #setStyleSources(Collection)} to select the StyleSources that are
- * applied.
+ * Use {@link #setStyleSources(Collection)} to select the StyleSources that are applied.
  */
 public class ElemStyles implements PreferenceChangedListener {
     private final List<StyleSource> styleSources;
     private boolean drawMultipolygon;
 
-    private int cacheIdx = 1;
+    private short cacheIdx = 1;
 
-    private boolean defaultNodes, defaultLines;
-    private int defaultNodesIdx, defaultLinesIdx;
+    private boolean defaultNodes;
+    private boolean defaultLines;
+
+    private short defaultNodesIdx;
+    private short defaultLinesIdx;
 
     private final Map<String, String> preferenceCache = new HashMap<>();
 
@@ -111,7 +113,7 @@ public class ElemStyles implements PreferenceChangedListener {
      * @return pair containing style list and range
      */
     public Pair<StyleElementList, Range> getStyleCacheWithRange(OsmPrimitive osm, double scale, NavigatableComponent nc) {
-        if (osm.mappaintStyle == null || osm.mappaintCacheIdx != cacheIdx || scale <= 0) {
+        if (osm.mappaintStyle == null || osm.getMappaintCacheIdx() != cacheIdx || scale <= 0) {
             osm.mappaintStyle = StyleCache.EMPTY_STYLECACHE;
         } else {
             Pair<StyleElementList, Range> lst = osm.mappaintStyle.getWithRange(scale, osm.isSelected());
@@ -140,10 +142,8 @@ public class ElemStyles implements PreferenceChangedListener {
                 }
                 if (!hasNonModifier) {
                     p.a = new StyleElementList(p.a, NodeElement.SIMPLE_NODE_ELEMSTYLE);
-                    if (!hasText) {
-                        if (TextLabel.AUTO_LABEL_COMPOSITION_STRATEGY.compose(osm) != null) {
-                            p.a = new StyleElementList(p.a, BoxTextElement.SIMPLE_NODE_TEXT_ELEMSTYLE);
-                        }
+                    if (!hasText && TextLabel.AUTO_LABEL_COMPOSITION_STRATEGY.compose(osm) != null) {
+                        p.a = new StyleElementList(p.a, BoxTextElement.SIMPLE_NODE_TEXT_ELEMSTYLE);
                     }
                 }
             }
@@ -169,7 +169,7 @@ public class ElemStyles implements PreferenceChangedListener {
                     + " (object: " + osm.getPrimitiveId() + ", current style: "+osm.mappaintStyle
                     + ", scale: " + scale + ", new stylelist: " + p.a + ", new range: " + p.b + ')', e);
         }
-        osm.mappaintCacheIdx = cacheIdx;
+        osm.setMappaintCacheIdx(cacheIdx);
         return p;
     }
 
@@ -315,18 +315,17 @@ public class ElemStyles implements PreferenceChangedListener {
             return p;
         } else if (osm instanceof Relation) {
             Pair<StyleElementList, Range> p = generateStyles(osm, scale, true);
-            if (drawMultipolygon && ((Relation) osm).isMultipolygon()) {
-                if (!Utils.exists(p.a, AreaElement.class) && Main.pref.getBoolean("multipolygon.deprecated.outerstyle", true)) {
-                    // look at outer ways to find area style
-                    Multipolygon multipolygon = MultipolygonCache.getInstance().get(nc, (Relation) osm);
-                    for (Way w : multipolygon.getOuterWays()) {
-                        Pair<StyleElementList, Range> wayStyles = generateStyles(w, scale, false);
-                        p.b = Range.cut(p.b, wayStyles.b);
-                        StyleElement area = Utils.find(wayStyles.a, AreaElement.class);
-                        if (area != null) {
-                            p.a = new StyleElementList(p.a, area);
-                            break;
-                        }
+            if (drawMultipolygon && ((Relation) osm).isMultipolygon()
+                    && !Utils.exists(p.a, AreaElement.class) && Main.pref.getBoolean("multipolygon.deprecated.outerstyle", true)) {
+                // look at outer ways to find area style
+                Multipolygon multipolygon = MultipolygonCache.getInstance().get(nc, (Relation) osm);
+                for (Way w : multipolygon.getOuterWays()) {
+                    Pair<StyleElementList, Range> wayStyles = generateStyles(w, scale, false);
+                    p.b = Range.cut(p.b, wayStyles.b);
+                    StyleElement area = Utils.find(wayStyles.a, AreaElement.class);
+                    if (area != null) {
+                        p.a = new StyleElementList(p.a, area);
+                        break;
                     }
                 }
             }

@@ -41,7 +41,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinWorkerThread;
@@ -526,26 +525,6 @@ public final class Utils {
     }
 
     /**
-     * Determines if two collections are equal.
-     * @param a first collection
-     * @param b second collection
-     * @return {@code true} if collections are equal, {@code false} otherwise
-     * @since 9217
-     */
-    public static boolean equalCollection(Collection<?> a, Collection<?> b) {
-        if (a == null) return b == null;
-        if (b == null) return false;
-        if (a.size() != b.size()) return false;
-        Iterator<?> itA = a.iterator();
-        Iterator<?> itB = b.iterator();
-        while (itA.hasNext()) {
-            if (!Objects.equals(itA.next(), itB.next()))
-                return false;
-        }
-        return true;
-    }
-
-    /**
      * Calculate MD5 hash of a string and output in hexadecimal format.
      * @param data arbitrary String
      * @return MD5 hash of data, string of length 32 with characters in range [0-9a-f]
@@ -555,7 +534,7 @@ public final class Utils {
         try {
             md = MessageDigest.getInstance("MD5");
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+            throw new JosmRuntimeException(e);
         }
         byte[] byteData = data.getBytes(StandardCharsets.UTF_8);
         byte[] byteDigest = md.digest(byteData);
@@ -620,14 +599,14 @@ public final class Utils {
                     break;
                 }
             }
-            if (parentless == null) throw new RuntimeException();
+            if (parentless == null) throw new JosmRuntimeException("parentless");
             sorted.add(parentless);
             deps.remove(parentless);
             for (T key : deps.keySet()) {
                 deps.remove(key, parentless);
             }
         }
-        if (sorted.size() != size) throw new RuntimeException();
+        if (sorted.size() != size) throw new JosmRuntimeException("Wrong size");
         return sorted;
     }
 

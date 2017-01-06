@@ -14,6 +14,7 @@ import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.locks.Lock;
@@ -45,6 +46,7 @@ import org.openstreetmap.josm.data.projection.Projection;
 import org.openstreetmap.josm.data.projection.ProjectionChangeListener;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
 import org.openstreetmap.josm.gui.tagging.ac.AutoCompletionManager;
+import org.openstreetmap.josm.tools.JosmRuntimeException;
 import org.openstreetmap.josm.tools.SubclassFilteredCollection;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -497,6 +499,7 @@ public final class DataSet implements Data, ProjectionChangeListener {
      * @param primitive the primitive.
      */
     public void addPrimitive(OsmPrimitive primitive) {
+        Objects.requireNonNull(primitive, "primitive");
         beginUpdate();
         try {
             if (getPrimitiveById(primitive) != null)
@@ -515,7 +518,7 @@ public final class DataSet implements Data, ProjectionChangeListener {
                 success = relations.add((Relation) primitive);
             }
             if (!success)
-                throw new RuntimeException("failed to add primitive: "+primitive);
+                throw new JosmRuntimeException("failed to add primitive: "+primitive);
             firePrimitivesAdded(Collections.singletonList(primitive), false);
         } finally {
             endUpdate();
@@ -546,7 +549,7 @@ public final class DataSet implements Data, ProjectionChangeListener {
                 success = relations.remove(primitive);
             }
             if (!success)
-                throw new RuntimeException("failed to remove primitive: "+primitive);
+                throw new JosmRuntimeException("failed to remove primitive: "+primitive);
             synchronized (selectionLock) {
                 selectedPrimitives.remove(primitive);
                 selectionSnapshot = null;
@@ -1062,10 +1065,10 @@ public final class DataSet implements Data, ProjectionChangeListener {
 
     private void reindexNode(Node node, LatLon newCoor, EastNorth eastNorth) {
         if (!nodes.remove(node))
-            throw new RuntimeException("Reindexing node failed to remove");
+            throw new JosmRuntimeException("Reindexing node failed to remove");
         node.setCoorInternal(newCoor, eastNorth);
         if (!nodes.add(node))
-            throw new RuntimeException("Reindexing node failed to add");
+            throw new JosmRuntimeException("Reindexing node failed to add");
         for (OsmPrimitive primitive: node.getReferrers()) {
             if (primitive instanceof Way) {
                 reindexWay((Way) primitive);
@@ -1078,10 +1081,10 @@ public final class DataSet implements Data, ProjectionChangeListener {
     private void reindexWay(Way way) {
         BBox before = way.getBBox();
         if (!ways.remove(way))
-            throw new RuntimeException("Reindexing way failed to remove");
+            throw new JosmRuntimeException("Reindexing way failed to remove");
         way.updatePosition();
         if (!ways.add(way))
-            throw new RuntimeException("Reindexing way failed to add");
+            throw new JosmRuntimeException("Reindexing way failed to add");
         if (!way.getBBox().equals(before)) {
             for (OsmPrimitive primitive: way.getReferrers()) {
                 reindexRelation((Relation) primitive);

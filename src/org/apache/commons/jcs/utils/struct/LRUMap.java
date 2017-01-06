@@ -19,8 +19,6 @@ package org.apache.commons.jcs.utils.struct;
  * under the License.
  */
 
-import java.util.concurrent.atomic.AtomicInteger;
-
 /**
  *
  * @author Wiktor Niesiobędzki
@@ -32,10 +30,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class LRUMap<K, V> extends AbstractLRUMap<K, V>
 {
-
     /** if the max is less than 0, there is no limit! */
-    int maxObjects = -1;
-    AtomicInteger counter = new AtomicInteger(0);
+    private int maxObjects = -1;
 
     public LRUMap()
     {
@@ -49,7 +45,7 @@ public class LRUMap<K, V> extends AbstractLRUMap<K, V>
      */
     public LRUMap(int maxObjects)
     {
-        super();
+        this();
         this.maxObjects = maxObjects;
     }
 
@@ -57,10 +53,5 @@ public class LRUMap<K, V> extends AbstractLRUMap<K, V>
     public boolean shouldRemove()
     {
         return maxObjects > 0 && this.size() > maxObjects;
-    }
-
-    public Object getMaxCounter()
-    {
-        return maxObjects;
     }
 }

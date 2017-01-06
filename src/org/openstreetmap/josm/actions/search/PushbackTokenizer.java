@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Objects;
 
 import org.openstreetmap.josm.actions.search.SearchCompiler.ParseError;
+import org.openstreetmap.josm.tools.JosmRuntimeException;
 
 public class PushbackTokenizer {
 
@@ -52,10 +53,18 @@ public class PushbackTokenizer {
     }
 
     public enum Token {
-        NOT(marktr("<not>")), OR(marktr("<or>")), XOR(marktr("<xor>")), LEFT_PARENT(marktr("<left parent>")),
-        RIGHT_PARENT(marktr("<right parent>")), COLON(marktr("<colon>")), EQUALS(marktr("<equals>")),
-        KEY(marktr("<key>")), QUESTION_MARK(marktr("<question mark>")),
-        EOF(marktr("<end-of-file>")), LESS_THAN("<less-than>"), GREATER_THAN("<greater-than>");
+        NOT(marktr("<not>")),
+        OR(marktr("<or>")),
+        XOR(marktr("<xor>")),
+        LEFT_PARENT(marktr("<left parent>")),
+        RIGHT_PARENT(marktr("<right parent>")),
+        COLON(marktr("<colon>")),
+        EQUALS(marktr("<equals>")),
+        KEY(marktr("<key>")),
+        QUESTION_MARK(marktr("<question mark>")),
+        EOF(marktr("<end-of-file>")),
+        LESS_THAN("<less-than>"),
+        GREATER_THAN("<greater-than>");
 
         Token(String name) {
             this.name = name;
@@ -73,7 +82,7 @@ public class PushbackTokenizer {
         try {
             c = search.read();
         } catch (IOException e) {
-            throw new RuntimeException(e.getMessage(), e);
+            throw new JosmRuntimeException(e.getMessage(), e);
         }
     }
 

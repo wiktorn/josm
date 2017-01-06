@@ -220,6 +220,7 @@ public final class DomainValidator extends AbstractValidator {
      * @return true if the parameter is an infrastructure TLD
      */
     public boolean isValidInfrastructureTld(String iTld) {
+        if (iTld == null) return false;
         final String key = chompLeadingDot(unicodeToASCII(iTld).toLowerCase(Locale.ENGLISH));
         return arrayContains(INFRASTRUCTURE_TLDS, key);
     }
@@ -232,6 +233,7 @@ public final class DomainValidator extends AbstractValidator {
      * @return true if the parameter is a generic TLD
      */
     public boolean isValidGenericTld(String gTld) {
+        if (gTld == null) return false;
         final String key = chompLeadingDot(unicodeToASCII(gTld).toLowerCase(Locale.ENGLISH));
         return (arrayContains(GENERIC_TLDS, key) || arrayContains(genericTLDsPlus, key))
                 && !arrayContains(genericTLDsMinus, key);
@@ -245,6 +247,7 @@ public final class DomainValidator extends AbstractValidator {
      * @return true if the parameter is a country code TLD
      */
     public boolean isValidCountryCodeTld(String ccTld) {
+        if (ccTld == null) return false;
         final String key = chompLeadingDot(unicodeToASCII(ccTld).toLowerCase(Locale.ENGLISH));
         return (arrayContains(COUNTRY_CODE_TLDS, key) || arrayContains(countryCodeTLDsPlus, key))
                 && !arrayContains(countryCodeTLDsMinus, key);
@@ -258,6 +261,7 @@ public final class DomainValidator extends AbstractValidator {
      * @return true if the parameter is an local TLD
      */
     public boolean isValidLocalTld(String lTld) {
+        if (lTld == null) return false;
         final String key = chompLeadingDot(unicodeToASCII(lTld).toLowerCase(Locale.ENGLISH));
         return arrayContains(LOCAL_TLDS, key);
     }
@@ -291,7 +295,7 @@ public final class DomainValidator extends AbstractValidator {
 
     // WARNING: this array MUST be sorted, otherwise it cannot be searched reliably using binary search
     private static final String[] GENERIC_TLDS = new String[] {
-        // Taken from Version 2016120300, Last Updated Sat Dec  3 07:07:02 2016 UTC
+        // Taken from Version 2016122201, Last Updated Fri Dec 23 07:07:01 2016 UTC
         "aaa", // aaa American Automobile Association, Inc.
         "aarp", // aarp AARP
         "abarth", // abarth Fiat Chrysler Automobiles N.V.
@@ -556,6 +560,7 @@ public final class DomainValidator extends AbstractValidator {
         "dabur", // dabur Dabur India Limited
         "dad", // dad Charleston Road Registry Inc.
         "dance", // dance United TLD Holdco Ltd.
+        "data", // data Dish DBS Corporation
         "date", // date dot Date Limited
         "dating", // dating Pine Fest, LLC
         "datsun", // datsun NISSAN MOTOR CO., LTD.
@@ -688,6 +693,7 @@ public final class DomainValidator extends AbstractValidator {
         "ftr", // ftr Frontier Communications Corporation
         "fujitsu", // fujitsu Fujitsu Limited
         "fujixerox", // fujixerox Xerox DNHC LLC
+        "fun", // fun DotSpace, Inc.
         "fund", // fund John Castle, LLC
         "furniture", // furniture Lone Fields, LLC
         "futbol", // futbol United TLD Holdco, Ltd.
@@ -773,6 +779,7 @@ public final class DomainValidator extends AbstractValidator {
         "honda", // honda Honda Motor Co., Ltd.
         "honeywell", // honeywell Honeywell GTLD LLC
         "horse", // horse Top Level Domain Holdings Limited
+        "hospital", // hospital Ruby Pike, LLC
         "host", // host DotHost Inc.
         "hosting", // hosting Uniregistry, Corp.
         "hot", // hot Amazon Registry Services, Inc.
@@ -791,7 +798,6 @@ public final class DomainValidator extends AbstractValidator {
         "icu", // icu One.com A/S
         "ieee", // ieee IEEE Global LLC
         "ifm", // ifm ifm electronic gmbh
-        "iinet", // iinet Connect West Pty. Ltd.
         "ikano", // ikano Ikano S.A.
         "imamat", // imamat Fondation Aga Khan (Aga Khan Foundation)
         "imdb", // imdb Amazon Registry Service, Inc.
@@ -960,6 +966,7 @@ public final class DomainValidator extends AbstractValidator {
         "mls", // mls The Canadian Real Estate Association
         "mma", // mma MMA IARD
         "mobi", // mobi Afilias Technologies Limited dba dotMobi
+        "mobile", // mobile Dish DBS Corporation
         "mobily", // mobily GreenTech Consultancy Company W.L.L.
         "moda", // moda United TLD Holdco Ltd.
         "moe", // moe Interlink Co., Ltd.
@@ -984,7 +991,6 @@ public final class DomainValidator extends AbstractValidator {
         "mtr", // mtr MTR Corporation Limited
         "museum", // museum Museum Domain Management Association
         "mutual", // mutual Northwestern Mutual MU TLD Registry, LLC
-        "mutuelle", // mutuelle Fédération Nationale de la Mutualité Française
         "nab", // nab National Australia Bank Limited
         "nadex", // nadex Nadex Domains, Inc
         "nagoya", // nagoya GMO Registry, Inc.
@@ -1067,6 +1073,7 @@ public final class DomainValidator extends AbstractValidator {
         "pfizer", // pfizer Pfizer Inc.
         "pharmacy", // pharmacy National Association of Boards of Pharmacy
         "philips", // philips Koninklijke Philips N.V.
+        "phone", // phone Dish DBS Corporation
         "photo", // photo Uniregistry, Corp.
         "photography", // photography Sugar Glen, LLC
         "photos", // photos Sea Corner, LLC

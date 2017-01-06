@@ -191,9 +191,6 @@ public class GeoImageLayer extends AbstractModifiableLayer implements PropertyCh
             progressMonitor.subTask(tr("Read photos..."));
             progressMonitor.setTicksCount(files.size());
 
-            progressMonitor.subTask(tr("Read photos..."));
-            progressMonitor.setTicksCount(files.size());
-
             // read the image files
             List<ImageEntry> entries = new ArrayList<>(files.size());
 
@@ -400,6 +397,8 @@ public class GeoImageLayer extends AbstractModifiableLayer implements PropertyCh
 
     @Override
     public void mergeFrom(Layer from) {
+        if (!(from instanceof GeoImageLayer))
+            throw new IllegalArgumentException("not a GeoImageLayer: " + from);
         GeoImageLayer l = (GeoImageLayer) from;
 
         // Stop to load thumbnails on both layers.  Thumbnail loading will continue the next time
@@ -501,9 +500,11 @@ public class GeoImageLayer extends AbstractModifiableLayer implements PropertyCh
                         Point p = mv.getPoint(e.getPos());
                         if (e.hasThumbnail()) {
                             Dimension d = scaledDimension(e.getThumbnail());
-                            Rectangle target = new Rectangle(p.x - d.width / 2, p.y - d.height / 2, d.width, d.height);
-                            if (clip.intersects(target)) {
-                                tempG.drawImage(e.getThumbnail(), target.x, target.y, target.width, target.height, null);
+                            if (d != null) {
+                                Rectangle target = new Rectangle(p.x - d.width / 2, p.y - d.height / 2, d.width, d.height);
+                                if (clip.intersects(target)) {
+                                    tempG.drawImage(e.getThumbnail(), target.x, target.y, target.width, target.height, null);
+                                }
                             }
                         } else { // thumbnail not loaded yet
                             icon.paintIcon(mv, tempG,
@@ -537,8 +538,13 @@ public class GeoImageLayer extends AbstractModifiableLayer implements PropertyCh
                 int imgHeight;
                 if (useThumbs && e.hasThumbnail()) {
                     Dimension d = scaledDimension(e.getThumbnail());
-                    imgWidth = d.width;
-                    imgHeight = d.height;
+                    if (d != null) {
+                        imgWidth = d.width;
+                        imgHeight = d.height;
+                    } else {
+                        imgWidth = -1;
+                        imgHeight = -1;
+                    }
                 } else {
                     imgWidth = selectedIcon.getIconWidth();
                     imgHeight = selectedIcon.getIconHeight();
@@ -753,14 +759,17 @@ public class GeoImageLayer extends AbstractModifiableLayer implements PropertyCh
                 Rectangle r;
                 if (useThumbs && img.hasThumbnail()) {
                     Dimension d = scaledDimension(img.getThumbnail());
-                    r = new Rectangle(p.x - d.width / 2, p.y - d.height / 2, d.width, d.height);
+                    if (d != null)
+                        r = new Rectangle(p.x - d.width / 2, p.y - d.height / 2, d.width, d.height);
+                    else
+                        r = null;
                 } else {
                     r = new Rectangle(p.x - icon.getIconWidth() / 2,
                                       p.y - icon.getIconHeight() / 2,
                                       icon.getIconWidth(),
                                       icon.getIconHeight());
                 }
-                if (r.contains(evt.getPoint())) {
+                if (r != null && r.contains(evt.getPoint())) {
                     return img;
                 }
             }
@@ -858,14 +867,17 @@ public class GeoImageLayer extends AbstractModifiableLayer implements PropertyCh
                     Rectangle r;
                     if (useThumbs && e.hasThumbnail()) {
                         Dimension d = scaledDimension(e.getThumbnail());
-                        r = new Rectangle(p.x - d.width / 2, p.y - d.height / 2, d.width, d.height);
+                        if (d != null)
+                            r = new Rectangle(p.x - d.width / 2, p.y - d.height / 2, d.width, d.height);
+                        else
+                            r = null;
                     } else {
                         r = new Rectangle(p.x - icon.getIconWidth() / 2,
                                 p.y - icon.getIconHeight() / 2,
                                 icon.getIconWidth(),
                                 icon.getIconHeight());
                     }
-                    if (r.contains(ev.getPoint())) {
+                    if (r != null && r.contains(ev.getPoint())) {
                         clearOtherCurrentPhotos();
                         currentPhoto = i;
                         ImageViewerDialog.showImage(GeoImageLayer.this, e);

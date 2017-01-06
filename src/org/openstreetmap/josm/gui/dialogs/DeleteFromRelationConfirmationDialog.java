@@ -11,6 +11,7 @@ import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -184,11 +185,10 @@ public class DeleteFromRelationConfirmationDialog extends JDialog implements Tab
      *
      */
     public static class RelationMemberTableModel extends DefaultTableModel {
-        private static class RelationToChildReferenceComparator implements Comparator<RelationToChildReference> {
-            private NameFormatter nf = DefaultNameFormatter.getInstance();
-
+        private static class RelationToChildReferenceComparator implements Comparator<RelationToChildReference>, Serializable {
             @Override
             public int compare(RelationToChildReference o1, RelationToChildReference o2) {
+                NameFormatter nf = DefaultNameFormatter.getInstance();
                 int cmp = o1.getChild().getDisplayName(nf).compareTo(o2.getChild().getDisplayName(nf));
                 if (cmp != 0) return cmp;
                 cmp = o1.getParent().getDisplayName(nf).compareTo(o2.getParent().getDisplayName(nf));
