@@ -69,7 +69,6 @@ public class TMSCachedTileLoader implements TileLoader, CachedTileLoader {
         this.readTimeout = readTimeout;
         this.headers = headers;
         this.listener = listener;
-        this.name = name;
     }
 
     /**
