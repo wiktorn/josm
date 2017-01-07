@@ -3,7 +3,6 @@ package org.openstreetmap.josm.data.imagery;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.concurrent.ThreadPoolExecutor;
 
 import org.apache.commons.jcs.access.behavior.ICacheAccess;
 import org.openstreetmap.gui.jmapviewer.Tile;
@@ -21,11 +20,10 @@ import org.openstreetmap.josm.data.preferences.IntegerProperty;
  */
 public class WMSCachedTileLoader extends TMSCachedTileLoader {
 
-    public static final IntegerProperty THREAD_LIMIT = new IntegerProperty("imagery.wms.loader.maxjobs", 10);
-
-    private static ThreadPoolExecutor DEFAULT_DOWNLOAD_JOB_DISPATCHER = getNewThreadPoolExecutor("WMS-downloader-%d", THREAD_LIMIT.get());
-
-
+    /**
+     * overrides the THREAD_LIMIT in superclass, as we want to have separate limit and pool for WMS
+     */
+    public static final IntegerProperty THREAD_LIMIT = new IntegerProperty("imagery.wms.loader.maxjobs", 3);
     /**
      * Creates a TileLoader with separate WMS downloader.
      *
@@ -40,7 +38,7 @@ public class WMSCachedTileLoader extends TMSCachedTileLoader {
             int connectTimeout, int readTimeout, Map<String, String> headers) throws IOException {
 
         super(listener, cache, connectTimeout, readTimeout, headers);
-        setDownloadExecutor(DEFAULT_DOWNLOAD_JOB_DISPATCHER);
+        setDownloadExecutor(TMSCachedTileLoader.getNewThreadPoolExecutor("WMS-downloader-%d", THREAD_LIMIT.get()));
     }
 
     @Override
