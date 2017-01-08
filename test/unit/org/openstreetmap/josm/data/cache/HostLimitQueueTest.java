@@ -13,12 +13,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.jcs.access.behavior.ICacheAccess;
 import org.junit.Rule;
 import org.junit.Test;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
 import org.openstreetmap.josm.tools.Utils;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
+/**
+ * Simple tests for ThreadPoolExecutor / HostLimitQueue veryfing, that this pair works OK
+ * @author Wiktor Niesiobedzki
+ *
+ */
 public class HostLimitQueueTest {
     /**
      * Setup test.
@@ -42,12 +46,15 @@ public class HostLimitQueueTest {
         return executor;
     }
 
-    static class Task extends JCSCachedTileLoaderJob {
+    /**
+     * Mock class for tests
+     */
+    static class Task extends JCSCachedTileLoaderJob<String, CacheEntry> {
         private URL url;
         private AtomicInteger counter;
         private int id;
 
-        public Task(ICacheAccess cache, URL url, AtomicInteger counter, int id) {
+        public Task(ICacheAccess<String, CacheEntry> cache, URL url, AtomicInteger counter, int id) {
             super(cache, 1, 1, null);
             this.url = url;
             this.counter = counter;
@@ -62,12 +69,11 @@ public class HostLimitQueueTest {
             } finally {
                 this.counter.incrementAndGet();
                 executionFinished();
-                Main.warn("Finished task" + this.id);
             }
         }
 
         @Override
-        public Object getCacheKey() {
+        public String getCacheKey() {
             return "";
         }
 
@@ -80,41 +86,82 @@ public class HostLimitQueueTest {
         protected CacheEntry createCacheEntry(byte[] content) {
             return null;
         }
-
-
-
     }
 
+    /**
+     * Check if single threaded execution works properly
+     * @throws InterruptedException
+     * @throws IOException
+     */
     @Test
-    public void test_1() throws InterruptedException, IOException {
+    public void test_single_thread_per_host() throws InterruptedException, IOException {
         ThreadPoolExecutor tpe = getNewThreadPoolExecutor("test-%d", 3, 1);
-        ICacheAccess cache = JCSCacheManager.getCache("test", 3, 0, "");
+        ICacheAccess<String, CacheEntry> cache = JCSCacheManager.getCache("test", 3, 0, "");
         AtomicInteger counter = new AtomicInteger(0);
         long start = System.currentTimeMillis();
         for (int i = 0; i < 10; i++) {
             tpe.execute(new Task(cache, new URL("http://localhost/"+i), counter, i));
         }
         tpe.shutdown();
-        tpe.awaitTermination(6000, TimeUnit.SECONDS);
+        tpe.awaitTermination(15, TimeUnit.SECONDS); // at most it should take ~10 seconds, so after 15 it's already failed
         long duration = System.currentTimeMillis() - start;
+        // check that all tasks were executed
         assertEquals(10, counter.get());
+        // although there are 3 threads, we can make only 1 parallel call to localhost
+        // so it should take ~10 seconds to finish
+        // if it's shorter, it means that host limit does not work
         assertTrue("Expected duration between 9 and 11 seconds not met. Actual duration: " + (duration /1000), duration < 11*1000 & duration > 9*1000 );
     }
 
-//    @Test
-    public void test_2() throws InterruptedException, IOException {
+    /**
+     * Check if two threaded execution work properly
+     * @throws InterruptedException
+     * @throws IOException
+     */
+    @Test
+    public void test_multiple_thread_per_host() throws InterruptedException, IOException {
         ThreadPoolExecutor tpe = getNewThreadPoolExecutor("test-%d", 3, 2);
-        ICacheAccess cache = JCSCacheManager.getCache("test", 3, 0, "");
+        ICacheAccess<String, CacheEntry> cache = JCSCacheManager.getCache("test", 3, 0, "");
         AtomicInteger counter = new AtomicInteger(0);
         long start = System.currentTimeMillis();
         for (int i = 0; i < 10; i++) {
             tpe.execute(new Task(cache, new URL("http://hostlocal/"+i), counter, i));
         }
         tpe.shutdown();
-        tpe.awaitTermination(6000, TimeUnit.SECONDS);
+        tpe.awaitTermination(15, TimeUnit.SECONDS);
         long duration = System.currentTimeMillis() - start;
+        // check that all tasks were executed
         assertEquals(10, counter.get());
-        assertTrue("Expected duration between 9 and 11 seconds not met. Actual duration: " + (duration /1000), duration < 6*1000 & duration > 4*1000 );
+        // although there are 3 threads, we can make only 2 parallel call to localhost
+        // so it should take ~5 seconds to finish
+        // if it's shorter, it means that host limit does not work
+        assertTrue("Expected duration between 4 and 6 seconds not met. Actual duration: " + (duration /1000), duration < 6*1000 & duration > 4*1000 );
+    }
+
+    /**
+     * Check two hosts
+     * @throws InterruptedException
+     * @throws IOException
+     */
+    @Test
+    public void test_two_hosts() throws InterruptedException, IOException {
+        ThreadPoolExecutor tpe = getNewThreadPoolExecutor("test-%d", 3, 1);
+        ICacheAccess<String, CacheEntry> cache = JCSCacheManager.getCache("test", 3, 0, "");
+        AtomicInteger counter = new AtomicInteger(0);
+        long start = System.currentTimeMillis();
+        for (int i = 0; i < 10; i++) {
+            String url = (i % 2 == 0) ? "http://localhost" : "http://hostlocal";
+            tpe.execute(new Task(cache, new URL(url+i), counter, i));
+        }
+        tpe.shutdown();
+        tpe.awaitTermination(15, TimeUnit.SECONDS);
+        long duration = System.currentTimeMillis() - start;
+        // check that all tasks were executed
+        assertEquals(10, counter.get());
+        // although there are 3 threads, we can make only 1 parallel per host, and we have 2 hosts
+        // so it should take ~5 seconds to finish
+        // if it's shorter, it means that host limit does not work
+        assertTrue("Expected duration between 4 and 6 seconds not met. Actual duration: " + (duration /1000), duration < 6*1000 & duration > 4*1000 );
     }
 
 }

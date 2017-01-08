@@ -55,24 +55,10 @@ public class HostLimitQueue extends LinkedBlockingDeque<Runnable> {
                 JCSCachedTileLoaderJob<?, ?> job = (JCSCachedTileLoaderJob<?, ?>) r;
                 if (tryAcquireSemaphore(job)) {
                     if (remove(job)) {
-                        try {
-                            if (job instanceof JCSCachedTileLoaderJob) {
-                                Main.warn("[" + size() + "] " + "remove(job): " + ((JCSCachedTileLoaderJob)job).getUrl().toString());
-                            }
-                        } catch (IOException e) {
-                        }
-
                         return job;
                     } else {
                         // we have acquired the semaphore, but we didn't manage to remove job, as someone else did
                         // release the semaphore and look for another candidate
-                        try {
-                            if (job instanceof JCSCachedTileLoaderJob) {
-                                Main.warn("[" + size() + "] " + "remove(job) failed: " + ((JCSCachedTileLoaderJob)job).getUrl().toString());
-                            }
-                        } catch (IOException e) {
-                        }
-
                         releaseSemaphore(job);
                     }
                 } else {
@@ -93,43 +79,18 @@ public class HostLimitQueue extends LinkedBlockingDeque<Runnable> {
     public Runnable poll(long timeout, TimeUnit unit) throws InterruptedException {
         Runnable job = findJob();
         if (job != null) {
-            try {
-                if (job instanceof JCSCachedTileLoaderJob) {
-                    Main.warn("[" + size() + "] " + "poll - findJob: " + ((JCSCachedTileLoaderJob)job).getUrl().toString());
-                }
-            } catch (IOException e) {
-            }
-
             return job;
         }
         job = pollFirst(timeout, unit);
         if (job != null) {
             try {
                 boolean gotLock = tryAcquireSemaphore(job, timeout, unit);
-                if (gotLock) {
-                    try {
-                        if (job instanceof JCSCachedTileLoaderJob) {
-                            Main.warn("[" + size() + "] " + "poll - first: " + ((JCSCachedTileLoaderJob)job).getUrl().toString());
-                        }
-                    } catch (IOException e) {
-                    }
-                    return job;
-                } else {
-                    try {
-                        if (job instanceof JCSCachedTileLoaderJob) {
-                            Main.warn("[" + size() + "] " + "poll - failed to get lock: " + ((JCSCachedTileLoaderJob)job).getUrl().toString());
-                        }
-                    } catch (IOException e) {
-                    }
-                    return null;
-
-                }
+                return gotLock ? job : null;
             } catch (InterruptedException e) {
+                // acquire my got interrupted, first offer back what was taken
                 offer(job);
                 throw e;
             }
-        } else {
-            Main.warn("[" + size() + "] " + "pool - nothing");
         }
         return job;
     }
@@ -138,29 +99,16 @@ public class HostLimitQueue extends LinkedBlockingDeque<Runnable> {
     public Runnable take() throws InterruptedException {
         Runnable job = findJob();
         if (job != null) {
-            try {
-                if (job instanceof JCSCachedTileLoaderJob) {
-                    Main.warn("[" + size() + "] " + "take - findJob: " + ((JCSCachedTileLoaderJob)job).getUrl().toString());
-                }
-            } catch (IOException e) {
-            }
-
             return job;
         }
         job = takeFirst();
         try {
             acquireSemaphore(job);
         } catch (InterruptedException e) {
+            // acquire my got interrupted, first offer back what was taken
             offer(job);
             throw e;
         }
-        try {
-            if (job instanceof JCSCachedTileLoaderJob) {
-                Main.warn("[" + size() + "] " + "take first: " + ((JCSCachedTileLoaderJob)job).getUrl().toString());
-            }
-        } catch (IOException e) {
-        }
-
         return job;
     }
 
@@ -225,10 +173,6 @@ public class HostLimitQueue extends LinkedBlockingDeque<Runnable> {
             final JCSCachedTileLoaderJob<?, ?> jcsJob = (JCSCachedTileLoaderJob<?, ?>) job;
             getSemaphore(jcsJob).acquire();
             jcsJob.setFinishedTask(() -> releaseSemaphore(jcsJob));
-            try {
-                Main.warn("Acquired lock for " + jcsJob.getUrl());
-            } catch (IOException e) {
-            }
         }
     }
 
@@ -238,10 +182,6 @@ public class HostLimitQueue extends LinkedBlockingDeque<Runnable> {
         if (limit != null) {
             ret = limit.tryAcquire();
             if (ret) {
-                try {
-                    Main.warn("Acquired lock for " + job.getUrl());
-                } catch (IOException e) {
-                }
                 job.setFinishedTask(() -> releaseSemaphore(job));
             }
         }
@@ -256,10 +196,6 @@ public class HostLimitQueue extends LinkedBlockingDeque<Runnable> {
             if (limit != null) {
                 ret = limit.tryAcquire(timeout, unit);
                 if (ret) {
-                    try {
-                        Main.warn("Acquired lock for " + jcsJob.getUrl());
-                    } catch (IOException e) {
-                    }
                     jcsJob.setFinishedTask(() -> releaseSemaphore(jcsJob));
                 }
             }
@@ -274,11 +210,6 @@ public class HostLimitQueue extends LinkedBlockingDeque<Runnable> {
             if (limit.availablePermits() > hostLimit) {
                 Main.warn("More permits than it should be");
             }
-            try {
-                Main.warn("Released lock for " + job.getUrl());
-            } catch (IOException e) {
-            }
-
         }
     }
 }
