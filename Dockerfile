@@ -7,4 +7,4 @@ RUN apk update && \
 COPY . /josm
 
 CMD cd /josm && \
-    ant test
+    ant test-test
