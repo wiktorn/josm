@@ -1,9 +1,7 @@
-FROM openjdk:8-jdk-alpine
+FROM openjdk:8-jdk
 
-RUN apk update && \
-    apk add apache-ant && \
-    apk add ttf-dejavu && \
-    rm /var/cache/apk/*
+RUN apt-get update -y && \
+	apt-get install -y apache-ant 
 
 COPY . /josm
 
