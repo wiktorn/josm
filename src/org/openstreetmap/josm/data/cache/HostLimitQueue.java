@@ -83,7 +83,14 @@ public class HostLimitQueue extends LinkedBlockingDeque<Runnable> {
         }
         job = pollFirst(timeout, unit);
         if (job != null) {
-            acquireSemaphore(job);
+            try {
+                boolean gotLock = tryAcquireSemaphore(job, timeout, unit);
+                return gotLock ? job : null;
+            } catch (InterruptedException e) {
+                // acquire my got interrupted, first offer back what was taken
+                offer(job);
+                throw e;
+            }
         }
         return job;
     }
@@ -95,7 +102,13 @@ public class HostLimitQueue extends LinkedBlockingDeque<Runnable> {
             return job;
         }
         job = takeFirst();
-        acquireSemaphore(job);
+        try {
+            acquireSemaphore(job);
+        } catch (InterruptedException e) {
+            // acquire my got interrupted, first offer back what was taken
+            offer(job);
+            throw e;
+        }
         return job;
     }
 
@@ -103,9 +116,8 @@ public class HostLimitQueue extends LinkedBlockingDeque<Runnable> {
      * Set the executor for which this queue works. It's needed to spawn new threads.
      * See: http://stackoverflow.com/questions/9622599/java-threadpoolexecutor-strategy-direct-handoff-with-queue#
      *
-     * @param executor
+     * @param executor executor for which this queue works
      */
-
     public void setExecutor(ThreadPoolExecutor executor) {
         this.executor = executor;
         this.maximumPoolSize = executor.getMaximumPoolSize();
@@ -113,10 +125,8 @@ public class HostLimitQueue extends LinkedBlockingDeque<Runnable> {
     }
 
     @Override
-    public boolean offer(Runnable e)
-    {
-        if (super.offer(e) == false)
-        {
+    public boolean offer(Runnable e) {
+        if (!super.offer(e)) {
             return false;
         }
 
@@ -125,8 +135,7 @@ public class HostLimitQueue extends LinkedBlockingDeque<Runnable> {
             // force spawn of a thread if not reached maximum
             int currentPoolSize = executor.getPoolSize();
             if (currentPoolSize < maximumPoolSize
-                    && currentPoolSize >= corePoolSize)
-            {
+                    && currentPoolSize >= corePoolSize) {
                 executor.setCorePoolSize(currentPoolSize + 1);
                 executor.setCorePoolSize(corePoolSize);
             }
@@ -170,6 +179,21 @@ public class HostLimitQueue extends LinkedBlockingDeque<Runnable> {
             ret = limit.tryAcquire();
             if (ret) {
                 job.setFinishedTask(() -> releaseSemaphore(job));
+            }
+        }
+        return ret;
+    }
+
+    private boolean tryAcquireSemaphore(Runnable job, long timeout, TimeUnit unit) throws InterruptedException {
+        boolean ret = true;
+        if (job instanceof JCSCachedTileLoaderJob) {
+            final JCSCachedTileLoaderJob<?, ?> jcsJob = (JCSCachedTileLoaderJob<?, ?>) job;
+            Semaphore limit = getSemaphore(jcsJob);
+            if (limit != null) {
+                ret = limit.tryAcquire(timeout, unit);
+                if (ret) {
+                    jcsJob.setFinishedTask(() -> releaseSemaphore(jcsJob));
+                }
             }
         }
         return ret;
