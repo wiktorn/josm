@@ -481,6 +481,45 @@ Build-Date: ${build.tstamp}
             <html destdir="${test.dir}/report/jacoco"/>
         </jacoco:report>
     </target>
+	<target name="test-my" depends="test-compile">
+        <sequential>
+            <echo message="Running tests with JUnit"/>
+            <jacoco:coverage destfile="${test.dir}/jacoco.exec" enabled="true" excludes="jdk.dynalink.*:jdk.nashorn.*">
+                <junit printsummary="yes" fork="true" forkmode="once">
+                    <jvmarg value="-Dfile.encoding=UTF-8"/>
+                    <jvmarg value="--add-exports" if:set="isJava9" />
+                    <jvmarg value="java.base/sun.security.util=ALL-UNNAMED" if:set="isJava9" />
+                    <jvmarg value="--add-exports" if:set="isJava9" />
+                    <jvmarg value="java.base/sun.security.x509=ALL-UNNAMED" if:set="isJava9" />
+                    <sysproperty key="josm.home" value="${test.dir}/config/unit-josm.home"/>
+                    <sysproperty key="josm.test.data" value="${test.dir}/data"/>
+                    <sysproperty key="java.awt.headless" value="true"/>
+                    <sysproperty key="glass.platform" value="Monocle"/>
+                    <sysproperty key="monocle.platform" value="Headless"/>
+                    <sysproperty key="prism.order" value="sw"/>
+                    <sysproperty key="suppressPermanentFailure" value="${suppressPermanentFailure}"/>
+                    <classpath>
+                        <path refid="test.classpath"/>
+                        <pathelement path="${test.dir}/build/unit"/>
+                        <pathelement path="${test.dir}/build/unit"/>
+                        <pathelement path="${test.dir}/config"/>
+                    </classpath>
+                    <formatter type="plain"/>
+                    <formatter type="xml"/>
+                    <batchtest fork="yes" todir="${test.dir}/report">
+                        <fileset dir="${test.dir}/build/unit" includes="**/*AddImageryLayerActionTest.class"/>
+                    </batchtest>
+                </junit>
+            </jacoco:coverage>
+        </sequential>
+        <junitreport todir="${test.dir}/report">
+            <fileset dir="${test.dir}/report">
+                <include name="TEST-*.xml"/>
+            </fileset>
+            <report todir="${test.dir}/report/html"/>
+        </junitreport>
+
+	</target>
     <!-- Proguard does not support Java 9 : http://sourceforge.net/p/proguard/bugs/551/ -->
     <target name="dist-optimized" depends="dist" unless="isJava9">
         <taskdef resource="proguard/ant/task.properties" classpath="tools/proguard.jar"/>
