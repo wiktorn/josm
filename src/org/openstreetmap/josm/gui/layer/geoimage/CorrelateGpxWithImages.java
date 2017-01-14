@@ -539,7 +539,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
     }
 
     @Override
-    public void actionPerformed(ActionEvent arg0) {
+    public void actionPerformed(ActionEvent ae) {
         // Construct the list of loaded GPX tracks
         Collection<Layer> layerLst = Main.getLayerManager().getLayers();
         GpxDataWrapper defaultItem = null;
@@ -1070,7 +1070,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
                 continue;
             }
 
-            if (e.isTagged() && e.getExifCoor() == null && !tagged) {
+            if (!tagged && e.isTagged() && e.getExifCoor() == null) {
                 continue;
             }
 
@@ -1201,7 +1201,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
                 break;
             }
 
-            if (curImg.tmp.getPos() == null && prevWp != null) {
+            if (prevWp != null && curImg.tmp.getPos() == null) {
                 // The values of timeDiff are between 0 and 1, it is not seconds but a dimensionless variable
                 double timeDiff = (double) (imgTime - prevWpTime) / interval;
                 curImg.tmp.setPos(prevWp.getCoor().interpolate(curWp.getCoor(), timeDiff));
