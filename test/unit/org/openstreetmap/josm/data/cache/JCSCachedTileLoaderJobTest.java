@@ -10,8 +10,10 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 import org.apache.commons.jcs.access.behavior.ICacheAccess;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.cache.ICachedLoaderListener.LoadResult;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
 
@@ -75,6 +77,15 @@ public class JCSCachedTileLoaderJobTest {
     public JOSMTestRules test = new JOSMTestRules().preferences();
 
     /**
+     * Always clear cache before tests
+     * @throws Exception when clearing fails
+     */
+    @Before
+    public void clearCache() throws Exception {
+        getCache().clear();
+    }
+
+    /**
      * Test status codes
      * @throws InterruptedException in case of thread interruption
      * @throws IOException in case of I/O error
@@ -95,7 +106,6 @@ public class JCSCachedTileLoaderJobTest {
 
     /**
      * Test unknown host
-     * @throws InterruptedException in case of thread interruption
      * @throws IOException in case of I/O error
      */
     @Test
@@ -110,6 +120,7 @@ public class JCSCachedTileLoaderJobTest {
                     listener.wait();
                 } catch (InterruptedException e1) {
                     // do nothing, still wait
+                    Main.trace(e1);
                 }
             }
         }
@@ -131,6 +142,7 @@ public class JCSCachedTileLoaderJobTest {
                     listener.wait();
                 } catch (InterruptedException e1) {
                     // do nothing, wait
+                    Main.trace(e1);
                 }
             }
         }
