@@ -21,6 +21,8 @@ package org.apache.commons.compress.compressors.lz4;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.Deque;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -56,7 +58,7 @@ public class BlockLZ4CompressorOutputStream extends CompressorOutputStream {
         start writing the literal before we know how long the next
         back-reference is going to be.
 
-      * there is a special rule for the final blocks
+      * there are special rules for the final blocks
 
         > There are specific parsing rules to respect in order to remain
         > compatible with assumptions made by the decoder :
@@ -81,6 +83,11 @@ public class BlockLZ4CompressorOutputStream extends CompressorOutputStream {
     private final byte[] oneByte = new byte[1];
 
     private boolean finished = false;
+
+    private Deque<Pair> pairs = new LinkedList<>();
+    // keeps track of the last window-size bytes (64k) in order to be
+    // able to expand back-references when needed
+    private Deque<byte[]> expandedBlocks = new LinkedList<>();
 
     /**
      * Creates a new LZ4 output stream.
@@ -139,21 +146,237 @@ public class BlockLZ4CompressorOutputStream extends CompressorOutputStream {
     }
 
     private void addLiteralBlock(LZ77Compressor.LiteralBlock block) throws IOException {
+        Pair last = writeBlocksAndReturnUnfinishedPair(block.getLength());
+        recordLiteral(last.addLiteral(block));
+        clearUnusedBlocksAndPairs();
     }
 
     private void addBackReference(LZ77Compressor.BackReference block) throws IOException {
+        Pair last = writeBlocksAndReturnUnfinishedPair(block.getLength());
+        last.setBackReference(block);
+        recordBackReference(block);
+        clearUnusedBlocksAndPairs();
+    }
+
+    private Pair writeBlocksAndReturnUnfinishedPair(int length) throws IOException {
+        writeWritablePairs(length);
+        Pair last = pairs.peekLast();
+        if (last == null || last.hasBackReference()) {
+            last = new Pair();
+            pairs.addLast(last);
+        }
+        return last;
+    }
+
+    private void recordLiteral(byte[] b) {
+        expandedBlocks.addFirst(b);
+    }
+
+    private void clearUnusedBlocksAndPairs() {
+        clearUnusedBlocks();
+        clearUnusedPairs();
+    }
+
+    private void clearUnusedBlocks() {
+        int blockLengths = 0;
+        int blocksToKeep = 0;
+        for (byte[] b : expandedBlocks) {
+            blocksToKeep++;
+            blockLengths += b.length;
+            if (blockLengths >= BlockLZ4CompressorInputStream.WINDOW_SIZE) {
+                break;
+            }
+        }
+        final int size = expandedBlocks.size();
+        for (int i = blocksToKeep; i < size; i++) {
+            expandedBlocks.removeLast();
+        }
+    }
+
+    private void recordBackReference(LZ77Compressor.BackReference block) {
+        expandedBlocks.addFirst(expand(block.getOffset(), block.getLength()));
+    }
+
+    private byte[] expand(final int offset, final int length) {
+        byte[] expanded = new byte[length];
+        if (offset == 1) { // surprisingly common special case
+            byte[] block = expandedBlocks.peekFirst();
+            byte b = block[block.length - 1];
+            if (b != 0) { // the fresh array contains 0s anyway
+                Arrays.fill(expanded, b);
+            }
+        } else {
+            expandFromList(expanded, offset, length);
+        }
+        return expanded;
+    }
+
+    private void expandFromList(final byte[] expanded, int offset, int length) {
+        int offsetRemaining = offset;
+        int lengthRemaining = length;
+        int writeOffset = 0;
+        while (lengthRemaining > 0) {
+            // find block that contains offsetRemaining
+            byte[] block = null;
+            int copyLen, copyOffset;
+            if (offsetRemaining > 0) {
+                int blockOffset = 0;
+                for (byte[] b : expandedBlocks) {
+                    if (b.length + blockOffset >= offsetRemaining) {
+                        block = b;
+                        break;
+                    }
+                    blockOffset += b.length;
+                }
+                copyOffset = blockOffset + block.length - offsetRemaining;
+                copyLen = Math.min(lengthRemaining, block.length - copyOffset);
+            } else {
+                // offsetRemaining is negative and points into the expanded bytes
+                block = expanded;
+                copyOffset = writeOffset  + offsetRemaining;
+                copyLen = Math.min(lengthRemaining, writeOffset + offsetRemaining);
+            }
+            System.arraycopy(block, copyOffset, expanded, writeOffset, copyLen);
+            offsetRemaining -= copyLen;
+            lengthRemaining -= copyLen;
+            writeOffset += copyLen;
+        }
+    }
+
+    private void clearUnusedPairs() {
+        int pairLengths = 0;
+        int pairsToKeep = 0;
+        for (Iterator<Pair> it = pairs.descendingIterator(); it.hasNext(); ) {
+            Pair p = it.next();
+            pairsToKeep++;
+            pairLengths += p.length();
+            if (pairLengths >= BlockLZ4CompressorInputStream.WINDOW_SIZE) {
+                break;
+            }
+        }
+        final int size = pairs.size();
+        for (int i = pairsToKeep; i < size; i++) {
+            Pair p = pairs.peekFirst();
+            if (p.hasBeenWritten()) {
+                pairs.removeFirst();
+            } else {
+                break;
+            }
+        }
     }
 
     private void writeFinalLiteralBlock() throws IOException {
+        rewriteLastPairs();
+        for (Pair p : pairs) {
+            if (!p.hasBeenWritten()) {
+                p.writeTo(os);
+            }
+        }
+        pairs.clear();
+    }
+
+    private void writeWritablePairs(int lengthOfBlocksAfterLastPair) throws IOException {
+        int unwrittenLength = lengthOfBlocksAfterLastPair;
+        for (Iterator<Pair> it = pairs.descendingIterator(); it.hasNext(); ) {
+            Pair p = it.next();
+            if (p.hasBeenWritten()) {
+                break;
+            }
+            unwrittenLength += p.length();
+        }
+        for (Pair p : pairs) {
+            if (p.hasBeenWritten()) {
+                continue;
+            }
+            unwrittenLength -= p.length();
+            if (p.canBeWritten(unwrittenLength)) {
+                p.writeTo(os);
+            } else {
+                break;
+            }
+        }
+    }
+
+    private void rewriteLastPairs() {
+        LinkedList<Pair> lastPairs = new LinkedList<>();
+        LinkedList<Integer> pairLength = new LinkedList<>();
+        int offset = 0;
+        for (Iterator<Pair> it = pairs.descendingIterator(); it.hasNext(); ) {
+            Pair p = it.next();
+            if (p.hasBeenWritten()) {
+                break;
+            }
+            int len = p.length();
+            pairLength.addFirst(len);
+            lastPairs.addFirst(p);
+            offset += len;
+            if (offset >= MIN_OFFSET_OF_LAST_BACK_REFERENCE) {
+                break;
+            }
+        }
+        for (Pair p : lastPairs) {
+            pairs.remove(p);
+        }
+        // lastPairs may contain between one and four Pairs:
+        // * the last pair may be a one byte literal
+        // * all other Pairs contain a back-reference which must be four bytes long at minimum
+        // we could merge them all into a single literal block but
+        // this may harm compression. For example compressing
+        // "bla.tar" from our tests yields a last block containing a
+        // back-reference of length > 2k and we'd end up with a last
+        // literal of that size rather than a 2k back-reference and a
+        // 12 byte literal at the end.
+
+        // Instead we merge all but the first of lastPairs into a new
+        // literal-only Pair "replacement" and look at the
+        // back-reference in the first of lastPairs and see if we can
+        // split it. We can split it if it is longer than 16 -
+        // replacement.length (i.e. the minimal length of four is kept
+        // while making sure the last literal is at least twelve bytes
+        // long). If we can't split it, we expand the first of the pairs
+        // as well.
+
+        // this is not optimal, we could get better compression
+        // results with more complex approaches as the last literal
+        // only needs to be five bytes long if the previous
+        // back-reference has an offset big enough
+
+        final int lastPairsSize = lastPairs.size();
+        int toExpand = 0;
+        for (int i = 1; i < lastPairsSize; i++) {
+            toExpand += pairLength.get(i);
+        }
+        Pair replacement = new Pair();
+        if (toExpand > 0) {
+            replacement.prependLiteral(expand(toExpand, toExpand));
+        }
+        Pair splitCandidate = lastPairs.get(0);
+        int splitLen = splitCandidate.length();
+        int stillNeeded = MIN_OFFSET_OF_LAST_BACK_REFERENCE - toExpand;
+        if (splitCandidate.hasBackReference()
+            && splitCandidate.backReferenceLength() >= MIN_BACK_REFERENCE_LENGTH + stillNeeded) {
+            replacement.prependLiteral(expand(toExpand + stillNeeded, stillNeeded));
+            pairs.add(splitCandidate.splitWithNewBackReferenceLengthOf(splitCandidate.backReferenceLength()
+                - stillNeeded));
+        } else {
+            replacement.prependLiteral(expand(toExpand + splitLen, splitLen));
+        }
+        pairs.add(replacement);
     }
 
     final static class Pair {
-        private final List<byte[]> literals = new LinkedList<>();
+        private final Deque<byte[]> literals = new LinkedList<>();
         private int brOffset, brLength;
+        private boolean written;
 
-        void addLiteral(LZ77Compressor.LiteralBlock block) {
-            literals.add(Arrays.copyOfRange(block.getData(), block.getOffset(),
-                block.getOffset() + block.getLength()));
+        private void prependLiteral(byte[] data) {
+            literals.addFirst(data);
+        }
+        byte[] addLiteral(LZ77Compressor.LiteralBlock block) {
+            byte[] copy = Arrays.copyOfRange(block.getData(), block.getOffset(),
+                block.getOffset() + block.getLength());
+            literals.add(copy);
+            return copy;
         }
         void setBackReference(LZ77Compressor.BackReference block) {
             if (hasBackReference()) {
@@ -167,11 +390,13 @@ public class BlockLZ4CompressorOutputStream extends CompressorOutputStream {
         }
         boolean canBeWritten(int lengthOfBlocksAfterThisPair) {
             return hasBackReference()
-                && lengthOfBlocksAfterThisPair >= MIN_LENGTH_OF_LAST_LITERAL
-                && lengthOfBlocksAfterThisPair + brOffset + brLength >= MIN_OFFSET_OF_LAST_BACK_REFERENCE;
+                && lengthOfBlocksAfterThisPair >= MIN_OFFSET_OF_LAST_BACK_REFERENCE + MIN_BACK_REFERENCE_LENGTH;
         }
         int length() {
             return literalLength() + brLength;
+        }
+        private boolean hasBeenWritten() {
+            return written;
         }
         void writeTo(OutputStream out) throws IOException {
             int litLength = literalLength();
@@ -189,6 +414,7 @@ public class BlockLZ4CompressorOutputStream extends CompressorOutputStream {
                         - BlockLZ4CompressorInputStream.BACK_REFERENCE_SIZE_MASK, out);
                 }
             }
+            written = true;
         }
         private int literalLength() {
             int length = 0;
@@ -208,6 +434,16 @@ public class BlockLZ4CompressorOutputStream extends CompressorOutputStream {
                 length -= 255;
             }
             out.write(length);
+        }
+        private int backReferenceLength() {
+            return brLength;
+        }
+        Pair splitWithNewBackReferenceLengthOf(int newBackReferenceLength) {
+            Pair p = new Pair();
+            p.literals.addAll(literals);
+            p.brOffset = brOffset;
+            p.brLength = newBackReferenceLength;
+            return p;
         }
     }
 }
