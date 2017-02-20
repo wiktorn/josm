@@ -6,16 +6,20 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.InputStream;
 import java.io.StringReader;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.TestUtils;
 import org.openstreetmap.josm.command.ChangePropertyCommand;
 import org.openstreetmap.josm.command.ChangePropertyKeyCommand;
 import org.openstreetmap.josm.command.Command;
@@ -28,7 +32,10 @@ import org.openstreetmap.josm.data.validation.Severity;
 import org.openstreetmap.josm.data.validation.TestError;
 import org.openstreetmap.josm.data.validation.tests.MapCSSTagChecker.ParseResult;
 import org.openstreetmap.josm.data.validation.tests.MapCSSTagChecker.TagCheck;
+import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
+import org.openstreetmap.josm.gui.mappaint.mapcss.MapCSSStyleSource;
 import org.openstreetmap.josm.gui.mappaint.mapcss.parsergen.ParseException;
+import org.openstreetmap.josm.io.OsmReader;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -43,7 +50,7 @@ public class MapCSSTagCheckerTest {
      */
     @Rule
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    public JOSMTestRules test = new JOSMTestRules();
+    public JOSMTestRules test = new JOSMTestRules().projection().platform();
 
     static MapCSSTagChecker buildTagChecker(String css) throws ParseException {
         final MapCSSTagChecker test = new MapCSSTagChecker();
@@ -57,7 +64,7 @@ public class MapCSSTagCheckerTest {
      */
     @Test
     public void testNaturalMarsh() throws ParseException {
-        ParseResult result = MapCSSTagChecker.TagCheck.readMapCSS(new StringReader(
+        ParseResult result = TagCheck.readMapCSS(new StringReader(
                 "*[natural=marsh] {\n" +
                 "   group: tr(\"deprecated\");\n" +
                 "   throwWarning: tr(\"{0}={1} is deprecated\", \"{0.key}\", tag(\"natural\"));\n" +
@@ -65,10 +72,10 @@ public class MapCSSTagCheckerTest {
                 "   fixAdd: \"natural=wetland\";\n" +
                 "   fixAdd: \"wetland=marsh\";\n" +
                 "}"));
-        final List<MapCSSTagChecker.TagCheck> checks = result.parseChecks;
+        final List<TagCheck> checks = result.parseChecks;
         assertEquals(1, checks.size());
         assertTrue(result.parseErrors.isEmpty());
-        final MapCSSTagChecker.TagCheck check = checks.get(0);
+        final TagCheck check = checks.get(0);
         assertNotNull(check);
         assertEquals("{0.key}=null is deprecated", check.getDescription(null));
         assertEquals("fixRemove: {0.key}", check.fixCommands.get(0).toString());
@@ -86,7 +93,7 @@ public class MapCSSTagCheckerTest {
         n2.put("natural", "wood");
         assertFalse(check.test(n2));
         assertEquals("The key is natural and the value is marsh",
-                MapCSSTagChecker.TagCheck.insertArguments(check.rule.selectors.get(0), "The key is {0.key} and the value is {0.value}", null));
+                TagCheck.insertArguments(check.rule.selectors.get(0), "The key is {0.key} and the value is {0.value}", null));
     }
 
     /**
@@ -144,12 +151,16 @@ public class MapCSSTagCheckerTest {
      */
     @Test
     public void testTicket13630() throws ParseException {
-        ParseResult result = MapCSSTagChecker.TagCheck.readMapCSS(new StringReader(
+        ParseResult result = TagCheck.readMapCSS(new StringReader(
                 "node[crossing=zebra] {fixRemove: \"crossing=zebra\";}"));
         assertTrue(result.parseChecks.isEmpty());
         assertEquals(1, result.parseErrors.size());
     }
 
+    /**
+     * Unit test of {@code min-josm-version} processing.
+     * @throws ParseException if a parsing error occurs
+     */
     @Test
     public void testPreprocessing() throws ParseException {
         final MapCSSTagChecker test = buildTagChecker("" +
@@ -159,6 +170,10 @@ public class MapCSSTagCheckerTest {
         assertEquals(0, test.getErrorsForPrimitive(OsmUtils.createPrimitive("way bar=1"), false).size());
     }
 
+    /**
+     * Unit test of {@link MapCSSTagChecker#initialize}.
+     * @throws Exception if an error occurs
+     */
     @Test
     public void testInit() throws Exception {
         MapCSSTagChecker c = new MapCSSTagChecker();
@@ -185,5 +200,66 @@ public class MapCSSTagCheckerTest {
                 "    title: \"Deutschlandspezifische Regeln\";" +
                 "}"));
         assertTrue(parseResult.parseErrors.isEmpty());
+    }
+
+    /**
+     * Non-regression test for <a href="https://josm.openstreetmap.de/ticket/14287">Bug #14287</a>.
+     * @throws Exception if an error occurs
+     */
+    @Test
+    @Ignore("not fixed yet")
+    public void testTicket14287() throws Exception {
+        final MapCSSTagChecker test = buildTagChecker(
+                "node[amenity=parking] ∈ *[amenity=parking] {" +
+                "  throwWarning: tr(\"{0} inside {1}\", \"amenity=parking\", \"amenity=parking\");" +
+                "}");
+        try (InputStream is = TestUtils.getRegressionDataStream(14287, "example.osm")) {
+            test.visit(OsmReader.parseDataSet(is, null).allPrimitives());
+            assertEquals(6, test.getErrors().size());
+        }
+    }
+
+    private void doTestNaturalWood(int ticket, String filename, int errorsCount, int setsCount) throws Exception {
+        final MapCSSTagChecker test = buildTagChecker(
+                "area:closed:areaStyle[tag(\"natural\") = parent_tag(\"natural\")] ⧉ area:closed:areaStyle[natural] {" +
+                "  throwWarning: tr(\"Overlapping Identical Natural Areas\");" +
+                "}");
+        final MapCSSStyleSource style = new MapCSSStyleSource(
+                "area[natural=wood] {" +
+                "    fill-color: woodarea#008000;" +
+                "}");
+        MapPaintStyles.addStyle(style);
+        try (InputStream is = TestUtils.getRegressionDataStream(ticket, filename)) {
+            test.visit(OsmReader.parseDataSet(is, null).allPrimitives());
+            List<TestError> errors = test.getErrors();
+            assertEquals(errorsCount, errors.size());
+            Set<Set<OsmPrimitive>> primitives = new HashSet<>();
+            for (TestError e : errors) {
+                primitives.add(new HashSet<>(e.getPrimitives()));
+            }
+            assertEquals(setsCount, primitives.size());
+        } finally {
+            MapPaintStyles.removeStyle(style);
+        }
+    }
+
+    /**
+     * Non-regression test for <a href="https://josm.openstreetmap.de/ticket/12627">Bug #12627</a>.
+     * @throws Exception if an error occurs
+     */
+    @Test
+    @Ignore("not fixed yet")
+    public void testTicket12627() throws Exception {
+        doTestNaturalWood(12627, "overlapping.osm", 1, 1);
+    }
+
+    /**
+     * Non-regression test for <a href="https://josm.openstreetmap.de/ticket/14289">Bug #14289</a>.
+     * @throws Exception if an error occurs
+     */
+    @Test
+    @Ignore("not fixed yet")
+    public void testTicket14289() throws Exception {
+        doTestNaturalWood(14289, "example2.osm", 3, 3);
     }
 }
