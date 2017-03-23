@@ -57,7 +57,7 @@ public final class ExpressionFactory {
      */
     @Target(ElementType.METHOD)
     @Retention(RetentionPolicy.RUNTIME)
-    static @interface NullableArguments {}
+    @interface NullableArguments {}
 
     private static final List<Method> arrayFunctions = new ArrayList<>();
     private static final List<Method> parameterFunctions = new ArrayList<>();
@@ -828,6 +828,56 @@ public final class ExpressionFactory {
          */
         public static String replace(String s, String target, String replacement) { // NO_UCD (unused code)
             return s == null ? null : s.replace(target, replacement);
+        }
+
+        /**
+         * Converts string {@code s} to uppercase.
+         * @param s The source string
+         * @return The resulting string
+         * @see String#toUpperCase(Locale)
+         * @since 11756
+         */
+        public static String upper(String s) {
+            return s == null ? null : s.toUpperCase(Locale.ENGLISH);
+        }
+
+        /**
+         * Converts string {@code s} to lowercase.
+         * @param s The source string
+         * @return The resulting string
+         * @see String#toLowerCase(Locale)
+         * @since 11756
+         */
+        public static String lower(String s) {
+            return s == null ? null : s.toLowerCase(Locale.ENGLISH);
+        }
+
+        /**
+         * Trim whitespaces from the string {@code s}.
+         * @param s The source string
+         * @return The resulting string
+         * @see Utils#strip
+         * @since 11756
+         */
+        public static String trim(String s) {
+            return Utils.strip(s);
+        }
+
+        /**
+         * Percent-decode a string. (See https://en.wikipedia.org/wiki/Percent-encoding)
+         * This is especially useful for wikipedia titles
+         * @param s url-encoded string
+         * @return the decoded string, or original in case of an error
+         * @since 11756
+         */
+        public static String URL_decode(String s) {
+            if (s == null) return null;
+            try {
+                return Utils.decodeUrl(s);
+            } catch (IllegalStateException e) {
+                Main.debug(e);
+                return s;
+            }
         }
 
         /**
