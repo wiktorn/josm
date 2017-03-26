@@ -342,9 +342,11 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
             } else {
                 registeredLayers.put(layer, painter);
 
-                ProjectionBounds viewProjectionBounds = layer.getViewProjectionBounds();
-                if (viewProjectionBounds != null) {
-                    scheduleZoomTo(new ViewportData(viewProjectionBounds));
+                if (e.isZoomRequired()) {
+                    ProjectionBounds viewProjectionBounds = layer.getViewProjectionBounds();
+                    if (viewProjectionBounds != null) {
+                        scheduleZoomTo(new ViewportData(viewProjectionBounds));
+                    }
                 }
 
                 layer.addPropertyChangeListener(this);
@@ -747,7 +749,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
         layerManager.removeActiveLayerChangeListener(this);
         Main.pref.removePreferenceChangeListener(this);
         DataSet.removeSelectionListener(repaintSelectionChangedListener);
-        MultipolygonCache.getInstance().clear(this);
+        MultipolygonCache.getInstance().clear();
         if (mapMover != null) {
             mapMover.destroy();
         }
