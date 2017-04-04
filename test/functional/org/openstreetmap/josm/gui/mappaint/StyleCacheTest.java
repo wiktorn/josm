@@ -110,6 +110,7 @@ public class StyleCacheTest {
      */
     @Test
     public void testStyleCacheInternPool() {
+        MapPaintStyles.getStyles().clearCached();
         StyleCache.clearStyleCachePool();
         Bounds bounds = new Bounds(53.56, 13.25, 53.57, 13.26);
         Rendering visitor = new StyledMapRenderer(g, nc, false);
@@ -122,6 +123,12 @@ public class StyleCacheTest {
             if (internPoolSize == null) {
                 internPoolSize = newInternPoolSize;
             } else {
+                if (internPoolSize != newInternPoolSize) {
+                    System.err.println("style sources:");
+                    for (StyleSource s : MapPaintStyles.getStyles().getStyleSources()) {
+                        System.err.println(s.url + " active:" + s.active);
+                    }
+                }
                 assertEquals("intern pool size", internPoolSize.intValue(), newInternPoolSize);
             }
         }

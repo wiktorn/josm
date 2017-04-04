@@ -41,6 +41,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import javax.swing.AbstractAction;
@@ -60,6 +61,7 @@ import org.openstreetmap.gui.jmapviewer.AttributionSupport;
 import org.openstreetmap.gui.jmapviewer.MemoryTileCache;
 import org.openstreetmap.gui.jmapviewer.OsmTileLoader;
 import org.openstreetmap.gui.jmapviewer.Tile;
+import org.openstreetmap.gui.jmapviewer.TileRange;
 import org.openstreetmap.gui.jmapviewer.TileXY;
 import org.openstreetmap.gui.jmapviewer.interfaces.CachedTileLoader;
 import org.openstreetmap.gui.jmapviewer.interfaces.ICoordinate;
@@ -92,7 +94,6 @@ import org.openstreetmap.josm.gui.dialogs.LayerListPopup;
 import org.openstreetmap.josm.gui.layer.imagery.ImageryFilterSettings.FilterChangeListener;
 import org.openstreetmap.josm.gui.layer.imagery.TileCoordinateConverter;
 import org.openstreetmap.josm.gui.layer.imagery.TilePosition;
-import org.openstreetmap.josm.gui.layer.imagery.TileRange;
 import org.openstreetmap.josm.gui.layer.imagery.TileSourceDisplaySettings;
 import org.openstreetmap.josm.gui.layer.imagery.TileSourceDisplaySettings.DisplaySettingsChangeEvent;
 import org.openstreetmap.josm.gui.layer.imagery.TileSourceDisplaySettings.DisplaySettingsChangeListener;
@@ -933,19 +934,6 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         return true;
     }
 
-    /*
-     * We use these for quick, hackish calculations. They are temporary only and intentionally not inserted into the tileCache.
-     */
-    private Tile tempCornerTile(Tile t) {
-        int x = t.getXtile() + 1;
-        int y = t.getYtile() + 1;
-        int zoom = t.getZoom();
-        Tile tile = getTile(x, y, zoom);
-        if (tile != null)
-            return tile;
-        return new Tile(tileSource, x, y, zoom);
-    }
-
     private Tile getOrCreateTile(TilePosition tilePosition) {
         return getOrCreateTile(tilePosition.getX(), tilePosition.getY(), tilePosition.getZoom());
     }
@@ -955,10 +943,6 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         if (tile == null) {
             tile = new Tile(tileSource, x, y, zoom);
             tileCache.addTile(tile);
-        }
-
-        if (!tile.isLoaded()) {
-            tile.loadPlaceholderFromCache(tileCache);
         }
         return tile;
     }
@@ -1109,19 +1093,23 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
                 imgXoffset, imgYoffset,
                 imgXend, imgYend,
                 this);
-        if (PROP_FADE_AMOUNT.get() != 0) {
-            // dimm by painting opaque rect...
-            g.setColor(getFadeColorWithAlpha());
-            ((Graphics2D) g).fill(target);
-        }
     }
 
     private List<Tile> paintTileImages(Graphics g, TileSet ts) {
         Object paintMutex = new Object();
         List<TilePosition> missed = Collections.synchronizedList(new ArrayList<>());
         ts.visitTiles(tile -> {
-            Image img = getLoadedTileImage(tile);
-            if (img == null) {
+            boolean miss = false;
+            Image img = null;
+            if (!tile.isLoaded() || tile.hasError()) {
+                miss = true;
+            } else {
+                img = getLoadedTileImage(tile);
+                if (img == null) {
+                    miss = true;
+                }
+            }
+            if (miss) {
                 missed.add(new TilePosition(tile));
                 return;
             }
@@ -1151,11 +1139,17 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         // ts.allExistingTiles() by default will only return already-existing tiles.
         // However, we need to return *all* tiles to the callers, so force creation here.
         for (Tile tile : ts.allTilesCreate()) {
-            Image img = getLoadedTileImage(tile);
-            if (img == null || tile.hasError()) {
-                if (Main.isDebugEnabled()) {
-                    Main.debug("missed tile: " + tile);
+            boolean miss = false;
+            Image img = null;
+            if (!tile.isLoaded() || tile.hasError()) {
+                miss = true;
+            } else {
+                img = getLoadedTileImage(tile);
+                if (img == null) {
+                    miss = true;
                 }
+            }
+            if (miss) {
                 missedTiles.add(tile);
                 continue;
             }
@@ -1164,10 +1158,15 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             img = applyImageProcessors((BufferedImage) img);
 
             Rectangle2D sourceRect = coordinateConverter.getRectangleForTile(tile);
-            if (!sourceRect.intersects(borderRect)) {
+            Rectangle2D clipRect;
+            if (tileSource.isInside(tile, border)) {
+                clipRect = null;
+            } else if (tileSource.isInside(border, tile)) {
+                clipRect = borderRect;
+            } else {
                 continue;
             }
-            drawImageInside(g, img, sourceRect, borderRect);
+            drawImageInside(g, img, sourceRect, clipRect);
         }
         return missedTiles;
     }
@@ -1274,6 +1273,11 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             sanitize();
         }
 
+        protected TileSet(TileRange range) {
+            super(range);
+            sanitize();
+        }
+
         /**
          * null tile set
          */
@@ -1324,12 +1328,17 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             return tilePositions().map(mapper).filter(Objects::nonNull).collect(Collectors.toList());
         }
 
-        @Override
+        /**
+         * Gets a stream of all tile positions in this set
+         * @return A stream of all positions
+         */
         public Stream<TilePosition> tilePositions() {
-            if (this.insane()) {
+            if (zoom == 0 || this.insane()) {
                 return Stream.empty(); // Tileset is either empty or too large
             } else {
-                return super.tilePositions();
+                return IntStream.rangeClosed(minX, maxX).mapToObj(
+                        x -> IntStream.rangeClosed(minY, maxY).mapToObj(y -> new TilePosition(x, y, zoom))
+                        ).flatMap(Function.identity());
             }
         }
 
@@ -1569,7 +1578,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         g.setColor(Color.DARK_GRAY);
 
         List<Tile> missedTiles = this.paintTileImages(g, ts);
-        int[] otherZooms = {-1, 1, -2, 2, -3, -4, -5};
+        int[] otherZooms = {1, 2, -1, -2, -3, -4, -5};
         for (int zoomOffset : otherZooms) {
             if (!getDisplaySettings().isAutoZoom()) {
                 break;
@@ -1588,9 +1597,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
                     newlyMissedTiles.add(missed);
                     continue;
                 }
-                Tile t2 = tempCornerTile(missed);
-                TileSet ts2 = getTileSet(getShiftedLatLon(tileSource.tileXYToLatLon(missed)),
-                                         getShiftedLatLon(tileSource.tileXYToLatLon(t2)), newzoom);
+                TileSet ts2 = new TileSet(tileSource.getCoveringTileRange(missed, newzoom));
                 // Instantiating large TileSets is expensive. If there are no loaded tiles, don't bother even trying.
                 if (ts2.allLoadedTiles().isEmpty()) {
                     newlyMissedTiles.add(missed);

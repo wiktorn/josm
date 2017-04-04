@@ -3,15 +3,11 @@ package org.openstreetmap.josm.gui.preferences.imagery;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
 
-import java.awt.Color;
 import java.awt.GridBagLayout;
 import java.io.File;
 import java.io.FilenameFilter;
 
-import javax.swing.JButton;
-import javax.swing.JColorChooser;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JSlider;
 import javax.swing.JSpinner;
@@ -24,7 +20,6 @@ import org.openstreetmap.josm.gui.layer.AbstractTileSourceLayer;
 import org.openstreetmap.josm.gui.layer.ImageryLayer;
 import org.openstreetmap.josm.gui.widgets.JosmComboBox;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
-import org.openstreetmap.josm.tools.ColorHelper;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -35,10 +30,8 @@ import org.openstreetmap.josm.tools.Utils;
 public class CommonSettingsPanel extends JPanel {
 
     // Common Settings
-    private final JButton btnFadeColor;
-    private final JSlider fadeAmount = new JSlider(0, 100);
     private final JosmComboBox<String> sharpen;
-    private final JosmTextField tilecacheDir = new JosmTextField();
+    private final JosmTextField tilecacheDir = new JosmTextField(11);
     private final JSpinner maxElementsOnDisk;
     private final JSlider tilesZoom = new JSlider(-2, 2, 0);
 
@@ -51,29 +44,6 @@ public class CommonSettingsPanel extends JPanel {
 
         this.maxElementsOnDisk = new JSpinner(new SpinnerNumberModel(
                 AbstractCachedTileSourceLayer.MAX_DISK_CACHE_SIZE.get().intValue(), 0, Integer.MAX_VALUE, 1));
-
-        this.btnFadeColor = new JButton();
-        this.btnFadeColor.addActionListener(e -> {
-            JColorChooser chooser = new JColorChooser(btnFadeColor.getBackground());
-            int answer = JOptionPane.showConfirmDialog(
-                    this, chooser,
-                    tr("Choose a color for {0}", tr("imagery fade")),
-                    JOptionPane.OK_CANCEL_OPTION,
-                    JOptionPane.PLAIN_MESSAGE);
-            if (answer == JOptionPane.OK_OPTION) {
-                Color colFadeColor = chooser.getColor();
-                btnFadeColor.setBackground(colFadeColor);
-                btnFadeColor.setText(ColorHelper.color2html(colFadeColor));
-            }
-        });
-
-        add(new JLabel(tr("Fade Color: ")), GBC.std());
-        add(GBC.glue(5, 0), GBC.std().fill(GBC.HORIZONTAL));
-        add(this.btnFadeColor, GBC.eol().fill(GBC.HORIZONTAL));
-
-        add(new JLabel(tr("Fade amount: ")), GBC.std());
-        add(GBC.glue(5, 0), GBC.std().fill(GBC.HORIZONTAL));
-        add(this.fadeAmount, GBC.eol().fill(GBC.HORIZONTAL));
 
         this.sharpen = new JosmComboBox<>(new String[] {
                 tr("None"),
@@ -104,10 +74,6 @@ public class CommonSettingsPanel extends JPanel {
      * Loads the common settings.
      */
     public void loadSettings() {
-        Color colFadeColor = ImageryLayer.PROP_FADE_COLOR.get();
-        this.btnFadeColor.setBackground(colFadeColor);
-        this.btnFadeColor.setText(ColorHelper.color2html(colFadeColor));
-        this.fadeAmount.setValue(ImageryLayer.PROP_FADE_AMOUNT.get());
         this.sharpen.setSelectedIndex(Utils.clamp(ImageryLayer.PROP_SHARPEN_LEVEL.get(), 0, 2));
         this.tilecacheDir.setText(CachedTileLoaderFactory.PROP_TILECACHE_DIR.get());
         this.maxElementsOnDisk.setValue(AbstractCachedTileSourceLayer.MAX_DISK_CACHE_SIZE.get());
@@ -119,8 +85,6 @@ public class CommonSettingsPanel extends JPanel {
      * @return true when restart is required
      */
     public boolean saveSettings() {
-        ImageryLayer.PROP_FADE_AMOUNT.put(this.fadeAmount.getValue());
-        ImageryLayer.PROP_FADE_COLOR.put(this.btnFadeColor.getBackground());
         ImageryLayer.PROP_SHARPEN_LEVEL.put(sharpen.getSelectedIndex());
 
         boolean restartRequired = false;
@@ -149,7 +113,7 @@ public class CommonSettingsPanel extends JPanel {
         return restartRequired;
     }
 
-    private void removeCacheFiles(String path) {
+    private static void removeCacheFiles(String path) {
         File directory = new File(path);
         File[] cacheFiles = directory.listFiles((FilenameFilter) (dir, name) -> name.endsWith(".data") || name.endsWith(".key"));
         JCSCacheManager.shutdown(); // shutdown Cache - so files can by safely deleted

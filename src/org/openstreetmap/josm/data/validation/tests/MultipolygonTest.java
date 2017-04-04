@@ -113,7 +113,7 @@ public class MultipolygonTest extends Test {
 
     @Override
     public void visit(Way w) {
-        if (!w.isArea() && ElemStyles.hasOnlyAreaElemStyle(w)) {
+        if (!w.isArea() && ElemStyles.hasOnlyAreaOrTextStyleElements(w)) {
             List<Node> nodes = w.getNodes();
             if (nodes.isEmpty()) return; // fix zero nodes bug
             for (String key : keysCheckedByAnotherTest) {
@@ -832,30 +832,42 @@ public class MultipolygonTest extends Test {
                 if (!outerCandidate.getBounds().intersects(inner.getBounds())) {
                     continue;
                 }
-
-                Node unsharedNode = getNonIntersectingNode(outerCandidate, inner);
-                if (unsharedNode != null) {
-                    if (checkIfNodeIsInsidePolygon(unsharedNode, outerCandidate)) {
+                boolean useIntersectionTest = false;
+                Node unsharedOuterNode = null;
+                Node unsharedInnerNode = getNonIntersectingNode(outerCandidate, inner);
+                if (unsharedInnerNode != null) {
+                    if (checkIfNodeIsInsidePolygon(unsharedInnerNode, outerCandidate)) {
                         innerCandidates.add(inner);
                     } else {
                         // inner is not inside outerCandidate, check if it contains outerCandidate
-                        unsharedNode = getNonIntersectingNode(inner, outerCandidate);
-                        if (unsharedNode != null) {
-                            if (checkIfNodeIsInsidePolygon(unsharedNode, inner)) {
-                                return null;
+                        unsharedOuterNode = getNonIntersectingNode(inner, outerCandidate);
+                        if (unsharedOuterNode != null) {
+                            if (checkIfNodeIsInsidePolygon(unsharedOuterNode, inner)) {
+                                return null; // outer is inside inner
                             }
                         } else {
-                            return null; // polygons have only common nodes
+                            useIntersectionTest = true;
                         }
                     }
                 } else {
                     // all nodes of inner are also nodes of outerCandidate
-                    unsharedNode = getNonIntersectingNode(inner, outerCandidate);
-                    if (unsharedNode == null) {
-                        return null;
+                    unsharedOuterNode = getNonIntersectingNode(inner, outerCandidate);
+                    if (unsharedOuterNode == null) {
+                        return null; // all nodes shared -> same ways, maybe different direction
                     } else {
-                        innerCandidates.add(inner);
+                        if (checkIfNodeIsInsidePolygon(unsharedOuterNode, inner)) {
+                            return null; // outer is inside inner
+                        } else {
+                            useIntersectionTest = true;
+                        }
                     }
+                }
+                if (useIntersectionTest) {
+                    PolygonIntersection res = Geometry.polygonIntersection(inner.getNodes(), outerCandidate.getNodes());
+                    if (res == PolygonIntersection.FIRST_INSIDE_SECOND)
+                        innerCandidates.add(inner);
+                    else if (res == PolygonIntersection.SECOND_INSIDE_FIRST)
+                        return null;
                 }
             }
             return innerCandidates;
