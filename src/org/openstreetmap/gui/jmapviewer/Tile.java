@@ -3,6 +3,7 @@ package org.openstreetmap.gui.jmapviewer;
 
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Point;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -243,7 +244,7 @@ public class Tile {
     }
 
     public void loadImage(InputStream input) throws IOException {
-        image = ImageIO.read(input);
+        setImage(ImageIO.read(input));
     }
 
     /**
@@ -301,7 +302,17 @@ public class Tile {
 
     @Override
     public String toString() {
-        return "Tile " + key;
+        StringBuilder sb = new StringBuilder("Tile ").append(key);
+        if (loading) {
+            sb.append(" [LOADING...]");
+        }
+        if (loaded) {
+            sb.append(" [loaded]");
+        }
+        if (error) {
+            sb.append(" [ERROR]");
+        }
+        return sb.toString();
     }
 
     /**

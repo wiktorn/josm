@@ -10,10 +10,13 @@ import java.awt.event.ActionEvent;
 import java.awt.image.BufferedImage;
 import java.awt.image.BufferedImageOp;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
+import javax.swing.BorderFactory;
 import javax.swing.Icon;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JComponent;
@@ -23,6 +26,7 @@ import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JSeparator;
+import javax.swing.JTextField;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.ProjectionBounds;
@@ -32,7 +36,6 @@ import org.openstreetmap.josm.data.preferences.IntegerProperty;
 import org.openstreetmap.josm.gui.MenuScroller;
 import org.openstreetmap.josm.gui.layer.imagery.ImageryFilterSettings;
 import org.openstreetmap.josm.gui.layer.imagery.TileSourceDisplaySettings;
-import org.openstreetmap.josm.gui.widgets.UrlLabel;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.ImageProvider.ImageSizes;
@@ -151,13 +154,34 @@ public abstract class ImageryLayer extends Layer {
         JPanel panel = new JPanel(new GridBagLayout());
         panel.add(new JLabel(getToolTipText()), GBC.eol());
         if (info != null) {
-            String url = info.getUrl();
-            if (url != null) {
-                panel.add(new JLabel(tr("URL: ")), GBC.std().insets(0, 5, 2, 0));
-                panel.add(new UrlLabel(url), GBC.eol().insets(2, 5, 10, 0));
+            List<List<String>> content = new ArrayList<>();
+            content.add(Arrays.asList(tr("Name"), info.getName()));
+            content.add(Arrays.asList(tr("Type"), info.getImageryType().getTypeString().toUpperCase(Locale.ENGLISH)));
+            content.add(Arrays.asList(tr("URL"), info.getUrl()));
+            content.add(Arrays.asList(tr("Id"), info.getId() == null ? "-" : info.getId()));
+            if (info.getMinZoom() != 0) {
+                content.add(Arrays.asList(tr("Min. zoom"), Integer.toString(info.getMinZoom())));
+            }
+            if (info.getMaxZoom() != 0) {
+                content.add(Arrays.asList(tr("Max. zoom"), Integer.toString(info.getMaxZoom())));
+            }
+            if (info.getDescription() != null) {
+                content.add(Arrays.asList(tr("Description"), info.getDescription()));
+            }
+            for (List<String> entry: content) {
+                panel.add(new JLabel(entry.get(0) + ':'), GBC.std());
+                panel.add(GBC.glue(5, 0), GBC.std());
+                panel.add(createTextField(entry.get(1)), GBC.eol().fill(GBC.HORIZONTAL));
             }
         }
         return panel;
+    }
+
+    protected JTextField createTextField(String text) {
+        JTextField ret = new JTextField(text);
+        ret.setEditable(false);
+        ret.setBorder(BorderFactory.createEmptyBorder());
+        return ret;
     }
 
     public static ImageryLayer create(ImageryInfo info) {

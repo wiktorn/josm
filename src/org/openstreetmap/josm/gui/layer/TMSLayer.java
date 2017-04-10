@@ -1,10 +1,9 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.gui.layer;
 
-import static org.openstreetmap.josm.tools.I18n.tr;
-
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 
 import org.apache.commons.jcs.access.CacheAccess;
 import org.openstreetmap.gui.jmapviewer.OsmMercator;
@@ -21,7 +20,6 @@ import org.openstreetmap.josm.data.imagery.ImageryInfo.ImageryType;
 import org.openstreetmap.josm.data.imagery.TMSCachedTileLoader;
 import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.data.preferences.IntegerProperty;
-import org.openstreetmap.josm.data.projection.Projection;
 
 /**
  * Class that displays a slippy map layer.
@@ -78,13 +76,8 @@ public class TMSLayer extends AbstractCachedTileSourceLayer<TMSTileSource> imple
     }
 
     @Override
-    public final boolean isProjectionSupported(Projection proj) {
-        return "EPSG:3857".equals(proj.toCode()) || "EPSG:4326".equals(proj.toCode());
-    }
-
-    @Override
-    public final String nameSupportedProjections() {
-        return tr("EPSG:4326 and Mercator projection are supported");
+    public Collection<String> getNativeProjections() {
+        return Collections.singletonList("EPSG:3857");
     }
 
     /**
@@ -160,4 +153,4 @@ public class TMSLayer extends AbstractCachedTileSourceLayer<TMSTileSource> imple
         }
         return new ScaleList(scales);
     }
- }
+}

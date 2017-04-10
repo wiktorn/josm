@@ -557,7 +557,7 @@ public final class HttpClient {
      * @return {@code this}
      */
     public HttpClient setRequestBody(byte[] requestBody) {
-        this.requestBody = requestBody;
+        this.requestBody = Utils.copyArray(requestBody);
         return this;
     }
 

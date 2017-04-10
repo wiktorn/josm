@@ -196,7 +196,6 @@ public class ImageryReader implements Closeable {
                         "date",
                         "tile-size",
                         "valid-georeference",
-                        "epsg4326to3857Supported",
                 }).contains(qName)) {
                     newState = State.ENTRY_ATTRIBUTE;
                     lang = atts.getValue("lang");
@@ -456,9 +455,6 @@ public class ImageryReader implements Closeable {
                     break;
                 case "valid-georeference":
                     entry.setGeoreferenceValid(Boolean.parseBoolean(accumulator.toString()));
-                    break;
-                case "epsg4326to3857Supported":
-                    entry.setEpsg4326To3857Supported(Boolean.parseBoolean(accumulator.toString()));
                     break;
                 default: // Do nothing
                 }

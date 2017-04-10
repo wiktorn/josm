@@ -5,6 +5,7 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.Component;
 import java.text.DateFormat;
+import java.util.Date;
 
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
@@ -14,6 +15,7 @@ import javax.swing.UIManager;
 
 import org.openstreetmap.josm.data.osm.Changeset;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Utils;
 import org.openstreetmap.josm.tools.date.DateUtils;
 
 /**
@@ -35,13 +37,15 @@ public class ChangesetCellRenderer extends JLabel implements ListCellRenderer<Ch
     protected String buildToolTipText(Changeset cs) {
         StringBuilder sb = new StringBuilder(64);
         sb.append("<html><strong>").append(tr("Changeset id:")).append("</strong>").append(cs.getId()).append("<br>");
-        if (cs.getCreatedAt() != null) {
+        Date createdDate = cs.getCreatedAt();
+        if (createdDate != null) {
             sb.append("<strong>").append(tr("Created at:")).append("</strong>").append(
-                    DateUtils.formatDateTime(cs.getCreatedAt(), DateFormat.SHORT, DateFormat.SHORT)).append("<br>");
+                    DateUtils.formatDateTime(createdDate, DateFormat.SHORT, DateFormat.SHORT)).append("<br>");
         }
         String comment = cs.get("comment");
         if (comment != null) {
-            sb.append("<strong>").append(tr("Changeset comment:")).append("</strong>").append(comment).append("<br>");
+            sb.append("<strong>").append(tr("Changeset comment:")).append("</strong>")
+              .append(Utils.escapeReservedCharactersHTML(comment)).append("<br>");
         }
         return sb.toString();
     }

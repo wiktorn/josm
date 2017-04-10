@@ -9,12 +9,9 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
-import java.awt.Point;
-import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -41,7 +38,6 @@ import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
-import javax.swing.JViewport;
 import javax.swing.ListSelectionModel;
 import javax.swing.SingleSelectionModel;
 import javax.swing.SwingConstants;
@@ -54,7 +50,6 @@ import javax.swing.filechooser.FileFilter;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellRenderer;
-import javax.swing.table.TableModel;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.ExtensionFileFilter;
@@ -77,6 +72,7 @@ import org.openstreetmap.josm.gui.widgets.FileChooserManager;
 import org.openstreetmap.josm.gui.widgets.HtmlPanel;
 import org.openstreetmap.josm.gui.widgets.JosmTextArea;
 import org.openstreetmap.josm.gui.widgets.PopupMenuLauncher;
+import org.openstreetmap.josm.gui.widgets.ScrollableTable;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageOverlay;
 import org.openstreetmap.josm.tools.ImageProvider;
@@ -91,7 +87,7 @@ import org.openstreetmap.josm.tools.Utils;
  */
 public class MapPaintDialog extends ToggleDialog {
 
-    protected StylesTable tblStyles;
+    protected ScrollableTable tblStyles;
     protected StylesModel model;
     protected final DefaultListSelectionModel selectionModel = new DefaultListSelectionModel();
 
@@ -138,7 +134,7 @@ public class MapPaintDialog extends ToggleDialog {
         cbWireframe.addActionListener(e -> Main.main.menu.wireFrameToggleAction.actionPerformed(null));
         cbWireframe.setBorder(new EmptyBorder(new Insets(1, 1, 1, 1)));
 
-        tblStyles = new StylesTable(model);
+        tblStyles = new ScrollableTable(model);
         tblStyles.setSelectionModel(selectionModel);
         tblStyles.addMouseListener(new PopupMenuHandler());
         tblStyles.putClientProperty("terminateEditOnFocusLost", Boolean.TRUE);
@@ -176,23 +172,6 @@ public class MapPaintDialog extends ToggleDialog {
                 new SideButton(downAction, false),
                 new SideButton(PREFERENCE_ACTION, false)
         ));
-    }
-
-    protected static class StylesTable extends JTable {
-
-        public StylesTable(TableModel dm) {
-            super(dm);
-        }
-
-        public void scrollToVisible(int row, int col) {
-            if (!(getParent() instanceof JViewport))
-                return;
-            JViewport viewport = (JViewport) getParent();
-            Rectangle rect = getCellRect(row, col, true);
-            Point pt = viewport.getViewPosition();
-            rect.setLocation(rect.x - pt.x, rect.y - pt.y);
-            viewport.scrollRectToVisible(rect);
-        }
     }
 
     @Override
@@ -506,11 +485,8 @@ public class MapPaintDialog extends ToggleDialog {
                 getProgressMonitor().indeterminateSubTask(
                         tr("Save style ''{0}'' as ''{1}''", s.getDisplayString(), file.getPath()));
                 try {
-                    InputStream in = s.getSourceInputStream();
-                    try (InputStream bis = new BufferedInputStream(in)) {
-                        Files.copy(bis, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                    } finally {
-                        s.closeSourceInputStream(in);
+                    try (InputStream in = s.getSourceInputStream()) {
+                        Files.copy(in, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
                     }
                 } catch (IOException e) {
                     Main.warn(e);

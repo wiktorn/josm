@@ -16,6 +16,7 @@ import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.text.DateFormat;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -42,6 +43,7 @@ import org.openstreetmap.josm.gui.widgets.JosmTextArea;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
 import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Utils;
 import org.openstreetmap.josm.tools.date.DateUtils;
 
 /**
@@ -236,8 +238,10 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
         tfUser.setText(msg);
         DateFormat sdf = DateUtils.getDateTimeFormat(DateFormat.SHORT, DateFormat.SHORT);
 
-        tfCreatedOn.setText(cs.getCreatedAt() == null ? "" : sdf.format(cs.getCreatedAt()));
-        tfClosedOn.setText(cs.getClosedAt() == null ? "" : sdf.format(cs.getClosedAt()));
+        Date createdDate = cs.getCreatedAt();
+        Date closedDate = cs.getClosedAt();
+        tfCreatedOn.setText(createdDate == null ? "" : sdf.format(createdDate));
+        tfClosedOn.setText(closedDate == null ? "" : sdf.format(closedDate));
     }
 
     /**
@@ -339,7 +343,7 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
                     tr("<html>None of the objects in the content of changeset {0} is available in the current<br>"
                             + "edit layer ''{1}''.</html>",
                             currentChangeset.getId(),
-                            Main.getLayerManager().getEditLayer().getName()
+                            Utils.escapeReservedCharactersHTML(Main.getLayerManager().getEditLayer().getName())
                     ),
                     tr("Nothing to select"),
                     JOptionPane.WARNING_MESSAGE,

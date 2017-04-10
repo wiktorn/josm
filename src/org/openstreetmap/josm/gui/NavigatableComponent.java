@@ -634,9 +634,15 @@ public class NavigatableComponent extends JComponent implements Helpful {
         // Note that the normal right mouse button drag moves the map by integer pixel
         // values, so it is not an issue in this case. It only shows when zooming
         // in & back out, etc.
-        MapViewState mvs = getState().usingScale(newScale).movedTo(state.getCenterAtPixel(), newCenter);
+        MapViewState mvs = getState().usingScale(newScale);
+        mvs = mvs.movedTo(mvs.getCenter(), newCenter);
         Point2D enOrigin = mvs.getPointFor(new EastNorth(0, 0)).getInView();
-        Point2D enOriginAligned = new Point2D.Double(Math.round(enOrigin.getX()), Math.round(enOrigin.getY()));
+        // as a result of the alignment, it is common to round "half integer" values
+        // like 1.49999, which is numerically unstable; add small epsilon to resolve this
+        final double epsilon = 1e-3;
+        Point2D enOriginAligned = new Point2D.Double(
+                Math.round(enOrigin.getX()) + epsilon,
+                Math.round(enOrigin.getY()) + epsilon);
         EastNorth enShift = mvs.getForView(enOriginAligned.getX(), enOriginAligned.getY()).getEastNorth();
         newCenter = newCenter.subtract(enShift);
 
@@ -656,20 +662,18 @@ public class NavigatableComponent extends JComponent implements Helpful {
      * @param initial true if this call initializes the viewport.
      */
     private void zoomNoUndoTo(EastNorth newCenter, double newScale, boolean initial) {
-        if (!newCenter.equals(getCenter())) {
-            EastNorth oldCenter = getCenter();
-            state = state.movedTo(state.getCenterAtPixel(), newCenter);
-            if (!initial) {
-                firePropertyChange(PROPNAME_CENTER, oldCenter, newCenter);
-            }
-        }
         if (!Utils.equalsEpsilon(getScale(), newScale)) {
             double oldScale = getScale();
             state = state.usingScale(newScale);
-            // temporary. Zoom logic needs to be moved.
-            state = state.movedTo(state.getCenterAtPixel(), newCenter);
             if (!initial) {
                 firePropertyChange(PROPNAME_SCALE, oldScale, newScale);
+            }
+        }
+        if (!newCenter.equals(getCenter())) {
+            EastNorth oldCenter = getCenter();
+            state = state.movedTo(state.getCenter(), newCenter);
+            if (!initial) {
+                firePropertyChange(PROPNAME_CENTER, oldCenter, newCenter);
             }
         }
 
