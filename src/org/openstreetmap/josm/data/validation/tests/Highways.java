@@ -1,6 +1,7 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.data.validation.tests;
 
+import static org.openstreetmap.josm.data.validation.tests.CrossingWays.HIGHWAY;
 import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.util.ArrayList;
@@ -11,6 +12,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.openstreetmap.josm.command.ChangePropertyCommand;
 import org.openstreetmap.josm.data.osm.Node;
@@ -76,7 +78,8 @@ public class Highways extends Test {
     public void visit(Node n) {
         if (n.isUsable()) {
             if (!n.hasTag("crossing", "no")
-             && !(n.hasKey("crossing") && (n.hasTag("highway", "crossing") || n.hasTag("highway", "traffic_signals")))
+             && !(n.hasKey("crossing") && (n.hasTag(HIGHWAY, "crossing")
+                                        || n.hasTag(HIGHWAY, "traffic_signals")))
              && n.isReferredByWays(2)) {
                 testMissingPedestrianCrossing(n);
             }
@@ -91,7 +94,7 @@ public class Highways extends Test {
     @Override
     public void visit(Way w) {
         if (w.isUsable()) {
-            if (w.isClosed() && w.hasTag("highway", CLASSIFIED_HIGHWAYS) && w.hasTag("junction", "roundabout")) {
+            if (w.isClosed() && w.hasTag(HIGHWAY, CLASSIFIED_HIGHWAYS) && w.hasTag("junction", "roundabout")) {
                 // TODO: find out how to handle splitted roundabouts (see #12841)
                 testWrongRoundabout(w);
             }
@@ -105,18 +108,26 @@ public class Highways extends Test {
 
     private void testWrongRoundabout(Way w) {
         Map<String, List<Way>> map = new HashMap<>();
-        // Count all highways (per type) connected to this roundabout, except links
+        // Count all highways (per type) connected to this roundabout, except correct links
         // As roundabouts are closed ways, take care of not processing the first/last node twice
         for (Node n : new HashSet<>(w.getNodes())) {
             for (Way h : Utils.filteredCollection(n.getReferrers(), Way.class)) {
-                String value = h.get("highway");
-                if (h != w && value != null && !value.endsWith("_link")) {
-                    List<Way> list = map.get(value);
-                    if (list == null) {
-                        list = new ArrayList<>();
-                        map.put(value, list);
+                String value = h.get(HIGHWAY);
+                if (h != w && value != null) {
+                    boolean link = value.endsWith("_link");
+                    boolean linkOk = isHighwayLinkOkay(h);
+                    if (link && !linkOk) {
+                        // "Autofix" bad link value to avoid false positive in roundabout check
+                        value = value.replaceAll("_link$", "");
                     }
-                    list.add(h);
+                    if (!link || !linkOk) {
+                        List<Way> list = map.get(value);
+                        if (list == null) {
+                            list = new ArrayList<>();
+                            map.put(value, list);
+                        }
+                        list.add(h);
+                    }
                 }
             }
         }
@@ -129,12 +140,12 @@ public class Highways extends Test {
                 Boolean oneway2 = OsmUtils.getOsmBoolean(list.get(1).get("oneway"));
                 if (list.size() > 2 || oneway1 == null || oneway2 == null || !oneway1 || !oneway2) {
                     // Error when the highway tags do not match
-                    String value = w.get("highway");
+                    String value = w.get(HIGHWAY);
                     if (!value.equals(s)) {
                         errors.add(TestError.builder(this, Severity.WARNING, WRONG_ROUNDABOUT_HIGHWAY)
                                 .message(tr("Incorrect roundabout (highway: {0} instead of {1})", value, s))
                                 .primitives(w)
-                                .fix(() -> new ChangePropertyCommand(w, "highway", s))
+                                .fix(() -> new ChangePropertyCommand(w, HIGHWAY, s))
                                 .build());
                     }
                     break;
@@ -143,8 +154,13 @@ public class Highways extends Test {
         }
     }
 
+    /**
+     * Determines if the given link road is correct, see https://wiki.openstreetmap.org/wiki/Highway_link.
+     * @param way link road
+     * @return {@code true} if the link road is correct or if the check cannot be performed due to missing data
+     */
     public static boolean isHighwayLinkOkay(final Way way) {
-        final String highway = way.get("highway");
+        final String highway = way.get(HIGHWAY);
         if (highway == null || !highway.endsWith("_link")
                 || !IN_DOWNLOADED_AREA.test(way.getNode(0)) || !IN_DOWNLOADED_AREA.test(way.getNode(way.getNodesCount()-1))) {
             return true;
@@ -162,8 +178,22 @@ public class Highways extends Test {
             referrers.addAll(way.lastNode().getReferrers());
         }
 
-        return Utils.filteredCollection(referrers, Way.class).stream().anyMatch(
-                otherWay -> !way.equals(otherWay) && otherWay.hasTag("highway", highway, highway.replaceAll("_link$", "")));
+        // Find ways of same class (exact class of class_link)
+        List<Way> sameClass = Utils.filteredCollection(referrers, Way.class).stream().filter(
+                otherWay -> !way.equals(otherWay) && otherWay.hasTag(HIGHWAY, highway, highway.replaceAll("_link$", "")))
+                .collect(Collectors.toList());
+        if (sameClass.size() > 1) {
+            // It is possible to have a class_link between 2 segments of same class
+            // in roundabout designs that physically separate a specific turn from the main roundabout
+            // But if we have more than a single adjacent class, and one of them is a roundabout, that's an error
+            for (Way w : sameClass) {
+                if (w.hasTag("junction", "roundabout")) {
+                    return false;
+                }
+            }
+        }
+        // Link roads should always at least one adjacent segment of same class
+        return !sameClass.isEmpty();
     }
 
     private void testHighwayLink(final Way way) {
@@ -183,8 +213,8 @@ public class Highways extends Test {
         cyclistWays = 0;
         carsWays = 0;
 
-        for (Way w : OsmPrimitive.getFilteredList(n.getReferrers(), Way.class)) {
-            String highway = w.get("highway");
+        for (Way w : n.getParentWays()) {
+            String highway = w.get(HIGHWAY);
             if (highway != null) {
                 if ("footway".equals(highway) || "path".equals(highway)) {
                     handlePedestrianWay(n, w);

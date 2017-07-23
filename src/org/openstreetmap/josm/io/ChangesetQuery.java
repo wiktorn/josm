@@ -18,10 +18,17 @@ import java.util.stream.Stream;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.coor.LatLon;
+import org.openstreetmap.josm.gui.JosmUserIdentityManager;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.Utils;
 import org.openstreetmap.josm.tools.date.DateUtils;
 
+/**
+ * Data class to collect restrictions (parameters) for downloading changesets from the
+ * OSM API.
+ * <p>
+ * @see <a href="https://wiki.openstreetmap.org/wiki/API_v0.6#Query:_GET_.2Fapi.2F0.6.2Fchangesets">OSM API 0.6 call "/changesets?"</a>
+ */
 public class ChangesetQuery {
 
     /**
@@ -54,6 +61,25 @@ public class ChangesetQuery {
      */
     public static ChangesetQuery buildFromUrlQuery(String query) throws ChangesetQueryUrlException {
         return new ChangesetQueryUrlParser().parse(query);
+    }
+
+    /**
+     * Replies a changeset query object restricted to the current user, if known.
+     * @return a changeset query object restricted to the current user, if known
+     * @throws IllegalStateException if current user is anonymous
+     * @since 12495
+     */
+    public static ChangesetQuery forCurrentUser() {
+        JosmUserIdentityManager im = JosmUserIdentityManager.getInstance();
+        if (im.isAnonymous()) {
+            throw new IllegalStateException("anonymous user");
+        }
+        ChangesetQuery query = new ChangesetQuery();
+        if (im.isFullyIdentified()) {
+            return query.forUser(im.getUserId());
+        } else {
+            return query.forUser(im.getUserName());
+        }
     }
 
     /**

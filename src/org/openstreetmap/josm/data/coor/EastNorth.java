@@ -1,6 +1,7 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.data.coor;
 
+import org.openstreetmap.gui.jmapviewer.JMapViewer;
 import org.openstreetmap.gui.jmapviewer.Projected;
 import org.openstreetmap.gui.jmapviewer.interfaces.IProjected;
 
@@ -14,6 +15,11 @@ import org.openstreetmap.gui.jmapviewer.interfaces.IProjected;
 public class EastNorth extends Coordinate {
 
     private static final long serialVersionUID = 1L;
+
+    /**
+     * A zero constant
+     */
+    public static final EastNorth ZERO = new EastNorth(0, 0);
 
     /**
      * Constructs a new {@code EastNorth}.
@@ -181,6 +187,10 @@ public class EastNorth extends Coordinate {
         return new EastNorth(nx, ny);
     }
 
+    /**
+     * Converts this to a {@link IProjected} instance to be used in the {@link JMapViewer}
+     * @return The projected
+     */
     public IProjected toProjected() {
         return new Projected(east(), north());
     }

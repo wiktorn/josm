@@ -85,7 +85,7 @@ public final class PluginHandler {
     static {
         String inCore = tr("integrated into main program");
 
-        DEPRECATED_PLUGINS = Arrays.asList(new DeprecatedPlugin[] {
+        DEPRECATED_PLUGINS = Arrays.asList(
             new DeprecatedPlugin("mappaint", inCore),
             new DeprecatedPlugin("unglueplugin", inCore),
             new DeprecatedPlugin("lang-de", inCore),
@@ -135,11 +135,49 @@ public final class PluginHandler {
             new DeprecatedPlugin("josm-geojson", tr("replaced by new {0} plugin", "geojson")),
             new DeprecatedPlugin("proj4j", inCore),
             new DeprecatedPlugin("OpenStreetView", tr("replaced by new {0} plugin", "OpenStreetCam")),
-        });
+            new DeprecatedPlugin("imageryadjust", inCore)
+        );
     }
 
     private PluginHandler() {
         // Hide default constructor for utils classes
+    }
+
+    static final class PluginInformationAction extends AbstractAction {
+        private final PluginInformation info;
+
+        PluginInformationAction(PluginInformation info) {
+            super(tr("Information"));
+            this.info = info;
+        }
+
+        /**
+         * Returns plugin information text.
+         * @return plugin information text
+         */
+        public String getText() {
+            StringBuilder b = new StringBuilder();
+            for (Entry<String, String> e : info.attr.entrySet()) {
+                b.append(e.getKey());
+                b.append(": ");
+                b.append(e.getValue());
+                b.append('\n');
+            }
+            return b.toString();
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent event) {
+            String text = getText();
+            JosmTextArea a = new JosmTextArea(10, 40);
+            a.setEditable(false);
+            a.setText(text);
+            a.setCaretPosition(0);
+            if (!GraphicsEnvironment.isHeadless()) {
+                JOptionPane.showMessageDialog(Main.parent, new JScrollPane(a), tr("Plugin information"),
+                        JOptionPane.INFORMATION_MESSAGE);
+            }
+        }
     }
 
     /**
@@ -251,9 +289,10 @@ public final class PluginHandler {
     static final Map<String, Exception> pluginLoadingExceptions = new HashMap<>();
 
     /**
-     * Global plugin ClassLoader.
+     * Class loader to locate resources from plugins.
+     * @see #getJoinedPluginResourceCL()
      */
-    private static DynamicURLClassLoader pluginClassLoader;
+    private static DynamicURLClassLoader joinedPluginResourceCL;
 
     /**
      * Add here all ClassLoader whose resource should be searched.
@@ -280,6 +319,10 @@ public final class PluginHandler {
         return pluginList.stream().map(PluginProxy::getPluginInformation).collect(Collectors.toList());
     }
 
+    /**
+     * Returns all ClassLoaders whose resource should be searched.
+     * @return all ClassLoaders whose resource should be searched
+     */
     public static Collection<ClassLoader> getResourceClassLoaders() {
         return Collections.unmodifiableCollection(sources);
     }
@@ -567,7 +610,11 @@ public final class PluginHandler {
                         }
                         Main.pref.putCollection("plugins", plugins);
                         // restart
-                        new RestartAction().actionPerformed(null);
+                        try {
+                            RestartAction.restartJOSM();
+                        } catch (IOException e) {
+                            Main.error(e);
+                        }
                     } else {
                         Main.warn("No plugin downloaded, restart canceled");
                     }
@@ -662,28 +709,44 @@ public final class PluginHandler {
     }
 
     /**
-     * Get the class loader for loading plugin code.
+     * Method to get the (now obsolete) class loader for loading plugin code.
      *
      * @return the class loader
+     * @deprecated There is no longer a unified plugin class loader. Use {@link PluginProxy#classLoader}
+     * to get the class loader for each plugin. Or <code>PluginClass.class.getClassLoader()</code>
+     * to access the class loader from within the plugin.
      */
+    @Deprecated
     public static synchronized DynamicURLClassLoader getPluginClassLoader() {
-        if (pluginClassLoader == null) {
-            pluginClassLoader = AccessController.doPrivileged((PrivilegedAction<DynamicURLClassLoader>)
-                    () -> new DynamicURLClassLoader(new URL[0], Main.class.getClassLoader()));
-            sources.add(0, pluginClassLoader);
-        }
-        return pluginClassLoader;
+        return getJoinedPluginResourceCL();
     }
 
     /**
-     * Add more plugins to the plugin class loader.
+     * Get class loader to locate resources from plugins.
      *
-     * @param plugins the plugins that should be handled by the plugin class loader
+     * It joins URLs of all plugins, to find images, etc.
+     * (Not for loading Java classes - each plugin has a separate {@link PluginClassLoader}
+     * for that purpose.)
+     * @return class loader to locate resources from plugins
      */
-    public static void extendPluginClassLoader(Collection<PluginInformation> plugins) {
+    private static synchronized DynamicURLClassLoader getJoinedPluginResourceCL() {
+        if (joinedPluginResourceCL == null) {
+            joinedPluginResourceCL = AccessController.doPrivileged((PrivilegedAction<DynamicURLClassLoader>)
+                    () -> new DynamicURLClassLoader(new URL[0], Main.class.getClassLoader()));
+            sources.add(0, joinedPluginResourceCL);
+        }
+        return joinedPluginResourceCL;
+    }
+
+    /**
+     * Add more plugins to the joined plugin resource class loader.
+     *
+     * @param plugins the plugins to add
+     */
+    private static void extendJoinedPluginResourceCL(Collection<PluginInformation> plugins) {
         // iterate all plugins and collect all libraries of all plugins:
         File pluginDir = Main.pref.getPluginsDirectory();
-        DynamicURLClassLoader cl = getPluginClassLoader();
+        DynamicURLClassLoader cl = getJoinedPluginResourceCL();
 
         for (PluginInformation info : plugins) {
             if (info.libraries == null) {
@@ -707,15 +770,15 @@ public final class PluginHandler {
      * @param plugin the plugin
      * @param pluginClassLoader the plugin class loader
      */
-    public static void loadPlugin(Component parent, PluginInformation plugin, ClassLoader pluginClassLoader) {
+    private static void loadPlugin(Component parent, PluginInformation plugin, PluginClassLoader pluginClassLoader) {
         String msg = tr("Could not load plugin {0}. Delete from preferences?", plugin.name);
         try {
             Class<?> klass = plugin.loadClass(pluginClassLoader);
             if (klass != null) {
                 Main.info(tr("loading plugin ''{0}'' (version {1})", plugin.name, plugin.localversion));
-                PluginProxy pluginProxy = plugin.load(klass);
+                PluginProxy pluginProxy = plugin.load(klass, pluginClassLoader);
                 pluginList.add(pluginProxy);
-                Main.addMapFrameListener(pluginProxy, true);
+                Main.addAndFireMapFrameListener(pluginProxy);
             }
             msg = null;
         } catch (PluginException e) {
@@ -761,11 +824,42 @@ public final class PluginHandler {
             if (toLoad.isEmpty())
                 return;
 
-            extendPluginClassLoader(toLoad);
+            Map<PluginInformation, PluginClassLoader> classLoaders = new HashMap<>();
+            for (PluginInformation info : toLoad) {
+                PluginClassLoader cl = AccessController.doPrivileged((PrivilegedAction<PluginClassLoader>)
+                    () -> new PluginClassLoader(
+                        info.libraries.toArray(new URL[0]),
+                        Main.class.getClassLoader(),
+                        null));
+                classLoaders.put(info, cl);
+            }
+
+            // resolve dependencies
+            for (PluginInformation info : toLoad) {
+                PluginClassLoader cl = classLoaders.get(info);
+                DEPENDENCIES:
+                for (String depName : info.getRequiredPlugins()) {
+                    for (PluginInformation depInfo : toLoad) {
+                        if (depInfo.getName().equals(depName)) {
+                            cl.addDependency(classLoaders.get(depInfo));
+                            continue DEPENDENCIES;
+                        }
+                    }
+                    for (PluginProxy proxy : pluginList) {
+                        if (proxy.getPluginInformation().getName().equals(depName)) {
+                            cl.addDependency(proxy.getClassLoader());
+                            continue DEPENDENCIES;
+                        }
+                    }
+                    throw new AssertionError("unable to find dependency " + depName + " for plugin " + info.getName());
+                }
+            }
+
+            extendJoinedPluginResourceCL(toLoad);
             monitor.setTicksCount(toLoad.size());
             for (PluginInformation info : toLoad) {
                 monitor.setExtraText(tr("Loading plugin ''{0}''...", info.name));
-                loadPlugin(parent, info, getPluginClassLoader());
+                loadPlugin(parent, info, classLoaders.get(info));
                 monitor.worked(1);
             }
         } finally {
@@ -1115,7 +1209,22 @@ public final class PluginHandler {
     public static Object getPlugin(String name) {
         for (PluginProxy plugin : pluginList) {
             if (plugin.getPluginInformation().name.equals(name))
-                return plugin.plugin;
+                return plugin.getPlugin();
+        }
+        return null;
+    }
+
+    /**
+     * Returns the plugin class loader for the plugin of the specified name.
+     * @param name The plugin name
+     * @return The plugin class loader for the plugin of the specified name, if
+     * installed and loaded, or {@code null} otherwise.
+     * @since 12323
+     */
+    public static PluginClassLoader getPluginClassLoader(String name) {
+        for (PluginProxy plugin : pluginList) {
+            if (plugin.getPluginInformation().name.equals(name))
+                return plugin.getClassLoader();
         }
         return null;
     }
@@ -1402,24 +1511,7 @@ public final class PluginHandler {
             + (info.version != null && !info.version.isEmpty() ? " Version: " + info.version : "");
             pluginTab.add(new JLabel(name), GBC.std());
             pluginTab.add(Box.createHorizontalGlue(), GBC.std().fill(GBC.HORIZONTAL));
-            pluginTab.add(new JButton(new AbstractAction(tr("Information")) {
-                @Override
-                public void actionPerformed(ActionEvent event) {
-                    StringBuilder b = new StringBuilder();
-                    for (Entry<String, String> e : info.attr.entrySet()) {
-                        b.append(e.getKey());
-                        b.append(": ");
-                        b.append(e.getValue());
-                        b.append('\n');
-                    }
-                    JosmTextArea a = new JosmTextArea(10, 40);
-                    a.setEditable(false);
-                    a.setText(b.toString());
-                    a.setCaretPosition(0);
-                    JOptionPane.showMessageDialog(Main.parent, new JScrollPane(a), tr("Plugin information"),
-                            JOptionPane.INFORMATION_MESSAGE);
-                }
-            }), GBC.eol());
+            pluginTab.add(new JButton(new PluginInformationAction(info)), GBC.eol());
 
             JosmTextArea description = new JosmTextArea(info.description == null ? tr("no description available")
                     : info.description);

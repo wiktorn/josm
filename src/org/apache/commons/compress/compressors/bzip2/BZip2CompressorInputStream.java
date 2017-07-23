@@ -376,7 +376,7 @@ public class BZip2CompressorInputStream extends CompressorInputStream implements
     /**
      * read bits from the input stream
      * @param n the number of bits to read, must not exceed 32?
-     * @return
+     * @return the requested bits combined into an int
      * @throws IOException
      */
     private static int bsR(BitInputStream bin, final int n) throws IOException {
@@ -396,7 +396,7 @@ public class BZip2CompressorInputStream extends CompressorInputStream implements
     }
 
     private static int bsGetInt(BitInputStream bin) throws IOException {
-        return (int) bsR(bin, 32);
+        return bsR(bin, 32);
     }
 
     /**
@@ -612,7 +612,7 @@ public class BZip2CompressorInputStream extends CompressorInputStream implements
                     }
 
                     int zn = minLens_zt;
-                    int zvec = (int) bsR(bin, zn);
+                    int zvec = bsR(bin, zn);
                     while(zvec > limit_zt[zn]) {
                         zn++;
                         zvec = (zvec << 1) | bsR(bin, 1);
@@ -666,10 +666,10 @@ public class BZip2CompressorInputStream extends CompressorInputStream implements
                 }
 
                 int zn = minLens_zt;
-                int zvec = (int) bsR(bin, zn);
+                int zvec = bsR(bin, zn);
                 while(zvec > limit_zt[zn]) {
                     zn++;
-                    zvec = (zvec << 1) | (int) bsR(bin, 1);
+                    zvec = (zvec << 1) | bsR(bin, 1);
                 }
                 nextSym = perm_zt[zvec - base_zt[zn]];
             }
@@ -686,7 +686,7 @@ public class BZip2CompressorInputStream extends CompressorInputStream implements
         int zvec = bsR(bin, zn);
         while (zvec > limit_zt[zn]) {
             zn++;
-            zvec = (zvec << 1) | (int) bsR(bin, 1);
+            zvec = (zvec << 1) | bsR(bin, 1);
         }
 
         return dataShadow.perm[zt][zvec - dataShadow.base[zt][zn]];

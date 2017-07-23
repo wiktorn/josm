@@ -39,6 +39,9 @@ public final class TextTagParser {
         // Hide default constructor for utils classes
     }
 
+    /**
+     * A helper class that analyzes the text and attempts to parse tags from it
+     */
     public static class TextAnalyzer {
         private boolean quotesStarted;
         private boolean esc;
@@ -47,6 +50,10 @@ public final class TextTagParser {
         private final String data;
         private final int n;
 
+        /**
+         * Create a new {@link TextAnalyzer}
+         * @param text The text to parse
+         */
         public TextAnalyzer(String text) {
             pos = 0;
             data = text;
@@ -200,6 +207,11 @@ public final class TextTagParser {
          }
     }
 
+    /**
+     * Gets a list of tags that are in the given text
+     * @param buf The text to parse
+     * @return The tags or <code>null</code> if the tags are not valid
+     */
     public static Map<String, String> getValidatedTagsFromText(String buf) {
         Map<String, String> tags = readTagsFromText(buf);
         return validateTags(tags) ? tags : null;
@@ -280,8 +292,8 @@ public final class TextTagParser {
         ExtendedDialog ed = new ExtendedDialog(
                     Main.parent,
                     tr("Do you want to paste these tags?"),
-                    new String[]{tr("Ok"), tr("Cancel"), tr("Clear buffer"), tr("Ignore warnings")});
-        ed.setButtonIcons(new String[]{"ok", "cancel", "dialogs/delete", "pastetags"});
+                    tr("Ok"), tr("Cancel"), tr("Clear buffer"), tr("Ignore warnings"));
+        ed.setButtonIcons("ok", "cancel", "dialogs/delete", "pastetags");
         ed.setContent("<html><b>"+text + "</b><br/><br/><div width=\"300px\">"+XmlWriter.encode(data, true)+"</html>");
         ed.setDefaultButton(2);
         ed.setCancelButton(2);
@@ -313,19 +325,17 @@ public final class TextTagParser {
         ExtendedDialog ed = new ExtendedDialog(
                     Main.parent,
                     tr("Warning"),
-                    new String[]{tr("Ok"), tr("Clear buffer")});
+                    tr("Ok"), tr("Clear buffer"))
+            .setButtonIcons("ok", "dialogs/delete")
+            .setContent(p)
+            .setDefaultButton(1)
+            .setCancelButton(1)
+            .setIcon(JOptionPane.WARNING_MESSAGE)
+            .toggleEnable("tags.paste.cleanbadbuffer");
 
-        ed.setButtonIcons(new String[]{"ok", "dialogs/delete"});
-
-        ed.setContent(p);
-        ed.setDefaultButton(1);
-        ed.setCancelButton(1);
-        ed.setIcon(JOptionPane.WARNING_MESSAGE);
-        ed.toggleEnable("tags.paste.cleanbadbuffer");
         ed.showDialog();
 
-        int r = ed.getValue();
         // clean clipboard if user asked
-        if (r == 2) ClipboardUtils.copyString("");
+        if (ed.getValue() == 2) ClipboardUtils.copyString("");
     }
 }

@@ -53,6 +53,8 @@ import org.openstreetmap.josm.actions.mapmode.SelectAction;
 import org.openstreetmap.josm.actions.mapmode.ZoomAction;
 import org.openstreetmap.josm.data.Preferences.PreferenceChangedListener;
 import org.openstreetmap.josm.data.ViewportData;
+import org.openstreetmap.josm.data.preferences.BooleanProperty;
+import org.openstreetmap.josm.data.preferences.IntegerProperty;
 import org.openstreetmap.josm.gui.dialogs.ChangesetDialog;
 import org.openstreetmap.josm.gui.dialogs.CommandStackDialog;
 import org.openstreetmap.josm.gui.dialogs.ConflictDialog;
@@ -82,7 +84,6 @@ import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Shortcut;
 
-
 /**
  * One Map frame with one dataset behind. This is the container gui class whose
  * display can be set to the different views.
@@ -90,7 +91,17 @@ import org.openstreetmap.josm.tools.Shortcut;
  * @author imi
  */
 public class MapFrame extends JPanel implements Destroyable, ActiveLayerChangeListener, LayerChangeListener {
+    /**
+     * Default width of the toggle dialog area.
+     */
+    public static final int DEF_TOGGLE_DLG_WIDTH = 330;
 
+    private static final IntegerProperty TOGGLE_DIALOGS_WIDTH = new IntegerProperty("toggleDialogs.width", DEF_TOGGLE_DLG_WIDTH);
+    /**
+     * Do not require to switch modes (potlatch style workflow) for drawing/selecting map modes.
+     * @since 12347
+     */
+    public static final BooleanProperty MODELESS = new BooleanProperty("modeless", false);
     /**
      * The current mode, this frame operates.
      */
@@ -119,6 +130,9 @@ public class MapFrame extends JPanel implements Destroyable, ActiveLayerChangeLi
 
     private final List<ToggleDialog> allDialogs = new ArrayList<>();
     private final List<IconToggleButton> allDialogButtons = new ArrayList<>();
+    /**
+     * All map mode buttons. Should only be read form the outside
+     */
     public final List<IconToggleButton> allMapModeButtons = new ArrayList<>();
 
     private final ListAllButtonsAction listAllDialogsAction = new ListAllButtonsAction(allDialogButtons);
@@ -176,11 +190,6 @@ public class MapFrame extends JPanel implements Destroyable, ActiveLayerChangeLi
     private final DialogsPanel dialogsPanel;
 
     /**
-     * Default width of the toggle dialog area.
-     */
-    public static final int DEF_TOGGLE_DLG_WIDTH = 330;
-
-    /**
      * Constructs a new {@code MapFrame}.
      * @param viewportData the initial viewport of the map. Can be null, then
      * the viewport is derived from the layer data.
@@ -220,7 +229,7 @@ public class MapFrame extends JPanel implements Destroyable, ActiveLayerChangeLi
         add(splitPane, BorderLayout.CENTER);
 
         dialogsPanel.setLayout(new BoxLayout(dialogsPanel, BoxLayout.Y_AXIS));
-        dialogsPanel.setPreferredSize(new Dimension(Main.pref.getInteger("toggleDialogs.width", DEF_TOGGLE_DLG_WIDTH), 0));
+        dialogsPanel.setPreferredSize(new Dimension(TOGGLE_DIALOGS_WIDTH.get(), 0));
         dialogsPanel.setMinimumSize(new Dimension(24, 0));
         mapView.setMinimumSize(new Dimension(10, 0));
 
@@ -287,22 +296,37 @@ public class MapFrame extends JPanel implements Destroyable, ActiveLayerChangeLi
         }
     }
 
+    /**
+     * Enables the select tool
+     * @param onlyIfModeless Only enable if modeless mode is active
+     * @return <code>true</code> if it is selected
+     */
     public boolean selectSelectTool(boolean onlyIfModeless) {
-        if (onlyIfModeless && !Main.pref.getBoolean("modeless", false))
+        if (onlyIfModeless && !MODELESS.get())
             return false;
 
         return selectMapMode(mapModeSelect);
     }
 
+    /**
+     * Enables the draw tool
+     * @param onlyIfModeless Only enable if modeless mode is active
+     * @return <code>true</code> if it is selected
+     */
     public boolean selectDrawTool(boolean onlyIfModeless) {
-        if (onlyIfModeless && !Main.pref.getBoolean("modeless", false))
+        if (onlyIfModeless && !MODELESS.get())
             return false;
 
         return selectMapMode(mapModeDraw);
     }
 
+    /**
+     * Enables the zoom tool
+     * @param onlyIfModeless Only enable if modeless mode is active
+     * @return <code>true</code> if it is selected
+     */
     public boolean selectZoomTool(boolean onlyIfModeless) {
-        if (onlyIfModeless && !Main.pref.getBoolean("modeless", false))
+        if (onlyIfModeless && !MODELESS.get())
             return false;
 
         return selectMapMode(mapModeZoom);
@@ -334,6 +358,10 @@ public class MapFrame extends JPanel implements Destroyable, ActiveLayerChangeLi
         keyDetector.unregister();
     }
 
+    /**
+     * Gets the action of the default (first) map mode
+     * @return That action
+     */
     public Action getDefaultButtonAction() {
         return ((AbstractButton) toolBarActions.getComponent(0)).getAction();
     }
@@ -345,6 +373,11 @@ public class MapFrame extends JPanel implements Destroyable, ActiveLayerChangeLi
         dialogsPanel.initialize(allDialogs);
     }
 
+    /**
+     * Adds a new toggle dialog to the left button list. It is displayed in expert and normal mode
+     * @param dlg The dialog
+     * @return The button
+     */
     public IconToggleButton addToggleDialog(final ToggleDialog dlg) {
         return addToggleDialog(dlg, false);
     }
@@ -385,6 +418,10 @@ public class MapFrame extends JPanel implements Destroyable, ActiveLayerChangeLi
         allDialogs.remove(dlg);
     }
 
+    /**
+     * Adds a new map mode button
+     * @param b The map mode button with a {@link MapMode} action.
+     */
     public void addMapMode(IconToggleButton b) {
         if (!(b.getAction() instanceof MapMode))
             throw new IllegalArgumentException("MapMode action must be subclass of MapMode");
@@ -495,7 +532,6 @@ public class MapFrame extends JPanel implements Destroyable, ActiveLayerChangeLi
          */
         if (Main.pref.getBoolean("sidetoolbar.scrollable", true)) {
             final ScrollViewport svp = new ScrollViewport(sideToolBar, ScrollViewport.VERTICAL_DIRECTION);
-            svp.addMouseWheelListener(e -> svp.scroll(0, e.getUnitsToScroll() * 5));
             sideToolBar = svp;
         }
         sideToolBar.setVisible(Main.pref.getBoolean("sidetoolbar.visible", true));
@@ -639,6 +675,9 @@ public class MapFrame extends JPanel implements Destroyable, ActiveLayerChangeLi
         }
     }
 
+    /**
+     * Validate the visibility of all tool bars and hide the ones that should be hidden
+     */
     public void validateToolBarsVisibility() {
         for (IconToggleButton b : allDialogButtons) {
             b.applyButtonHiddenPreferences();
@@ -663,10 +702,14 @@ public class MapFrame extends JPanel implements Destroyable, ActiveLayerChangeLi
         return dialogsPanel.getToggleDialog(type);
     }
 
+    /**
+     * Shows or hides the side dialog panel
+     * @param visible The new visibility
+     */
     public void setDialogsPanelVisible(boolean visible) {
         rememberToggleDialogWidth();
         dialogsPanel.setVisible(visible);
-        splitPane.setDividerLocation(visible ? splitPane.getWidth()-Main.pref.getInteger("toggleDialogs.width", DEF_TOGGLE_DLG_WIDTH) : 0);
+        splitPane.setDividerLocation(visible ? splitPane.getWidth() - TOGGLE_DIALOGS_WIDTH.get() : 0);
         splitPane.setDividerSize(visible ? 5 : 0);
     }
 
@@ -675,7 +718,7 @@ public class MapFrame extends JPanel implements Destroyable, ActiveLayerChangeLi
      */
     public void rememberToggleDialogWidth() {
         if (dialogsPanel.isVisible()) {
-            Main.pref.putInteger("toggleDialogs.width", splitPane.getWidth()-splitPane.getDividerLocation());
+            TOGGLE_DIALOGS_WIDTH.put(splitPane.getWidth() - splitPane.getDividerLocation());
         }
     }
 
@@ -784,14 +827,10 @@ public class MapFrame extends JPanel implements Destroyable, ActiveLayerChangeLi
             }
         }
         // if this is really a change (and not the first active layer)
-        if (e.getPreviousActiveLayer() != null) {
-            if (!modeChanged && mapMode != null) {
-                // Let mapmodes know about new active layer
-                mapMode.exitMode();
-                mapMode.enterMode();
-            }
-            // invalidate repaint cache
-            mapView.preferenceChanged(null);
+        if (e.getPreviousActiveLayer() != null && !modeChanged && mapMode != null) {
+            // Let mapmodes know about new active layer
+            mapMode.exitMode();
+            mapMode.enterMode();
         }
 
         // After all listeners notice new layer, some buttons will be disabled/enabled

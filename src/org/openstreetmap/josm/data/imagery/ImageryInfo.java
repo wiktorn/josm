@@ -153,8 +153,6 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
     private String langName;
     /** whether this is a entry activated by default or not */
     private boolean defaultEntry;
-    /** The data part of HTTP cookies header in case the service requires cookies to work */
-    private String cookies;
     /** Whether this service requires a explicit EULA acceptance before it can be activated */
     private String eulaAcceptanceRequired;
     /** type of the imagery servics - WMS, TMS, ... */
@@ -174,7 +172,9 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
     private String langDescription;
     /** Text of a text attribution displayed when using the imagery */
     private String attributionText;
-    /** Link behing the text attribution displayed when using the imagery */
+    /** Link to a reference stating the permission for OSM usage */
+    private String permissionReferenceURL;
+    /** Link behind the text attribution displayed when using the imagery */
     private String attributionLinkURL;
     /** Image of a graphical attribution displayed when using the imagery */
     private String attributionImage;
@@ -221,6 +221,7 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
         @pref String eula;
         @pref String attribution_text;
         @pref String attribution_url;
+        @pref String permission_reference_url;
         @pref String logo_image;
         @pref String logo_url;
         @pref String terms_of_use_text;
@@ -264,6 +265,7 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
             eula = i.eulaAcceptanceRequired;
             attribution_text = i.attributionText;
             attribution_url = i.attributionLinkURL;
+            permission_reference_url = i.permissionReferenceURL;
             date = i.date;
             bestMarked = i.bestMarked;
             logo_image = i.attributionImage;
@@ -374,11 +376,21 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
         this.eulaAcceptanceRequired = eulaAcceptanceRequired;
         if (t != null) {
             this.imageryType = t;
-        } else if (type != null && !type.trim().isEmpty()) {
+        } else if (type != null && !type.isEmpty()) {
             throw new IllegalArgumentException("unknown type: "+type);
         }
     }
 
+    /**
+     * Constructs a new {@code ImageryInfo} with given name, url, id, extended and EULA URLs.
+     * @param name The entry name
+     * @param url The entry URL
+     * @param type The entry imagery type. If null, WMS will be used as default
+     * @param eulaAcceptanceRequired The EULA URL
+     * @param cookies The data part of HTTP cookies header in case the service requires cookies to work
+     * @param id tile id
+     * @throws IllegalArgumentException if type refers to an unknown imagery type
+     */
     public ImageryInfo(String name, String url, String type, String eulaAcceptanceRequired, String cookies, String id) {
         this(name, url, type, eulaAcceptanceRequired, cookies);
         setId(id);
@@ -418,6 +430,7 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
         }
         attributionText = e.attribution_text;
         attributionLinkURL = e.attribution_url;
+        permissionReferenceURL = e.permission_reference_url;
         attributionImage = e.logo_image;
         attributionImageURL = e.logo_url;
         date = e.date;
@@ -459,6 +472,7 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
         this.serverProjections = i.serverProjections;
         this.attributionText = i.attributionText;
         this.attributionLinkURL = i.attributionLinkURL;
+        this.permissionReferenceURL = i.permissionReferenceURL;
         this.attributionImage = i.attributionImage;
         this.attributionImageURL = i.attributionImageURL;
         this.termsOfUseText = i.termsOfUseText;
@@ -509,6 +523,7 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
                 Objects.equals(this.serverProjections, other.serverProjections) &&
                 Objects.equals(this.attributionText, other.attributionText) &&
                 Objects.equals(this.attributionLinkURL, other.attributionLinkURL) &&
+                Objects.equals(this.permissionReferenceURL, other.permissionReferenceURL) &&
                 Objects.equals(this.attributionImageURL, other.attributionImageURL) &&
                 Objects.equals(this.attributionImage, other.attributionImage) &&
                 Objects.equals(this.termsOfUseText, other.termsOfUseText) &&
@@ -557,6 +572,11 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
         return i;
     }
 
+    /**
+     * Determines if URL is equal to given imagery info.
+     * @param in imagery info
+     * @return {@code true} if URL is equal to given imagery info
+     */
     public boolean equalsBaseValues(ImageryInfo in) {
         return url.equals(in.url);
     }
@@ -604,7 +624,8 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
 
     @Override
     public boolean requiresAttribution() {
-        return attributionText != null || attributionImage != null || termsOfUseText != null || termsOfUseURL != null;
+        return attributionText != null || attributionLinkURL != null || attributionImage != null
+                || termsOfUseText != null || termsOfUseURL != null;
     }
 
     @Override
@@ -617,6 +638,16 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
         return attributionLinkURL;
     }
 
+    /**
+     * Return the permission reference URL.
+     * @return The url
+     * @see #setPermissionReferenceURL
+     * @since 11975
+     */
+    public String getPermissionReferenceURL() {
+        return permissionReferenceURL;
+    }
+
     @Override
     public Image getAttributionImage() {
         ImageIcon i = ImageProvider.getIfAvailable(attributionImage);
@@ -624,6 +655,15 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
             return i.getImage();
         }
         return null;
+    }
+
+    /**
+     * Return the raw attribution logo information (an URL to the image).
+     * @return The url text
+     * @since 12257
+     */
+    public String getAttributionImageRaw() {
+        return attributionImage;
     }
 
     @Override
@@ -675,6 +715,16 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
      */
     public void setAttributionLinkURL(String url) {
         attributionLinkURL = url;
+    }
+
+    /**
+     * Sets the permission reference URL.
+     * @param url The url.
+     * @see #getPermissionReferenceURL()
+     * @since 11975
+     */
+    public void setPermissionReferenceURL(String url) {
+        permissionReferenceURL = url;
     }
 
     /**
@@ -786,15 +836,6 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
      */
     public void setDefaultEntry(boolean defaultEntry) {
         this.defaultEntry = defaultEntry;
-    }
-
-    /**
-     * Return the data part of HTTP cookies header in case the service requires cookies to work
-     * @return the cookie data part
-     */
-    @Override
-    public String getCookies() {
-        return this.cookies;
     }
 
     /**

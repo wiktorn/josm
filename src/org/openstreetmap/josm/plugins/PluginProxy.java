@@ -1,7 +1,6 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.plugins;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
 import org.openstreetmap.josm.Main;
@@ -22,16 +21,38 @@ public class PluginProxy extends Plugin {
     /**
      * The plugin.
      */
-    public final Object plugin;
+    private final Object plugin;
+    private final PluginClassLoader classLoader;
 
     /**
      * Constructs a new {@code PluginProxy}.
      * @param plugin the plugin
      * @param info the associated plugin info
+     * @param classLoader the class loader for the plugin
+     * @since 12322
      */
-    public PluginProxy(Object plugin, PluginInformation info) {
+    public PluginProxy(Object plugin, PluginInformation info, PluginClassLoader classLoader) {
         super(info);
         this.plugin = plugin;
+        this.classLoader = classLoader;
+    }
+
+    /**
+     * Get the plugin object.
+     * @return the plugin object
+     * @since 12322
+     */
+    public Object getPlugin() {
+        return plugin;
+    }
+
+    /**
+     * Get the class loader for the plugin.
+     * @return the plugin class loader
+     * @since 12322
+     */
+    public PluginClassLoader getClassLoader() {
+        return classLoader;
     }
 
     private void handlePluginException(Exception e) {
@@ -46,7 +67,7 @@ public class PluginProxy extends Plugin {
         } catch (NoSuchMethodException e) {
             Main.trace(e);
             Main.debug("Plugin "+plugin+" does not define mapFrameInitialized");
-        } catch (InvocationTargetException | IllegalAccessException | IllegalArgumentException e) {
+        } catch (ReflectiveOperationException | IllegalArgumentException e) {
             handlePluginException(e);
         }
     }
@@ -59,7 +80,7 @@ public class PluginProxy extends Plugin {
             Main.trace(e);
             Main.debug("Plugin "+plugin+" does not define getPreferenceSetting");
             return null;
-        } catch (InvocationTargetException | IllegalAccessException | IllegalArgumentException e) {
+        } catch (ReflectiveOperationException | IllegalArgumentException e) {
             handlePluginException(e);
         }
         return null;
@@ -72,7 +93,7 @@ public class PluginProxy extends Plugin {
         } catch (NoSuchMethodException e) {
             Main.trace(e);
             Main.debug("Plugin "+plugin+" does not define addDownloadSelection");
-        } catch (InvocationTargetException | IllegalAccessException | IllegalArgumentException e) {
+        } catch (ReflectiveOperationException | IllegalArgumentException e) {
             handlePluginException(e);
         }
     }

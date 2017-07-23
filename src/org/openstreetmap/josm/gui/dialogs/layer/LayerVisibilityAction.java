@@ -3,28 +3,41 @@ package org.openstreetmap.josm.gui.dialogs.layer;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
 
+import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
+import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JCheckBox;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JSlider;
+import javax.swing.UIManager;
+import javax.swing.border.Border;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.gui.SideButton;
 import org.openstreetmap.josm.gui.dialogs.IEnabledStateUpdating;
 import org.openstreetmap.josm.gui.dialogs.LayerListDialog.LayerListModel;
+import org.openstreetmap.josm.gui.layer.GpxLayer;
 import org.openstreetmap.josm.gui.layer.ImageryLayer;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.Layer.LayerAction;
@@ -39,6 +52,7 @@ import org.openstreetmap.josm.tools.Utils;
  * @author Michael Zangl
  */
 public final class LayerVisibilityAction extends AbstractAction implements IEnabledStateUpdating, LayerAction {
+    private static final String DIALOGS_LAYERLIST = "dialogs/layerlist";
     private static final int SLIDER_STEPS = 100;
     /**
      * Steps the value is changed by a mouse wheel change (one full click)
@@ -49,9 +63,12 @@ public final class LayerVisibilityAction extends AbstractAction implements IEnab
     private final LayerListModel model;
     private final JPopupMenu popup;
     private SideButton sideButton;
-    private final JCheckBox visibilityCheckbox;
+    /**
+     * The real content, just to add a border
+     */
+    private final JPanel content = new JPanel();
     final OpacitySlider opacitySlider = new OpacitySlider();
-    private final ArrayList<FilterSlider<?>> sliders = new ArrayList<>();
+    private final ArrayList<LayerVisibilityMenuEntry> sliders = new ArrayList<>();
 
     /**
      * Creates a new {@link LayerVisibilityAction}
@@ -63,34 +80,24 @@ public final class LayerVisibilityAction extends AbstractAction implements IEnab
         // prevent popup close on mouse wheel move
         popup.addMouseWheelListener(MouseWheelEvent::consume);
 
-        // just to add a border
-        JPanel content = new JPanel();
         popup.add(content);
         content.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         content.setLayout(new GridBagLayout());
 
-        new ImageProvider("dialogs/layerlist", "visibility").getResource().attachImageIcon(this, true);
+        new ImageProvider(DIALOGS_LAYERLIST, "visibility").getResource().attachImageIcon(this, true);
         putValue(SHORT_DESCRIPTION, tr("Change visibility of the selected layer."));
 
-        visibilityCheckbox = new JCheckBox(tr("Show layer"));
-        visibilityCheckbox.addChangeListener(e -> setVisibleFlag(visibilityCheckbox.isSelected()));
-        content.add(visibilityCheckbox, GBC.eop());
+        addContentEntry(new VisibilityCheckbox());
 
-        addSlider(content, opacitySlider);
-        addSlider(content, new ColorfulnessSlider());
-        addSlider(content, new GammaFilterSlider());
-        addSlider(content, new SharpnessSlider());
+        addContentEntry(opacitySlider);
+        addContentEntry(new ColorfulnessSlider());
+        addContentEntry(new GammaFilterSlider());
+        addContentEntry(new SharpnessSlider());
+        addContentEntry(new ColorSelector(model::getSelectedLayers));
     }
 
-    private void addSlider(JPanel content, FilterSlider<?> slider) {
-        // wrap to a common content pane to allow for mouse wheel listener on label.
-        JPanel container = new JPanel(new GridBagLayout());
-        container.add(new JLabel(slider.getIcon()), GBC.std().span(1, 2).insets(0, 0, 5, 0));
-        container.add(new JLabel(slider.getLabel()), GBC.eol());
-        container.add(slider, GBC.eol());
-        content.add(container, GBC.eop());
-
-        container.addMouseWheelListener(slider::mouseWheelMoved);
+    private void addContentEntry(LayerVisibilityMenuEntry slider) {
+        content.add(slider.getPanel(), GBC.eop().fill(GBC.HORIZONTAL));
         sliders.add(slider);
     }
 
@@ -116,18 +123,15 @@ public final class LayerVisibilityAction extends AbstractAction implements IEnab
     void updateValues() {
         List<Layer> layers = model.getSelectedLayers();
 
-        visibilityCheckbox.setEnabled(!layers.isEmpty());
         boolean allVisible = true;
         boolean allHidden = true;
         for (Layer l : layers) {
             allVisible &= l.isVisible();
             allHidden &= !l.isVisible();
         }
-        // TODO: Indicate tristate.
-        visibilityCheckbox.setSelected(allVisible && !allHidden);
 
-        for (FilterSlider<?> slider : sliders) {
-            slider.updateSlider(layers, allHidden);
+        for (LayerVisibilityMenuEntry slider : sliders) {
+            slider.updateLayers(layers, allVisible, allHidden);
         }
     }
 
@@ -155,15 +159,63 @@ public final class LayerVisibilityAction extends AbstractAction implements IEnab
     }
 
     /**
+     * An entry in the visibility settings dropdown.
+     * @author Michael Zangl
+     */
+    private interface LayerVisibilityMenuEntry {
+
+        /**
+         * Update the displayed value depending on the current layers
+         * @param layers The layers
+         * @param allVisible <code>true</code> if all layers are visible
+         * @param allHidden <code>true</code> if all layers are hidden
+         */
+        void updateLayers(List<Layer> layers, boolean allVisible, boolean allHidden);
+
+        /**
+         * Get the panel that should be added to the menu
+         * @return The panel
+         */
+        JComponent getPanel();
+    }
+
+    private class VisibilityCheckbox extends JCheckBox implements LayerVisibilityMenuEntry {
+
+        VisibilityCheckbox() {
+            super(tr("Show layer"));
+
+            // Align all texts
+            Icon icon = UIManager.getIcon("CheckBox.icon");
+            int iconWidth = icon == null ? 20 : icon.getIconWidth();
+            setBorder(BorderFactory.createEmptyBorder(0, Math.max(24 + 5 - iconWidth, 0), 0, 0));
+            addChangeListener(e -> setVisibleFlag(isSelected()));
+        }
+
+        @Override
+        public void updateLayers(List<Layer> layers, boolean allVisible, boolean allHidden) {
+            setEnabled(!layers.isEmpty());
+            // TODO: Indicate tristate.
+            setSelected(allVisible && !allHidden);
+        }
+
+        @Override
+        public JComponent getPanel() {
+            return this;
+        }
+    }
+
+    /**
      * This is a slider for a filter value.
      * @author Michael Zangl
      *
      * @param <T> The layer type.
      */
-    private abstract class FilterSlider<T extends Layer> extends JSlider {
+    private abstract class AbstractFilterSlider<T extends Layer> extends JPanel implements LayerVisibilityMenuEntry {
         private final double minValue;
         private final double maxValue;
         private final Class<T> layerClassFilter;
+
+        protected final JSlider slider = new JSlider(JSlider.HORIZONTAL);
 
         /**
          * Create a new filter slider.
@@ -171,23 +223,29 @@ public final class LayerVisibilityAction extends AbstractAction implements IEnab
          * @param maxValue The maximum value to map to the right side.
          * @param layerClassFilter The type of layer influenced by this filter.
          */
-        FilterSlider(double minValue, double maxValue, Class<T> layerClassFilter) {
-            super(JSlider.HORIZONTAL);
+        AbstractFilterSlider(double minValue, double maxValue, Class<T> layerClassFilter) {
+            super(new GridBagLayout());
             this.minValue = minValue;
             this.maxValue = maxValue;
             this.layerClassFilter = layerClassFilter;
-            setMaximum(SLIDER_STEPS);
-            int tick = convertFromRealValue(1);
-            setMinorTickSpacing(tick);
-            setMajorTickSpacing(tick);
-            setPaintTicks(true);
 
-            addChangeListener(e -> onStateChanged());
+            add(new JLabel(getIcon()), GBC.std().span(1, 2).insets(0, 0, 5, 0));
+            add(new JLabel(getLabel()), GBC.eol().insets(5, 0, 5, 0));
+            add(slider, GBC.eol());
+            addMouseWheelListener(this::mouseWheelMoved);
+
+            slider.setMaximum(SLIDER_STEPS);
+            int tick = convertFromRealValue(1);
+            slider.setMinorTickSpacing(tick);
+            slider.setMajorTickSpacing(tick);
+            slider.setPaintTicks(true);
+
+            slider.addChangeListener(e -> onStateChanged());
         }
 
         /**
          * Called whenever the state of the slider was changed.
-         * @see #getValueIsAdjusting()
+         * @see JSlider#getValueIsAdjusting()
          * @see #getRealValue()
          */
         protected void onStateChanged() {
@@ -204,19 +262,19 @@ public final class LayerVisibilityAction extends AbstractAction implements IEnab
                 return;
             }
             double rotation = -1 * e.getPreciseWheelRotation();
-            double destinationValue = getValue() + rotation * SLIDER_WHEEL_INCREMENT;
+            double destinationValue = slider.getValue() + rotation * SLIDER_WHEEL_INCREMENT;
             if (rotation < 0) {
                 destinationValue = Math.floor(destinationValue);
             } else {
                 destinationValue = Math.ceil(destinationValue);
             }
-            setValue(Utils.clamp((int) destinationValue, getMinimum(), getMaximum()));
+            slider.setValue(Utils.clamp((int) destinationValue, slider.getMinimum(), slider.getMaximum()));
         }
 
         abstract void applyValueToLayer(T layer);
 
         protected double getRealValue() {
-            return convertToRealValue(getValue());
+            return convertToRealValue(slider.getValue());
         }
 
         protected double convertToRealValue(int value) {
@@ -225,24 +283,26 @@ public final class LayerVisibilityAction extends AbstractAction implements IEnab
         }
 
         protected void setRealValue(double value) {
-            setValue(convertFromRealValue(value));
+            slider.setValue(convertFromRealValue(value));
         }
 
         protected int convertFromRealValue(double value) {
             int i = (int) ((value - minValue) / (maxValue - minValue) * SLIDER_STEPS + .5);
-            return Utils.clamp(i, getMinimum(), getMaximum());
+            return Utils.clamp(i, slider.getMinimum(), slider.getMaximum());
         }
 
         public abstract ImageIcon getIcon();
 
         public abstract String getLabel();
 
-        public void updateSlider(List<Layer> layers, boolean allHidden) {
+        @Override
+        public void updateLayers(List<Layer> layers, boolean allVisible, boolean allHidden) {
             Collection<? extends Layer> usedLayers = filterLayers(layers);
-            if (usedLayers.isEmpty() || allHidden) {
-                setEnabled(false);
+            setVisible(!usedLayers.isEmpty());
+            if (!usedLayers.stream().anyMatch(Layer::isVisible)) {
+                slider.setEnabled(false);
             } else {
-                setEnabled(true);
+                slider.setEnabled(true);
                 updateSliderWhileEnabled(usedLayers, allHidden);
             }
         }
@@ -252,6 +312,11 @@ public final class LayerVisibilityAction extends AbstractAction implements IEnab
         }
 
         protected abstract void updateSliderWhileEnabled(Collection<? extends Layer> usedLayers, boolean allHidden);
+
+        @Override
+        public JComponent getPanel() {
+            return this;
+        }
     }
 
     /**
@@ -260,18 +325,18 @@ public final class LayerVisibilityAction extends AbstractAction implements IEnab
      * @author Michael Zangl
      * @see Layer#setOpacity(double)
      */
-    class OpacitySlider extends FilterSlider<Layer> {
+    class OpacitySlider extends AbstractFilterSlider<Layer> {
         /**
          * Creaate a new {@link OpacitySlider}.
          */
         OpacitySlider() {
             super(0, 1, Layer.class);
-            setToolTipText(tr("Adjust opacity of the layer."));
+            slider.setToolTipText(tr("Adjust opacity of the layer."));
         }
 
         @Override
         protected void onStateChanged() {
-            if (getRealValue() <= 0.001 && !getValueIsAdjusting()) {
+            if (getRealValue() <= 0.001 && !slider.getValueIsAdjusting()) {
                 setVisibleFlag(false);
             } else {
                 super.onStateChanged();
@@ -316,7 +381,7 @@ public final class LayerVisibilityAction extends AbstractAction implements IEnab
 
         @Override
         public ImageIcon getIcon() {
-            return ImageProvider.get("dialogs/layerlist", "transparency");
+            return ImageProvider.get(DIALOGS_LAYERLIST, "transparency");
         }
 
         @Override
@@ -331,14 +396,14 @@ public final class LayerVisibilityAction extends AbstractAction implements IEnab
      * @author Michael Zangl
      * @see ImageryFilterSettings#setGamma(double)
      */
-    private class GammaFilterSlider extends FilterSlider<ImageryLayer> {
+    private class GammaFilterSlider extends AbstractFilterSlider<ImageryLayer> {
 
         /**
          * Create a new {@link GammaFilterSlider}
          */
         GammaFilterSlider() {
             super(-1, 1, ImageryLayer.class);
-            setToolTipText(tr("Adjust gamma value of the layer."));
+            slider.setToolTipText(tr("Adjust gamma value of the layer."));
         }
 
         @Override
@@ -354,7 +419,7 @@ public final class LayerVisibilityAction extends AbstractAction implements IEnab
 
         @Override
         public ImageIcon getIcon() {
-           return ImageProvider.get("dialogs/layerlist", "gamma");
+           return ImageProvider.get(DIALOGS_LAYERLIST, "gamma");
         }
 
         @Override
@@ -390,14 +455,14 @@ public final class LayerVisibilityAction extends AbstractAction implements IEnab
      * @author Michael Zangl
      * @see ImageryFilterSettings#setSharpenLevel(double)
      */
-    private class SharpnessSlider extends FilterSlider<ImageryLayer> {
+    private class SharpnessSlider extends AbstractFilterSlider<ImageryLayer> {
 
         /**
          * Creates a new {@link SharpnessSlider}
          */
         SharpnessSlider() {
             super(0, MAX_SHARPNESS_FACTOR, ImageryLayer.class);
-            setToolTipText(tr("Adjust sharpness/blur value of the layer."));
+            slider.setToolTipText(tr("Adjust sharpness/blur value of the layer."));
         }
 
         @Override
@@ -412,7 +477,7 @@ public final class LayerVisibilityAction extends AbstractAction implements IEnab
 
         @Override
         public ImageIcon getIcon() {
-           return ImageProvider.get("dialogs/layerlist", "sharpness");
+           return ImageProvider.get(DIALOGS_LAYERLIST, "sharpness");
         }
 
         @Override
@@ -427,14 +492,14 @@ public final class LayerVisibilityAction extends AbstractAction implements IEnab
      * @author Michael Zangl
      * @see ImageryFilterSettings#setColorfulness(double)
      */
-    private class ColorfulnessSlider extends FilterSlider<ImageryLayer> {
+    private class ColorfulnessSlider extends AbstractFilterSlider<ImageryLayer> {
 
         /**
          * Create a new {@link ColorfulnessSlider}
          */
         ColorfulnessSlider() {
             super(0, MAX_COLORFUL_FACTOR, ImageryLayer.class);
-            setToolTipText(tr("Adjust colorfulness of the layer."));
+            slider.setToolTipText(tr("Adjust colorfulness of the layer."));
         }
 
         @Override
@@ -449,12 +514,107 @@ public final class LayerVisibilityAction extends AbstractAction implements IEnab
 
         @Override
         public ImageIcon getIcon() {
-           return ImageProvider.get("dialogs/layerlist", "colorfulness");
+           return ImageProvider.get(DIALOGS_LAYERLIST, "colorfulness");
         }
 
         @Override
         public String getLabel() {
             return tr("Colorfulness");
+        }
+    }
+
+    /**
+     * Allows to select the color for the GPX layer
+     * @author Michael Zangl
+     */
+    private static class ColorSelector extends JPanel implements LayerVisibilityMenuEntry {
+
+        private static final Border NORMAL_BORDER = BorderFactory.createEmptyBorder(2, 2, 2, 2);
+        private static final Border SELECTED_BORDER = BorderFactory.createLineBorder(Color.BLACK, 2);
+
+        // TODO: Nicer color palette
+        private static final Color[] COLORS = new Color[] {
+                Color.RED,
+                Color.ORANGE,
+                Color.YELLOW,
+                Color.GREEN,
+                Color.BLUE,
+                Color.CYAN,
+                Color.GRAY,
+        };
+        private final Supplier<List<Layer>> layerSupplier;
+        private final HashMap<Color, JPanel> panels = new HashMap<>();
+
+        ColorSelector(Supplier<List<Layer>> layerSupplier) {
+            super(new GridBagLayout());
+            this.layerSupplier = layerSupplier;
+            add(new JLabel(tr("Color")), GBC.eol().insets(24 + 10, 0, 0, 0));
+            for (Color color : COLORS) {
+                addPanelForColor(color);
+            }
+        }
+
+        private void addPanelForColor(Color color) {
+            JPanel innerPanel = new JPanel();
+            innerPanel.setBackground(color);
+
+            JPanel colorPanel = new JPanel(new BorderLayout());
+            colorPanel.setBorder(NORMAL_BORDER);
+            colorPanel.add(innerPanel);
+            colorPanel.setMinimumSize(new Dimension(20, 20));
+            colorPanel.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    List<Layer> layers = layerSupplier.get();
+                    for (Layer l : layers) {
+                        if (l instanceof GpxLayer) {
+                            l.getColorProperty().put(color);
+                        }
+                    }
+                    highlightColor(color);
+                }
+            });
+            add(colorPanel, GBC.std().weight(1, 1).fill().insets(5));
+            panels.put(color, colorPanel);
+
+            List<Color> colors = layerSupplier.get().stream().map(l -> l.getColorProperty().get()).distinct().collect(Collectors.toList());
+            if (colors.size() == 1) {
+                highlightColor(colors.get(0));
+            }
+        }
+
+        @Override
+        public void updateLayers(List<Layer> layers, boolean allVisible, boolean allHidden) {
+            List<Color> colors = layers.stream().filter(l -> l instanceof GpxLayer)
+                    .map(l -> ((GpxLayer) l).getColorProperty().get())
+                    .distinct()
+                    .collect(Collectors.toList());
+            if (colors.size() == 1) {
+                setVisible(true);
+                highlightColor(colors.get(0));
+            } else if (colors.size() > 1) {
+                setVisible(true);
+                highlightColor(null);
+            } else {
+                // no GPX layer
+                setVisible(false);
+            }
+        }
+
+        private void highlightColor(Color color) {
+            panels.values().forEach(panel -> panel.setBorder(NORMAL_BORDER));
+            if (color != null) {
+                JPanel selected = panels.get(color);
+                if (selected != null) {
+                    selected.setBorder(SELECTED_BORDER);
+                }
+            }
+            repaint();
+        }
+
+        @Override
+        public JComponent getPanel() {
+            return this;
         }
     }
 }

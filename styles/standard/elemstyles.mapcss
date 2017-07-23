@@ -319,6 +319,7 @@ node[building=transformer_tower] {
     set icon_z17;
 }
 node[entrance=yes],
+node[entrance=home]
 node[entrance=staircase] {
     icon-image: "presets/misc/entrance_yes.svg";
     set icon_z17;
@@ -1323,6 +1324,10 @@ node[man_made=flagpole] {
     icon-image: "presets/misc/flag.svg";
     set icon_z17;
 }
+node[man_made=cross] {
+    icon-image: "presets/landmark/cross.svg";
+    set icon_z17;
+}
 node[man_made=gasometer] {
     icon-image: "presets/landmark/gasometer.svg";
     set icon_z17;
@@ -1430,7 +1435,6 @@ node[man_made=petroleum_well][!is_prop_set(icon-image)] {
     set icon_z17;
 }
 area[man_made=reservoir_covered],
-area[man_made=surveillance],
 area[man_made=tower],
 area[man_made=wastewater_plant],
 area[man_made=watermill],
@@ -1819,6 +1823,9 @@ node[advertising=column] {
     icon-image: "presets/leisure/advertising_column.svg";
     set icon_z17;
 }
+area[advertising=column] {
+    fill-color: advertising#880000;
+}
 node[advertising=billboard] {
     icon-image: "presets/leisure/billboard.svg";
     set icon_z17;
@@ -1883,6 +1890,7 @@ area[shop=paint],
 area[shop=pawnbroker],
 area[shop=seafood],
 area[shop=dairy],
+area[shop=cheese],
 area[shop=shoes],
 area[shop=sports],
 area[shop=stationery],
@@ -2132,6 +2140,10 @@ node[shop=seafood] {
 }
 node[shop=dairy] {
     icon-image: "presets/shop/groceries/dairy.svg";
+    set icon_z17;
+}
+node[shop=cheese] {
+    icon-image: "presets/shop/groceries/cheese.svg";
     set icon_z17;
 }
 node[shop=shoes] {
@@ -3586,6 +3598,14 @@ node[aeroway=hangar] {
 }
 node[aeroway=gate] {
     icon-image: "presets/transport/airport/gate.svg";
+    set icon_z17;
+}
+node[airmark=beacon] {
+    icon-image: "presets/transport/airport/airmark_beacon.svg";
+    set icon_z17;
+}
+node[aeroway=navigationaid] {
+    icon-image: "presets/transport/airport/navigationaid.svg";
     set icon_z17;
 }
 node[aeroway=windsock] {

@@ -4,6 +4,7 @@ package org.openstreetmap.josm.data.osm;
 import java.util.Collection;
 import java.util.Collections;
 
+import org.openstreetmap.josm.actions.search.SearchCompiler.ParseError;
 import org.openstreetmap.josm.data.osm.FilterMatcher.FilterType;
 import org.openstreetmap.josm.tools.SubclassFilteredCollection;
 
@@ -24,9 +25,21 @@ public final class FilterWorker {
      * Apply the filters to the primitives of the data set.
      *
      * @param all the collection of primitives for that the filter state should be updated
+     * @param filters the filters
+     * @return true, if the filter state (normal / disabled / hidden) of any primitive has changed in the process
+     * @throws ParseError if the search expression in a filter cannot be parsed
+     * @since 12383
+     */
+    public static boolean executeFilters(Collection<OsmPrimitive> all, Filter... filters) throws ParseError {
+        return executeFilters(all, FilterMatcher.of(filters));
+    }
+
+    /**
+     * Apply the filters to the primitives of the data set.
+     *
+     * @param all the collection of primitives for that the filter state should be updated
      * @param filterMatcher the FilterMatcher
-     * @return true, if the filter state (normal / disabled / hidden)
-     * of any primitive has changed in the process
+     * @return true, if the filter state (normal / disabled / hidden) of any primitive has changed in the process
      */
     public static boolean executeFilters(Collection<OsmPrimitive> all, FilterMatcher filterMatcher) {
         boolean changed;
@@ -74,10 +87,14 @@ public final class FilterWorker {
     /**
      * Clear all filter flags, i.e.&nbsp;turn off filters.
      * @param prims the primitives
+     * @return true, if the filter state (normal / disabled / hidden) of any primitive has changed in the process
+     * @since 12388 (signature)
      */
-    public static void clearFilterFlags(Collection<OsmPrimitive> prims) {
+    public static boolean clearFilterFlags(Collection<OsmPrimitive> prims) {
+        boolean changed = false;
         for (OsmPrimitive osm : prims) {
-            osm.unsetDisabledState();
+            changed |= osm.unsetDisabledState();
         }
+        return changed;
     }
 }

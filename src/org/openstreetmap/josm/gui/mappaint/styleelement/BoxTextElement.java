@@ -3,6 +3,7 @@ package org.openstreetmap.josm.gui.mappaint.styleelement;
 
 import java.awt.Color;
 import java.awt.Rectangle;
+import java.awt.geom.Point2D;
 import java.util.Objects;
 
 import org.openstreetmap.josm.data.osm.Node;
@@ -24,12 +25,46 @@ public class BoxTextElement extends StyleElement {
     /**
      * MapCSS text-anchor-horizontal
      */
-    public enum HorizontalTextAlignment { LEFT, CENTER, RIGHT }
+    public enum HorizontalTextAlignment {
+        /**
+         * Align to the left
+         */
+        LEFT,
+        /**
+         * Align in the center
+         */
+        CENTER,
+        /**
+         * Align to the right
+         */
+        RIGHT
+    }
 
     /**
      * MapCSS text-anchor-vertical
      */
-    public enum VerticalTextAlignment { ABOVE, TOP, CENTER, BOTTOM, BELOW }
+    public enum VerticalTextAlignment {
+        /**
+         * Render above the box
+         */
+        ABOVE,
+        /**
+         * Align to the top of the box
+         */
+        TOP,
+        /**
+         * Render at the center of the box
+         */
+        CENTER,
+        /**
+         * Align to the bottom of the box
+         */
+        BOTTOM,
+        /**
+         * Render below the box
+         */
+        BELOW
+    }
 
     /**
      * Something that provides us with a {@link BoxProviderResult}
@@ -51,6 +86,11 @@ public class BoxTextElement extends StyleElement {
         private final Rectangle box;
         private final boolean temporary;
 
+        /**
+         * Create a new box provider result
+         * @param box The box
+         * @param temporary The temporary flag, will be returned by {@link #isTemporary()}
+         */
         public BoxProviderResult(Rectangle box, boolean temporary) {
             this.box = box;
             this.temporary = temporary;
@@ -133,6 +173,14 @@ public class BoxTextElement extends StyleElement {
      */
     public TextLabel text;
     /**
+     * The x offset of the text.
+     */
+    public int xOffset;
+    /**
+     * The y offset of the text. In screen space (inverted to user space)
+     */
+    public int yOffset;
+    /**
      * The {@link HorizontalTextAlignment} for this text.
      */
     public HorizontalTextAlignment hAlign;
@@ -147,12 +195,16 @@ public class BoxTextElement extends StyleElement {
      * @param c The current cascade
      * @param text The text to display
      * @param boxProvider The box provider to use
+     * @param offsetX x offset, in screen space
+     * @param offsetY y offset, in screen space
      * @param hAlign The {@link HorizontalTextAlignment}
      * @param vAlign The {@link VerticalTextAlignment}
      */
     public BoxTextElement(Cascade c, TextLabel text, BoxProvider boxProvider,
-            HorizontalTextAlignment hAlign, VerticalTextAlignment vAlign) {
+            int offsetX, int offsetY, HorizontalTextAlignment hAlign, VerticalTextAlignment vAlign) {
         super(c, 5f);
+        xOffset = offsetX;
+        yOffset = offsetY;
         CheckParameterUtil.ensureParameterNotNull(text);
         CheckParameterUtil.ensureParameterNotNull(hAlign);
         CheckParameterUtil.ensureParameterNotNull(vAlign);
@@ -210,8 +262,9 @@ public class BoxTextElement extends StyleElement {
             default:
                 vAlign = VerticalTextAlignment.BOTTOM;
         }
+        Point2D offset = TextLabel.getTextOffset(c);
 
-        return new BoxTextElement(c, text, boxProvider, hAlign, vAlign);
+        return new BoxTextElement(c, text, boxProvider, (int) offset.getX(), (int) -offset.getY(), hAlign, vAlign);
     }
 
     /**
@@ -243,18 +296,20 @@ public class BoxTextElement extends StyleElement {
         BoxTextElement that = (BoxTextElement) obj;
         return hAlign == that.hAlign &&
                vAlign == that.vAlign &&
+               xOffset == that.xOffset &&
+               yOffset == that.yOffset &&
                Objects.equals(text, that.text) &&
                Objects.equals(boxProvider, that.boxProvider);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), text, boxProvider, hAlign, vAlign);
+        return Objects.hash(super.hashCode(), text, boxProvider, hAlign, vAlign, xOffset, yOffset);
     }
 
     @Override
     public String toString() {
         return "BoxTextElement{" + super.toString() + ' ' + text.toStringImpl()
-                + " box=" + getBox() + " hAlign=" + hAlign + " vAlign=" + vAlign + '}';
+                + " box=" + getBox() + " hAlign=" + hAlign + " vAlign=" + vAlign + " xOffset=" + xOffset + " yOffset=" + yOffset + '}';
     }
 }

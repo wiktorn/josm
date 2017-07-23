@@ -10,11 +10,7 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.Stack;
 
 import javax.swing.AbstractAction;
 import javax.swing.JCheckBox;
@@ -28,12 +24,10 @@ import javax.swing.table.TableColumnModel;
 import javax.swing.table.TableModel;
 
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.actions.mapmode.MapMode;
 import org.openstreetmap.josm.actions.search.SearchAction;
 import org.openstreetmap.josm.data.osm.Filter;
-import org.openstreetmap.josm.data.osm.OsmPrimitive;
-import org.openstreetmap.josm.data.osm.Relation;
-import org.openstreetmap.josm.data.osm.RelationMember;
-import org.openstreetmap.josm.data.osm.Way;
+import org.openstreetmap.josm.data.osm.FilterModel;
 import org.openstreetmap.josm.data.osm.event.AbstractDatasetChangedEvent;
 import org.openstreetmap.josm.data.osm.event.DataChangedEvent;
 import org.openstreetmap.josm.data.osm.event.DataSetListener;
@@ -45,6 +39,8 @@ import org.openstreetmap.josm.data.osm.event.PrimitivesRemovedEvent;
 import org.openstreetmap.josm.data.osm.event.RelationMembersChangedEvent;
 import org.openstreetmap.josm.data.osm.event.TagsChangedEvent;
 import org.openstreetmap.josm.data.osm.event.WayNodesChangedEvent;
+import org.openstreetmap.josm.gui.MapFrame;
+import org.openstreetmap.josm.gui.MapFrame.MapModeChangeListener;
 import org.openstreetmap.josm.gui.SideButton;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.InputMapUtils;
@@ -53,10 +49,11 @@ import org.openstreetmap.josm.tools.MultikeyShortcutAction;
 import org.openstreetmap.josm.tools.Shortcut;
 
 /**
+ * The filter dialog displays a list of filters that are active on the current edit layer.
  *
  * @author Petr_Dlouhý
  */
-public class FilterDialog extends ToggleDialog implements DataSetListener {
+public class FilterDialog extends ToggleDialog implements DataSetListener, MapModeChangeListener {
 
     private JTable userTable;
     private final FilterTableModel filterModel = new FilterTableModel();
@@ -81,13 +78,15 @@ public class FilterDialog extends ToggleDialog implements DataSetListener {
     @Override
     public void showNotify() {
         DatasetEventManager.getInstance().addDatasetListener(this, FireMode.IN_EDT_CONSOLIDATED);
+        MapFrame.addMapModeChangeListener(this);
         filterModel.executeFilters();
     }
 
     @Override
     public void hideNotify() {
         DatasetEventManager.getInstance().removeDatasetListener(this);
-        filterModel.clearFilterFlags();
+        MapFrame.removeMapModeChangeListener(this);
+        filterModel.model.clearFilterFlags();
         Main.map.mapView.repaint();
     }
 
@@ -107,6 +106,9 @@ public class FilterDialog extends ToggleDialog implements DataSetListener {
             tr("Filter mode")
     };
 
+    /**
+     * Builds the GUI.
+     */
     protected void build() {
         userTable = new UserTable(filterModel);
 
@@ -230,9 +232,9 @@ public class FilterDialog extends ToggleDialog implements DataSetListener {
             }
         });
 
-        createLayout(userTable, true, Arrays.asList(new SideButton[] {
+        createLayout(userTable, true, Arrays.asList(
                 addButton, editButton, deleteButton, upButton, downButton
-        }));
+        ));
     }
 
     @Override
@@ -287,51 +289,21 @@ public class FilterDialog extends ToggleDialog implements DataSetListener {
         }
     }
 
+    /**
+     * Updates the headline of this dialog to display the number of active filters.
+     */
     public void updateDialogHeader() {
         SwingUtilities.invokeLater(() -> setTitle(
-                tr("Filter Hidden:{0} Disabled:{1}", filterModel.disabledAndHiddenCount, filterModel.disabledCount)));
-    }
-
-    public void drawOSDText(Graphics2D g) {
-        filterModel.drawOSDText(g);
+                tr("Filter Hidden:{0} Disabled:{1}",
+                        filterModel.model.getDisabledAndHiddenCount(), filterModel.model.getDisabledCount())));
     }
 
     /**
-     * Returns the list of primitives whose filtering can be affected by change in primitive
-     * @param primitives list of primitives to check
-     * @return List of primitives whose filtering can be affected by change in source primitives
+     * Draws a text on the map display that indicates that filters are active.
+     * @param g The graphics to draw that text on.
      */
-    private static Collection<OsmPrimitive> getAffectedPrimitives(Collection<? extends OsmPrimitive> primitives) {
-        // Filters can use nested parent/child expression so complete tree is necessary
-        Set<OsmPrimitive> result = new HashSet<>();
-        Stack<OsmPrimitive> stack = new Stack<>();
-        stack.addAll(primitives);
-
-        while (!stack.isEmpty()) {
-            OsmPrimitive p = stack.pop();
-
-            if (result.contains(p)) {
-                continue;
-            }
-
-            result.add(p);
-
-            if (p instanceof Way) {
-                for (OsmPrimitive n: ((Way) p).getNodes()) {
-                    stack.push(n);
-                }
-            } else if (p instanceof Relation) {
-                for (RelationMember rm: ((Relation) p).getMembers()) {
-                    stack.push(rm.getMember());
-                }
-            }
-
-            for (OsmPrimitive ref: p.getReferrers()) {
-                stack.push(ref);
-            }
-        }
-
-        return result;
+    public void drawOSDText(Graphics2D g) {
+        filterModel.drawOSDText(g);
     }
 
     @Override
@@ -361,21 +333,26 @@ public class FilterDialog extends ToggleDialog implements DataSetListener {
 
     @Override
     public void relationMembersChanged(RelationMembersChangedEvent event) {
-        filterModel.executeFilters(getAffectedPrimitives(event.getPrimitives()));
+        filterModel.executeFilters(FilterModel.getAffectedPrimitives(event.getPrimitives()));
     }
 
     @Override
     public void tagsChanged(TagsChangedEvent event) {
-        filterModel.executeFilters(getAffectedPrimitives(event.getPrimitives()));
+        filterModel.executeFilters(FilterModel.getAffectedPrimitives(event.getPrimitives()));
     }
 
     @Override
     public void wayNodesChanged(WayNodesChangedEvent event) {
-        filterModel.executeFilters(getAffectedPrimitives(event.getPrimitives()));
+        filterModel.executeFilters(FilterModel.getAffectedPrimitives(event.getPrimitives()));
+    }
+
+    @Override
+    public void mapModeChange(MapMode oldMapMode, MapMode newMapMode) {
+        filterModel.executeFilters();
     }
 
     /**
-     * This method is intendet for Plugins getting the filtermodel and using .addFilter() to
+     * This method is intended for Plugins getting the filtermodel and using .addFilter() to
      * add a new filter.
      * @return the filtermodel
      */

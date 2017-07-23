@@ -91,6 +91,9 @@ public class MapCSSRendererTest {
                 /** Tests dashed ways. */
                 new TestConfig("way-dashes", AREA_DEFAULT),
 
+                /** Tests dashed way clamping algorithm */
+                new TestConfig("way-dashes-clamp", AREA_DEFAULT),
+
                 /** Tests fill-color property */
                 new TestConfig("area-fill-color", AREA_DEFAULT),
 
@@ -104,8 +107,15 @@ public class MapCSSRendererTest {
                 new TestConfig("area-icon", AREA_DEFAULT),
 
                 /** Tests if all styles are sorted correctly. Tests {@link StyleRecord#compareTo(StyleRecord)} */
-                new TestConfig("order", AREA_DEFAULT)
+                new TestConfig("order", AREA_DEFAULT),
 
+                /** Tests repeat-image feature for ways */
+                new TestConfig("way-repeat-image", AREA_DEFAULT),
+                /** Tests the clamping for repeat-images and repeat-image-phase */
+                new TestConfig("way-repeat-image-clamp", AREA_DEFAULT),
+
+                /** Tests text along a way */
+                new TestConfig("way-text", AREA_DEFAULT)
                 ).map(e -> new Object[] {e, e.testDirectory})
                 .collect(Collectors.toList());
     }

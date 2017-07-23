@@ -9,6 +9,7 @@ import java.text.MessageFormat;
 import java.util.Objects;
 import java.util.function.Consumer;
 
+import org.openstreetmap.josm.data.coor.ILatLon;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.BBox;
 import org.openstreetmap.josm.data.projection.Projection;
@@ -19,6 +20,8 @@ import org.openstreetmap.josm.tools.CheckParameterUtil;
  * lat/lon min/max values.  The values are rounded to LatLon.OSM_SERVER_PRECISION
  *
  * @author imi
+ *
+ * @see BBox to represent invalid areas.
  */
 public class Bounds {
     /**
@@ -82,8 +85,17 @@ public class Bounds {
         return maxLon;
     }
 
+    /**
+     * The method used by the {@link Bounds#Bounds(String, String, ParseMethod)} constructor
+     */
     public enum ParseMethod {
+        /**
+         * Order: minlat, minlon, maxlat, maxlon
+         */
         MINLAT_MINLON_MAXLAT_MAXLON,
+        /**
+         * Order: left, bottom, right, top
+         */
         LEFT_BOTTOM_RIGHT_TOP
     }
 
@@ -212,14 +224,32 @@ public class Bounds {
         }
     }
 
+    /**
+     * Parse the bounds in order {@link ParseMethod#MINLAT_MINLON_MAXLAT_MAXLON}
+     * @param asString The string
+     * @param separator The separation regex
+     */
     public Bounds(String asString, String separator) {
         this(asString, separator, ParseMethod.MINLAT_MINLON_MAXLAT_MAXLON);
     }
 
+    /**
+     * Parse the bounds from a given string and round to OSM precision
+     * @param asString The string
+     * @param separator The separation regex
+     * @param parseMethod The order of the numbers
+     */
     public Bounds(String asString, String separator, ParseMethod parseMethod) {
         this(asString, separator, parseMethod, true);
     }
 
+    /**
+     * Parse the bounds from a given string
+     * @param asString The string
+     * @param separator The separation regex
+     * @param parseMethod The order of the numbers
+     * @param roundToOsmPrecision Whether to round to OSM precision
+     */
     public Bounds(String asString, String separator, ParseMethod parseMethod, boolean roundToOsmPrecision) {
         CheckParameterUtil.ensureParameterNotNull(asString, "asString");
         String[] components = asString.split(separator);
@@ -319,6 +349,11 @@ public class Bounds {
         return "Bounds["+minLat+','+minLon+','+maxLat+','+maxLon+']';
     }
 
+    /**
+     * Converts this bounds to a human readable short string
+     * @param format The number format to use
+     * @return The string
+     */
     public String toShortString(DecimalFormat format) {
         return format.format(minLat) + ' '
         + format.format(minLon) + " / "
@@ -382,6 +417,10 @@ public class Bounds {
         }
     }
 
+    /**
+     * Extends this bounds to enclose an other bounding box
+     * @param b The other bounds to enclose
+     */
     public void extend(Bounds b) {
         extend(b.minLat, b.minLon);
         extend(b.maxLat, b.maxLon);
@@ -389,10 +428,28 @@ public class Bounds {
 
     /**
      * Determines if the given point {@code ll} is within these bounds.
+     * <p>
+     * Points with unknown coordinates are always outside the coordinates.
      * @param ll The lat/lon to check
      * @return {@code true} if {@code ll} is within these bounds, {@code false} otherwise
      */
     public boolean contains(LatLon ll) {
+        // binary compatibility
+        return contains((ILatLon) ll);
+    }
+
+    /**
+     * Determines if the given point {@code ll} is within these bounds.
+     * <p>
+     * Points with unknown coordinates are always outside the coordinates.
+     * @param ll The lat/lon to check
+     * @return {@code true} if {@code ll} is within these bounds, {@code false} otherwise
+     * @since 12161
+     */
+    public boolean contains(ILatLon ll) {
+        if (!ll.isLatLonKnown()) {
+            return false;
+        }
         if (ll.lat() < minLat || ll.lat() > maxLat)
             return false;
         if (crosses180thMeridian()) {
@@ -452,11 +509,20 @@ public class Bounds {
         return maxLon-minLon + (crosses180thMeridian() ? 360.0 : 0.0);
     }
 
+    /**
+     * Gets the area of this bounds (in lat/lon space)
+     * @return The area
+     */
     public double getArea() {
         double w = getWidth();
         return w * (maxLat - minLat);
     }
 
+    /**
+     * Encodes this as a string so that it may be parsed using the {@link ParseMethod#MINLAT_MINLON_MAXLAT_MAXLON} order
+     * @param separator The separator
+     * @return The string encoded bounds
+     */
     public String encodeAsString(String separator) {
         StringBuilder sb = new StringBuilder();
         sb.append(minLat).append(separator).append(minLon)

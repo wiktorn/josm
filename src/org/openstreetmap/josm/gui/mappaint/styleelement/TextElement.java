@@ -11,6 +11,7 @@ import org.openstreetmap.josm.gui.mappaint.Cascade;
 import org.openstreetmap.josm.gui.mappaint.Environment;
 import org.openstreetmap.josm.gui.mappaint.Keyword;
 import org.openstreetmap.josm.gui.mappaint.styleelement.placement.CompletelyInsideAreaStrategy;
+import org.openstreetmap.josm.gui.mappaint.styleelement.placement.PositionForAreaStrategy;
 
 /**
  * The text that is drawn for a way/area. It may be drawn along the outline or onto the way.
@@ -20,10 +21,30 @@ import org.openstreetmap.josm.gui.mappaint.styleelement.placement.CompletelyInsi
 public class TextElement extends StyleElement {
 
     private final TextLabel text;
+    /**
+     * The position strategy for this text label.
+     */
+    private final PositionForAreaStrategy labelPositionStrategy;
 
-    protected TextElement(Cascade c, TextLabel text) {
+    /**
+     * Create a new way/area text element definition
+     * @param c The cascade
+     * @param text The text
+     * @param labelPositionStrategy The position in the area.
+     */
+    protected TextElement(Cascade c, TextLabel text, PositionForAreaStrategy labelPositionStrategy) {
         super(c, 4.9f);
-        this.text = text;
+        this.text = Objects.requireNonNull(text, "text");
+        this.labelPositionStrategy = Objects.requireNonNull(labelPositionStrategy, "labelPositionStrategy");
+    }
+
+    /**
+     * Gets the strategy that defines where to place the label.
+     * @return The strategy. Never null.
+     * @since 12475
+     */
+    public PositionForAreaStrategy getLabelPositionStrategy() {
+        return labelPositionStrategy;
     }
 
     /**
@@ -32,12 +53,16 @@ public class TextElement extends StyleElement {
      * @return The text element or <code>null</code> if it could not be created.
      */
     public static TextElement create(final Environment env) {
-        final Cascade c = env.mc.getCascade(env.layer);
-
         TextLabel text = TextLabel.create(env, PaintColors.TEXT.get(), false);
         if (text == null)
             return null;
-        return new TextElement(c, text);
+        final Cascade c = env.mc.getCascade(env.layer);
+
+        Keyword positionKeyword = c.get(AreaElement.TEXT_POSITION, null, Keyword.class);
+        PositionForAreaStrategy position = PositionForAreaStrategy.forKeyword(positionKeyword);
+        position = position.withAddedOffset(TextLabel.getTextOffset(c));
+
+        return new TextElement(c, text, position);
     }
 
     /**
@@ -58,13 +83,13 @@ public class TextElement extends StyleElement {
         if (text == null) {
             return null;
         }
-        return new TextElement(c, text.withPosition(CompletelyInsideAreaStrategy.INSTANCE));
+        return new TextElement(c, text, CompletelyInsideAreaStrategy.INSTANCE);
     }
 
     @Override
     public void paintPrimitive(OsmPrimitive primitive, MapPaintSettings paintSettings, StyledMapRenderer painter,
             boolean selected, boolean outermember, boolean member) {
-        painter.drawText(primitive, text);
+        painter.drawText(primitive, text, getLabelPositionStrategy());
     }
 
     @Override
@@ -73,16 +98,17 @@ public class TextElement extends StyleElement {
         if (obj == null || getClass() != obj.getClass()) return false;
         if (!super.equals(obj)) return false;
         TextElement that = (TextElement) obj;
-        return Objects.equals(text, that.text);
+        return Objects.equals(labelPositionStrategy, that.labelPositionStrategy)
+            && Objects.equals(text, that.text);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), text);
+        return Objects.hash(super.hashCode(), text, labelPositionStrategy);
     }
 
     @Override
     public String toString() {
-        return "TextElement{" + super.toString() + "text=" + text + '}';
+        return "TextElement{" + super.toString() + "text=" + text + " labelPositionStrategy=" + labelPositionStrategy + '}';
     }
 }

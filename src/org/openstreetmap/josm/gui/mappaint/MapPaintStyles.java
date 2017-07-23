@@ -12,7 +12,6 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 import javax.swing.ImageIcon;
 import javax.swing.SwingUtilities;
@@ -23,6 +22,8 @@ import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.Tag;
 import org.openstreetmap.josm.gui.PleaseWaitRunnable;
+import org.openstreetmap.josm.gui.layer.Layer;
+import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.mappaint.mapcss.MapCSSStyleSource;
 import org.openstreetmap.josm.gui.mappaint.styleelement.MapImage;
 import org.openstreetmap.josm.gui.mappaint.styleelement.NodeElement;
@@ -32,6 +33,7 @@ import org.openstreetmap.josm.gui.preferences.map.MapPaintPreference.MapPaintPre
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
 import org.openstreetmap.josm.io.CachedFile;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.ListenerList;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -74,8 +76,15 @@ public final class MapPaintStyles {
      * style cascade.
      */
     public static class TagKeyReference {
+        /**
+         * The tag name
+         */
         public final String key;
 
+        /**
+         * Create a new {@link TagKeyReference}
+         * @param key The tag name
+         */
         public TagKeyReference(String key) {
             this.key = key;
         }
@@ -93,9 +102,20 @@ public final class MapPaintStyles {
      */
     public static class IconReference {
 
+        /**
+         * The name of the icon
+         */
         public final String iconName;
+        /**
+         * The style source this reference occurred in
+         */
         public final StyleSource source;
 
+        /**
+         * Create a new {@link IconReference}
+         * @param iconName The icon name
+         * @param source The current style source
+         */
         public IconReference(String iconName, StyleSource source) {
             this.iconName = iconName;
             this.source = source;
@@ -179,6 +199,11 @@ public final class MapPaintStyles {
                 .setOptional(true).get();
     }
 
+    /**
+     * Returns the node icon that would be displayed for the given tag.
+     * @param tag The tag to look an icon for
+     * @return {@code null} if no icon found
+     */
     public static ImageIcon getNodeIcon(Tag tag) {
         return getNodeIcon(tag, true);
     }
@@ -222,6 +247,11 @@ public final class MapPaintStyles {
         return null;
     }
 
+    /**
+     * Gets the directories that should be searched for icons
+     * @param source The style source the icon is from
+     * @return A list of directory names
+     */
     public static List<String> getIconSourceDirs(StyleSource source) {
         List<String> dirs = new LinkedList<>();
 
@@ -276,7 +306,7 @@ public final class MapPaintStyles {
         if (Main.pref.getBoolean("mappaint.auto_reload_local_styles", true) && source.isLocal()) {
             try {
                 Main.fileWatcher.registerStyleSource(source);
-            } catch (IOException | IllegalStateException e) {
+            } catch (IOException | IllegalStateException | IllegalArgumentException e) {
                 Main.error(e);
             }
         }
@@ -320,10 +350,17 @@ public final class MapPaintStyles {
         Main.worker.submit(new MapPaintStyleLoader(toReload));
     }
 
+    /**
+     * This class loads the map paint styles
+     */
     public static class MapPaintStyleLoader extends PleaseWaitRunnable {
         private boolean canceled;
         private final Collection<StyleSource> sources;
 
+        /**
+         * Create a new {@link MapPaintStyleLoader}
+         * @param sources The styles to load
+         */
         public MapPaintStyleLoader(Collection<StyleSource> sources) {
             super(tr("Reloading style sources"));
             this.sources = sources;
@@ -336,14 +373,8 @@ public final class MapPaintStyles {
 
         @Override
         protected void finish() {
-            SwingUtilities.invokeLater(() -> {
-                fireMapPaintSylesUpdated();
-                styles.clearCached();
-                if (Main.isDisplayingMapView()) {
-                    Main.map.mapView.preferenceChanged(null);
-                    Main.map.mapView.repaint();
-                }
-            });
+            fireMapPaintSylesUpdated();
+            afterStyleUpdate();
         }
 
         @Override
@@ -381,10 +412,30 @@ public final class MapPaintStyles {
         styles.setStyleSources(data);
         MapPaintPrefHelper.INSTANCE.put(data);
         fireMapPaintSylesUpdated();
-        styles.clearCached();
-        Main.map.mapView.repaint();
+        afterStyleUpdate();
     }
 
+    /**
+     * Manually trigger for now. TODO: Move this to a listener
+     */
+    private static void afterStyleUpdate() {
+        SwingUtilities.invokeLater(() -> {
+            styles.clearCached();
+
+            // Trigger a repaint of all data layers
+            Main.getLayerManager().getLayers()
+                .stream()
+                .filter(layer -> layer instanceof OsmDataLayer)
+                .forEach(Layer::invalidate);
+        });
+    }
+
+    /**
+     * Check if the styles can be moved
+     * @param sel The indexes of the selected styles
+     * @param i The number of places to move the styles
+     * @return <code>true</code> if that movement is possible
+     */
     public static boolean canMoveStyles(int[] sel, int i) {
         if (sel.length == 0)
             return false;
@@ -399,6 +450,10 @@ public final class MapPaintStyles {
             return true;
     }
 
+    /**
+     * Toggles the active state of several styles
+     * @param sel The style indexes
+     */
     public static void toggleStyleActive(int... sel) {
         List<StyleSource> data = styles.getStyleSources();
         for (int p : sel) {
@@ -411,8 +466,7 @@ public final class MapPaintStyles {
         } else {
             fireMapPaintSylesUpdated();
         }
-        styles.clearCached();
-        Main.map.mapView.repaint();
+        afterStyleUpdate();
     }
 
     /**
@@ -443,45 +497,56 @@ public final class MapPaintStyles {
     private static void refreshStyles() {
         MapPaintPrefHelper.INSTANCE.put(styles.getStyleSources());
         fireMapPaintSylesUpdated();
-        styles.clearCached();
-        if (Main.isDisplayingMapView()) {
-            Main.map.mapView.repaint();
-        }
+        afterStyleUpdate();
     }
 
     /***********************************
      * MapPaintSylesUpdateListener &amp; related code
      *  (get informed when the list of MapPaint StyleSources changes)
      */
-
     public interface MapPaintSylesUpdateListener {
+        /**
+         * Called on any style source changes that are not handled by {@link #mapPaintStyleEntryUpdated(int)}
+         */
         void mapPaintStylesUpdated();
 
-        void mapPaintStyleEntryUpdated(int idx);
+        /**
+         * Called whenever a single style source entry was changed.
+         * @param index The index of the entry.
+         */
+        void mapPaintStyleEntryUpdated(int index);
     }
 
-    private static final CopyOnWriteArrayList<MapPaintSylesUpdateListener> listeners
-            = new CopyOnWriteArrayList<>();
+    private static final ListenerList<MapPaintSylesUpdateListener> listeners = ListenerList.createUnchecked();
 
+    /**
+     * Add a listener that listens to global style changes.
+     * @param listener The listener
+     */
     public static void addMapPaintSylesUpdateListener(MapPaintSylesUpdateListener listener) {
-        if (listener != null) {
-            listeners.addIfAbsent(listener);
-        }
+        listeners.addListener(listener);
     }
 
+    /**
+     * Removes a listener that listens to global style changes.
+     * @param listener The listener
+     */
     public static void removeMapPaintSylesUpdateListener(MapPaintSylesUpdateListener listener) {
-        listeners.remove(listener);
+        listeners.removeListener(listener);
     }
 
+    /**
+     * Notifies all listeners that there was any update to the map paint styles
+     */
     public static void fireMapPaintSylesUpdated() {
-        for (MapPaintSylesUpdateListener l : listeners) {
-            l.mapPaintStylesUpdated();
-        }
+        listeners.fireEvent(MapPaintSylesUpdateListener::mapPaintStylesUpdated);
     }
 
-    public static void fireMapPaintStyleEntryUpdated(int idx) {
-        for (MapPaintSylesUpdateListener l : listeners) {
-            l.mapPaintStyleEntryUpdated(idx);
-        }
+    /**
+     * Notifies all listeners that there was an update to a specific map paint style
+     * @param index The style index
+     */
+    public static void fireMapPaintStyleEntryUpdated(int index) {
+        listeners.fireEvent(l -> l.mapPaintStyleEntryUpdated(index));
     }
 }

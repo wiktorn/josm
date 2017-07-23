@@ -68,8 +68,8 @@ public class TagChecker extends TagTest {
 
     /** Normalized keys: the key should be substituted by the value if the key was not found in presets */
     private static final Map<String, String> harmonizedKeys = new HashMap<>();
-    /** The spell check preset values */
-    private static volatile MultiMap<String, String> presetsValueData;
+    /** The spell check preset values which are not stored in TaggingPresets */
+    private static volatile MultiMap<String, String> additionalPresetsValueData;
     /** The TagChecker data */
     private static final List<CheckerData> checkerData = new ArrayList<>();
     private static final List<String> ignoreDataStartsWith = new ArrayList<>();
@@ -80,16 +80,44 @@ public class TagChecker extends TagTest {
     /** The preferences prefix */
     protected static final String PREFIX = ValidatorPreference.PREFIX + "." + TagChecker.class.getSimpleName();
 
+    /**
+     * The preference key to check values
+     */
     public static final String PREF_CHECK_VALUES = PREFIX + ".checkValues";
+    /**
+     * The preference key to check keys
+     */
     public static final String PREF_CHECK_KEYS = PREFIX + ".checkKeys";
+    /**
+     * The preference key to enable complex checks
+     */
     public static final String PREF_CHECK_COMPLEX = PREFIX + ".checkComplex";
+    /**
+     * The preference key to search for fixme tags
+     */
     public static final String PREF_CHECK_FIXMES = PREFIX + ".checkFixmes";
 
+    /**
+     * The preference key for source files
+     * @see #DEFAULT_SOURCES
+     */
     public static final String PREF_SOURCES = PREFIX + ".source";
 
+    /**
+     * The preference key to check keys - used before upload
+     */
     public static final String PREF_CHECK_KEYS_BEFORE_UPLOAD = PREF_CHECK_KEYS + "BeforeUpload";
+    /**
+     * The preference key to check values - used before upload
+     */
     public static final String PREF_CHECK_VALUES_BEFORE_UPLOAD = PREF_CHECK_VALUES + "BeforeUpload";
+    /**
+     * The preference key to run complex tests - used before upload
+     */
     public static final String PREF_CHECK_COMPLEX_BEFORE_UPLOAD = PREF_CHECK_COMPLEX + "BeforeUpload";
+    /**
+     * The preference key to search for fixmes - used before upload
+     */
     public static final String PREF_CHECK_FIXMES_BEFORE_UPLOAD = PREF_CHECK_FIXMES + "BeforeUpload";
 
     protected boolean checkKeys;
@@ -258,14 +286,14 @@ public class TagChecker extends TagTest {
 
         Collection<TaggingPreset> presets = TaggingPresets.getTaggingPresets();
         if (!presets.isEmpty()) {
-            presetsValueData = new MultiMap<>();
+            additionalPresetsValueData = new MultiMap<>();
             for (String a : OsmPrimitive.getUninterestingKeys()) {
-                presetsValueData.putVoid(a);
+                additionalPresetsValueData.putVoid(a);
             }
             // TODO directionKeys are no longer in OsmPrimitive (search pattern is used instead)
             for (String a : Main.pref.getCollection(ValidatorPreference.PREFIX + ".knownkeys",
-                    Arrays.asList(new String[]{"is_in", "int_ref", "fixme", "population"}))) {
-                presetsValueData.putVoid(a);
+                    Arrays.asList("is_in", "int_ref", "fixme", "population"))) {
+                additionalPresetsValueData.putVoid(a);
             }
             for (TaggingPreset p : presets) {
                 for (TaggingPresetItem i : p.data) {
@@ -284,7 +312,6 @@ public class TagChecker extends TagTest {
     private static void addPresetValue(KeyedItem ky) {
         Collection<String> values = ky.getValues();
         if (ky.key != null && values != null) {
-            presetsValueData.putAll(ky.key, values);
             harmonizedKeys.put(harmonizeKey(ky.key), ky.key);
         }
     }
@@ -304,6 +331,13 @@ public class TagChecker extends TagTest {
         return false;
     }
 
+    private static Set<String> getPresetValues(String key) {
+        Set<String> res = TaggingPresets.getPresetValues(key);
+        if (res != null)
+            return res;
+        return additionalPresetsValueData.get(key);
+    }
+
     /**
      * Determines if the given key is in internal presets.
      * @param key key
@@ -311,7 +345,7 @@ public class TagChecker extends TagTest {
      * @since 9023
      */
     public static boolean isKeyInPresets(String key) {
-        return presetsValueData.get(key) != null;
+        return getPresetValues(key) != null;
     }
 
     /**
@@ -322,7 +356,7 @@ public class TagChecker extends TagTest {
      * @since 9023
      */
     public static boolean isTagInPresets(String key, String value) {
-        final Set<String> values = presetsValueData.get(key);
+        final Set<String> values = getPresetValues(key);
         return values != null && (values.isEmpty() || values.contains(value));
     }
 
@@ -461,7 +495,8 @@ public class TagChecker extends TagTest {
                         .build());
                 withErrors.put(p, "HTML");
             }
-            if (checkValues && key != null && value != null && !value.isEmpty() && presetsValueData != null && !isTagIgnored(key, value)) {
+            if (checkValues && key != null && value != null && !value.isEmpty() && additionalPresetsValueData != null
+                    && !isTagIgnored(key, value)) {
                 if (!isKeyInPresets(key)) {
                     String prettifiedKey = harmonizeKey(key);
                     String fixedKey = harmonizedKeys.get(prettifiedKey);
@@ -486,7 +521,7 @@ public class TagChecker extends TagTest {
                 } else if (!isTagInPresets(key, value)) {
                     // try to fix common typos and check again if value is still unknown
                     String fixedValue = harmonizeValue(prop.getValue());
-                    Map<String, String> possibleValues = getPossibleValues(presetsValueData.get(key));
+                    Map<String, String> possibleValues = getPossibleValues(getPresetValues(key));
                     if (possibleValues.containsKey(fixedValue)) {
                         final String newKey = possibleValues.get(fixedValue);
                         // misspelled preset value
@@ -630,6 +665,9 @@ public class TagChecker extends TagTest {
         testPanel.add(prefCheckFixmesBeforeUpload, a);
     }
 
+    /**
+     * Enables/disables the source list field
+     */
     public void handlePrefEnable() {
         boolean selected = prefCheckKeys.isSelected() || prefCheckKeysBeforeUpload.isSelected()
                 || prefCheckComplex.isSelected() || prefCheckComplexBeforeUpload.isSelected();
@@ -706,13 +744,20 @@ public class TagChecker extends TagTest {
         private String description;
         protected List<CheckerElement> data = new ArrayList<>();
         private OsmPrimitiveType type;
-        private int code;
+        private TagCheckLevel level;
         protected Severity severity;
-        // CHECKSTYLE.OFF: SingleSpaceSeparator
-        protected static final int TAG_CHECK_ERROR = 1250;
-        protected static final int TAG_CHECK_WARN  = 1260;
-        protected static final int TAG_CHECK_INFO  = 1270;
-        // CHECKSTYLE.ON: SingleSpaceSeparator
+
+        private enum TagCheckLevel {
+            TAG_CHECK_ERROR(1250),
+            TAG_CHECK_WARN(1260),
+            TAG_CHECK_INFO(1270);
+
+            final int code;
+
+            TagCheckLevel(int code) {
+                this.code = code;
+            }
+        }
 
         protected static class CheckerElement {
             public Object tag;
@@ -747,10 +792,10 @@ public class TagChecker extends TagTest {
                         valueAll = true;
                     } else if ("BOOLEAN_TRUE".equals(n)) {
                         valueBool = true;
-                        value = OsmUtils.trueval;
+                        value = OsmUtils.TRUE_VALUE;
                     } else if ("BOOLEAN_FALSE".equals(n)) {
                         valueBool = true;
-                        value = OsmUtils.falseval;
+                        value = OsmUtils.FALSE_VALUE;
                     } else {
                         value = n.startsWith("/") ? getPattern(n) : n;
                     }
@@ -808,15 +853,15 @@ public class TagChecker extends TagTest {
             switch (n[1]) {
             case "W":
                 severity = Severity.WARNING;
-                code = TAG_CHECK_WARN;
+                level = TagCheckLevel.TAG_CHECK_WARN;
                 break;
             case "E":
                 severity = Severity.ERROR;
-                code = TAG_CHECK_ERROR;
+                level = TagCheckLevel.TAG_CHECK_ERROR;
                 break;
             case "I":
                 severity = Severity.OTHER;
-                code = TAG_CHECK_INFO;
+                level = TagCheckLevel.TAG_CHECK_INFO;
                 break;
             default:
                 return tr("Could not find warning level");
@@ -846,19 +891,31 @@ public class TagChecker extends TagTest {
             return true;
         }
 
+        /**
+         * Returns the error description.
+         * @return the error description
+         */
         public String getDescription() {
             return description;
         }
 
+        /**
+         * Returns the error severity.
+         * @return the error severity
+         */
         public Severity getSeverity() {
             return severity;
         }
 
+        /**
+         * Returns the error code.
+         * @return the error code
+         */
         public int getCode() {
             if (type == null)
-                return code;
+                return level.code;
 
-            return code + type.ordinal() + 1;
+            return level.code + type.ordinal() + 1;
         }
     }
 }

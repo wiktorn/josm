@@ -46,7 +46,7 @@ public final class OsmUrlToBounds {
         Bounds b = parseShortLink(url);
         if (b != null)
             return b;
-        if (url.contains("#map")) {
+        if (url.contains("#map") || url.contains("/#")) {
             // probably it's a URL following the new scheme?
             return parseHashURLs(url);
         }
@@ -94,11 +94,11 @@ public final class OsmUrlToBounds {
      * @return Bounds if hashurl, {@code null} otherwise
      */
     private static Bounds parseHashURLs(String url) {
-        int startIndex = url.indexOf("#map=");
+        int startIndex = url.indexOf('#');
         if (startIndex == -1) return null;
         int endIndex = url.indexOf('&', startIndex);
         if (endIndex == -1) endIndex = url.length();
-        String coordPart = url.substring(startIndex+5, endIndex);
+        String coordPart = url.substring(startIndex+(url.contains("#map=") ? "#map=".length() : "#".length()), endIndex);
         String[] parts = coordPart.split("/");
         if (parts.length < 3) {
             Main.warn(tr("URL does not contain {0}/{1}/{2}", tr("zoom"), tr("latitude"), tr("longitude")));
@@ -212,6 +212,13 @@ public final class OsmUrlToBounds {
 
     private static final int TILE_SIZE_IN_PIXELS = 256;
 
+    /**
+     * Compute the bounds for a given lat/lon position and the zoom level
+     * @param lat The latitude
+     * @param lon The longitude
+     * @param zoom The current zoom level
+     * @return The bounds the OSM server would display
+     */
     public static Bounds positionToBounds(final double lat, final double lon, final int zoom) {
         final Dimension screenSize = getScreenSize();
         double scale = (1 << zoom) * TILE_SIZE_IN_PIXELS / (2 * Math.PI * Ellipsoid.WGS84.a);

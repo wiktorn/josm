@@ -8,7 +8,7 @@ import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 
 import org.openstreetmap.josm.data.coor.EastNorth;
-import org.openstreetmap.josm.data.osm.Node;
+import org.openstreetmap.josm.data.coor.ILatLon;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.MapViewState;
 import org.openstreetmap.josm.gui.MapViewState.MapViewPoint;
@@ -56,8 +56,8 @@ public class MapViewPath extends MapPath2D {
      * @param n The node
      * @return this for easy chaining.
      */
-    public MapViewPath moveTo(Node n) {
-        moveTo(n.getEastNorth());
+    public MapViewPath moveTo(ILatLon n) {
+        moveTo(n.getEastNorth(state.getProjecting()));
         return this;
     }
 
@@ -84,8 +84,8 @@ public class MapViewPath extends MapPath2D {
      * @param n The node
      * @return this for easy chaining.
      */
-    public MapViewPath lineTo(Node n) {
-        lineTo(n.getEastNorth());
+    public MapViewPath lineTo(ILatLon n) {
+        lineTo(n.getEastNorth(state.getProjecting()));
         return this;
     }
 
@@ -114,8 +114,8 @@ public class MapViewPath extends MapPath2D {
      * @param size The size of the symbol in pixel
      * @return this for easy chaining.
      */
-    public MapViewPath shapeAround(Node p1, SymbolShape symbol, double size) {
-        shapeAround(p1.getEastNorth(), symbol, size);
+    public MapViewPath shapeAround(ILatLon p1, SymbolShape symbol, double size) {
+        shapeAround(p1.getEastNorth(state.getProjecting()), symbol, size);
         return this;
     }
 
@@ -143,7 +143,7 @@ public class MapViewPath extends MapPath2D {
      * @param connect <code>true</code> if we should use a lineTo as first command.
      * @return this for easy chaining.
      */
-    public MapViewPath append(Iterable<Node> nodes, boolean connect) {
+    public MapViewPath append(Iterable<? extends ILatLon> nodes, boolean connect) {
         appendWay(nodes, connect, false);
         return this;
     }
@@ -154,15 +154,15 @@ public class MapViewPath extends MapPath2D {
      * @param connect <code>true</code> if we should use a lineTo as first command.
      * @return this for easy chaining.
      */
-    public MapViewPath appendClosed(Iterable<Node> nodes, boolean connect) {
+    public MapViewPath appendClosed(Iterable<? extends ILatLon> nodes, boolean connect) {
         appendWay(nodes, connect, true);
         return this;
     }
 
-    private void appendWay(Iterable<Node> nodes, boolean connect, boolean close) {
+    private void appendWay(Iterable<? extends ILatLon> nodes, boolean connect, boolean close) {
         boolean useMoveTo = !connect;
-        Node first = null;
-        for (Node n : nodes) {
+        ILatLon first = null;
+        for (ILatLon n : nodes) {
             if (useMoveTo) {
                 moveTo(n);
             } else {
@@ -253,23 +253,22 @@ public class MapViewPath extends MapPath2D {
             for (float f : ((BasicStroke) stroke).getDashArray()) {
                 length += f;
             }
-            return visitClippedLine(((BasicStroke) stroke).getDashPhase(), length, consumer);
+            return visitClippedLine(length, consumer);
         } else {
-            return visitClippedLine(0, 0, consumer);
+            return visitClippedLine(0, consumer);
         }
     }
 
     /**
      * Visits all straight segments of this path. The segments are clamped to the view.
      * If they are clamped, the start points are aligned with the pattern.
-     * @param strokeOffset The initial offset of the pattern
-     * @param strokeLength The dash pattern length. 0 to use no pattern.
+     * @param strokeLength The dash pattern length. 0 to use no pattern. Only segments of this length will be removed from the line.
      * @param consumer The consumer to call for each segment
      * @return false if visiting the path failed because there e.g. were non-straight segments.
      * @since 11147
      */
-    public boolean visitClippedLine(double strokeOffset, double strokeLength, PathSegmentConsumer consumer) {
-        return new ClampingPathVisitor(state.getViewClipRectangle(), strokeOffset, strokeLength, consumer)
+    public boolean visitClippedLine(double strokeLength, PathSegmentConsumer consumer) {
+        return new ClampingPathVisitor(state.getViewClipRectangle(), strokeLength, consumer)
             .visit(this);
     }
 
@@ -399,13 +398,11 @@ public class MapViewPath extends MapPath2D {
         /**
          * Create a new {@link ClampingPathVisitor}
          * @param clip View clip rectangle
-         * @param strokeOffset Initial stroke offset
          * @param strokeLength Total length of a stroke sequence
          * @param consumer The consumer to notify of the path segments.
          */
-        ClampingPathVisitor(MapViewRectangle clip, double strokeOffset, double strokeLength, PathSegmentConsumer consumer) {
+        ClampingPathVisitor(MapViewRectangle clip, double strokeLength, PathSegmentConsumer consumer) {
             this.clip = clip;
-            this.strokeProgress = Math.min(strokeLength - strokeOffset, 0);
             this.strokeLength = strokeLength;
             this.consumer = consumer;
         }

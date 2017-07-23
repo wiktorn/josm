@@ -22,8 +22,7 @@ import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.OsmUrlToBounds;
 
 /**
- *
- *
+ * A panel that allows the user to input the coordinates of a lat/lon box
  */
 public class BoundingBoxSelectionPanel extends JPanel {
 
@@ -84,10 +83,18 @@ public class BoundingBoxSelectionPanel extends JPanel {
         build();
     }
 
+    /**
+     * Sets the bounding box to the given area
+     * @param area The new input values
+     */
     public void setBoundingBox(Bounds area) {
         updateBboxFields(area);
     }
 
+    /**
+     * Get the bounding box the user selected
+     * @return The box or <code>null</code> if no valid data was input.
+     */
     public Bounds getBoundingBox() {
         double minlon, minlat, maxlon, maxlat;
         try {
@@ -151,15 +158,11 @@ public class BoundingBoxSelectionPanel extends JPanel {
 
         @Override
         public boolean isValid() {
-            double value = 0;
             try {
-                value = Double.parseDouble(getComponent().getText());
+                return LatLon.isValidLat(Double.parseDouble(getComponent().getText()));
             } catch (NumberFormatException ex) {
                 return false;
             }
-            if (!LatLon.isValidLat(value))
-                return false;
-            return true;
         }
     }
 
@@ -191,15 +194,11 @@ public class BoundingBoxSelectionPanel extends JPanel {
 
         @Override
         public boolean isValid() {
-            double value = 0;
             try {
-                value = Double.parseDouble(getComponent().getText());
+                return LatLon.isValidLon(Double.parseDouble(getComponent().getText()));
             } catch (NumberFormatException ex) {
                 return false;
             }
-            if (!LatLon.isValidLon(value))
-                return false;
-            return true;
         }
     }
 

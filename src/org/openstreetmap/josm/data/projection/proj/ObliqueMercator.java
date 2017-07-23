@@ -6,6 +6,7 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.projection.ProjectionConfigurationException;
+import org.openstreetmap.josm.tools.Utils;
 
 /**
  * Oblique Mercator Projection. A conformal, oblique, cylindrical projection with the cylinder
@@ -158,7 +159,7 @@ public class ObliqueMercator extends AbstractProj implements ICentralMeridianPro
     /**
      * Constants used in the transformation.
      */
-    private double b, e;
+    private double b, g;
 
     /**
      * Convenience value equal to {@code a} / {@link #b}.
@@ -227,7 +228,7 @@ public class ObliqueMercator extends AbstractProj implements ICentralMeridianPro
 
         double latCenter = 0;
         if (params.lat0 != null) {
-            latCenter = Math.toRadians(params.lat0);
+            latCenter = Utils.toRadians(params.lat0);
         }
 
         final double com = Math.sqrt(1.0 - e2);
@@ -247,8 +248,8 @@ public class ObliqueMercator extends AbstractProj implements ICentralMeridianPro
                 f = -f;
             }
         }
-        e = f += d;
-        e = f * Math.pow(tsfn(latCenter, sinph0), b);
+        g = f += d;
+        g = f * Math.pow(tsfn(latCenter, sinph0), b);
 
         /*
          * Computes the constants that depend on the "twoPoint" vs "azimuth" case. In the
@@ -268,10 +269,10 @@ public class ObliqueMercator extends AbstractProj implements ICentralMeridianPro
             if (params.lat2 == null)
                 throw new ProjectionConfigurationException(tr("Parameter ''{0}'' required.", "lat_2"));
             referencePoint = new LatLon(params.lat1, params.lat2);
-            double lon1 = Math.toRadians(params.lon1);
-            double lat1 = Math.toRadians(params.lat1);
-            double lon2 = Math.toRadians(params.lon2);
-            double lat2 = Math.toRadians(params.lat2);
+            double lon1 = Utils.toRadians(params.lon1);
+            double lat1 = Utils.toRadians(params.lat1);
+            double lon2 = Utils.toRadians(params.lon2);
+            double lat2 = Utils.toRadians(params.lat2);
 
             if (Math.abs(lat1 - lat2) <= EPSILON ||
                 Math.abs(lat1) <= EPSILON ||
@@ -286,9 +287,9 @@ public class ObliqueMercator extends AbstractProj implements ICentralMeridianPro
              */
             final double h = Math.pow(tsfn(lat1, Math.sin(lat1)), b);
             final double l = Math.pow(tsfn(lat2, Math.sin(lat2)), b);
-            final double fp = e / h;
+            final double fp = g / h;
             final double p = (l - h) / (l + h);
-            double j = e * e;
+            double j = g * g;
             j = (j - l * h) / (j + l * h);
             double diff = lon1 - lon2;
             if (diff < -Math.PI) {
@@ -311,8 +312,8 @@ public class ObliqueMercator extends AbstractProj implements ICentralMeridianPro
                 throw new ProjectionConfigurationException(tr("Parameter ''{0}'' required.", "alpha"));
             referencePoint = new LatLon(params.lat0, params.lonc);
 
-            lonCenter = Math.toRadians(params.lonc);
-            azimuth = Math.toRadians(params.alpha);
+            lonCenter = Utils.toRadians(params.lonc);
+            azimuth = Utils.toRadians(params.alpha);
             // CHECKSTYLE.OFF: SingleSpaceSeparator
             if ((azimuth > -1.5*Math.PI && azimuth < -0.5*Math.PI) ||
                 (azimuth >  0.5*Math.PI && azimuth <  1.5*Math.PI)) {
@@ -321,7 +322,7 @@ public class ObliqueMercator extends AbstractProj implements ICentralMeridianPro
             }
             // CHECKSTYLE.ON: SingleSpaceSeparator
             if (params.gamma != null) {
-                rectifiedGridAngle = Math.toRadians(params.gamma);
+                rectifiedGridAngle = Utils.toRadians(params.gamma);
             } else {
                 rectifiedGridAngle = azimuth;
             }
@@ -370,14 +371,14 @@ public class ObliqueMercator extends AbstractProj implements ICentralMeridianPro
     }
 
     private static double normalizeLonRad(double a) {
-        return Math.toRadians(LatLon.normalizeLon(Math.toDegrees(a)));
+        return Utils.toRadians(LatLon.normalizeLon(Utils.toDegrees(a)));
     }
 
     @Override
     public double[] project(double y, double x) {
         double u, v;
         if (Math.abs(Math.abs(y) - Math.PI/2.0) > EPSILON) {
-            double q = e / Math.pow(tsfn(y, Math.sin(y)), b);
+            double q = g / Math.pow(tsfn(y, Math.sin(y)), b);
             double temp = 1.0 / q;
             double s = 0.5 * (q - temp);
             double v2 = Math.sin(b * x);
@@ -418,7 +419,7 @@ public class ObliqueMercator extends AbstractProj implements ICentralMeridianPro
                 0.0};
         } else {
             return new double[] {
-                cphi2(Math.pow(e / Math.sqrt((1. + up) / (1. - up)), 1.0 / b)), //calculate t
+                cphi2(Math.pow(g / Math.sqrt((1. + up) / (1. - up)), 1.0 / b)), //calculate t
                 -Math.atan2(sp * cosgamma0 - vp * singamma0, Math.cos(bra * u)) / b};
         }
     }
@@ -434,13 +435,13 @@ public class ObliqueMercator extends AbstractProj implements ICentralMeridianPro
         // bounds should be configured explicitly.
         double lat = referencePoint.lat();
         double dLat = 3.0;
-        double lon = referencePoint.lon() - Math.toDegrees(centralMeridian);
+        double lon = referencePoint.lon() - Utils.toDegrees(centralMeridian);
         double dLon = 3.0;
         return new Bounds(lat - dLat, lon - dLon, lat + dLat, lon + dLon, false);
     }
 
     @Override
     public double getCentralMeridian() {
-        return Math.toDegrees(centralMeridian);
+        return Utils.toDegrees(centralMeridian);
     }
 }

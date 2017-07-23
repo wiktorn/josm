@@ -8,7 +8,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.text.MessageFormat;
 import java.util.ArrayList;
@@ -316,15 +315,17 @@ public class PluginInformation {
      * Loads and instantiates the plugin.
      *
      * @param klass the plugin class
+     * @param classLoader the class loader for the plugin
      * @return the instantiated and initialized plugin
      * @throws PluginException if the plugin cannot be loaded or instanciated
+     * @since 12322
      */
-    public PluginProxy load(Class<?> klass) throws PluginException {
+    public PluginProxy load(Class<?> klass, PluginClassLoader classLoader) throws PluginException {
         try {
             Constructor<?> c = klass.getConstructor(PluginInformation.class);
             Object plugin = c.newInstance(this);
-            return new PluginProxy(plugin, this);
-        } catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
+            return new PluginProxy(plugin, this, classLoader);
+        } catch (ReflectiveOperationException e) {
             throw new PluginException(name, e);
         }
     }
@@ -429,9 +430,7 @@ public class PluginInformation {
         if (this.downloadlink == null) return false;
         if (this.version == null && referenceVersion != null)
             return true;
-        if (this.version != null && !this.version.equals(referenceVersion))
-            return true;
-        return false;
+        return this.version != null && !this.version.equals(referenceVersion);
     }
 
     /**

@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
@@ -43,6 +42,9 @@ import org.xml.sax.helpers.XMLFilterImpl;
  * @author Imi
  */
 public class XmlObjectParser implements Iterable<Object> {
+    /**
+     * The language prefix to use
+     */
     public static final String lang = LanguageInfo.getLanguageCodeXML();
 
     private static class AddNamespaceFilter extends XMLFilterImpl {
@@ -153,10 +155,10 @@ public class XmlObjectParser implements Iterable<Object> {
                     }
                     Method m = entry.getMethod(fieldName);
                     if (m != null) {
-                        m.invoke(c, new Object[]{getValueForClass(m.getParameterTypes()[0], value)});
+                        m.invoke(c, getValueForClass(m.getParameterTypes()[0], value));
                     }
                 }
-            } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+            } catch (ReflectiveOperationException | IllegalArgumentException e) {
                 Main.error(e); // SAXException does not dump inner exceptions.
                 throwException(e);
             }
@@ -299,6 +301,11 @@ public class XmlObjectParser implements Iterable<Object> {
         }
     }
 
+    /**
+     * Add a new tag name to class type mapping
+     * @param tagName The tag name that should be converted to that class
+     * @param klass The class the XML elements should be converted to.
+     */
     public void map(String tagName, Class<?> klass) {
         mapping.put(tagName, new Entry(klass, false, false));
     }
@@ -311,10 +318,18 @@ public class XmlObjectParser implements Iterable<Object> {
         mapping.put(tagName, new Entry(klass, false, true));
     }
 
+    /**
+     * Get the next element that was parsed
+     * @return The next object
+     */
     public Object next() {
         return queueIterator.next();
     }
 
+    /**
+     * Check if there is a next parsed object available
+     * @return <code>true</code> if there is a next object
+     */
     public boolean hasNext() {
         return queueIterator.hasNext();
     }

@@ -619,7 +619,7 @@ public final class ExpressionFactory {
          * @see Math#toRadians(double)
          */
         public static double degree_to_radians(double degree) { // NO_UCD (unused code)
-            return Math.toRadians(degree);
+            return Utils.toRadians(degree);
         }
 
         /**
@@ -1221,6 +1221,11 @@ public final class ExpressionFactory {
             this.computeMax = computeMax;
         }
 
+        /**
+         * Compute the minimum / maximum over the list
+         * @param lst The list
+         * @return The minimum or maximum depending on {@link #computeMax}
+         */
         public Float aggregateList(List<?> lst) {
             final List<Float> floats = Utils.transform(lst, (Function<Object, Float>) x -> Cascade.convertTo(x, float.class));
             final Collection<Float> nonNullList = SubclassFilteredCollection.filter(floats, Objects::nonNull);

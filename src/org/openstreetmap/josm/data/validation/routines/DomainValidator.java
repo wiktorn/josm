@@ -295,7 +295,7 @@ public final class DomainValidator extends AbstractValidator {
 
     // WARNING: this array MUST be sorted, otherwise it cannot be searched reliably using binary search
     private static final String[] GENERIC_TLDS = new String[] {
-        // Taken from Version 2017040800, Last Updated Sat Apr  8 07:07:01 2017 UTC
+        // Taken from Version 2017071002, Last Updated Tue Jul 11 07:07:02 2017 UTC
         "aaa", // aaa American Automobile Association, Inc.
         "aarp", // aarp AARP
         "abarth", // abarth Fiat Chrysler Automobiles N.V.
@@ -353,6 +353,7 @@ public final class DomainValidator extends AbstractValidator {
         "app", // app Charleston Road Registry Inc.
         "apple", // apple Apple Inc.
         "aquarelle", // aquarelle Aquarelle.com
+        "arab", // arab League of Arab States
         "aramco", // aramco Aramco Services Company
         "archi", // archi STARTING DOT LIMITED
         "army", // army United TLD Holdco Ltd.
@@ -631,6 +632,7 @@ public final class DomainValidator extends AbstractValidator {
         "esq", // esq Charleston Road Registry Inc.
         "estate", // estate Trixy Park, LLC
         "esurance", // esurance Esurance Insurance Company
+        "etisalat", // etisalat Emirates Telecommunications Corporation (trading as Etisalat)
         "eurovision", // eurovision European Broadcasting Union (EBU)
         "eus", // eus Puntueus Fundazioa
         "events", // events Pioneer Maple, LLC
@@ -744,6 +746,7 @@ public final class DomainValidator extends AbstractValidator {
         "gratis", // gratis Pioneer Tigers, LLC
         "green", // green Afilias Limited
         "gripe", // gripe Corn Sunset, LLC
+        "grocery", // grocery Wal-Mart Stores, Inc.
         "group", // group Romeo Town, LLC
         "guardian", // guardian The Guardian Life Insurance Company of America
         "gucci", // gucci Guccio Gucci S.p.a.
@@ -936,6 +939,7 @@ public final class DomainValidator extends AbstractValidator {
         "man", // man MAN SE
         "management", // management John Goodbye, LLC
         "mango", // mango PUNTO FA S.L.
+        "map", // map Charleston Road Registry Inc.
         "market", // market Unitied TLD Holdco, Ltd
         "marketing", // marketing Fern Pass, LLC
         "markets", // markets DOTMARKETS REGISTRY LTD
@@ -956,6 +960,7 @@ public final class DomainValidator extends AbstractValidator {
         "men", // men Exclusive Registry Limited
         "menu", // menu Wedding TLD2, LLC
         "meo", // meo PT Comunicacoes S.A.
+        "merckmsd", // merckmsd MSD Registry Holdings, Inc.
         "metlife", // metlife MetLife Services and Solutions, LLC
         "miami", // miami Top Level Domain Holdings Limited
         "microsoft", // microsoft Microsoft Corporation
@@ -989,7 +994,6 @@ public final class DomainValidator extends AbstractValidator {
         "movistar", // movistar Telefónica S.A.
         "msd", // msd MSD Registry Holdings, Inc.
         "mtn", // mtn MTN Dubai Limited
-        "mtpc", // mtpc Mitsubishi Tanabe Pharma Corporation
         "mtr", // mtr MTR Corporation Limited
         "museum", // museum Museum Domain Management Association
         "mutual", // mutual Northwestern Mutual MU TLD Registry, LLC
@@ -1053,7 +1057,6 @@ public final class DomainValidator extends AbstractValidator {
         "orange", // orange Orange Brand Services Limited
         "org", // org Public Interest Registry (PIR)
         "organic", // organic Afilias Limited
-        "orientexpress", // orientexpress Orient Express
         "origins", // origins The Estée Lauder Companies Inc.
         "osaka", // osaka Interlink Co., Ltd.
         "otsuka", // otsuka Otsuka Holdings Co., Ltd.
@@ -1074,6 +1077,7 @@ public final class DomainValidator extends AbstractValidator {
         "pet", // pet Afilias plc
         "pfizer", // pfizer Pfizer Inc.
         "pharmacy", // pharmacy National Association of Boards of Pharmacy
+        "phd", // phd Charleston Road Registry Inc.
         "philips", // philips Koninklijke Philips N.V.
         "phone", // phone Dish DBS Corporation
         "photo", // photo Uniregistry, Corp.
@@ -1199,6 +1203,7 @@ public final class DomainValidator extends AbstractValidator {
         "scjohnson", // scjohnson Johnson Shareholdings, Inc.
         "scor", // scor SCOR SE
         "scot", // scot Dot Scot Registry Limited
+        "search", // search Charleston Road Registry Inc.
         "seat", // seat SEAT, S.A. (Sociedad Unipersonal)
         "secure", // secure Amazon Registry Services, Inc.
         "security", // security XYZ.COM LLC
@@ -1423,12 +1428,15 @@ public final class DomainValidator extends AbstractValidator {
         "xn--11b4c3d", // कॉम VeriSign Sarl
         "xn--1ck2e1b", // セール Amazon Registry Services, Inc.
         "xn--1qqw23a", // 佛山 Guangzhou YU Wei Information Technology Co., Ltd.
+        "xn--2scrj9c", // ಭಾರತ National Internet eXchange of India
         "xn--30rr7y", // 慈善 Excellent First Limited
         "xn--3bst00m", // 集团 Eagle Horizon Limited
         "xn--3ds443g", // 在线 TLD REGISTRY LIMITED
+        "xn--3hcrj9c", // ଭାରତ National Internet eXchange of India
         "xn--3oq18vl8pn36a", // 大众汽车 Volkswagen (China) Investment Co., Ltd.
         "xn--3pxu8k", // 点看 VeriSign Sarl
         "xn--42c2d9a", // คอม VeriSign Sarl
+        "xn--45br5cyl", // ভাৰত National Internet eXchange of India
         "xn--45q11c", // 八卦 Zodiac Scorpio Limited
         "xn--4gbrim", // موقع Suhub Electronic Establishment
         "xn--54b7fta0cc", // বাংলা Posts and Telecommunications Division
@@ -1470,6 +1478,8 @@ public final class DomainValidator extends AbstractValidator {
         "xn--g2xx48c", // 购物 Minds + Machines Group Limited
         "xn--gckr3f0f", // クラウド Amazon Registry Services, Inc.
         "xn--gk3at1e", // 通販 Amazon Registry Services, Inc.
+        "xn--h2breg3eve", // भारतम् National Internet eXchange of India
+        "xn--h2brj9c8c", // भारोत National Internet eXchange of India
         "xn--hxt814e", // 网店 Zodiac Libra Limited
         "xn--i1b6b1a6a2e", // संगठन Public Interest Registry
         "xn--imr513n", // 餐厅 HU YI GLOBAL INFORMATION RESOURCES (HOLDING) COMPANY. HONGKONG LIMITED
@@ -1482,16 +1492,20 @@ public final class DomainValidator extends AbstractValidator {
         "xn--kput3i", // 手机 Beijing RITT-Net Technology Development Co., Ltd
         "xn--mgba3a3ejt", // ارامكو Aramco Services Company
         "xn--mgba7c0bbn0a", // العليان Crescent Holding GmbH
+        "xn--mgbaakc7dvf", // اتصالات Emirates Telecommunications Corporation (trading as Etisalat)
         "xn--mgbab2bd", // بازار CORE Association
         "xn--mgbai9azgqp6j", // پاکستان National Telecommunication Corporation
         "xn--mgbb9fbpob", // موبايلي GreenTech Consultancy Company W.L.L.
+        "xn--mgbbh1a", // بارت National Internet eXchange of India
         "xn--mgbca7dzdo", // ابوظبي Abu Dhabi Systems and Information Centre
+        "xn--mgbgu82a", // ڀارت National Internet eXchange of India
         "xn--mgbi4ecexp", // كاثوليك Pontificium Consilium de Comunicationibus Socialibus (PCCS) (Pontifical Council for Social Communication)
         "xn--mgbt3dhd", // همراه Asia Green IT System Bilgisayar San. ve Tic. Ltd. Sti.
         "xn--mk1bu44c", // 닷컴 VeriSign Sarl
         "xn--mxtq1m", // 政府 Net-Chinese Co., Ltd.
         "xn--ngbc5azd", // شبكة International Domain Registry Pty. Ltd.
         "xn--ngbe9e0a", // بيتك Kuwait Finance House
+        "xn--ngbrx", // عرب League of Arab States
         "xn--nqv7f", // 机构 Public Interest Registry
         "xn--nqv7fs00ema", // 组织机构 Public Interest Registry
         "xn--nyqy26a", // 健康 Stable Tone Limited
@@ -1502,6 +1516,7 @@ public final class DomainValidator extends AbstractValidator {
         "xn--qcka1pmc", // グーグル Charleston Road Registry Inc.
         "xn--rhqv96g", // 世界 Stable Tone Limited
         "xn--rovu88b", // 書籍 Amazon EU S.à r.l.
+        "xn--rvc1e0am3e", // ഭാരതം National Internet eXchange of India
         "xn--ses554g", // 网址 KNET Co., Ltd
         "xn--t60b56a", // 닷넷 VeriSign Sarl
         "xn--tckwe", // コム VeriSign Sarl

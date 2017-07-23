@@ -25,7 +25,6 @@ import java.util.TreeSet;
 import javax.swing.JOptionPane;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.actions.ValidateAction;
 import org.openstreetmap.josm.data.validation.tests.Addresses;
 import org.openstreetmap.josm.data.validation.tests.ApiCapabilitiesTest;
 import org.openstreetmap.josm.data.validation.tests.BarriersEntrances;
@@ -75,9 +74,6 @@ public final class OsmValidator {
     }
 
     private static volatile ValidatorLayer errorLayer;
-
-    /** The validate action */
-    public static final ValidateAction validateAction = new ValidateAction();
 
     /** Grid detail, multiplier of east,north values for valuable cell sizing */
     private static double griddetail;
@@ -137,6 +133,10 @@ public final class OsmValidator {
         PublicTransportRouteTest.class, // 3600 .. 3699
     };
 
+    /**
+     * Adds a test to the list of available tests
+     * @param testClass The test class
+     */
     public static void addTest(Class<? extends Test> testClass) {
         allTests.add(testClass);
         try {
@@ -196,14 +196,28 @@ public final class OsmValidator {
         }
     }
 
+    /**
+     * Adds an ignored error
+     * @param s The ignore group / sub group name
+     * @see TestError#getIgnoreGroup()
+     * @see TestError#getIgnoreSubGroup()
+     */
     public static void addIgnoredError(String s) {
         ignoredErrors.add(s);
     }
 
+    /**
+     * Check if a error should be ignored
+     * @param s The ignore group / sub group name
+     * @return <code>true</code> to ignore that error
+     */
     public static boolean hasIgnoredError(String s) {
         return ignoredErrors.contains(s);
     }
 
+    /**
+     * Saves the names of the ignored errors to a file
+     */
     public static void saveIgnoredErrors() {
         try (PrintWriter out = new PrintWriter(new File(getValidatorDir(), "ignorederrors"), StandardCharsets.UTF_8.name())) {
             for (String e : ignoredErrors) {
@@ -273,10 +287,19 @@ public final class OsmValidator {
         }
     }
 
+    /**
+     * Gets all tests that are possible
+     * @return The tests
+     */
     public static Collection<Test> getTests() {
         return getAllTestsMap().values();
     }
 
+    /**
+     * Gets all tests that are run
+     * @param beforeUpload To get the ones that are run before upload
+     * @return The tests
+     */
     public static Collection<Test> getEnabledTests(boolean beforeUpload) {
         Collection<Test> enabledTests = getTests();
         for (Test t : new ArrayList<>(enabledTests)) {

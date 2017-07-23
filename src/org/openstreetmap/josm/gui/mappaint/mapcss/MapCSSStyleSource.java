@@ -75,15 +75,34 @@ public class MapCSSStyleSource extends StyleSource {
     public static final String MAPCSS_STYLE_MIME_TYPES =
             "text/x-mapcss, text/mapcss, text/css; q=0.9, text/plain; q=0.8, application/zip, application/octet-stream; q=0.5";
 
-    // all rules
+    /**
+     * all rules in this style file
+     */
     public final List<MapCSSRule> rules = new ArrayList<>();
-    // rule indices, filtered by primitive type
-    public final MapCSSRuleIndex nodeRules = new MapCSSRuleIndex();         // nodes
-    public final MapCSSRuleIndex wayRules = new MapCSSRuleIndex();          // ways without tag area=no
-    public final MapCSSRuleIndex wayNoAreaRules = new MapCSSRuleIndex();    // ways with tag area=no
-    public final MapCSSRuleIndex relationRules = new MapCSSRuleIndex();     // relations that are not multipolygon relations
-    public final MapCSSRuleIndex multipolygonRules = new MapCSSRuleIndex(); // multipolygon relations
-    public final MapCSSRuleIndex canvasRules = new MapCSSRuleIndex();       // rules to apply canvas properties
+    /**
+     * Rules for nodes
+     */
+    public final MapCSSRuleIndex nodeRules = new MapCSSRuleIndex();
+    /**
+     * Rules for ways without tag area=no
+     */
+    public final MapCSSRuleIndex wayRules = new MapCSSRuleIndex();
+    /**
+     * Rules for ways with tag area=no
+     */
+    public final MapCSSRuleIndex wayNoAreaRules = new MapCSSRuleIndex();
+    /**
+     * Rules for relations that are not multipolygon relations
+     */
+    public final MapCSSRuleIndex relationRules = new MapCSSRuleIndex();
+    /**
+     * Rules for multipolygon relations
+     */
+    public final MapCSSRuleIndex multipolygonRules = new MapCSSRuleIndex();
+    /**
+     * rules to apply canvas properties
+     */
+    public final MapCSSRuleIndex canvasRules = new MapCSSRuleIndex();
 
     private Color backgroundColorOverride;
     private String css;
@@ -611,7 +630,6 @@ public class MapCSSStyleSource extends StyleSource {
 
     @Override
     public void apply(MultiCascade mc, OsmPrimitive osm, double scale, boolean pretendWayIsClosed) {
-        Environment env = new Environment(osm, mc, null, this);
         MapCSSRuleIndex matchingRuleIndex;
         if (osm instanceof Node) {
             matchingRuleIndex = nodeRules;
@@ -633,6 +651,7 @@ public class MapCSSStyleSource extends StyleSource {
             throw new IllegalArgumentException("Unsupported type: " + osm);
         }
 
+        Environment env = new Environment(osm, mc, null, this);
         // the declaration indices are sorted, so it suffices to save the last used index
         int lastDeclUsed = -1;
 
@@ -669,25 +688,25 @@ public class MapCSSStyleSource extends StyleSource {
         }
     }
 
+    /**
+     * Evaluate a supports condition
+     * @param feature The feature to evaluate for
+     * @param val The additional parameter passed to evaluate
+     * @return <code>true</code> if JSOM supports that feature
+     */
     public boolean evalSupportsDeclCondition(String feature, Object val) {
         if (feature == null) return false;
         if (SUPPORTED_KEYS.contains(feature)) return true;
         switch (feature) {
             case "user-agent":
-            {
                 String s = Cascade.convertTo(val, String.class);
                 return "josm".equals(s);
-            }
             case "min-josm-version":
-            {
-                Float v = Cascade.convertTo(val, Float.class);
-                return v != null && Math.round(v) <= Version.getInstance().getVersion();
-            }
+                Float min = Cascade.convertTo(val, Float.class);
+                return min != null && Math.round(min) <= Version.getInstance().getVersion();
             case "max-josm-version":
-            {
-                Float v = Cascade.convertTo(val, Float.class);
-                return v != null && Math.round(v) >= Version.getInstance().getVersion();
-            }
+                Float max = Cascade.convertTo(val, Float.class);
+                return max != null && Math.round(max) >= Version.getInstance().getVersion();
             default:
                 return false;
         }

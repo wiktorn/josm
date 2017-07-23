@@ -15,6 +15,8 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.SelectionChangedListener;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
+import org.openstreetmap.josm.data.osm.event.DatasetEventManager.FireMode;
+import org.openstreetmap.josm.data.osm.event.SelectionEventManager;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerAddEvent;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerChangeListener;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerOrderChangeEvent;
@@ -73,7 +75,7 @@ public abstract class JosmAction extends AbstractAction implements Destroyable {
             icon.getResource().attachImageIcon(this, true);
         setHelpId();
         sc = shortcut;
-        if (sc != null) {
+        if (sc != null && !sc.isAutomatic()) {
             Main.registerActionShortcut(this, sc);
         }
         setTooltip(tooltip);
@@ -186,7 +188,8 @@ public abstract class JosmAction extends AbstractAction implements Destroyable {
         }
         if (listenToSelectionChange()) {
             selectionChangeAdapter = new SelectionChangeAdapter();
-            DataSet.addSelectionListener(selectionChangeAdapter);
+            SelectionEventManager.getInstance()
+                .addSelectionListener(selectionChangeAdapter, FireMode.IN_EDT_CONSOLIDATED);
         }
         initEnabledState();
     }
@@ -211,7 +214,7 @@ public abstract class JosmAction extends AbstractAction implements Destroyable {
 
     @Override
     public void destroy() {
-        if (sc != null) {
+        if (sc != null && !sc.isAutomatic()) {
             Main.unregisterActionShortcut(this);
         }
         if (layerChangeAdapter != null) {
