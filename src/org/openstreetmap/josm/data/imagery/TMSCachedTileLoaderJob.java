@@ -6,7 +6,6 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URL;
-import java.text.MessageFormat;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -17,7 +16,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
 
 import org.apache.commons.jcs.access.behavior.ICacheAccess;
 import org.openstreetmap.gui.jmapviewer.Tile;
@@ -120,10 +118,9 @@ public class TMSCachedTileLoaderJob extends JCSCachedTileLoaderJob<String, Buffe
             try {
                 return content.length > 0 || cacheData.getImage() != null || isNoTileAtZoom();
             } catch (IOException e) {
-                Logging.logWithStackTrace(Level.WARNING,
-                        MessageFormat.format("JCS TMS - error loading from cache for tile {0}: {1}",
-                                new Object[] {tile.getKey(), e.getMessage()}),
-                        e);
+                Logging.logWithStackTrace(Logging.LEVEL_WARN, e, "JCS TMS - error loading from cache for tile {0}: {1}",
+                        new Object[] {tile.getKey(), e.getMessage()}
+                        );
             }
         }
         return false;

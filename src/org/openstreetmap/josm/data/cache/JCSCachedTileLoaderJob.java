@@ -400,8 +400,7 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
 
         } catch (InterruptedException e) {
             attributes.setError(e);
-            Logging.warn("JCS - Exception during download {0}", getUrlNoException());
-            Logging.warn(e);
+            Logging.logWithStackTrace(Logging.LEVEL_WARN, e, "JCS - Exception during download {0}", getUrlNoException());
             Thread.currentThread().interrupt();
         }
         Logging.warn("JCS - Silent failure during download: {0}", getUrlNoException());
