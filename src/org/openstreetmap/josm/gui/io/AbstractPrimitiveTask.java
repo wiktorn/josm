@@ -6,7 +6,6 @@ import static org.openstreetmap.josm.tools.CheckParameterUtil.ensureParameterNot
 import java.io.IOException;
 import java.util.Set;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.AutoScaleAction;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.DataSetMerger;
@@ -15,10 +14,11 @@ import org.openstreetmap.josm.data.osm.PrimitiveId;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.gui.ExceptionDialogUtil;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.PleaseWaitRunnable;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
-import org.openstreetmap.josm.gui.progress.PleaseWaitProgressMonitor;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
+import org.openstreetmap.josm.gui.progress.swing.PleaseWaitProgressMonitor;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.io.MultiFetchServerObjectReader;
 import org.openstreetmap.josm.io.OsmServerObjectReader;
@@ -185,7 +185,7 @@ public abstract class AbstractPrimitiveTask extends PleaseWaitRunnable {
         }
         GuiHelper.runInEDTAndWait(() -> {
             layer.mergeFrom(ds);
-            if (zoom && Main.map != null)
+            if (zoom && MainApplication.getMap() != null)
                 AutoScaleAction.zoomTo(ds.allPrimitives());
             layer.onPostDownloadFromServer();
         });

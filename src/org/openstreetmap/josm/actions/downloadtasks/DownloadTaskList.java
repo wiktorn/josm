@@ -28,6 +28,7 @@ import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane.ButtonSpec;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.Notification;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
@@ -35,6 +36,7 @@ import org.openstreetmap.josm.gui.progress.ProgressMonitor;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.tools.ExceptionUtil;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -70,8 +72,8 @@ public class DownloadTaskList {
         this.progressMonitor = progressMonitor;
         if (newLayer) {
             Layer l = new OsmDataLayer(new DataSet(), OsmDataLayer.createNewName(), null);
-            Main.getLayerManager().addLayer(l);
-            Main.getLayerManager().setActiveLayer(l);
+            MainApplication.getLayerManager().addLayer(l);
+            MainApplication.getLayerManager().setActiveLayer(l);
         }
 
         int n = (osmData && gpxData ? 2 : 1)*rects.size();
@@ -91,7 +93,7 @@ public class DownloadTaskList {
                 dt.cancel();
             }
         });
-        return Main.worker.submit(new PostDownloadProcessor(osmData));
+        return MainApplication.worker.submit(new PostDownloadProcessor(osmData));
     }
 
     /**
@@ -243,7 +245,7 @@ public class DownloadTaskList {
                 try {
                     future.get();
                 } catch (InterruptedException | ExecutionException | CancellationException e) {
-                    Main.error(e);
+                    Logging.error(e);
                     return;
                 }
             }
@@ -285,7 +287,7 @@ public class DownloadTaskList {
                         return;
                 }
             }
-            final OsmDataLayer editLayer = Main.getLayerManager().getEditLayer();
+            final OsmDataLayer editLayer = MainApplication.getLayerManager().getEditLayer();
             if (editLayer != null && osmData) {
                 final Set<OsmPrimitive> myPrimitives = getCompletePrimitives(editLayer.data);
                 for (DownloadTask task : tasks) {

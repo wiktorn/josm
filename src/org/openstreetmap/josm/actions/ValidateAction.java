@@ -11,15 +11,16 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
+import org.openstreetmap.josm.data.preferences.sources.ValidatorPrefHelper;
 import org.openstreetmap.josm.data.validation.OsmValidator;
 import org.openstreetmap.josm.data.validation.Test;
 import org.openstreetmap.josm.data.validation.TestError;
 import org.openstreetmap.josm.data.validation.util.AggregatePrimitivesVisitor;
+import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.PleaseWaitRunnable;
 import org.openstreetmap.josm.gui.layer.ValidatorLayer;
-import org.openstreetmap.josm.gui.preferences.validator.ValidatorPreference;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.io.OsmTransferException;
 import org.openstreetmap.josm.tools.Shortcut;
@@ -61,7 +62,8 @@ public class ValidateAction extends JosmAction {
      * @param getSelectedItems If selected or last selected items must be validated
      */
     public void doValidate(boolean getSelectedItems) {
-        if (Main.map == null || !Main.map.isVisible())
+        MapFrame map = MainApplication.getMap();
+        if (map == null || !map.isVisible())
             return;
 
         OsmValidator.initializeTests();
@@ -73,9 +75,9 @@ public class ValidateAction extends JosmAction {
 
         Collection<OsmPrimitive> selection;
         if (getSelectedItems) {
-            selection = Main.getLayerManager().getEditDataSet().getAllSelected();
+            selection = getLayerManager().getEditDataSet().getAllSelected();
             if (selection.isEmpty()) {
-                selection = Main.getLayerManager().getEditDataSet().allNonDeletedPrimitives();
+                selection = getLayerManager().getEditDataSet().allNonDeletedPrimitives();
                 lastSelection = null;
             } else {
                 AggregatePrimitivesVisitor v = new AggregatePrimitivesVisitor();
@@ -84,10 +86,10 @@ public class ValidateAction extends JosmAction {
             }
         } else {
             selection = Optional.ofNullable(lastSelection).orElseGet(
-                    () -> Main.getLayerManager().getEditDataSet().allNonDeletedPrimitives());
+                    () -> getLayerManager().getEditDataSet().allNonDeletedPrimitives());
         }
 
-        Main.worker.submit(new ValidationTask(tests, selection, lastSelection));
+        MainApplication.worker.submit(new ValidationTask(tests, selection, lastSelection));
     }
 
     @Override
@@ -139,10 +141,11 @@ public class ValidateAction extends JosmAction {
             // update GUI on Swing EDT
             //
             GuiHelper.runInEDT(() -> {
-                Main.map.validatorDialog.tree.setErrors(errors);
-                Main.map.validatorDialog.unfurlDialog();
+                MapFrame map = MainApplication.getMap();
+                map.validatorDialog.tree.setErrors(errors);
+                map.validatorDialog.unfurlDialog();
                 //FIXME: nicer way to find / invalidate the corresponding error layer
-                Main.getLayerManager().getLayersOfType(ValidatorLayer.class).forEach(ValidatorLayer::invalidate);
+                MainApplication.getLayerManager().getLayersOfType(ValidatorLayer.class).forEach(ValidatorLayer::invalidate);
             });
         }
 
@@ -166,7 +169,7 @@ public class ValidateAction extends JosmAction {
                 errors.addAll(test.getErrors());
             }
             tests = null;
-            if (ValidatorPreference.PREF_USE_IGNORE.get()) {
+            if (ValidatorPrefHelper.PREF_USE_IGNORE.get()) {
                 getProgressMonitor().subTask(tr("Updating ignored errors ..."));
                 for (TestError error : errors) {
                     if (canceled) return;

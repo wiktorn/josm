@@ -15,16 +15,18 @@ import javax.swing.JScrollPane;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.APIDataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
+import org.openstreetmap.josm.data.preferences.sources.ValidatorPrefHelper;
 import org.openstreetmap.josm.data.validation.OsmValidator;
 import org.openstreetmap.josm.data.validation.Severity;
 import org.openstreetmap.josm.data.validation.Test;
 import org.openstreetmap.josm.data.validation.TestError;
 import org.openstreetmap.josm.data.validation.util.AggregatePrimitivesVisitor;
 import org.openstreetmap.josm.gui.ExtendedDialog;
+import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.dialogs.validator.ValidatorTreePanel;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.layer.ValidatorLayer;
-import org.openstreetmap.josm.gui.preferences.validator.ValidatorPreference;
 import org.openstreetmap.josm.gui.widgets.HtmlPanel;
 import org.openstreetmap.josm.tools.GBC;
 
@@ -61,7 +63,7 @@ public class ValidateUploadHook implements UploadHook {
             test.startTest(null);
             test.visit(selection);
             test.endTest();
-            if (ValidatorPreference.PREF_OTHER.get() && ValidatorPreference.PREF_OTHER_UPLOAD.get()) {
+            if (ValidatorPrefHelper.PREF_OTHER.get() && ValidatorPrefHelper.PREF_OTHER_UPLOAD.get()) {
                 errors.addAll(test.getErrors());
             } else {
                 for (TestError e : test.getErrors()) {
@@ -71,18 +73,19 @@ public class ValidateUploadHook implements UploadHook {
                 }
             }
         }
-        OsmDataLayer editLayer = Main.getLayerManager().getEditLayer();
+        OsmDataLayer editLayer = MainApplication.getLayerManager().getEditLayer();
         if (editLayer != null) {
             editLayer.validationErrors.clear();
             editLayer.validationErrors.addAll(errors);
         }
-        if (Main.map != null) {
-            Main.map.validatorDialog.tree.setErrors(errors);
+        MapFrame map = MainApplication.getMap();
+        if (map != null) {
+            map.validatorDialog.tree.setErrors(errors);
         }
         if (errors.isEmpty())
             return true;
 
-        if (ValidatorPreference.PREF_USE_IGNORE.get()) {
+        if (ValidatorPrefHelper.PREF_USE_IGNORE.get()) {
             int nume = 0;
             for (TestError error : errors) {
                 List<String> s = new ArrayList<>();
@@ -147,8 +150,8 @@ public class ValidateUploadHook implements UploadHook {
         if (ed.showDialog().getValue() != 1) {
             OsmValidator.initializeTests();
             OsmValidator.initializeErrorLayer();
-            Main.map.validatorDialog.unfurlDialog();
-            Main.getLayerManager().getLayersOfType(ValidatorLayer.class).forEach(ValidatorLayer::invalidate);
+            MainApplication.getMap().validatorDialog.unfurlDialog();
+            MainApplication.getLayerManager().getLayersOfType(ValidatorLayer.class).forEach(ValidatorLayer::invalidate);
             return false;
         }
         return true;

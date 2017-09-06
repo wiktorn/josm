@@ -14,12 +14,13 @@ import java.text.MessageFormat;
 import javax.swing.JOptionPane;
 
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.gui.io.importexport.FileExporter;
+import org.openstreetmap.josm.gui.io.importexport.GpxImporter;
 import org.openstreetmap.josm.gui.layer.GpxLayer;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
-import org.openstreetmap.josm.io.FileExporter;
-import org.openstreetmap.josm.io.GpxImporter;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Shortcut;
 
 /**
@@ -42,7 +43,7 @@ public class GpxExportAction extends DiskAccessAction {
      * @return The layer to export, either a {@link GpxLayer} or {@link OsmDataLayer}.
      */
     protected Layer getLayer() {
-        Layer layer = Main.getLayerManager().getActiveLayer();
+        Layer layer = getLayerManager().getActiveLayer();
         return (layer instanceof GpxLayer || layer instanceof OsmDataLayer) ? layer : null;
     }
 
@@ -89,7 +90,7 @@ public class GpxExportAction extends DiskAccessAction {
                 try {
                     exporter.exportData(file, layer);
                 } catch (IOException e) {
-                    Main.error(e);
+                    Logging.error(e);
                 }
             }
         }

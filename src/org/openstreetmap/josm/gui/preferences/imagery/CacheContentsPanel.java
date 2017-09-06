@@ -26,14 +26,15 @@ import org.apache.commons.jcs.access.CacheAccess;
 import org.apache.commons.jcs.engine.stats.behavior.ICacheStats;
 import org.apache.commons.jcs.engine.stats.behavior.IStatElement;
 import org.apache.commons.jcs.engine.stats.behavior.IStats;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.cache.BufferedImageCacheEntry;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.TMSLayer;
 import org.openstreetmap.josm.gui.layer.WMSLayer;
 import org.openstreetmap.josm.gui.layer.WMTSLayer;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.ButtonColumn;
 import org.openstreetmap.josm.tools.GBC;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Pair;
 
 /**
@@ -49,7 +50,7 @@ public class CacheContentsPanel extends JPanel {
      */
     public CacheContentsPanel() {
         super(new GridBagLayout());
-        Main.worker.submit(() -> {
+        MainApplication.worker.submit(() -> {
             addToPanel(TMSLayer.getCache(), "TMS");
             addToPanel(WMSLayer.getCache(), "WMS");
             addToPanel(WMTSLayer.getCache(), "WMTS");
@@ -96,7 +97,7 @@ public class CacheContentsPanel extends JPanel {
                     counter[0]++;
                 }
             } else {
-                Main.warn("Could not parse the key: {0}. No colon found", key);
+                Logging.warn("Could not parse the key: {0}. No colon found", key);
             }
         }
 

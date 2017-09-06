@@ -12,10 +12,12 @@ import javax.swing.JOptionPane;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.data.conflict.Conflict;
+import org.openstreetmap.josm.data.osm.DataSet;
+import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
-import org.openstreetmap.josm.gui.DefaultNameFormatter;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -29,9 +31,22 @@ public class ConflictAddCommand extends Command {
      * Constructs a new {@code ConflictAddCommand}.
      * @param layer the data layer. Must not be null.
      * @param conflict the conflict to add
+     * @deprecated to be removed end of 2017. Use {@link #ConflictAddCommand(DataSet, Conflict)} instead
      */
+    @Deprecated
     public ConflictAddCommand(OsmDataLayer layer, Conflict<? extends OsmPrimitive> conflict) {
         super(layer);
+        this.conflict = conflict;
+    }
+
+    /**
+     * Constructs a new {@code ConflictAddCommand}.
+     * @param ds the data set. Must not be null.
+     * @param conflict the conflict to add
+     * @since 12672
+     */
+    public ConflictAddCommand(DataSet ds, Conflict<? extends OsmPrimitive> conflict) {
+        super(ds);
         this.conflict = conflict;
     }
 
@@ -41,7 +56,7 @@ public class ConflictAddCommand extends Command {
                 tr("<html>Layer ''{0}'' already has a conflict for object<br>"
                         + "''{1}''.<br>"
                         + "This conflict cannot be added.</html>",
-                        Utils.escapeReservedCharactersHTML(getLayer().getName()),
+                        Utils.escapeReservedCharactersHTML(getAffectedDataSet().getName()),
                         Utils.escapeReservedCharactersHTML(conflict.getMy().getDisplayName(DefaultNameFormatter.getInstance()))
                 ),
                 tr("Double conflict"),
@@ -52,9 +67,9 @@ public class ConflictAddCommand extends Command {
     @Override
     public boolean executeCommand() {
         try {
-            getLayer().getConflicts().add(conflict);
+            getAffectedDataSet().getConflicts().add(conflict);
         } catch (IllegalStateException e) {
-            Main.error(e);
+            Logging.error(e);
             warnBecauseOfDoubleConflict();
         }
         return true;
@@ -62,14 +77,15 @@ public class ConflictAddCommand extends Command {
 
     @Override
     public void undoCommand() {
-        if (Main.isDisplayingMapView() && !Main.getLayerManager().containsLayer(getLayer())) {
-            Main.warn(tr("Layer ''{0}'' does not exist any more. Cannot remove conflict for object ''{1}''.",
-                    getLayer().getName(),
+        DataSet ds = getAffectedDataSet();
+        if (Main.main != null && !Main.main.containsDataSet(ds)) {
+            Logging.warn(tr("Layer ''{0}'' does not exist any more. Cannot remove conflict for object ''{1}''.",
+                    ds.getName(),
                     conflict.getMy().getDisplayName(DefaultNameFormatter.getInstance())
             ));
             return;
         }
-        getLayer().getConflicts().remove(conflict);
+        ds.getConflicts().remove(conflict);
     }
 
     @Override

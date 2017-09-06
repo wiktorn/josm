@@ -46,26 +46,28 @@ import org.openstreetmap.josm.actions.downloadtasks.ChangesetContentDownloadTask
 import org.openstreetmap.josm.actions.downloadtasks.ChangesetHeaderDownloadTask;
 import org.openstreetmap.josm.actions.downloadtasks.ChangesetQueryTask;
 import org.openstreetmap.josm.actions.downloadtasks.PostDownloadHandler;
+import org.openstreetmap.josm.data.UserIdentityManager;
 import org.openstreetmap.josm.data.osm.Changeset;
 import org.openstreetmap.josm.data.osm.ChangesetCache;
 import org.openstreetmap.josm.data.osm.ChangesetDataSet;
 import org.openstreetmap.josm.data.osm.PrimitiveId;
 import org.openstreetmap.josm.data.osm.history.HistoryOsmPrimitive;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
-import org.openstreetmap.josm.gui.JosmUserIdentityManager;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.dialogs.changeset.query.ChangesetQueryDialog;
 import org.openstreetmap.josm.gui.help.ContextSensitiveHelpAction;
 import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.io.CloseChangesetTask;
 import org.openstreetmap.josm.gui.io.DownloadPrimitivesWithReferrersTask;
 import org.openstreetmap.josm.gui.util.GuiHelper;
+import org.openstreetmap.josm.gui.util.WindowGeometry;
 import org.openstreetmap.josm.gui.widgets.PopupMenuLauncher;
 import org.openstreetmap.josm.io.ChangesetQuery;
 import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.InputMapUtils;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.StreamUtils;
-import org.openstreetmap.josm.tools.WindowGeometry;
 
 /**
  * ChangesetCacheManager manages the local cache of changesets
@@ -403,7 +405,7 @@ public class ChangesetCacheManager extends JFrame {
                         ChangesetCacheManager.getInstance().runDownloadTask(new ChangesetQueryTask(parent, query));
                     }
                 } catch (IllegalStateException e) {
-                    Main.error(e);
+                    Logging.error(e);
                     JOptionPane.showMessageDialog(parent, e.getMessage(), tr("Error"), JOptionPane.ERROR_MESSAGE);
                 }
             }
@@ -457,12 +459,12 @@ public class ChangesetCacheManager extends JFrame {
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            Main.worker.submit(new CloseChangesetTask(model.getSelectedChangesets()));
+            MainApplication.worker.submit(new CloseChangesetTask(model.getSelectedChangesets()));
         }
 
         protected void updateEnabledState() {
             List<Changeset> selected = model.getSelectedChangesets();
-            JosmUserIdentityManager im = JosmUserIdentityManager.getInstance();
+            UserIdentityManager im = UserIdentityManager.getInstance();
             for (Changeset cs: selected) {
                 if (cs.isOpen()) {
                     if (im.isPartiallyIdentified() && cs.getUser() != null && cs.getUser().getName().equals(im.getUserName())) {
@@ -566,7 +568,7 @@ public class ChangesetCacheManager extends JFrame {
         public void actionPerformed(ActionEvent e) {
             if (!GraphicsEnvironment.isHeadless()) {
                 actDownloadSelectedContent.actionPerformed(e);
-                Main.worker.submit(() -> {
+                MainApplication.worker.submit(() -> {
                     final List<PrimitiveId> primitiveIds = model.getSelectedChangesets().stream()
                             .map(Changeset::getContent)
                             .filter(Objects::nonNull)
@@ -641,7 +643,7 @@ public class ChangesetCacheManager extends JFrame {
                 }
             } catch (IllegalStateException ex) {
                 alertAnonymousUser(parent);
-                Main.trace(ex);
+                Logging.trace(ex);
             }
         }
     }
@@ -752,8 +754,8 @@ public class ChangesetCacheManager extends JFrame {
      * @param task The changeset download task to run
      */
     public void runDownloadTask(final AbstractChangesetDownloadTask task) {
-        Main.worker.submit(new PostDownloadHandler(task, task.download()));
-        Main.worker.submit(() -> {
+        MainApplication.worker.submit(new PostDownloadHandler(task, task.download()));
+        MainApplication.worker.submit(() -> {
             if (task.isCanceled() || task.isFailed())
                 return;
             GuiHelper.runInEDT(() -> setSelectedChangesets(task.getDownloadedData()));

@@ -10,10 +10,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 
-import org.junit.BeforeClass;
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import org.openstreetmap.josm.JOSMFixture;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.SplitWayAction.Strategy;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
@@ -23,7 +22,11 @@ import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.Way;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
+import org.openstreetmap.josm.testutils.JOSMTestRules;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Unit tests for class {@link SplitWayAction}.
@@ -36,11 +39,19 @@ public final class SplitWayActionTest {
     /**
      * Setup test.
      */
-    @BeforeClass
-    public static void setUp() {
-        JOSMFixture.createUnitTestFixture().init(true);
-        action = Main.main.menu.splitWay;
-        action.setEnabled(true);
+    @Rule
+    @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
+    public JOSMTestRules test = new JOSMTestRules().main().projection();
+
+    /**
+     * Setup test.
+     */
+    @Before
+    public void setUp() {
+        if (action == null) {
+            action = MainApplication.getMenu().splitWay;
+            action.setEnabled(true);
+        }
     }
 
     /**
@@ -79,11 +90,11 @@ public final class SplitWayActionTest {
         dataSet.addSelected(w2);
 
         try {
-            Main.getLayerManager().addLayer(layer);
+            MainApplication.getLayerManager().addLayer(layer);
             action.actionPerformed(null);
         } finally {
             // Ensure we clean the place before leaving, even if test fails.
-            Main.getLayerManager().removeLayer(layer);
+            MainApplication.getLayerManager().removeLayer(layer);
         }
 
         // Ensures 3 ways.
@@ -150,7 +161,6 @@ public final class SplitWayActionTest {
 
     void doTestRouteRelation(final boolean wayIsReversed, final int indexOfWayToKeep) {
         final DataSet dataSet = new DataSet();
-        final OsmDataLayer layer = new OsmDataLayer(dataSet, OsmDataLayer.createNewName(), null);
         final Node n1 = new Node(new LatLon(1, 0));
         final Node n2 = new Node(new LatLon(2, 0));
         final Node n3 = new Node(new LatLon(3, 0));
@@ -185,8 +195,8 @@ public final class SplitWayActionTest {
                 return it.next();
             };
         final SplitWayAction.SplitWayResult result = SplitWayAction.splitWay(
-                layer, w2, SplitWayAction.buildSplitChunks(w2, Arrays.asList(n3, n4, n5)), new ArrayList<OsmPrimitive>(), strategy);
-        Main.main.undoRedo.add(result.getCommand());
+                w2, SplitWayAction.buildSplitChunks(w2, Arrays.asList(n3, n4, n5)), new ArrayList<OsmPrimitive>(), strategy);
+        MainApplication.undoRedo.add(result.getCommand());
 
         assertEquals(6, route.getMembersCount());
         assertEquals(w1, route.getMemberPrimitivesList().get(0));

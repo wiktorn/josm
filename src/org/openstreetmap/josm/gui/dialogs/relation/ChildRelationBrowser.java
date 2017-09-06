@@ -30,21 +30,23 @@ import javax.swing.tree.TreePath;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.DataSetMerger;
+import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
 import org.openstreetmap.josm.data.osm.OsmPrimitiveType;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
-import org.openstreetmap.josm.gui.DefaultNameFormatter;
 import org.openstreetmap.josm.gui.ExceptionDialogUtil;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.PleaseWaitRunnable;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
-import org.openstreetmap.josm.gui.progress.PleaseWaitProgressMonitor;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
+import org.openstreetmap.josm.gui.progress.swing.PleaseWaitProgressMonitor;
 import org.openstreetmap.josm.io.OsmApi;
 import org.openstreetmap.josm.io.OsmApiException;
 import org.openstreetmap.josm.io.OsmServerObjectReader;
 import org.openstreetmap.josm.io.OsmTransferException;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 import org.xml.sax.SAXException;
 
@@ -224,7 +226,7 @@ public class ChildRelationBrowser extends JPanel {
         }
 
         public void run() {
-            Main.worker.submit(new DownloadAllChildrenTask(getParentDialog(), (Relation) model.getRoot()));
+            MainApplication.worker.submit(new DownloadAllChildrenTask(getParentDialog(), (Relation) model.getRoot()));
         }
 
         @Override
@@ -261,7 +263,7 @@ public class ChildRelationBrowser extends JPanel {
             for (TreePath aSelection : selection) {
                 relations.add((Relation) aSelection.getLastPathComponent());
             }
-            Main.worker.submit(new DownloadRelationSetTask(getParentDialog(), relations));
+            MainApplication.worker.submit(new DownloadRelationSetTask(getParentDialog(), relations));
         }
 
         @Override
@@ -418,10 +420,10 @@ public class ChildRelationBrowser extends JPanel {
                     mergeDataSet(dataSet);
                     refreshView(r);
                 }
-                SwingUtilities.invokeLater(Main.map::repaint);
+                SwingUtilities.invokeLater(MainApplication.getMap()::repaint);
             } catch (OsmTransferException e) {
                 if (canceled) {
-                    Main.warn(tr("Ignoring exception because task was canceled. Exception: {0}", e.toString()));
+                    Logging.warn(tr("Ignoring exception because task was canceled. Exception: {0}", e.toString()));
                     return;
                 }
                 lastException = e;
@@ -470,7 +472,7 @@ public class ChildRelationBrowser extends JPanel {
                 }
             } catch (OsmTransferException e) {
                 if (canceled) {
-                    Main.warn(tr("Ignoring exception because task was canceled. Exception: {0}", e.toString()));
+                    Logging.warn(tr("Ignoring exception because task was canceled. Exception: {0}", e.toString()));
                     return;
                 }
                 lastException = e;

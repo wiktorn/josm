@@ -5,18 +5,19 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import org.openstreetmap.josm.JOSMFixture;
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.command.CommandTest.CommandTestData;
 import org.openstreetmap.josm.data.conflict.Conflict;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.User;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
+import org.openstreetmap.josm.testutils.JOSMTestRules;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import nl.jqno.equalsverifier.Warning;
 
@@ -25,24 +26,20 @@ import nl.jqno.equalsverifier.Warning;
  */
 public class ConflictAddCommandTest {
 
-    private static OsmDataLayer layer;
+    /**
+     * Setup test.
+     */
+    @Rule
+    @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
+    public JOSMTestRules test = new JOSMTestRules().platform();
+    private CommandTestData testData;
 
     /**
      * Setup test.
      */
-    @BeforeClass
-    public static void setUpBeforeClass() {
-        JOSMFixture.createUnitTestFixture().init(true);
-        layer = new OsmDataLayer(new DataSet(), null, null);
-        Main.getLayerManager().addLayer(layer);
-    }
-
-    /**
-     * Cleanup test resources.
-     */
-    @AfterClass
-    public static void tearDownAfterClass() {
-        Main.getLayerManager().removeLayer(layer);
+    @Before
+    public void setUp() {
+        testData = new CommandTestData();
     }
 
     /**
@@ -50,15 +47,15 @@ public class ConflictAddCommandTest {
      */
     @Test
     public void testExecuteUndoCommand() {
-        OsmDataLayer layer = Main.getLayerManager().getEditLayer();
-        Conflict<Node> conflict = new Conflict<>(new Node(), new Node());
-        ConflictAddCommand cmd = new ConflictAddCommand(layer, conflict);
+        DataSet ds = testData.layer.data;
+        Conflict<Node> conflict = new Conflict<>(testData.existingNode, testData.existingNode2);
+        ConflictAddCommand cmd = new ConflictAddCommand(ds, conflict);
         assertTrue(cmd.executeCommand());
-        assertFalse(layer.getConflicts().isEmpty());
-        assertTrue(layer.getConflicts().hasConflict(conflict));
+        assertFalse(ds.getConflicts().isEmpty());
+        assertTrue(ds.getConflicts().hasConflict(conflict));
         cmd.undoCommand();
-        assertFalse(layer.getConflicts().hasConflict(conflict));
-        assertTrue(layer.getConflicts().isEmpty());
+        assertFalse(ds.getConflicts().hasConflict(conflict));
+        assertTrue(ds.getConflicts().isEmpty());
     }
 
     /**
@@ -66,9 +63,8 @@ public class ConflictAddCommandTest {
      */
     @Test
     public void testGetDescriptionIcon() {
-        OsmDataLayer layer = Main.getLayerManager().getEditLayer();
-        Conflict<Node> conflict = new Conflict<>(new Node(), new Node());
-        assertNotNull(new ConflictAddCommand(layer, conflict).getDescriptionIcon());
+        Conflict<Node> conflict = new Conflict<>(testData.existingNode, testData.existingNode2);
+        assertNotNull(new ConflictAddCommand(testData.layer.data, conflict).getDescriptionIcon());
     }
 
     /**

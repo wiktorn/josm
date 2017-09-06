@@ -19,14 +19,14 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.help.ContextSensitiveHelpAction;
 import org.openstreetmap.josm.gui.help.HelpUtil;
+import org.openstreetmap.josm.gui.util.WindowGeometry;
 import org.openstreetmap.josm.io.ChangesetQuery;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.InputMapUtils;
-import org.openstreetmap.josm.tools.WindowGeometry;
+import org.openstreetmap.josm.tools.Logging;
 
 /**
  * This is a modal dialog for entering query criteria to search for changesets.
@@ -203,7 +203,7 @@ public class ChangesetQueryDialog extends JDialog {
                 setCanceled(false);
                 setVisible(false);
             } catch (IllegalStateException e) {
-                Main.error(e);
+                Logging.error(e);
                 JOptionPane.showMessageDialog(ChangesetQueryDialog.this, e.getMessage(), tr("Error"), JOptionPane.ERROR_MESSAGE);
             }
         }

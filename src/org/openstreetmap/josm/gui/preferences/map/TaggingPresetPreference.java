@@ -8,10 +8,7 @@ import java.awt.GridBagLayout;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import javax.swing.BorderFactory;
 import javax.swing.JCheckBox;
@@ -20,20 +17,22 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.preferences.sources.ExtendedSourceEntry;
+import org.openstreetmap.josm.data.preferences.sources.PresetPrefHelper;
+import org.openstreetmap.josm.data.preferences.sources.SourceEntry;
+import org.openstreetmap.josm.data.preferences.sources.SourceProvider;
+import org.openstreetmap.josm.data.preferences.sources.SourceType;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.preferences.PreferenceSetting;
 import org.openstreetmap.josm.gui.preferences.PreferenceSettingFactory;
 import org.openstreetmap.josm.gui.preferences.PreferenceTabbedPane;
 import org.openstreetmap.josm.gui.preferences.PreferenceTabbedPane.ValidationListener;
 import org.openstreetmap.josm.gui.preferences.SourceEditor;
-import org.openstreetmap.josm.gui.preferences.SourceEditor.ExtendedSourceEntry;
-import org.openstreetmap.josm.gui.preferences.SourceEntry;
-import org.openstreetmap.josm.gui.preferences.SourceProvider;
-import org.openstreetmap.josm.gui.preferences.SourceType;
 import org.openstreetmap.josm.gui.preferences.SubPreferenceSetting;
 import org.openstreetmap.josm.gui.preferences.TabPreferenceSetting;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetReader;
 import org.openstreetmap.josm.tools.GBC;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
@@ -57,7 +56,7 @@ public final class TaggingPresetPreference implements SubPreferenceSetting {
                             TaggingPresetReader.readAll(source.url, false);
                             canLoad = true;
                         } catch (IOException e) {
-                            Main.warn(e, tr("Could not read tagging preset source: {0}", source));
+                            Logging.log(Logging.LEVEL_WARN, tr("Could not read tagging preset source: {0}", source), e);
                             ExtendedDialog ed = new ExtendedDialog(Main.parent, tr("Error"),
                                     tr("Yes"), tr("No"), tr("Cancel"));
                             ed.setContent(tr("Could not read tagging preset source: {0}\nDo you want to keep it?", source));
@@ -72,7 +71,7 @@ public final class TaggingPresetPreference implements SubPreferenceSetting {
                             }
                         } catch (SAXException e) {
                             // We will handle this in step with validation
-                            Main.trace(e);
+                            Logging.trace(e);
                         }
 
                         String errorMessage = null;
@@ -82,7 +81,7 @@ public final class TaggingPresetPreference implements SubPreferenceSetting {
                         } catch (IOException e) {
                             // Should not happen, but at least show message
                             String msg = tr("Could not read tagging preset source {0}", source);
-                            Main.error(e, msg);
+                            Logging.log(Logging.LEVEL_ERROR, msg, e);
                             JOptionPane.showMessageDialog(Main.parent, msg);
                             return false;
                         } catch (SAXParseException e) {
@@ -95,7 +94,7 @@ public final class TaggingPresetPreference implements SubPreferenceSetting {
                                         "Do you really want to use it?<br><br><table width=400>Error is: [{1}:{2}] {3}</table></html>",
                                         source, e.getLineNumber(), e.getColumnNumber(), Utils.escapeReservedCharactersHTML(e.getMessage()));
                             }
-                            Main.warn(e, errorMessage);
+                            Logging.log(Logging.LEVEL_WARN, errorMessage, e);
                         } catch (SAXException e) {
                             if (canLoad) {
                                 errorMessage = tr("<html>Tagging preset source {0} can be loaded but it contains errors. " +
@@ -106,11 +105,11 @@ public final class TaggingPresetPreference implements SubPreferenceSetting {
                                         "Do you really want to use it?<br><br><table width=600>Error is: {1}</table></html>",
                                         source, Utils.escapeReservedCharactersHTML(e.getMessage()));
                             }
-                            Main.warn(e, errorMessage);
+                            Logging.log(Logging.LEVEL_ERROR, errorMessage, e);
                         }
 
                         if (errorMessage != null) {
-                            Main.error(errorMessage);
+                            Logging.error(errorMessage);
                             int result = JOptionPane.showConfirmDialog(Main.parent, new JLabel(errorMessage), tr("Error"),
                                     JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.ERROR_MESSAGE);
 
@@ -250,45 +249,6 @@ public final class TaggingPresetPreference implements SubPreferenceSetting {
         restart |= sources.finish();
 
         return restart;
-    }
-
-    /**
-     * Helper class for tagging presets preferences.
-     */
-    public static class PresetPrefHelper extends SourceEditor.SourcePrefHelper {
-
-        /**
-         * The unique instance.
-         */
-        public static final PresetPrefHelper INSTANCE = new PresetPrefHelper();
-
-        /**
-         * Constructs a new {@code PresetPrefHelper}.
-         */
-        public PresetPrefHelper() {
-            super("taggingpreset.entries");
-        }
-
-        @Override
-        public Collection<ExtendedSourceEntry> getDefault() {
-            ExtendedSourceEntry i = new ExtendedSourceEntry("defaultpresets.xml", "resource://data/defaultpresets.xml");
-            i.title = tr("Internal Preset");
-            i.description = tr("The default preset for JOSM");
-            return Collections.singletonList(i);
-        }
-
-        @Override
-        public Map<String, String> serialize(SourceEntry entry) {
-            Map<String, String> res = new HashMap<>();
-            res.put("url", entry.url);
-            res.put("title", entry.title == null ? "" : entry.title);
-            return res;
-        }
-
-        @Override
-        public SourceEntry deserialize(Map<String, String> s) {
-            return new SourceEntry(s.get("url"), null, s.get("title"), true);
-        }
     }
 
     @Override

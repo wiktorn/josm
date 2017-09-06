@@ -28,6 +28,7 @@ public class ModifiedConflictResolveCommand extends ConflictResolveCommand {
      * @param conflict the conflict data set
      */
     public ModifiedConflictResolveCommand(Conflict<? extends OsmPrimitive> conflict) {
+        super(conflict.getMy().getDataSet());
         this.conflict = conflict;
     }
 
@@ -54,7 +55,7 @@ public class ModifiedConflictResolveCommand extends ConflictResolveCommand {
         if (!conflict.getMy().isNew() && conflict.getMy().hasEqualSemanticAttributes(conflict.getTheir())) {
             conflict.getMy().setModified(conflict.getTheir().isModified());
         }
-        getLayer().getConflicts().remove(conflict);
+        getAffectedDataSet().getConflicts().remove(conflict);
         rememberConflict(conflict);
         return true;
     }

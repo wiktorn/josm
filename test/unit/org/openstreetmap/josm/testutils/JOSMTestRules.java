@@ -14,9 +14,15 @@ import org.junit.runners.model.InitializationError;
 import org.junit.runners.model.Statement;
 import org.openstreetmap.josm.JOSMFixture;
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.actions.DeleteAction;
+import org.openstreetmap.josm.command.DeleteCommand;
+import org.openstreetmap.josm.data.UserIdentityManager;
+import org.openstreetmap.josm.data.osm.User;
 import org.openstreetmap.josm.data.osm.event.SelectionEventManager;
 import org.openstreetmap.josm.data.projection.Projections;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
+import org.openstreetmap.josm.gui.tagging.presets.TaggingPresets;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.io.CertificateAmendment;
 import org.openstreetmap.josm.io.OsmApi;
@@ -26,6 +32,8 @@ import org.openstreetmap.josm.tools.I18n;
 import org.openstreetmap.josm.tools.JosmRuntimeException;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.MemoryManagerTest;
+import org.openstreetmap.josm.tools.RightAndLefthandTraffic;
+import org.openstreetmap.josm.tools.Territories;
 import org.openstreetmap.josm.tools.date.DateUtils;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -49,7 +57,11 @@ public class JOSMTestRules implements TestRule {
     private boolean commands;
     private boolean allowMemoryManagerLeaks;
     private boolean useMapStyles;
+    private boolean usePresets;
     private boolean useHttps;
+    private boolean territories;
+    private boolean rlTraffic;
+    private boolean main;
 
     /**
      * Disable the default timeout for this test. Use with care.
@@ -155,9 +167,9 @@ public class JOSMTestRules implements TestRule {
     }
 
     /**
-      * Allow the execution of commands using {@link Main#undoRedo}
-      * @return this instance, for easy chaining
-      */
+     * Allow the execution of commands using {@link Main#undoRedo}
+     * @return this instance, for easy chaining
+     */
     public JOSMTestRules commands() {
         commands = true;
         return this;
@@ -180,6 +192,50 @@ public class JOSMTestRules implements TestRule {
     public JOSMTestRules mapStyles() {
         preferences();
         useMapStyles = true;
+        return this;
+    }
+
+    /**
+     * Use presets in this test.
+     * @return this instance, for easy chaining
+     * @since 12568
+     */
+    public JOSMTestRules presets() {
+        preferences();
+        usePresets = true;
+        return this;
+    }
+
+    /**
+     * Use boundaries dataset in this test.
+     * @return this instance, for easy chaining
+     * @since 12545
+     */
+    public JOSMTestRules territories() {
+        territories = true;
+        return this;
+    }
+
+    /**
+     * Use right and lefthand traffic dataset in this test.
+     * @return this instance, for easy chaining
+     * @since 12556
+     */
+    public JOSMTestRules rlTraffic() {
+        territories();
+        rlTraffic = true;
+        return this;
+    }
+
+    /**
+     * Use the {@link Main#main}, {@code Main.contentPanePrivate}, {@code Main.mainPanel},
+     *         {@link Main#menu}, {@link Main#toolbar} global variables in this test.
+     * @return this instance, for easy chaining
+     * @since 12557
+     */
+    public JOSMTestRules main() {
+        platform();
+        main = true;
         return this;
     }
 
@@ -211,6 +267,11 @@ public class JOSMTestRules implements TestRule {
         TimeZone.setDefault(DateUtils.UTC);
         // Set log level to info
         Logging.setLogLevel(Logging.LEVEL_INFO);
+        // Assume anonymous user
+        UserIdentityManager.getInstance().setAnonymous();
+        User.clearUserMap();
+        // Setup callbacks
+        DeleteCommand.setDeletionCallback(DeleteAction.defaultDeletionCallback);
 
         // Set up i18n
         if (i18n != null) {
@@ -275,9 +336,30 @@ public class JOSMTestRules implements TestRule {
             MapPaintStyles.readFromPreferences();
         }
 
+        if (usePresets) {
+            // Reset the presets.
+            TaggingPresets.readFromPreferences();
+        }
+
+        if (territories) {
+            Territories.initialize();
+        }
+
+        if (rlTraffic) {
+            RightAndLefthandTraffic.initialize();
+        }
+
         if (commands) {
             // TODO: Implement a more selective version of this once Main is restructured.
             JOSMFixture.createUnitTestFixture().init(true);
+        } else {
+            if (main) {
+                new MainApplication();
+                JOSMFixture.initContentPane();
+                JOSMFixture.initMainPanel(true);
+                JOSMFixture.initToolbar();
+                JOSMFixture.initMainMenu();
+            }
         }
     }
 
@@ -301,7 +383,7 @@ public class JOSMTestRules implements TestRule {
     public static void cleanLayerEnvironment() {
         // Get the instance before cleaning - this ensures that it is initialized.
         SelectionEventManager eventManager = SelectionEventManager.getInstance();
-        Main.getLayerManager().resetState();
+        MainApplication.getLayerManager().resetState();
         eventManager.resetState();
     }
 

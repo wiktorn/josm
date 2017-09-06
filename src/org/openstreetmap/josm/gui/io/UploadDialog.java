@@ -11,6 +11,8 @@ import java.awt.FlowLayout;
 import java.awt.GraphicsEnvironment;
 import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.beans.PropertyChangeEvent;
@@ -28,12 +30,15 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import javax.swing.AbstractAction;
+import javax.swing.Action;
 import javax.swing.BorderFactory;
 import javax.swing.Icon;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
+import javax.swing.KeyStroke;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.APIDataSet;
@@ -49,7 +54,10 @@ import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.help.ContextSensitiveHelpAction;
 import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.util.GuiHelper;
+import org.openstreetmap.josm.gui.util.WindowGeometry;
 import org.openstreetmap.josm.io.OsmApi;
+import org.openstreetmap.josm.io.UploadStrategy;
+import org.openstreetmap.josm.io.UploadStrategySpecification;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageOverlay;
 import org.openstreetmap.josm.tools.ImageProvider;
@@ -57,7 +65,6 @@ import org.openstreetmap.josm.tools.ImageProvider.ImageSizes;
 import org.openstreetmap.josm.tools.InputMapUtils;
 import org.openstreetmap.josm.tools.MultiLineFlowLayout;
 import org.openstreetmap.josm.tools.Utils;
-import org.openstreetmap.josm.tools.WindowGeometry;
 
 /**
  * This is a dialog for entering upload options like the parameters for
@@ -93,6 +100,7 @@ public class UploadDialog extends AbstractUploadDialog implements PropertyChange
     /** the changeset comment model keeping the state of the changeset comment */
     private final transient ChangesetCommentModel changesetCommentModel = new ChangesetCommentModel();
     private final transient ChangesetCommentModel changesetSourceModel = new ChangesetCommentModel();
+    private final transient ChangesetReviewModel changesetReviewModel = new ChangesetReviewModel();
 
     private transient DataSet dataSet;
 
@@ -137,12 +145,12 @@ public class UploadDialog extends AbstractUploadDialog implements PropertyChange
         // a tabbed pane with configuration panels in the lower half
         tpConfigPanels = new CompactTabbedPane();
 
-        pnlBasicUploadSettings = new BasicUploadSettingsPanel(changesetCommentModel, changesetSourceModel);
+        pnlBasicUploadSettings = new BasicUploadSettingsPanel(changesetCommentModel, changesetSourceModel, changesetReviewModel);
         tpConfigPanels.add(pnlBasicUploadSettings);
         tpConfigPanels.setTitleAt(0, tr("Settings"));
         tpConfigPanels.setToolTipTextAt(0, tr("Decide how to upload the data and which changeset to use"));
 
-        pnlTagSettings = new TagSettingsPanel(changesetCommentModel, changesetSourceModel);
+        pnlTagSettings = new TagSettingsPanel(changesetCommentModel, changesetSourceModel, changesetReviewModel);
         tpConfigPanels.add(pnlTagSettings);
         tpConfigPanels.setTitleAt(1, tr("Tags of new changeset"));
         tpConfigPanels.setToolTipTextAt(1, tr("Apply tags to the changeset data is uploaded to"));
@@ -177,6 +185,7 @@ public class UploadDialog extends AbstractUploadDialog implements PropertyChange
         pnl.add(btnUpload);
         btnUpload.setFocusable(true);
         InputMapUtils.enableEnter(btnUpload);
+        bindCtrlEnterToAction(getRootPane(), btnUpload.getAction());
 
         // -- cancel button
         CancelAction cancelAction = new CancelAction(this);
@@ -475,7 +484,13 @@ public class UploadDialog extends AbstractUploadDialog implements PropertyChange
                 return false;
             }
 
-            ExtendedDialog dlg = new ExtendedDialog((Component) dialog, title, buttonTexts);
+            ExtendedDialog dlg = new ExtendedDialog((Component) dialog, title, buttonTexts) {
+                @Override
+                public void setupDialog() {
+                    super.setupDialog();
+                    bindCtrlEnterToAction(getRootPane(), buttons.get(buttons.size() - 1).getAction());
+                }
+            };
             dlg.setContent("<html>" + message + "</html>");
             dlg.setButtonIcons(buttonIcons);
             dlg.setToolTipTexts(tooltips);
@@ -683,5 +698,11 @@ public class UploadDialog extends AbstractUploadDialog implements PropertyChange
     @Override
     public void handleIllegalChunkSize() {
         tpConfigPanels.setSelectedIndex(0);
+    }
+
+    private static void bindCtrlEnterToAction(JComponent component, Action actionToBind) {
+        final KeyStroke stroke = KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.CTRL_DOWN_MASK);
+        component.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(stroke, "ctrl_enter");
+        component.getActionMap().put("ctrl_enter", actionToBind);
     }
 }

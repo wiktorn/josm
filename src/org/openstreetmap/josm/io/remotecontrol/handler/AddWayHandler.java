@@ -3,7 +3,6 @@ package org.openstreetmap.josm.io.remotecontrol.handler;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
 
-import java.awt.Point;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -19,9 +18,12 @@ import org.openstreetmap.josm.command.AddCommand;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.SequenceCommand;
 import org.openstreetmap.josm.data.coor.LatLon;
+import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
+import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.io.remotecontrol.AddTagsDialog;
 import org.openstreetmap.josm.io.remotecontrol.PermissionPrefWithDefault;
@@ -109,7 +111,7 @@ public class AddWayHandler extends RequestHandler {
         } else if (allCoordinates.size() == 1) {
             throw new RequestHandlerBadRequestException(tr("One node ways"));
         }
-        if (Main.getLayerManager().getEditLayer() == null) {
+        if (MainApplication.getLayerManager().getEditLayer() == null) {
              throw new RequestHandlerBadRequestException(tr("There is no layer opened to add way"));
         }
     }
@@ -124,9 +126,9 @@ public class AddWayHandler extends RequestHandler {
     Node findOrCreateNode(LatLon ll, List<Command> commands) {
         Node nd = null;
 
-        if (Main.isDisplayingMapView()) {
-            Point p = Main.map.mapView.getPoint(ll);
-            nd = Main.map.mapView.getNearestNode(p, OsmPrimitive::isUsable);
+        if (MainApplication.isDisplayingMapView()) {
+            MapView mapView = MainApplication.getMap().mapView;
+            nd = mapView.getNearestNode(mapView.getPoint(ll), OsmPrimitive::isUsable);
             if (nd != null && nd.getCoor().greatCircleDistance(ll) > Main.pref.getDouble("remote.tolerance", 0.1)) {
                 nd = null; // node is too far
             }
@@ -146,7 +148,7 @@ public class AddWayHandler extends RequestHandler {
         } else if (nd == null) {
             nd = new Node(ll);
             // Now execute the commands to add this node.
-            commands.add(new AddCommand(nd));
+            commands.add(new AddCommand(Main.main.getEditDataSet(), nd));
             addedNodes.put(ll, nd);
         }
         return nd;
@@ -164,13 +166,14 @@ public class AddWayHandler extends RequestHandler {
             way.addNode(node);
         }
         allCoordinates.clear();
-        commands.add(new AddCommand(way));
-        Main.main.undoRedo.add(new SequenceCommand(tr("Add way"), commands));
-        Main.getLayerManager().getEditDataSet().setSelected(way);
+        DataSet ds = MainApplication.getLayerManager().getEditDataSet();
+        commands.add(new AddCommand(ds, way));
+        MainApplication.undoRedo.add(new SequenceCommand(tr("Add way"), commands));
+        ds.setSelected(way);
         if (PermissionPrefWithDefault.CHANGE_VIEWPORT.isAllowed()) {
             AutoScaleAction.autoScale("selection");
         } else {
-            Main.map.mapView.repaint();
+            MainApplication.getMap().mapView.repaint();
         }
         return way;
     }

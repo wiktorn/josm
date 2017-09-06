@@ -5,12 +5,9 @@ import static org.openstreetmap.josm.gui.help.HelpUtil.ht;
 import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.Font;
-import java.awt.Graphics;
 import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
@@ -19,17 +16,22 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import javax.swing.AbstractAction;
+import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.KeyStroke;
+import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
 import org.openstreetmap.josm.Main;
@@ -37,30 +39,31 @@ import org.openstreetmap.josm.actions.ExpertToggleAction;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.data.preferences.IntegerProperty;
+import org.openstreetmap.josm.data.preferences.StringProperty;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.datatransfer.ClipboardUtils;
 import org.openstreetmap.josm.gui.help.ContextSensitiveHelpAction;
 import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.util.GuiHelper;
+import org.openstreetmap.josm.gui.util.WindowGeometry;
 import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.plugins.PluginHandler;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.InputMapUtils;
+import org.openstreetmap.josm.tools.JosmRuntimeException;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.OsmUrlToBounds;
-import org.openstreetmap.josm.tools.Utils;
-import org.openstreetmap.josm.tools.WindowGeometry;
 
 /**
- * Dialog displayed to download OSM and/or GPS data from OSM server.
+ * Dialog displayed to the user to download mapping data.
  */
 public class DownloadDialog extends JDialog {
-    private static final IntegerProperty DOWNLOAD_TAB = new IntegerProperty("download.tab", 0);
 
+    private static final IntegerProperty DOWNLOAD_TAB = new IntegerProperty("download.tab", 0);
+    private static final StringProperty DOWNLOAD_SOURCE_TAB = new StringProperty("download.source.tab", OSMDownloadSource.SIMPLE_NAME);
     private static final BooleanProperty DOWNLOAD_AUTORUN = new BooleanProperty("download.autorun", false);
-    private static final BooleanProperty DOWNLOAD_OSM = new BooleanProperty("download.osm", true);
-    private static final BooleanProperty DOWNLOAD_GPS = new BooleanProperty("download.gps", false);
-    private static final BooleanProperty DOWNLOAD_NOTES = new BooleanProperty("download.notes", false);
     private static final BooleanProperty DOWNLOAD_NEWLAYER = new BooleanProperty("download.newlayer", false);
     private static final BooleanProperty DOWNLOAD_ZOOMTODATA = new BooleanProperty("download.zoomtodata", true);
 
@@ -79,49 +82,43 @@ public class DownloadDialog extends JDialog {
         return instance;
     }
 
-    protected SlippyMapChooser slippyMapChooser;
+    protected final transient List<DownloadSource<?>> downloadSources = new ArrayList<>();
     protected final transient List<DownloadSelection> downloadSelections = new ArrayList<>();
     protected final JTabbedPane tpDownloadAreaSelectors = new JTabbedPane();
+    protected final DownloadSourceTabs downloadSourcesTab = new DownloadSourceTabs();
+
     protected JCheckBox cbNewLayer;
     protected JCheckBox cbStartup;
     protected JCheckBox cbZoomToDownloadedData;
-    protected final JLabel sizeCheck = new JLabel();
+    protected SlippyMapChooser slippyMapChooser;
+    protected JPanel mainPanel;
+    protected DownloadDialogSplitPane dialogSplit;
+
+    /*
+     * Keep the reference globally to avoid having it garbage collected
+     */
+    protected final transient ExpertToggleAction.ExpertModeChangeListener expertListener =
+            getExpertModeListenerForDownloadSources();
     protected transient Bounds currentBounds;
     protected boolean canceled;
 
-    protected JCheckBox cbDownloadOsmData;
-    protected JCheckBox cbDownloadGpxData;
-    protected JCheckBox cbDownloadNotes;
-    /** the download action and button */
-    private final DownloadAction actDownload = new DownloadAction();
-    protected final JButton btnDownload = new JButton(actDownload);
+    protected JButton btnDownload;
+    protected JButton btnCancel;
+    protected JButton btnHelp;
 
+    /**
+     * Builds the main panel of the dialog.
+     * @return The panel of the dialog.
+     */
     protected final JPanel buildMainPanel() {
-        JPanel pnl = new JPanel(new GridBagLayout());
+        mainPanel = new JPanel(new GridBagLayout());
 
-        // size check depends on selected data source
-        final ChangeListener checkboxChangeListener = e -> updateSizeCheck();
-
-        // adding the download tasks
-        pnl.add(new JLabel(tr("Data Sources and Types:")), GBC.std().insets(5, 5, 1, 5));
-        cbDownloadOsmData = new JCheckBox(tr("OpenStreetMap data"), true);
-        cbDownloadOsmData.setToolTipText(tr("Select to download OSM data in the selected download area."));
-        cbDownloadOsmData.getModel().addChangeListener(checkboxChangeListener);
-        pnl.add(cbDownloadOsmData, GBC.std().insets(1, 5, 1, 5));
-        cbDownloadGpxData = new JCheckBox(tr("Raw GPS data"));
-        cbDownloadGpxData.setToolTipText(tr("Select to download GPS traces in the selected download area."));
-        cbDownloadGpxData.getModel().addChangeListener(checkboxChangeListener);
-        pnl.add(cbDownloadGpxData, GBC.std().insets(5, 5, 1, 5));
-        cbDownloadNotes = new JCheckBox(tr("Notes"));
-        cbDownloadNotes.setToolTipText(tr("Select to download notes in the selected download area."));
-        cbDownloadNotes.getModel().addChangeListener(checkboxChangeListener);
-        pnl.add(cbDownloadNotes, GBC.eol().insets(50, 5, 1, 5));
+        // add default download sources
+        addDownloadSource(new OSMDownloadSource());
+        addDownloadSource(new OverpassDownloadSource());
 
         // must be created before hook
         slippyMapChooser = new SlippyMapChooser();
-
-        // hook for subclasses
-        buildMainPanelAboveDownloadSelections(pnl);
 
         // predefined download selections
         downloadSelections.add(slippyMapChooser);
@@ -133,24 +130,24 @@ public class DownloadDialog extends JDialog {
         // add selections from plugins
         PluginHandler.addDownloadSelection(downloadSelections);
 
-        // now everybody may add their tab to the tabbed pane
-        // (not done right away to allow plugins to remove one of
-        // the default selectors!)
+        // register all default download selections
         for (DownloadSelection s : downloadSelections) {
             s.addGui(this);
         }
 
-        pnl.add(tpDownloadAreaSelectors, GBC.eol().fill());
+        // allow to collapse the panes, but reserve some space for tabs
+        downloadSourcesTab.setMinimumSize(new Dimension(0, 25));
+        tpDownloadAreaSelectors.setMinimumSize(new Dimension(0, 0));
 
-        try {
-            tpDownloadAreaSelectors.setSelectedIndex(DOWNLOAD_TAB.get());
-        } catch (IndexOutOfBoundsException ex) {
-            Main.trace(ex);
-            DOWNLOAD_TAB.put(0);
-        }
+        dialogSplit = new DownloadDialogSplitPane(
+                downloadSourcesTab,
+                tpDownloadAreaSelectors);
 
-        Font labelFont = sizeCheck.getFont();
-        sizeCheck.setFont(labelFont.deriveFont(Font.PLAIN, labelFont.getSize()));
+        ChangeListener tabChangedListener = getDownloadSourceTabChangeListener();
+        tabChangedListener.stateChanged(new ChangeEvent(downloadSourcesTab));
+        downloadSourcesTab.addChangeListener(tabChangedListener);
+
+        mainPanel.add(dialogSplit, GBC.eol().fill());
 
         cbNewLayer = new JCheckBox(tr("Download as new layer"));
         cbNewLayer.setToolTipText(tr("<html>Select to download data into a new data layer.<br>"
@@ -165,57 +162,46 @@ public class DownloadDialog extends JDialog {
         cbZoomToDownloadedData = new JCheckBox(tr("Zoom to downloaded data"));
         cbZoomToDownloadedData.setToolTipText(tr("Select to zoom to entire newly downloaded data."));
 
-        pnl.add(cbNewLayer, GBC.std().anchor(GBC.WEST).insets(5, 5, 5, 5));
-        pnl.add(cbStartup, GBC.std().anchor(GBC.WEST).insets(15, 5, 5, 5));
-        pnl.add(cbZoomToDownloadedData, GBC.std().anchor(GBC.WEST).insets(15, 5, 5, 5));
+        mainPanel.add(cbNewLayer, GBC.std().anchor(GBC.WEST).insets(5, 5, 5, 5));
+        mainPanel.add(cbStartup, GBC.std().anchor(GBC.WEST).insets(15, 5, 5, 5));
+        mainPanel.add(cbZoomToDownloadedData, GBC.std().anchor(GBC.WEST).insets(15, 5, 5, 5));
 
         ExpertToggleAction.addVisibilitySwitcher(cbZoomToDownloadedData);
 
-        pnl.add(sizeCheck, GBC.eol().anchor(GBC.EAST).insets(5, 5, 5, 2));
+        mainPanel.add(new JLabel(), GBC.eol()); // place info label at a new line
+        JLabel infoLabel = new JLabel(
+                tr("Use left click&drag to select area, arrows or right mouse button to scroll map, wheel or +/- to zoom."));
+        mainPanel.add(infoLabel, GBC.eol().anchor(GBC.CENTER).insets(0, 0, 0, 0));
 
-        if (!ExpertToggleAction.isExpert()) {
-            JLabel infoLabel = new JLabel(
-                    tr("Use left click&drag to select area, arrows or right mouse button to scroll map, wheel or +/- to zoom."));
-            pnl.add(infoLabel, GBC.eol().anchor(GBC.SOUTH).insets(0, 0, 0, 0));
-        }
-        return pnl;
+        ExpertToggleAction.addExpertModeChangeListener(isExpert -> infoLabel.setVisible(!isExpert), true);
+
+        return mainPanel;
     }
 
-    /* This should not be necessary, but if not here, repaint is not always correct in SlippyMap! */
-    @Override
-    public void paint(Graphics g) {
-        tpDownloadAreaSelectors.getSelectedComponent().paint(g);
-        super.paint(g);
-    }
-
+    /**
+     * Builds the button pane of the dialog.
+     * @return The button panel of the dialog.
+     */
     protected final JPanel buildButtonPanel() {
+        btnDownload = new JButton(new DownloadAction());
+        btnCancel = new JButton(new CancelAction());
+        btnHelp = new JButton(
+                new ContextSensitiveHelpAction(getRootPane().getClientProperty("help").toString()));
+
         JPanel pnl = new JPanel(new FlowLayout());
 
-        // -- download button
         pnl.add(btnDownload);
-        InputMapUtils.enableEnter(btnDownload);
-
-        InputMapUtils.addEnterActionWhenAncestor(cbDownloadGpxData, actDownload);
-        InputMapUtils.addEnterActionWhenAncestor(cbDownloadOsmData, actDownload);
-        InputMapUtils.addEnterActionWhenAncestor(cbDownloadNotes, actDownload);
-        InputMapUtils.addEnterActionWhenAncestor(cbNewLayer, actDownload);
-        InputMapUtils.addEnterActionWhenAncestor(cbStartup, actDownload);
-        InputMapUtils.addEnterActionWhenAncestor(cbZoomToDownloadedData, actDownload);
-
-        // -- cancel button
-        JButton btnCancel;
-        CancelAction actCancel = new CancelAction();
-        btnCancel = new JButton(actCancel);
         pnl.add(btnCancel);
-        InputMapUtils.enableEnter(btnCancel);
-
-        // -- cancel on ESC
-        InputMapUtils.addEscapeAction(getRootPane(), actCancel);
-
-        // -- help button
-        JButton btnHelp = new JButton(new ContextSensitiveHelpAction(getRootPane().getClientProperty("help").toString()));
         pnl.add(btnHelp);
+
+        InputMapUtils.enableEnter(btnDownload);
+        InputMapUtils.enableEnter(btnCancel);
+        InputMapUtils.addEscapeAction(getRootPane(), btnCancel.getAction());
         InputMapUtils.enableEnter(btnHelp);
+
+        InputMapUtils.addEnterActionWhenAncestor(cbNewLayer, btnDownload.getAction());
+        InputMapUtils.addEnterActionWhenAncestor(cbStartup, btnDownload.getAction());
+        InputMapUtils.addEnterActionWhenAncestor(cbZoomToDownloadedData, btnDownload.getAction());
 
         return pnl;
     }
@@ -241,7 +227,7 @@ public class DownloadDialog extends JDialog {
         getContentPane().add(buildButtonPanel(), BorderLayout.SOUTH);
 
         getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                KeyStroke.getKeyStroke(KeyEvent.VK_V, InputEvent.CTRL_MASK), "checkClipboardContents");
+                KeyStroke.getKeyStroke(KeyEvent.VK_V, InputEvent.CTRL_DOWN_MASK), "checkClipboardContents");
 
         getRootPane().getActionMap().put("checkClipboardContents", new AbstractAction() {
             @Override
@@ -257,37 +243,19 @@ public class DownloadDialog extends JDialog {
             }
         });
         addWindowListener(new WindowEventHandler());
+        ExpertToggleAction.addExpertModeChangeListener(expertListener);
         restoreSettings();
-    }
 
-    protected void updateSizeCheck() {
-        boolean isAreaTooLarge = false;
+        // if no bounding box is selected make sure it is still propagated.
         if (currentBounds == null) {
-            sizeCheck.setText(tr("No area selected yet"));
-            sizeCheck.setForeground(Color.darkGray);
-        } else if (isDownloadNotes() && !isDownloadOsmData() && !isDownloadGpxData()) {
-            // see max_note_request_area in https://github.com/openstreetmap/openstreetmap-website/blob/master/config/example.application.yml
-            isAreaTooLarge = currentBounds.getArea() > Main.pref.getDouble("osm-server.max-request-area-notes", 25);
-        } else {
-            // see max_request_area in https://github.com/openstreetmap/openstreetmap-website/blob/master/config/example.application.yml
-            isAreaTooLarge = currentBounds.getArea() > Main.pref.getDouble("osm-server.max-request-area", 0.25);
-        }
-        displaySizeCheckResult(isAreaTooLarge);
-    }
-
-    protected void displaySizeCheckResult(boolean isAreaTooLarge) {
-        if (isAreaTooLarge) {
-            sizeCheck.setText(tr("Download area too large; will probably be rejected by server"));
-            sizeCheck.setForeground(Color.red);
-        } else {
-            sizeCheck.setText(tr("Download area ok, size probably acceptable to server"));
-            sizeCheck.setForeground(Color.darkGray);
+            boundingBoxChanged(null, null);
         }
     }
 
     /**
      * Distributes a "bounding box changed" from one DownloadSelection
-     * object to the others, so they may update or clear their input fields.
+     * object to the others, so they may update or clear their input fields. Also informs
+     * download sources about the change, so they can react on it.
      * @param b new current bounds
      *
      * @param eventSource - the DownloadSelection object that fired this notification.
@@ -299,7 +267,10 @@ public class DownloadDialog extends JDialog {
                 s.setDownloadArea(currentBounds);
             }
         }
-        updateSizeCheck();
+
+        for (AbstractDownloadSourcePanel<?> ds : downloadSourcesTab.getAllPanels()) {
+            ds.boudingBoxChanged(b);
+        }
     }
 
     /**
@@ -308,34 +279,14 @@ public class DownloadDialog extends JDialog {
      */
     public void startDownload(Bounds b) {
         this.currentBounds = b;
-        actDownload.run();
+        startDownload();
     }
 
     /**
-     * Replies true if the user selected to download OSM data
-     *
-     * @return true if the user selected to download OSM data
+     * Starts download.
      */
-    public boolean isDownloadOsmData() {
-        return cbDownloadOsmData.isSelected();
-    }
-
-    /**
-     * Replies true if the user selected to download GPX data
-     *
-     * @return true if the user selected to download GPX data
-     */
-    public boolean isDownloadGpxData() {
-        return cbDownloadGpxData.isSelected();
-    }
-
-    /**
-     * Replies true if user selected to download notes
-     *
-     * @return true if user selected to download notes
-     */
-    public boolean isDownloadNotes() {
-        return cbDownloadNotes.isSelected();
+    public void startDownload() {
+        btnDownload.doClick();
     }
 
     /**
@@ -358,17 +309,42 @@ public class DownloadDialog extends JDialog {
     }
 
     /**
-     * Adds a new download area selector to the download dialog
+     * Determines if the dialog autorun is enabled in preferences.
+     * @return {@code true} if the download dialog must be open at startup, {@code false} otherwise.
+     */
+    public static boolean isAutorunEnabled() {
+        return DOWNLOAD_AUTORUN.get();
+    }
+
+    /**
+     * Adds a new download area selector to the download dialog.
      *
-     * @param selector the download are selector
-     * @param displayName the display name of the selector
+     * @param selector the download are selector.
+     * @param displayName the display name of the selector.
      */
     public void addDownloadAreaSelector(JPanel selector, String displayName) {
         tpDownloadAreaSelectors.add(displayName, selector);
     }
 
     /**
-     * Refreshes the tile sources
+     * Adds a new download source to the download dialog if it is not added.
+     *
+     * @param downloadSource The download source to be added.
+     * @param <T> The type of the download data.
+     * @throws JosmRuntimeException If the download source is already added. Note, download sources are
+     * compared by their reference.
+     */
+    public <T> void addDownloadSource(DownloadSource<T> downloadSource) {
+        if (downloadSources.contains(downloadSource)) {
+            throw new JosmRuntimeException("The download source you are trying to add already exists.");
+        }
+
+        downloadSources.add(downloadSource);
+        addNewDownloadSourceTab(downloadSource);
+    }
+
+    /**
+     * Refreshes the tile sources.
      * @since 6364
      */
     public final void refreshTileSources() {
@@ -382,9 +358,7 @@ public class DownloadDialog extends JDialog {
      */
     public void rememberSettings() {
         DOWNLOAD_TAB.put(tpDownloadAreaSelectors.getSelectedIndex());
-        DOWNLOAD_OSM.put(cbDownloadOsmData.isSelected());
-        DOWNLOAD_GPS.put(cbDownloadGpxData.isSelected());
-        DOWNLOAD_NOTES.put(cbDownloadNotes.isSelected());
+        downloadSourcesTab.getSelectedPanel().ifPresent(panel -> DOWNLOAD_SOURCE_TAB.put(panel.getSimpleName()));
         DOWNLOAD_NEWLAYER.put(cbNewLayer.isSelected());
         DOWNLOAD_ZOOMTODATA.put(cbZoomToDownloadedData.isSelected());
         if (currentBounds != null) {
@@ -396,17 +370,21 @@ public class DownloadDialog extends JDialog {
      * Restores the previous settings in the download dialog.
      */
     public void restoreSettings() {
-        cbDownloadOsmData.setSelected(DOWNLOAD_OSM.get());
-        cbDownloadGpxData.setSelected(DOWNLOAD_GPS.get());
-        cbDownloadNotes.setSelected(DOWNLOAD_NOTES.get());
         cbNewLayer.setSelected(DOWNLOAD_NEWLAYER.get());
         cbStartup.setSelected(isAutorunEnabled());
         cbZoomToDownloadedData.setSelected(DOWNLOAD_ZOOMTODATA.get());
-        int idx = Utils.clamp(DOWNLOAD_TAB.get(), 0, tpDownloadAreaSelectors.getTabCount() - 1);
-        tpDownloadAreaSelectors.setSelectedIndex(idx);
 
-        if (Main.isDisplayingMapView()) {
-            MapView mv = Main.map.mapView;
+        try {
+            tpDownloadAreaSelectors.setSelectedIndex(DOWNLOAD_TAB.get());
+        } catch (IndexOutOfBoundsException e) {
+            Logging.trace(e);
+            tpDownloadAreaSelectors.setSelectedIndex(0);
+        }
+
+        downloadSourcesTab.setSelected(DOWNLOAD_SOURCE_TAB.get());
+
+        if (MainApplication.isDisplayingMapView()) {
+            MapView mv = MainApplication.getMap().mapView;
             currentBounds = new Bounds(
                     mv.getLatLon(0, mv.getHeight()),
                     mv.getLatLon(mv.getWidth(), 0)
@@ -423,7 +401,7 @@ public class DownloadDialog extends JDialog {
 
     /**
      * Returns the previously saved bounding box from preferences.
-     * @return The bounding box saved in preferences if any, {@code null} otherwise
+     * @return The bounding box saved in preferences if any, {@code null} otherwise.
      * @since 6509
      */
     public static Bounds getSavedDownloadBounds() {
@@ -432,18 +410,10 @@ public class DownloadDialog extends JDialog {
             try {
                 return new Bounds(value, ";");
             } catch (IllegalArgumentException e) {
-                Main.warn(e);
+                Logging.warn(e);
             }
         }
         return null;
-    }
-
-    /**
-     * Determines if the dialog autorun is enabled in preferences.
-     * @return {@code true} if the download dialog must be open at startup, {@code false} otherwise
-     */
-    public static boolean isAutorunEnabled() {
-        return DOWNLOAD_AUTORUN.get();
     }
 
     /**
@@ -452,16 +422,17 @@ public class DownloadDialog extends JDialog {
      */
     public static void autostartIfNeeded() {
         if (isAutorunEnabled()) {
-            Main.main.menu.download.actionPerformed(null);
+            MainApplication.getMenu().download.actionPerformed(null);
         }
     }
 
     /**
-     * Replies the currently selected download area.
-     * @return the currently selected download area. May be {@code null}, if no download area is selected yet.
+     * Returns an {@link Optional} of the currently selected download area.
+     * @return An {@link Optional} of the currently selected download area.
+     * @since 12574 Return type changed to optional
      */
-    public Bounds getSelectedDownloadArea() {
-        return currentBounds;
+    public Optional<Bounds> getSelectedDownloadArea() {
+        return Optional.ofNullable(currentBounds);
     }
 
     @Override
@@ -489,14 +460,51 @@ public class DownloadDialog extends JDialog {
         return canceled;
     }
 
+    /**
+     * Gets the global settings of the download dialog.
+     * @return The {@link DownloadSettings} object that describes the current state of
+     * the download dialog.
+     */
+    public DownloadSettings getDownloadSettings() {
+        return new DownloadSettings(currentBounds, isNewLayerRequired(), isZoomToDownloadedDataRequired());
+    }
+
     protected void setCanceled(boolean canceled) {
         this.canceled = canceled;
     }
 
-    protected void buildMainPanelAboveDownloadSelections(JPanel pnl) {
-        // Do nothing
+    /**
+     * Adds the download source to the download sources tab.
+     * @param downloadSource The download source to be added.
+     * @param <T> The type of the download data.
+     */
+    protected <T> void addNewDownloadSourceTab(DownloadSource<T> downloadSource) {
+        downloadSourcesTab.addPanel(downloadSource.createPanel());
     }
 
+    /**
+     * Creates listener that removes/adds download sources from/to {@code downloadSourcesTab}
+     * depending on the current mode.
+     * @return The expert mode listener.
+     */
+    private ExpertToggleAction.ExpertModeChangeListener getExpertModeListenerForDownloadSources() {
+        return downloadSourcesTab::updateExpert;
+    }
+
+    /**
+     * Creates a listener that reacts on tab switches for {@code downloadSourcesTab} in order
+     * to adjust proper division of the dialog according to user saved preferences or minimal size
+     * of the panel.
+     * @return A listener to adjust dialog division.
+     */
+    private ChangeListener getDownloadSourceTabChangeListener() {
+        return ec -> downloadSourcesTab.getSelectedPanel().ifPresent(
+                panel -> dialogSplit.setPolicy(panel.getSizingPolicy()));
+    }
+
+    /**
+     * Action that is executed when the cancel button is pressed.
+     */
     class CancelAction extends AbstractAction {
         CancelAction() {
             putValue(NAME, tr("Cancel"));
@@ -504,17 +512,26 @@ public class DownloadDialog extends JDialog {
             putValue(SHORT_DESCRIPTION, tr("Click to close the dialog and to abort downloading"));
         }
 
+        /**
+         * Cancels the download
+         */
         public void run() {
+            rememberSettings();
             setCanceled(true);
             setVisible(false);
         }
 
         @Override
         public void actionPerformed(ActionEvent e) {
+            Optional<AbstractDownloadSourcePanel<?>> panel = downloadSourcesTab.getSelectedPanel();
             run();
+            panel.ifPresent(AbstractDownloadSourcePanel::checkCancel);
         }
     }
 
+    /**
+     * Action that is executed when the download button is pressed.
+     */
     class DownloadAction extends AbstractAction {
         DownloadAction() {
             putValue(NAME, tr("Download"));
@@ -523,32 +540,20 @@ public class DownloadDialog extends JDialog {
             setEnabled(!Main.isOffline(OnlineResource.OSM_API));
         }
 
+        /**
+         * Starts the download and closes the dialog, if all requirements for the current download source are met.
+         * Otherwise the download is not started and the dialog remains visible.
+         */
         public void run() {
-            if (currentBounds == null) {
-                JOptionPane.showMessageDialog(
-                        DownloadDialog.this,
-                        tr("Please select a download area first."),
-                        tr("Error"),
-                        JOptionPane.ERROR_MESSAGE
-                );
-                return;
-            }
-            if (!isDownloadOsmData() && !isDownloadGpxData() && !isDownloadNotes()) {
-                JOptionPane.showMessageDialog(
-                        DownloadDialog.this,
-                        tr("<html>Neither <strong>{0}</strong> nor <strong>{1}</strong> nor <strong>{2}</strong> is enabled.<br>"
-                                + "Please choose to either download OSM data, or GPX data, or Notes, or all.</html>",
-                                cbDownloadOsmData.getText(),
-                                cbDownloadGpxData.getText(),
-                                cbDownloadNotes.getText()
-                        ),
-                        tr("Error"),
-                        JOptionPane.ERROR_MESSAGE
-                );
-                return;
-            }
-            setCanceled(false);
-            setVisible(false);
+            rememberSettings();
+            downloadSourcesTab.getSelectedPanel().ifPresent(panel -> {
+                DownloadSettings downloadSettings = getDownloadSettings();
+                if (panel.checkDownload(downloadSettings)) {
+                    setCanceled(false);
+                    setVisible(false);
+                    panel.triggerDownload(downloadSettings);
+                }
+            });
         }
 
         @Override
@@ -566,6 +571,110 @@ public class DownloadDialog extends JDialog {
         @Override
         public void windowActivated(WindowEvent e) {
             btnDownload.requestFocusInWindow();
+        }
+    }
+
+    /**
+     * A special tabbed pane for {@link AbstractDownloadSourcePanel}s
+     * @author Michael Zangl
+     * @since 12706
+     */
+    private static class DownloadSourceTabs extends JTabbedPane {
+        private final List<AbstractDownloadSourcePanel<?>> allPanels = new ArrayList<>();
+
+        List<AbstractDownloadSourcePanel<?>> getAllPanels() {
+            return allPanels;
+        }
+
+        List<AbstractDownloadSourcePanel<?>> getVisiblePanels() {
+            return IntStream.range(0, getTabCount())
+                    .mapToObj(this::getComponentAt)
+                    .map(p -> (AbstractDownloadSourcePanel<?>) p)
+                    .collect(Collectors.toList());
+        }
+
+        void setSelected(String simpleName) {
+            getVisiblePanels().stream()
+                .filter(panel -> simpleName.equals(panel.getSimpleName()))
+                .findFirst()
+                .ifPresent(this::setSelectedComponent);
+        }
+
+        void updateExpert(boolean isExpert) {
+            updateTabs();
+        }
+
+        void addPanel(AbstractDownloadSourcePanel<?> panel) {
+            allPanels.add(panel);
+            updateTabs();
+        }
+
+        private void updateTabs() {
+            // Not the best performance, but we don't do it often
+            removeAll();
+
+            boolean isExpert = ExpertToggleAction.isExpert();
+            allPanels.stream()
+                .filter(panel -> isExpert || !panel.getDownloadSource().onlyExpert())
+                .forEach(panel -> addTab(panel.getDownloadSource().getLabel(), panel.getIcon(), panel));
+        }
+
+        Optional<AbstractDownloadSourcePanel<?>> getSelectedPanel() {
+            return Optional.ofNullable((AbstractDownloadSourcePanel<?>) getSelectedComponent());
+        }
+
+        @Override
+        public void insertTab(String title, Icon icon, Component component, String tip, int index) {
+            if (!(component instanceof AbstractDownloadSourcePanel)) {
+                throw new IllegalArgumentException("Can only add AbstractDownloadSourcePanels");
+            }
+            super.insertTab(title, icon, component, tip, index);
+        }
+    }
+
+    /**
+     * A special split pane that acts according to a {@link DownloadSourceSizingPolicy}
+     *
+     * It attempts to size the top tab content correctly.
+     *
+     * @author Michael Zangl
+     * @since 12705
+     */
+    private static class DownloadDialogSplitPane extends JSplitPane {
+        private DownloadSourceSizingPolicy policy;
+        private final JTabbedPane topComponent;
+
+        DownloadDialogSplitPane(JTabbedPane newTopComponent, Component newBottomComponent) {
+            super(VERTICAL_SPLIT, newTopComponent, newBottomComponent);
+            this.topComponent = newTopComponent;
+        }
+
+        public void setPolicy(DownloadSourceSizingPolicy policy) {
+            this.policy = policy;
+
+            super.setDividerLocation(policy.getComponentHeight() + computeOffset());
+            setDividerSize(policy.isHeightAdjustable() ? 10 : 0);
+            setEnabled(policy.isHeightAdjustable());
+        }
+
+        @Override
+        public void doLayout() {
+            // We need to force this height before the layout manager is run.
+            // We cannot do this in the setDividerLocation, since the offset cannot be computed there.
+            int offset = computeOffset();
+            if (policy.isHeightAdjustable()) {
+                policy.storeHeight(Math.max(getDividerLocation() - offset, 0));
+            }
+            super.setDividerLocation(policy.getComponentHeight() + offset);
+            super.doLayout();
+        }
+
+        /**
+         * @return The difference between the content height and the divider location
+         */
+        private int computeOffset() {
+            Component selectedComponent = topComponent.getSelectedComponent();
+            return topComponent.getHeight() - (selectedComponent == null ? 0 : selectedComponent.getHeight());
         }
     }
 }

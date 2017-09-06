@@ -22,11 +22,13 @@ import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.gui.bugreport.DebugTextDisplay;
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel;
 import org.openstreetmap.josm.gui.widgets.UrlLabel;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.HttpClient;
 import org.openstreetmap.josm.tools.HttpClient.Response;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.OpenBrowser;
 import org.openstreetmap.josm.tools.Utils;
 import org.w3c.dom.Document;
@@ -63,11 +65,11 @@ public class BugReportSender extends Thread {
             // then open a browser to display the pasted text.
             String openBrowserError = OpenBrowser.displayUrl(getJOSMTicketURL() + "?pdata_stored=" + debugTextPasteId);
             if (openBrowserError != null) {
-                Main.warn(openBrowserError);
+                Logging.warn(openBrowserError);
                 failed(openBrowserError);
             }
         } catch (BugReportSenderException e) {
-            Main.warn(e);
+            Logging.warn(e);
             failed(e.getMessage());
         }
     }

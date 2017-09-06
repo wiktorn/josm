@@ -25,7 +25,8 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.ExpertToggleAction;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.SystemOfMeasurement;
-import org.openstreetmap.josm.data.coor.CoordinateFormat;
+import org.openstreetmap.josm.data.coor.conversion.CoordinateFormatManager;
+import org.openstreetmap.josm.data.coor.conversion.ICoordinateFormat;
 import org.openstreetmap.josm.data.preferences.CollectionProperty;
 import org.openstreetmap.josm.data.preferences.StringProperty;
 import org.openstreetmap.josm.data.projection.CustomProjection;
@@ -272,11 +273,10 @@ public class ProjectionPreference implements SubPreferenceSetting {
     }
 
     private static String projectionChoice;
-    
+
     private static final StringProperty PROP_PROJECTION_DEFAULT = new StringProperty("projection.default", mercator.getId());
     private static final StringProperty PROP_COORDINATES = new StringProperty("coordinates", null);
     private static final CollectionProperty PROP_SUB_PROJECTION_DEFAULT = new CollectionProperty("projection.default.sub", null);
-    public static final StringProperty PROP_SYSTEM_OF_MEASUREMENT = new StringProperty("system_of_measurement", "Metric");
     private static final String[] unitsValues = ALL_SYSTEMS.keySet().toArray(new String[ALL_SYSTEMS.size()]);
     private static final String[] unitsValuesTr = new String[unitsValues.length];
     static {
@@ -288,13 +288,12 @@ public class ProjectionPreference implements SubPreferenceSetting {
     /**
      * Combobox with all projections available
      */
-    private final JosmComboBox<ProjectionChoice> projectionCombo = new JosmComboBox<>(
-            projectionChoices.toArray(new ProjectionChoice[projectionChoices.size()]));
+    private final JosmComboBox<ProjectionChoice> projectionCombo;
 
     /**
      * Combobox with all coordinate display possibilities
      */
-    private final JosmComboBox<CoordinateFormat> coordinatesCombo = new JosmComboBox<>(CoordinateFormat.values());
+    private final JosmComboBox<ICoordinateFormat> coordinatesCombo;
 
     private final JosmComboBox<String> unitsCombo = new JosmComboBox<>(unitsValuesTr);
 
@@ -326,19 +325,26 @@ public class ProjectionPreference implements SubPreferenceSetting {
      */
     private static final GBC projSubPrefPanelGBC = GBC.std().fill(GBC.BOTH).weight(1.0, 1.0);
 
+    public ProjectionPreference() {
+        this.projectionCombo = new JosmComboBox<>(
+            projectionChoices.toArray(new ProjectionChoice[projectionChoices.size()]));
+        this.coordinatesCombo = new JosmComboBox<>(
+                CoordinateFormatManager.getCoordinateFormats().toArray(new ICoordinateFormat[0]));
+    }
+
     @Override
     public void addGui(PreferenceTabbedPane gui) {
         final ProjectionChoice pc = setupProjectionCombo();
 
         for (int i = 0; i < coordinatesCombo.getItemCount(); ++i) {
-            if (coordinatesCombo.getItemAt(i).name().equals(PROP_COORDINATES.get())) {
+            if (coordinatesCombo.getItemAt(i).getId().equals(PROP_COORDINATES.get())) {
                 coordinatesCombo.setSelectedIndex(i);
                 break;
             }
         }
 
         for (int i = 0; i < unitsValues.length; ++i) {
-            if (unitsValues[i].equals(PROP_SYSTEM_OF_MEASUREMENT.get())) {
+            if (unitsValues[i].equals(SystemOfMeasurement.PROP_SYSTEM_OF_MEASUREMENT.get())) {
                 unitsCombo.setSelectedIndex(i);
                 break;
             }
@@ -399,9 +405,9 @@ public class ProjectionPreference implements SubPreferenceSetting {
         projectionCode.setText(proj.toCode());
         projectionName.setText(proj.toString());
         Bounds b = proj.getWorldBoundsLatLon();
-        CoordinateFormat cf = CoordinateFormat.getDefaultFormat();
-        bounds.setText(b.getMin().lonToString(cf) + ", " + b.getMin().latToString(cf) + " : " +
-                b.getMax().lonToString(cf) + ", " + b.getMax().latToString(cf));
+        ICoordinateFormat cf = CoordinateFormatManager.getDefaultFormat();
+        bounds.setText(cf.lonToString(b.getMin()) + ", " + cf.latToString(b.getMin()) + " : " +
+                cf.lonToString(b.getMax()) + ", " + cf.latToString(b.getMax()));
         boolean showCode = true;
         boolean showName = false;
         if (pc instanceof SubPrefsOptions) {
@@ -425,8 +431,8 @@ public class ProjectionPreference implements SubPreferenceSetting {
 
         setProjection(id, prefs, false);
 
-        if (PROP_COORDINATES.put(((CoordinateFormat) coordinatesCombo.getSelectedItem()).name())) {
-            CoordinateFormat.setCoordinateFormat((CoordinateFormat) coordinatesCombo.getSelectedItem());
+        if (PROP_COORDINATES.put(((ICoordinateFormat) coordinatesCombo.getSelectedItem()).getId())) {
+            CoordinateFormatManager.setCoordinateFormat((ICoordinateFormat) coordinatesCombo.getSelectedItem());
         }
 
         int i = unitsCombo.getSelectedIndex();

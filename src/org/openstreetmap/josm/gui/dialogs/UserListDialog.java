@@ -34,6 +34,7 @@ import org.openstreetmap.josm.data.osm.DataSelectionListener;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.User;
 import org.openstreetmap.josm.data.osm.event.SelectionEventManager;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.SideButton;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeEvent;
@@ -41,6 +42,7 @@ import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeListen
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.OpenBrowser;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.Utils;
@@ -71,12 +73,12 @@ public class UserListDialog extends ToggleDialog implements DataSelectionListene
     @Override
     public void showNotify() {
         SelectionEventManager.getInstance().addSelectionListenerForEdt(this);
-        Main.getLayerManager().addActiveLayerChangeListener(this);
+        MainApplication.getLayerManager().addActiveLayerChangeListener(this);
     }
 
     @Override
     public void hideNotify() {
-        Main.getLayerManager().removeActiveLayerChangeListener(this);
+        MainApplication.getLayerManager().removeActiveLayerChangeListener(this);
         SelectionEventManager.getInstance().removeSelectionListener(this);
     }
 
@@ -139,7 +141,7 @@ public class UserListDialog extends ToggleDialog implements DataSelectionListene
     @Override
     public void showDialog() {
         super.showDialog();
-        refreshForActiveLayer(Main.getLayerManager().getActiveLayer());
+        refreshForActiveLayer(MainApplication.getLayerManager().getActiveLayer());
     }
 
     class SelectUsersPrimitivesAction extends AbstractAction implements ListSelectionListener {
@@ -198,7 +200,7 @@ public class UserListDialog extends ToggleDialog implements DataSelectionListene
             if (users.isEmpty())
                 return;
             if (users.size() > 10) {
-                Main.warn(tr("Only launching info browsers for the first {0} of {1} selected users", 10, users.size()));
+                Logging.warn(tr("Only launching info browsers for the first {0} of {1} selected users", 10, users.size()));
             }
             int num = Math.min(10, users.size());
             Iterator<User> it = users.iterator();
@@ -344,14 +346,14 @@ public class UserListDialog extends ToggleDialog implements DataSelectionListene
             for (int index: rows) {
                 users.add(data.get(index).user);
             }
-            Collection<OsmPrimitive> selected = Main.getLayerManager().getEditDataSet().getAllSelected();
+            Collection<OsmPrimitive> selected = MainApplication.getLayerManager().getEditDataSet().getAllSelected();
             Collection<OsmPrimitive> byUser = new LinkedList<>();
             for (OsmPrimitive p : selected) {
                 if (users.contains(p.getUser())) {
                     byUser.add(p);
                 }
             }
-            Main.getLayerManager().getEditDataSet().setSelected(byUser);
+            MainApplication.getLayerManager().getEditDataSet().setSelected(byUser);
         }
 
         public List<User> getSelectedUsers(int... rows) {

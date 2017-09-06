@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.SystemOfMeasurement;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.tools.date.DateUtils;
@@ -45,7 +44,7 @@ public final class ExifReader {
             final Metadata metadata = JpegMetadataReader.readMetadata(filename);
             return readTime(metadata);
         } catch (JpegProcessingException | IOException e) {
-            Main.error(e);
+            Logging.error(e);
         }
         return null;
     }
@@ -111,14 +110,14 @@ public final class ExifReader {
                     try {
                         date.setTime(date.getTime() + (long) (TimeUnit.SECONDS.toMillis(1) * Double.parseDouble("0." + subSeconds)));
                     } catch (NumberFormatException e) {
-                        Main.warn("Failed parsing sub seconds from [{0}]", subSeconds);
-                        Main.warn(e);
+                        Logging.warn("Failed parsing sub seconds from [{0}]", subSeconds);
+                        Logging.warn(e);
                     }
                 }
                 return date;
             }
         } catch (UncheckedParseException e) {
-            Main.error(e);
+            Logging.error(e);
         }
         return null;
     }
@@ -145,7 +144,7 @@ public final class ExifReader {
             final Directory dir = metadata.getFirstDirectoryOfType(ExifIFD0Directory.class);
             return dir == null ? null : dir.getInteger(ExifIFD0Directory.TAG_ORIENTATION);
         } catch (JpegProcessingException | IOException e) {
-            Main.error(e);
+            Logging.error(e);
         }
         return null;
     }
@@ -162,7 +161,7 @@ public final class ExifReader {
             final GpsDirectory dirGps = metadata.getFirstDirectoryOfType(GpsDirectory.class);
             return readLatLon(dirGps);
         } catch (JpegProcessingException | IOException | MetadataException e) {
-            Main.error(e);
+            Logging.error(e);
         }
         return null;
     }
@@ -196,7 +195,7 @@ public final class ExifReader {
             final GpsDirectory dirGps = metadata.getFirstDirectoryOfType(GpsDirectory.class);
             return readDirection(dirGps);
         } catch (JpegProcessingException | IOException e) {
-            Main.error(e);
+            Logging.error(e);
         }
         return null;
     }
@@ -254,7 +253,7 @@ public final class ExifReader {
             final GpsDirectory dirGps = metadata.getFirstDirectoryOfType(GpsDirectory.class);
             return readSpeed(dirGps);
         } catch (JpegProcessingException | IOException e) {
-            Main.error(e);
+            Logging.error(e);
         }
         return null;
     }
@@ -298,7 +297,7 @@ public final class ExifReader {
             final GpsDirectory dirGps = metadata.getFirstDirectoryOfType(GpsDirectory.class);
             return readElevation(dirGps);
         } catch (JpegProcessingException | IOException e) {
-            Main.error(e);
+            Logging.error(e);
         }
         return null;
     }

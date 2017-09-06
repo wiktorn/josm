@@ -11,8 +11,8 @@ import javax.swing.event.ChangeListener;
 import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.osm.Changeset;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.tagging.TagEditorPanel;
 import org.openstreetmap.josm.gui.tagging.TagModel;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
@@ -28,21 +28,28 @@ public class TagSettingsPanel extends JPanel implements TableModelListener {
     /** the model for the changeset comment */
     private final transient ChangesetCommentModel changesetCommentModel;
     private final transient ChangesetCommentModel changesetSourceModel;
+    private final transient ChangesetReviewModel changesetReviewModel;
 
     /**
      * Creates a new panel
      *
      * @param changesetCommentModel the changeset comment model. Must not be null.
      * @param changesetSourceModel the changeset source model. Must not be null.
+     * @param changesetReviewModel the model for the changeset review. Must not be null.
      * @throws IllegalArgumentException if {@code changesetCommentModel} is null
+     * @since 12719 (signature)
      */
-    public TagSettingsPanel(ChangesetCommentModel changesetCommentModel, ChangesetCommentModel changesetSourceModel) {
+    public TagSettingsPanel(ChangesetCommentModel changesetCommentModel, ChangesetCommentModel changesetSourceModel,
+            ChangesetReviewModel changesetReviewModel) {
         CheckParameterUtil.ensureParameterNotNull(changesetCommentModel, "changesetCommentModel");
         CheckParameterUtil.ensureParameterNotNull(changesetSourceModel, "changesetSourceModel");
+        CheckParameterUtil.ensureParameterNotNull(changesetReviewModel, "changesetReviewModel");
         this.changesetCommentModel = changesetCommentModel;
         this.changesetSourceModel = changesetSourceModel;
-        this.changesetCommentModel.addChangeListener(new ChangesetCommentChangeListener("comment"));
-        this.changesetSourceModel.addChangeListener(new ChangesetCommentChangeListener("source"));
+        this.changesetReviewModel = changesetReviewModel;
+        changesetCommentModel.addChangeListener(new ChangesetCommentChangeListener("comment"));
+        changesetSourceModel.addChangeListener(new ChangesetCommentChangeListener("source"));
+        changesetReviewModel.addChangeListener(new ChangesetReviewChangeListener());
         build();
         pnlTagEditor.getModel().addTableModelListener(this);
     }
@@ -98,7 +105,7 @@ public class TagSettingsPanel extends JPanel implements TableModelListener {
      * Initializes the panel for user input
      */
     public void startUserInput() {
-        pnlTagEditor.initAutoCompletion(Main.getLayerManager().getEditLayer());
+        pnlTagEditor.initAutoCompletion(MainApplication.getLayerManager().getEditLayer());
     }
 
     /* -------------------------------------------------------------------------- */
@@ -108,6 +115,7 @@ public class TagSettingsPanel extends JPanel implements TableModelListener {
     public void tableChanged(TableModelEvent e) {
         changesetCommentModel.setComment(getTagEditorValue("comment"));
         changesetSourceModel.setComment(getTagEditorValue("source"));
+        changesetReviewModel.setReviewRequested("yes".equals(getTagEditorValue("review_requested")));
     }
 
     /**
@@ -116,6 +124,7 @@ public class TagSettingsPanel extends JPanel implements TableModelListener {
     private void forceCommentFieldReload() {
         setProperty("comment", changesetCommentModel.getComment());
         setProperty("source", changesetSourceModel.getComment());
+        setProperty("review_requested", changesetReviewModel.isReviewRequested() ? "yes" : null);
     }
 
     /**
@@ -137,6 +146,26 @@ public class TagSettingsPanel extends JPanel implements TableModelListener {
                 String oldValue = Optional.ofNullable(getTagEditorValue(key)).orElse("");
                 if (!oldValue.equals(newValue)) {
                     setProperty(key, newValue);
+                }
+            }
+        }
+    }
+
+    /**
+     * Observes the changeset review model and keeps the tag editor in sync
+     * with the current changeset review request
+     */
+    class ChangesetReviewChangeListener implements ChangeListener {
+
+        private static final String KEY = "review_requested";
+
+        @Override
+        public void stateChanged(ChangeEvent e) {
+            if (e.getSource() instanceof ChangesetReviewModel) {
+                boolean newState = ((ChangesetReviewModel) e.getSource()).isReviewRequested();
+                boolean oldState = "yes".equals(Optional.ofNullable(getTagEditorValue(KEY)).orElse(""));
+                if (oldState != newState) {
+                    setProperty(KEY, newState ? "yes" : null);
                 }
             }
         }

@@ -18,6 +18,7 @@ import java.util.regex.Pattern;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.coor.EastNorth;
+import org.openstreetmap.josm.data.coor.ILatLon;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.projection.datum.Datum;
 import org.openstreetmap.josm.data.projection.datum.GRS80Datum;
@@ -44,6 +45,7 @@ import org.openstreetmap.josm.gui.preferences.projection.ProjectionChoice;
 import org.openstreetmap.josm.gui.preferences.projection.ProjectionPreference;
 import org.openstreetmap.josm.io.CachedFile;
 import org.openstreetmap.josm.tools.JosmRuntimeException;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -180,7 +182,7 @@ public final class Projections {
                     nadgrids.put(nadgridsId, new NTV2GridShiftFileWrapper(nadgridsId));
                 }
             } catch (ProjectionConfigurationException e) {
-                Main.trace(e);
+                Logging.trace(e);
             }
         }
     }
@@ -190,10 +192,21 @@ public final class Projections {
      *
      * @param ll the geographical point to convert (in WGS84 lat/lon)
      * @return the corresponding east/north coordinates
+     * @since 12725
      */
-    public static EastNorth project(LatLon ll) {
+    public static EastNorth project(ILatLon ll) {
         if (ll == null) return null;
         return Main.getProjection().latlon2eastNorth(ll);
+    }
+
+    /**
+     * Convert from lat/lon to easting/northing using the current projection.
+     *
+     * @param ll the geographical point to convert (in WGS84 lat/lon)
+     * @return the corresponding east/north coordinates
+     */
+    public static EastNorth project(LatLon ll) {
+        return project((ILatLon) ll);
     }
 
     /**
@@ -315,7 +328,7 @@ public final class Projections {
                     String definition = m.group(2).trim();
                     result.add(new ProjectionDefinition(code, name, definition));
                 } else {
-                    Main.warn("Failed to parse line from the EPSG projection definition: "+line);
+                    Logging.warn("Failed to parse line from the EPSG projection definition: "+line);
                 }
             }
             lastline = line;
@@ -338,7 +351,7 @@ public final class Projections {
             try {
                 proj = pc.getProjection();
             } catch (JosmRuntimeException | IllegalArgumentException | IllegalStateException e) {
-                Main.warn(e, "Unable to get projection "+code+" with "+pc+':');
+                Logging.log(Logging.LEVEL_WARN, "Unable to get projection "+code+" with "+pc+':', e);
             }
         }
         if (proj == null) {

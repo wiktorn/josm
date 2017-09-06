@@ -4,6 +4,7 @@ package org.openstreetmap.josm.gui.layer;
 import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.Graphics2D;
+import java.io.File;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
@@ -13,17 +14,19 @@ import javax.swing.Icon;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreeNode;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.RenameLayerAction;
+import org.openstreetmap.josm.actions.SaveActionBase;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
 import org.openstreetmap.josm.data.validation.OsmValidator;
 import org.openstreetmap.josm.data.validation.PaintVisitor;
 import org.openstreetmap.josm.data.validation.Severity;
 import org.openstreetmap.josm.data.validation.TestError;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.dialogs.LayerListDialog;
 import org.openstreetmap.josm.gui.dialogs.LayerListPopup;
+import org.openstreetmap.josm.gui.io.importexport.ValidatorErrorExporter;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerAddEvent;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerChangeListener;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerOrderChangeEvent;
@@ -47,8 +50,8 @@ public class ValidatorLayer extends Layer implements LayerChangeListener {
      */
     public ValidatorLayer() {
         super(tr("Validation errors"));
-        Main.getLayerManager().addLayerChangeListener(this);
-        Main.map.validatorDialog.tree.addInvalidationListener(invalidator);
+        MainApplication.getLayerManager().addLayerChangeListener(this);
+        MainApplication.getMap().validatorDialog.tree.addInvalidationListener(invalidator);
     }
 
     /**
@@ -67,7 +70,7 @@ public class ValidatorLayer extends Layer implements LayerChangeListener {
     @SuppressWarnings("unchecked")
     @Override
     public void paint(final Graphics2D g, final MapView mv, Bounds bounds) {
-        DefaultMutableTreeNode root = Main.map.validatorDialog.tree.getRoot();
+        DefaultMutableTreeNode root = MainApplication.getMap().validatorDialog.tree.getRoot();
         if (root == null || root.getChildCount() == 0)
             return;
 
@@ -93,7 +96,7 @@ public class ValidatorLayer extends Layer implements LayerChangeListener {
     @Override
     public String getToolTipText() {
         MultiMap<Severity, TestError> errorTree = new MultiMap<>();
-        List<TestError> errors = Main.map.validatorDialog.tree.getErrors();
+        List<TestError> errors = MainApplication.getMap().validatorDialog.tree.getErrors();
         for (TestError e : errors) {
             errorTree.put(e.getSeverity(), e);
         }
@@ -139,7 +142,14 @@ public class ValidatorLayer extends Layer implements LayerChangeListener {
                 SeparatorLayerAction.INSTANCE,
                 new RenameLayerAction(null, this),
                 SeparatorLayerAction.INSTANCE,
-                new LayerListPopup.InfoAction(this) };
+                new LayerListPopup.InfoAction(this),
+                new LayerSaveAsAction(this)
+                };
+    }
+
+    @Override
+    public File createAndOpenSaveFileChooser() {
+        return SaveActionBase.createAndOpenSaveFileChooser(tr("Save Validation errors file"), ValidatorErrorExporter.FILE_FILTER);
     }
 
     @Override
@@ -172,8 +182,8 @@ public class ValidatorLayer extends Layer implements LayerChangeListener {
 
     @Override
     public synchronized void destroy() {
-        Main.map.validatorDialog.tree.removeInvalidationListener(invalidator);
-        Main.getLayerManager().removeLayerChangeListener(this);
+        MainApplication.getMap().validatorDialog.tree.removeInvalidationListener(invalidator);
+        MainApplication.getLayerManager().removeLayerChangeListener(this);
         super.destroy();
     }
 }

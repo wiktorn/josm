@@ -13,12 +13,18 @@ import org.openstreetmap.josm.data.APIDataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.gui.ExceptionDialogUtil;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.progress.NullProgressMonitor;
 import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.io.OsmApi;
 import org.openstreetmap.josm.io.OsmApiInitializationException;
 import org.openstreetmap.josm.io.OsmTransferCanceledException;
+import org.openstreetmap.josm.tools.Logging;
 
+/**
+ * Checks certain basic conditions, that are listed in the OSM API
+ * {@link org.openstreetmap.josm.io.Capabilities}.
+ */
 public class ApiPreconditionCheckerHook implements UploadHook {
 
     @Override
@@ -41,7 +47,7 @@ public class ApiPreconditionCheckerHook implements UploadHook {
                     return false;
             }
         } catch (OsmTransferCanceledException e) {
-            Main.trace(e);
+            Logging.trace(e);
             return false;
         } catch (OsmApiInitializationException e) {
             ExceptionDialogUtil.explainOsmTransferException(e);
@@ -57,7 +63,7 @@ public class ApiPreconditionCheckerHook implements UploadHook {
                 if (key.length() > 255) {
                     if (osmPrimitive.isDeleted()) {
                         // if OsmPrimitive is going to be deleted we automatically shorten the value
-                        Main.warn(
+                        Logging.warn(
                                 tr("Automatically truncating value of tag ''{0}'' on deleted object {1}",
                                         key,
                                         Long.toString(osmPrimitive.getId())
@@ -73,7 +79,7 @@ public class ApiPreconditionCheckerHook implements UploadHook {
                             tr("Precondition Violation"),
                             JOptionPane.ERROR_MESSAGE
                     );
-                    Main.getLayerManager().getEditDataSet().setSelected(Collections.singleton(osmPrimitive));
+                    MainApplication.getLayerManager().getEditDataSet().setSelected(Collections.singleton(osmPrimitive));
                     return false;
                 }
             }
@@ -90,7 +96,7 @@ public class ApiPreconditionCheckerHook implements UploadHook {
                         tr("API Capabilities Violation"),
                         JOptionPane.ERROR_MESSAGE
                 );
-                Main.getLayerManager().getEditDataSet().setSelected(Collections.singleton(osmPrimitive));
+                MainApplication.getLayerManager().getEditDataSet().setSelected(Collections.singleton(osmPrimitive));
                 return false;
             }
         }

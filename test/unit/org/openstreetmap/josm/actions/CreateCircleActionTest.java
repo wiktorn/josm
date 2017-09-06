@@ -10,13 +10,13 @@ import java.util.Collection;
 
 import org.junit.Rule;
 import org.junit.Test;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.BBox;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.Way;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
 import org.openstreetmap.josm.tools.GeoProperty;
@@ -37,7 +37,7 @@ public final class CreateCircleActionTest {
      */
     @Rule
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    public JOSMTestRules test = new JOSMTestRules().platform().projection().commands();
+    public JOSMTestRules test = new JOSMTestRules().platform().projection().main();
 
     /**
      * Test case: When Create Circle action is performed with a single way selected,
@@ -66,11 +66,11 @@ public final class CreateCircleActionTest {
         CreateCircleAction action = new CreateCircleAction();
         action.setEnabled(true);
         try {
-            Main.getLayerManager().addLayer(layer);
+            MainApplication.getLayerManager().addLayer(layer);
             action.actionPerformed(null);
         } finally {
             // Ensure we clean the place before leaving, even if test fails.
-            Main.getLayerManager().removeLayer(layer);
+            MainApplication.getLayerManager().removeLayer(layer);
         }
 
         // Expected result: Dataset contain one closed way, clockwise
@@ -137,11 +137,11 @@ public final class CreateCircleActionTest {
             CreateCircleAction action = new CreateCircleAction();
             action.setEnabled(true);
             try {
-                Main.getLayerManager().addLayer(layer);
+                MainApplication.getLayerManager().addLayer(layer);
                 action.actionPerformed(null);
             } finally {
                 // Ensure we clean the place before leaving, even if test fails.
-                Main.getLayerManager().removeLayer(layer);
+                MainApplication.getLayerManager().removeLayer(layer);
             }
 
             // Expected result: Dataset contain one closed way, clockwise

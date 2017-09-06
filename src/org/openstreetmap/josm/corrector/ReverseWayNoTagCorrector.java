@@ -10,12 +10,12 @@ import java.util.Map;
 import javax.swing.JOptionPane;
 
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
 import org.openstreetmap.josm.data.osm.Tag;
 import org.openstreetmap.josm.data.osm.TagCollection;
 import org.openstreetmap.josm.data.osm.Tagged;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.gui.ConditionalOptionPaneUtil;
-import org.openstreetmap.josm.gui.DefaultNameFormatter;
 import org.openstreetmap.josm.tools.UserCancelException;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -35,7 +35,7 @@ public final class ReverseWayNoTagCorrector {
     /**
      * Tags that imply a semantic meaning from the way direction and cannot be changed.
      */
-    private static final TagCollection directionalTags = new TagCollection(Arrays.asList(
+    private static final TagCollection DIRECTIONAL_TAGS = new TagCollection(Arrays.asList(
             new Tag("natural", "coastline"),
             new Tag("natural", "cliff"),
             new Tag("barrier", "guard_rail"),
@@ -53,7 +53,7 @@ public final class ReverseWayNoTagCorrector {
         final TagCollection collection = new TagCollection();
         for (Map.Entry<String, String> entry : way.getKeys().entrySet()) {
             final Tag tag = new Tag(entry.getKey(), entry.getValue());
-            final boolean isDirectional = directionalTags.contains(tag) || tag.isDirectionKey();
+            final boolean isDirectional = DIRECTIONAL_TAGS.contains(tag) || tag.isDirectionKey();
             if (isDirectional) {
                 final boolean cannotBeCorrected = ReverseWayTagCorrector.getTagCorrections(tag).isEmpty();
                 if (cannotBeCorrected) {

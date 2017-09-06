@@ -43,6 +43,8 @@ import javax.swing.table.TableModel;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.MergeLayerAction;
 import org.openstreetmap.josm.data.preferences.AbstractProperty;
+import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.SideButton;
 import org.openstreetmap.josm.gui.dialogs.layer.ActivateLayerAction;
@@ -64,7 +66,6 @@ import org.openstreetmap.josm.gui.layer.MainLayerManager;
 import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeEvent;
 import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeListener;
 import org.openstreetmap.josm.gui.layer.NativeScaleLayer;
-import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.DisableShortcutsOnFocusGainedTextField;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
 import org.openstreetmap.josm.gui.widgets.PopupMenuLauncher;
@@ -158,7 +159,7 @@ public class LayerListDialog extends ToggleDialog {
             visibilityToggleShortcuts[i] = Shortcut.registerShortcut("subwindow:layers:toggleLayer" + i1,
                     tr("Toggle visibility of layer: {0}", i1), KeyEvent.VK_0 + (i1 % 10), Shortcut.ALT);
             visibilityToggleActions[i] = new ToggleLayerIndexVisibility(i);
-            Main.registerActionShortcut(visibilityToggleActions[i], visibilityToggleShortcuts[i]);
+            MainApplication.registerActionShortcut(visibilityToggleActions[i], visibilityToggleShortcuts[i]);
         }
     }
 
@@ -213,8 +214,8 @@ public class LayerListDialog extends ToggleDialog {
         layerList.getColumnModel().getColumn(3).setCellEditor(new LayerNameCellEditor(new DisableShortcutsOnFocusGainedTextField()));
         // Disable some default JTable shortcuts to use JOSM ones (see #5678, #10458)
         for (KeyStroke ks : new KeyStroke[] {
-                KeyStroke.getKeyStroke(KeyEvent.VK_C, GuiHelper.getMenuShortcutKeyMaskEx()),
-                KeyStroke.getKeyStroke(KeyEvent.VK_V, GuiHelper.getMenuShortcutKeyMaskEx()),
+                KeyStroke.getKeyStroke(KeyEvent.VK_C, Main.platform.getMenuShortcutKeyMaskEx()),
+                KeyStroke.getKeyStroke(KeyEvent.VK_V, Main.platform.getMenuShortcutKeyMaskEx()),
                 KeyStroke.getKeyStroke(KeyEvent.VK_DOWN, InputEvent.SHIFT_DOWN_MASK),
                 KeyStroke.getKeyStroke(KeyEvent.VK_UP, InputEvent.SHIFT_DOWN_MASK),
                 KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, InputEvent.SHIFT_DOWN_MASK),
@@ -369,7 +370,7 @@ public class LayerListDialog extends ToggleDialog {
     @Override
     public void destroy() {
         for (int i = 0; i < 10; i++) {
-            Main.unregisterActionShortcut(visibilityToggleActions[i], visibilityToggleShortcuts[i]);
+            MainApplication.unregisterActionShortcut(visibilityToggleActions[i], visibilityToggleShortcuts[i]);
         }
         MultikeyActionsHandler.getInstance().removeAction(activateLayerAction);
         MultikeyActionsHandler.getInstance().removeAction(showHideLayerAction);
@@ -506,7 +507,7 @@ public class LayerListDialog extends ToggleDialog {
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
             Layer layer = (Layer) value;
             if (layer instanceof NativeScaleLayer) {
-                boolean active = ((NativeScaleLayer) layer) == Main.map.mapView.getNativeScaleLayer();
+                boolean active = ((NativeScaleLayer) layer) == MainApplication.getMap().mapView.getNativeScaleLayer();
                 cb.setSelected(active);
                 cb.setToolTipText(active
                     ? tr("scale follows native resolution of this layer")
@@ -823,11 +824,12 @@ public class LayerListDialog extends ToggleDialog {
                 return;
             List<Integer> sel = getSelectedRows();
             List<Layer> layers = getLayers();
+            MapView mapView = MainApplication.getMap().mapView;
             for (int row : sel) {
                 Layer l1 = layers.get(row);
                 Layer l2 = layers.get(row-1);
-                Main.map.mapView.moveLayer(l2, row);
-                Main.map.mapView.moveLayer(l1, row-1);
+                mapView.moveLayer(l2, row);
+                mapView.moveLayer(l1, row-1);
             }
             fireTableDataChanged();
             selectionModel.setValueIsAdjusting(true);
@@ -858,11 +860,12 @@ public class LayerListDialog extends ToggleDialog {
             List<Integer> sel = getSelectedRows();
             Collections.reverse(sel);
             List<Layer> layers = getLayers();
+            MapView mapView = MainApplication.getMap().mapView;
             for (int row : sel) {
                 Layer l1 = layers.get(row);
                 Layer l2 = layers.get(row+1);
-                Main.map.mapView.moveLayer(l1, row+1);
-                Main.map.mapView.moveLayer(l2, row);
+                mapView.moveLayer(l1, row+1);
+                mapView.moveLayer(l2, row);
             }
             fireTableDataChanged();
             selectionModel.setValueIsAdjusting(true);
@@ -998,11 +1001,12 @@ public class LayerListDialog extends ToggleDialog {
                     l.setVisible(true);
                     break;
                 case 1:
-                    NativeScaleLayer oldLayer = Main.map.mapView.getNativeScaleLayer();
+                    MapFrame map = MainApplication.getMap();
+                    NativeScaleLayer oldLayer = map.mapView.getNativeScaleLayer();
                     if (oldLayer == l) {
-                        Main.map.mapView.setNativeScaleLayer(null);
+                        map.mapView.setNativeScaleLayer(null);
                     } else if (l instanceof NativeScaleLayer) {
-                        Main.map.mapView.setNativeScaleLayer((NativeScaleLayer) l);
+                        map.mapView.setNativeScaleLayer((NativeScaleLayer) l);
                         if (oldLayer != null) {
                             int idx = getLayers().indexOf(oldLayer);
                             if (idx >= 0) {
@@ -1155,7 +1159,7 @@ public class LayerListDialog extends ToggleDialog {
      * @return the layer at given index, or {@code null} if index out of range
      */
     public static Layer getLayerForIndex(int index) {
-        List<Layer> layers = Main.getLayerManager().getLayers();
+        List<Layer> layers = MainApplication.getLayerManager().getLayers();
 
         if (index < layers.size() && index >= 0)
             return layers.get(index);
@@ -1172,7 +1176,7 @@ public class LayerListDialog extends ToggleDialog {
     public static List<MultikeyInfo> getLayerInfoByClass(Class<?> layerClass) {
         List<MultikeyInfo> result = new ArrayList<>();
 
-        List<Layer> layers = Main.getLayerManager().getLayers();
+        List<Layer> layers = MainApplication.getLayerManager().getLayers();
 
         int index = 0;
         for (Layer l: layers) {
@@ -1194,7 +1198,7 @@ public class LayerListDialog extends ToggleDialog {
         if (l == null)
             return false;
 
-        return Main.getLayerManager().containsLayer(l);
+        return MainApplication.getLayerManager().containsLayer(l);
     }
 
     /**
@@ -1206,7 +1210,7 @@ public class LayerListDialog extends ToggleDialog {
         if (l == null)
             return null;
 
-        int index = Main.getLayerManager().getLayers().indexOf(l);
+        int index = MainApplication.getLayerManager().getLayers().indexOf(l);
         if (index < 0)
             return null;
 

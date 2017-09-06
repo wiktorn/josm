@@ -63,12 +63,14 @@ import javax.swing.text.JTextComponent;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.JosmAction;
 import org.openstreetmap.josm.actions.search.SearchAction;
-import org.openstreetmap.josm.actions.search.SearchCompiler;
 import org.openstreetmap.josm.command.ChangePropertyCommand;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.SequenceCommand;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Tag;
+import org.openstreetmap.josm.data.osm.search.SearchCompiler;
+import org.openstreetmap.josm.data.osm.search.SearchParseError;
+import org.openstreetmap.josm.data.osm.search.SearchSetting;
 import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.data.preferences.CollectionProperty;
 import org.openstreetmap.josm.data.preferences.EnumProperty;
@@ -76,6 +78,7 @@ import org.openstreetmap.josm.data.preferences.IntegerProperty;
 import org.openstreetmap.josm.data.preferences.StringProperty;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.IExtendedDialog;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.datatransfer.ClipboardUtils;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
 import org.openstreetmap.josm.gui.tagging.ac.AutoCompletingComboBox;
@@ -84,12 +87,13 @@ import org.openstreetmap.josm.gui.tagging.ac.AutoCompletionManager;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPreset;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPresets;
 import org.openstreetmap.josm.gui.util.GuiHelper;
+import org.openstreetmap.josm.gui.util.WindowGeometry;
 import org.openstreetmap.josm.gui.widgets.PopupMenuLauncher;
 import org.openstreetmap.josm.io.XmlWriter;
 import org.openstreetmap.josm.tools.GBC;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.Utils;
-import org.openstreetmap.josm.tools.WindowGeometry;
 
 /**
  * Class that helps PropertiesDialog add and edit tag values.
@@ -107,7 +111,7 @@ public class TagEditHelper {
     private String changedKey;
     private String objKey;
 
-    private final Comparator<AutoCompletionListItem> defaultACItemComparator =
+    static final Comparator<AutoCompletionListItem> DEFAULT_AC_ITEM_COMPARATOR =
             (o1, o2) -> String.CASE_INSENSITIVE_ORDER.compare(o1.getValue(), o2.getValue());
 
     /** Default number of recent tags */
@@ -126,7 +130,7 @@ public class TagEditHelper {
     public static final CollectionProperty PROPERTY_RECENT_TAGS = new CollectionProperty("properties.recent-tags",
             Collections.<String>emptyList());
     public static final StringProperty PROPERTY_TAGS_TO_IGNORE = new StringProperty("properties.recent-tags.ignore",
-            new SearchAction.SearchSetting().writeToString());
+            new SearchSetting().writeToString());
 
     /**
      * What to do with recent tags where keys already exist
@@ -159,7 +163,7 @@ public class TagEditHelper {
         "properties.refresh-recently-added-tags", RefreshRecent.class, RefreshRecent.STATUS);
 
     final RecentTagCollection recentTags = new RecentTagCollection(MAX_LRU_TAGS_NUMBER);
-    SearchAction.SearchSetting tagsToIgnore;
+    SearchSetting tagsToIgnore;
 
     /**
      * Copy of recently added tags in sorted from newest to oldest order.
@@ -203,11 +207,10 @@ public class TagEditHelper {
      * @return {@code true} if the key is used by all selected primitives (key not unset for at least one primitive)
      */
     @SuppressWarnings("unchecked")
-    private boolean containsDataKey(String key) {
+    boolean containsDataKey(String key) {
         return IntStream.range(0, tagData.getRowCount())
-                .filter(i -> key.equals(tagData.getValueAt(i, 0)) /* sic! do not use getDataKey*/
-                    && !((Map<String, Integer>) tagData.getValueAt(i, 1)).containsKey("") /* sic! do not use getDataValues*/)
-                .findAny().isPresent();
+                .anyMatch(i -> key.equals(tagData.getValueAt(i, 0)) /* sic! do not use getDataKey*/
+                    && !((Map<String, Integer>) tagData.getValueAt(i, 1)).containsKey("") /* sic! do not use getDataValues*/);
     }
 
     /**
@@ -327,22 +330,22 @@ public class TagEditHelper {
     }
 
     void loadTagsToIgnore() {
-        final SearchAction.SearchSetting searchSetting = Utils.firstNonNull(
-                SearchAction.SearchSetting.readFromString(PROPERTY_TAGS_TO_IGNORE.get()), new SearchAction.SearchSetting());
+        final SearchSetting searchSetting = Utils.firstNonNull(
+                SearchSetting.readFromString(PROPERTY_TAGS_TO_IGNORE.get()), new SearchSetting());
         if (!Objects.equals(tagsToIgnore, searchSetting)) {
             try {
                 tagsToIgnore = searchSetting;
                 recentTags.setTagsToIgnore(tagsToIgnore);
-            } catch (SearchCompiler.ParseError parseError) {
+            } catch (SearchParseError parseError) {
                 warnAboutParseError(parseError);
-                tagsToIgnore = new SearchAction.SearchSetting();
+                tagsToIgnore = new SearchSetting();
                 recentTags.setTagsToIgnore(SearchCompiler.Never.INSTANCE);
             }
         }
     }
 
-    private static void warnAboutParseError(SearchCompiler.ParseError parseError) {
-        Main.warn(parseError);
+    private static void warnAboutParseError(SearchParseError parseError) {
+        Logging.warn(parseError);
         JOptionPane.showMessageDialog(
                 Main.parent,
                 parseError.getMessage(),
@@ -442,9 +445,9 @@ public class TagEditHelper {
             JPanel p = new JPanel(new GridBagLayout());
             mainPanel.add(p, BorderLayout.CENTER);
 
-            AutoCompletionManager autocomplete = Main.getLayerManager().getEditLayer().data.getAutoCompletionManager();
+            AutoCompletionManager autocomplete = AutoCompletionManager.of(MainApplication.getLayerManager().getEditLayer().data);
             List<AutoCompletionListItem> keyList = autocomplete.getKeys();
-            keyList.sort(defaultACItemComparator);
+            keyList.sort(DEFAULT_AC_ITEM_COMPARATOR);
 
             keys = new AutoCompletingComboBox(key);
             keys.setPossibleACItems(keyList);
@@ -505,7 +508,7 @@ public class TagEditHelper {
             if (key.equals(newkey) && tr("<different>").equals(value))
                 return;
             if (key.equals(newkey) || value == null) {
-                Main.main.undoRedo.add(new ChangePropertyCommand(sel, newkey, value));
+                MainApplication.undoRedo.add(new ChangePropertyCommand(sel, newkey, value));
                 AutoCompletionManager.rememberUserInput(newkey, value, true);
             } else {
                 for (OsmPrimitive osm: sel) {
@@ -539,7 +542,7 @@ public class TagEditHelper {
                     commands.add(new ChangePropertyCommand(sel, newkey, value));
                     AutoCompletionManager.rememberUserInput(newkey, value, false);
                 }
-                Main.main.undoRedo.add(new SequenceCommand(
+                MainApplication.undoRedo.add(new SequenceCommand(
                         trn("Change properties of up to {0} object",
                                 "Change properties of up to {0} objects", sel.size(), sel.size()),
                                 commands));
@@ -637,9 +640,7 @@ public class TagEditHelper {
 
                    List<AutoCompletionListItem> valueList = autocomplete.getValues(getAutocompletionKeys(key));
                    valueList.sort(comparator);
-                   if (Main.isTraceEnabled()) {
-                       Main.trace("Focus gained by {0}, e={1}", values, e);
-                   }
+                   Logging.trace("Focus gained by {0}, e={1}", values, e);
                    values.setPossibleACItems(valueList);
                    values.getEditor().selectAll();
                    objKey = key;
@@ -690,13 +691,13 @@ public class TagEditHelper {
                 +"<br><br>"+tr("Please select a key")), GBC.eol().fill(GBC.HORIZONTAL));
 
             cacheRecentTags();
-            AutoCompletionManager autocomplete = Main.getLayerManager().getEditLayer().data.getAutoCompletionManager();
+            AutoCompletionManager autocomplete = AutoCompletionManager.of(MainApplication.getLayerManager().getEditLayer().data);
             List<AutoCompletionListItem> keyList = autocomplete.getKeys();
 
             // remove the object's tag keys from the list
             keyList.removeIf(item -> containsDataKey(item.getValue()));
 
-            keyList.sort(defaultACItemComparator);
+            keyList.sort(DEFAULT_AC_ITEM_COMPARATOR);
             keys.setPossibleACItems(keyList);
             keys.setEditable(true);
 
@@ -715,13 +716,13 @@ public class TagEditHelper {
                         values.setSelectedItem(tag.getValue());
                     });
 
-            focus = addFocusAdapter(autocomplete, defaultACItemComparator);
+            focus = addFocusAdapter(autocomplete, DEFAULT_AC_ITEM_COMPARATOR);
             // fire focus event in advance or otherwise the popup list will be too small at first
             focus.focusGained(null);
 
             // Add tag on Shift-Enter
             mainPanel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(
-                        KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.SHIFT_MASK), "addAndContinue");
+                        KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.SHIFT_DOWN_MASK), "addAndContinue");
                 mainPanel.getActionMap().put("addAndContinue", new AbstractAction() {
                     @Override
                     public void actionPerformed(ActionEvent e) {
@@ -808,12 +809,12 @@ public class TagEditHelper {
 
         @Override
         public void setContentPane(Container contentPane) {
-            final int commandDownMask = GuiHelper.getMenuShortcutKeyMaskEx();
+            final int commandDownMask = Main.platform.getMenuShortcutKeyMaskEx();
             List<String> lines = new ArrayList<>();
             Shortcut.findShortcut(KeyEvent.VK_1, commandDownMask).ifPresent(sc ->
                     lines.add(sc.getKeyText() + ' ' + tr("to apply first suggestion"))
             );
-            lines.add(KeyEvent.getKeyModifiersText(KeyEvent.SHIFT_MASK)+'+'+KeyEvent.getKeyText(KeyEvent.VK_ENTER) + ' '
+            lines.add(Shortcut.getKeyText(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, KeyEvent.SHIFT_DOWN_MASK)) + ' '
                     +tr("to add without closing the dialog"));
             Shortcut.findShortcut(KeyEvent.VK_1, commandDownMask | KeyEvent.SHIFT_DOWN_MASK).ifPresent(sc ->
                     lines.add(sc.getKeyText() + ' ' + tr("to add first suggestion without closing the dialog"))
@@ -838,7 +839,7 @@ public class TagEditHelper {
                         return;
                     }
                 } catch (NumberFormatException ex) {
-                    Main.warn(ex);
+                    Logging.warn(ex);
                 }
                 JOptionPane.showMessageDialog(this, tr("Please enter integer number between 0 and {0}", MAX_LRU_TAGS_NUMBER));
             }
@@ -1009,7 +1010,7 @@ public class TagEditHelper {
                         recentTags.ignoreTag(tag, tagsToIgnore);
                         PROPERTY_TAGS_TO_IGNORE.put(tagsToIgnore.writeToString());
                     }
-                } catch (SearchCompiler.ParseError parseError) {
+                } catch (SearchParseError parseError) {
                     throw new IllegalStateException(parseError);
                 }
             }
@@ -1023,7 +1024,7 @@ public class TagEditHelper {
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                final SearchAction.SearchSetting newTagsToIngore = SearchAction.showSearchDialog(tagsToIgnore);
+                final SearchSetting newTagsToIngore = SearchAction.showSearchDialog(tagsToIgnore);
                 if (newTagsToIngore == null) {
                     return;
                 }
@@ -1031,7 +1032,7 @@ public class TagEditHelper {
                     tagsToIgnore = newTagsToIngore;
                     recentTags.setTagsToIgnore(tagsToIgnore);
                     PROPERTY_TAGS_TO_IGNORE.put(tagsToIgnore.writeToString());
-                } catch (SearchCompiler.ParseError parseError) {
+                } catch (SearchParseError parseError) {
                     warnAboutParseError(parseError);
                 }
             }
@@ -1068,7 +1069,7 @@ public class TagEditHelper {
             valueCount.put(key, new TreeMap<String, Integer>());
             AutoCompletionManager.rememberUserInput(key, value, false);
             commandCount++;
-            Main.main.undoRedo.add(new ChangePropertyCommand(sel, key, value));
+            MainApplication.undoRedo.add(new ChangePropertyCommand(sel, key, value));
             changedKey = key;
             clearEntries();
         }
@@ -1079,7 +1080,7 @@ public class TagEditHelper {
         }
 
         public void undoAllTagsAdding() {
-            Main.main.undoRedo.undo(commandCount);
+            MainApplication.undoRedo.undo(commandCount);
         }
 
         private void refreshRecentTags() {

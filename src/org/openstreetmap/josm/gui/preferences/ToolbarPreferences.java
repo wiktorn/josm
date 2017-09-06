@@ -67,10 +67,12 @@ import org.openstreetmap.josm.actions.ParameterizedAction;
 import org.openstreetmap.josm.actions.ParameterizedActionDecorator;
 import org.openstreetmap.josm.data.imagery.ImageryInfo;
 import org.openstreetmap.josm.data.imagery.ImageryLayerInfo;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPreset;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Shortcut;
 
 /**
@@ -500,7 +502,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
                 // remove the button from toolbar preferences
                 t.remove(res);
                 Main.pref.putCollection("toolbar", t);
-                Main.toolbar.refreshToolbarControl();
+                MainApplication.getToolbar().refreshToolbarControl();
             }
         });
 
@@ -521,7 +523,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
                 p.selectPreferencesTabByName("shortcuts");
                 p.setVisible(true);
                 // refresh toolbar to try using changed shortcuts without restart
-                Main.toolbar.refreshToolbarControl();
+                MainApplication.getToolbar().refreshToolbarControl();
             }
         });
 
@@ -661,7 +663,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
                     movingComponent = "";
                     return true;
                 } catch (IOException | UnsupportedFlavorException e) {
-                    Main.error(e);
+                    Logging.error(e);
                 }
                 return false;
             }
@@ -680,7 +682,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
                             }
                         }
                     } catch (IOException | UnsupportedFlavorException e) {
-                        Main.error(e);
+                        Logging.error(e);
                     }
                     movingComponent = "";
                 }
@@ -985,7 +987,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
                 t = Collections.singletonList(EMPTY_TOOLBAR_MARKER);
             }
             Main.pref.putCollection("toolbar", t);
-            Main.toolbar.refreshToolbarControl();
+            MainApplication.getToolbar().refreshToolbarControl();
             return false;
         }
 
@@ -1021,12 +1023,12 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
                     userObject = action;
                     Object tb = action.getValue("toolbar");
                     if (tb == null) {
-                        Main.info(tr("Toolbar action without name: {0}",
+                        Logging.info(tr("Toolbar action without name: {0}",
                         action.getClass().getName()));
                         continue;
                     } else if (!(tb instanceof String)) {
                         if (!(tb instanceof Boolean) || (Boolean) tb) {
-                            Main.info(tr("Strange toolbar value: {0}",
+                            Logging.info(tr("Strange toolbar value: {0}",
                             action.getClass().getName()));
                         }
                         continue;
@@ -1034,7 +1036,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
                         String toolbar = (String) tb;
                         Action r = actions.get(toolbar);
                         if (r != null && r != action && !toolbar.startsWith(IMAGERY_PREFIX)) {
-                            Main.info(tr("Toolbar action {0} overwritten: {1} gets {2}",
+                            Logging.info(tr("Toolbar action {0} overwritten: {1} gets {2}",
                             toolbar, r.getClass().getName(), action.getClass().getName()));
                         }
                         actions.put(toolbar, action);
@@ -1051,7 +1053,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
 
     private void loadActions() {
         rootActionsNode.removeAllChildren();
-        loadAction(rootActionsNode, Main.main.menu);
+        loadAction(rootActionsNode, MainApplication.getMenu());
         for (Map.Entry<String, Action> a : regactions.entrySet()) {
             if (actions.get(a.getKey()) == null) {
                 rootActionsNode.add(new DefaultMutableTreeNode(a.getValue()));
@@ -1095,7 +1097,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
                 if (a != null) {
                     result.add(a);
                 } else {
-                    Main.info("Could not load tool definition "+s);
+                    Logging.info("Could not load tool definition "+s);
                 }
             }
         }
@@ -1111,12 +1113,12 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
     public Action register(Action action) {
         String toolbar = (String) action.getValue("toolbar");
         if (toolbar == null) {
-            Main.info(tr("Registered toolbar action without name: {0}",
+            Logging.info(tr("Registered toolbar action without name: {0}",
                 action.getClass().getName()));
         } else {
             Action r = regactions.get(toolbar);
             if (r != null) {
-                Main.info(tr("Registered toolbar action {0} overwritten: {1} gets {2}",
+                Logging.info(tr("Registered toolbar action {0} overwritten: {1} gets {2}",
                     toolbar, r.getClass().getName(), action.getClass().getName()));
             }
         }
@@ -1212,7 +1214,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
             }
         }
         Main.pref.putCollection("toolbar", t);
-        Main.toolbar.refreshToolbarControl();
+        MainApplication.getToolbar().refreshToolbarControl();
     }
 
     private JButton addButtonAndShortcut(ActionDefinition action) {
@@ -1242,8 +1244,8 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
             String desc = action.getDisplayName() + ((paramCode == 0) ? "" : action.parameters.toString());
             sc = Shortcut.registerShortcut("toolbar:"+name, tr("Toolbar: {0}", desc),
                 KeyEvent.CHAR_UNDEFINED, Shortcut.NONE);
-            Main.unregisterShortcut(sc);
-            Main.registerActionShortcut(act, sc);
+            MainApplication.unregisterShortcut(sc);
+            MainApplication.registerActionShortcut(act, sc);
 
             // add shortcut info to the tooltip if needed
             if (sc.isAssignedUser()) {

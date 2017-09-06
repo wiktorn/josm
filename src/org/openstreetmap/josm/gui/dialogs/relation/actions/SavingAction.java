@@ -15,11 +15,12 @@ import org.openstreetmap.josm.command.AddCommand;
 import org.openstreetmap.josm.command.ChangeCommand;
 import org.openstreetmap.josm.command.conflict.ConflictAddCommand;
 import org.openstreetmap.josm.data.conflict.Conflict;
+import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
-import org.openstreetmap.josm.gui.DefaultNameFormatter;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane.ButtonSpec;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.dialogs.relation.IRelationEditor;
 import org.openstreetmap.josm.gui.dialogs.relation.MemberTable;
 import org.openstreetmap.josm.gui.dialogs.relation.MemberTableModel;
@@ -71,7 +72,7 @@ abstract class SavingAction extends AbstractRelationEditorAction {
         // tags, don't add an empty relation
         if (newRelation.getMembersCount() == 0 && !newRelation.hasKeys())
             return;
-        Main.main.undoRedo.add(new AddCommand(layer, newRelation));
+        MainApplication.undoRedo.add(new AddCommand(layer.data, newRelation));
 
         // make sure everybody is notified about the changes
         //
@@ -81,7 +82,7 @@ abstract class SavingAction extends AbstractRelationEditorAction {
                     layer, editor.getRelation(), (RelationEditor) editor);
         }
         // Relation list gets update in EDT so selecting my be postponed to following EDT run
-        SwingUtilities.invokeLater(() -> Main.map.relationListDialog.selectRelation(newRelation));
+        SwingUtilities.invokeLater(() -> MainApplication.getMap().relationListDialog.selectRelation(newRelation));
     }
 
     /**
@@ -93,7 +94,7 @@ abstract class SavingAction extends AbstractRelationEditorAction {
         tagEditorModel.applyToPrimitive(editedRelation);
         memberTableModel.applyToRelation(editedRelation);
         Conflict<Relation> conflict = new Conflict<>(editor.getRelation(), editedRelation);
-        Main.main.undoRedo.add(new ConflictAddCommand(layer, conflict));
+        MainApplication.undoRedo.add(new ConflictAddCommand(layer.data, conflict));
     }
 
     /**
@@ -101,11 +102,12 @@ abstract class SavingAction extends AbstractRelationEditorAction {
      * @param tagEditorModel tag editor model
      */
     protected void applyExistingNonConflictingRelation(TagEditorModel tagEditorModel) {
-        Relation editedRelation = new Relation(editor.getRelation());
+        Relation originRelation = editor.getRelation();
+        Relation editedRelation = new Relation(originRelation);
         tagEditorModel.applyToPrimitive(editedRelation);
         memberTableModel.applyToRelation(editedRelation);
-        if (!editedRelation.hasEqualSemanticAttributes(editor.getRelation(), false)) {
-            Main.main.undoRedo.add(new ChangeCommand(editor.getRelation(), editedRelation));
+        if (!editedRelation.hasEqualSemanticAttributes(originRelation, false)) {
+            MainApplication.undoRedo.add(new ChangeCommand(originRelation, editedRelation));
         }
     }
 
@@ -139,7 +141,7 @@ abstract class SavingAction extends AbstractRelationEditorAction {
                         "/Dialog/RelationEditor#RelationChangedOutsideOfEditor"
         );
         if (ret == 0) {
-            Main.map.conflictDialog.unfurlDialog();
+            MainApplication.getMap().conflictDialog.unfurlDialog();
         }
         return ret == 0;
     }

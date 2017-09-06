@@ -10,11 +10,11 @@ import javax.swing.JPanel;
 
 import org.junit.Rule;
 import org.junit.Test;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.User;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
 
@@ -30,7 +30,7 @@ public class InspectPrimitiveDialogTest {
      */
     @Rule
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    public JOSMTestRules test = new JOSMTestRules().commands();
+    public JOSMTestRules test = new JOSMTestRules().main().platform().projection().mapStyles();
 
     /**
      * Unit test of {@link InspectPrimitiveDialog#genericMonospacePanel}.
@@ -46,8 +46,7 @@ public class InspectPrimitiveDialogTest {
     @Test
     public void testBuildDataText() {
         DataSet ds = new DataSet();
-        OsmDataLayer layer = new OsmDataLayer(ds, "", null);
-        assertEquals("", InspectPrimitiveDialog.buildDataText(layer, new ArrayList<>(ds.allPrimitives())));
+        assertEquals("", InspectPrimitiveDialog.buildDataText(ds, new ArrayList<>(ds.allPrimitives())));
         Node n = new Node(LatLon.ZERO);
         n.setOsmId(1, 1);
         ds.addPrimitive(n);
@@ -60,7 +59,7 @@ public class InspectPrimitiveDialogTest {
                 "  In changeset: 0\n" +
                 "  Coordinates: 0.0, 0.0\n" +
                 "  Coordinates (projected): 0.0, -7.081154551613622E-10\n" +
-                "\n", InspectPrimitiveDialog.buildDataText(layer, new ArrayList<>(ds.allPrimitives())));
+                "\n", InspectPrimitiveDialog.buildDataText(ds, new ArrayList<>(ds.allPrimitives())));
     }
 
     /**
@@ -112,7 +111,7 @@ public class InspectPrimitiveDialogTest {
         // CHECKSTYLE.ON: LineLength
 
         try {
-            Main.getLayerManager().addLayer(layer);
+            MainApplication.getLayerManager().addLayer(layer);
             assertEquals("", InspectPrimitiveDialog.buildMapPaintText());
             Node n = new Node(LatLon.ZERO);
             n.setUser(User.getAnonymous());
@@ -127,7 +126,7 @@ public class InspectPrimitiveDialogTest {
             assertEquals(baseText + baseText + "The 2 selected objects have identical style caches.",
                     InspectPrimitiveDialog.buildMapPaintText().replaceAll("@(\\p{XDigit})+", ""));
         } finally {
-            Main.getLayerManager().removeLayer(layer);
+            MainApplication.getLayerManager().removeLayer(layer);
         }
     }
 }

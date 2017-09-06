@@ -8,6 +8,7 @@ import javax.swing.table.AbstractTableModel;
 import org.openstreetmap.josm.data.osm.Changeset;
 import org.openstreetmap.josm.data.osm.User;
 import org.openstreetmap.josm.data.osm.history.HistoryOsmPrimitive;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.date.DateUtils;
 
 /**
@@ -80,15 +81,19 @@ public final class VersionTableModel extends AbstractTableModel {
     public void setValueAt(Object aValue, int row, int column) {
         if (!((Boolean) aValue))
             return;
-        switch (column) {
-        case 1:
-            model.setReferencePointInTime(row);
-            break;
-        case 2:
-            model.setCurrentPointInTime(row);
-            break;
-        default:
-            return;
+        try {
+            switch (column) {
+            case 1:
+                model.setReferencePointInTime(row);
+                break;
+            case 2:
+                model.setCurrentPointInTime(row);
+                break;
+            default:
+                return;
+            }
+        } catch (IllegalArgumentException e) {
+            Logging.error(e);
         }
         fireTableDataChanged();
     }

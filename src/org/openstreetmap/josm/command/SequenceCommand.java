@@ -10,7 +10,9 @@ import java.util.Objects;
 
 import javax.swing.Icon;
 
+import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
+import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -31,15 +33,28 @@ public class SequenceCommand extends Command {
 
     /**
      * Create the command by specifying the list of commands to execute.
+     * @param ds The target data set. Must not be {@code null}
      * @param name The description text
      * @param sequenz The sequence that should be executed
+     * @param continueOnError Determines if the sequence execution should continue after one of its commands fails
+     * @since 12726
+     */
+    public SequenceCommand(DataSet ds, String name, Collection<Command> sequenz, boolean continueOnError) {
+        super(ds);
+        this.name = name;
+        this.sequence = sequenz.toArray(new Command[sequenz.size()]);
+        this.continueOnError = continueOnError;
+    }
+
+    /**
+     * Create the command by specifying the list of commands to execute.
+     * @param name The description text
+     * @param sequenz The sequence that should be executed. Must not be null or empty
      * @param continueOnError Determines if the sequence execution should continue after one of its commands fails
      * @since 11874
      */
     public SequenceCommand(String name, Collection<Command> sequenz, boolean continueOnError) {
-        this.name = name;
-        this.sequence = sequenz.toArray(new Command[sequenz.size()]);
-        this.continueOnError = continueOnError;
+        this(sequenz.iterator().next().getAffectedDataSet(), name, sequenz, continueOnError);
     }
 
     /**
@@ -135,7 +150,13 @@ public class SequenceCommand extends Command {
         this.sequenceComplete = sequenceComplete;
     }
 
+    /**
+     * Invalidate all layers that were affected by this command.
+     * @see Layer#invalidate()
+     * @deprecated to be removed end of 2017.
+     */
     @Override
+    @Deprecated
     public void invalidateAffectedLayers() {
         super.invalidateAffectedLayers();
         for (Command c : sequence) {

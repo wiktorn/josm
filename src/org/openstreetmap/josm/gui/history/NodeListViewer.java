@@ -20,7 +20,6 @@ import javax.swing.ListSelectionModel;
 import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.AutoScaleAction;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.OsmPrimitiveType;
@@ -28,6 +27,7 @@ import org.openstreetmap.josm.data.osm.PrimitiveId;
 import org.openstreetmap.josm.data.osm.SimplePrimitiveId;
 import org.openstreetmap.josm.data.osm.history.History;
 import org.openstreetmap.josm.data.osm.history.HistoryDataSet;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.util.AdjustmentSynchronizer;
 import org.openstreetmap.josm.gui.util.GuiHelper;
@@ -248,7 +248,7 @@ public class NodeListViewer extends JPanel {
                 return;
             OsmPrimitive p = getPrimitiveToZoom();
             if (p != null) {
-                OsmDataLayer editLayer = Main.getLayerManager().getEditLayer();
+                OsmDataLayer editLayer = MainApplication.getLayerManager().getEditLayer();
                 if (editLayer != null) {
                     editLayer.data.setSelected(p.getPrimitiveId());
                     AutoScaleAction.autoScale("selection");
@@ -264,14 +264,14 @@ public class NodeListViewer extends JPanel {
         protected OsmPrimitive getPrimitiveToZoom() {
             if (primitiveId == null)
                 return null;
-            OsmDataLayer editLayer = Main.getLayerManager().getEditLayer();
+            OsmDataLayer editLayer = MainApplication.getLayerManager().getEditLayer();
             if (editLayer == null)
                 return null;
             return editLayer.data.getPrimitiveById(primitiveId);
         }
 
         public void updateEnabledState() {
-            setEnabled(Main.getLayerManager().getEditLayer() != null && getPrimitiveToZoom() != null);
+            setEnabled(MainApplication.getLayerManager().getEditLayer() != null && getPrimitiveToZoom() != null);
         }
     }
 
@@ -301,9 +301,9 @@ public class NodeListViewer extends JPanel {
 
         public void run() {
             if (HistoryDataSet.getInstance().getHistory(primitiveId) == null) {
-                Main.worker.submit(new HistoryLoadTask().add(primitiveId));
+                MainApplication.worker.submit(new HistoryLoadTask().add(primitiveId));
             }
-            Main.worker.submit(() -> {
+            MainApplication.worker.submit(() -> {
                 final History h = HistoryDataSet.getInstance().getHistory(primitiveId);
                 if (h == null)
                     return;

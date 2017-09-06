@@ -25,6 +25,7 @@ import org.openstreetmap.josm.data.osm.OsmPrimitiveType;
 import org.openstreetmap.josm.gui.ExceptionDialogUtil;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane.ButtonSpec;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.PleaseWaitRunnable;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
@@ -33,6 +34,7 @@ import org.openstreetmap.josm.io.OsmApiInitializationException;
 import org.openstreetmap.josm.io.OsmApiPrimitiveGoneException;
 import org.openstreetmap.josm.tools.ExceptionUtil;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Pair;
 import org.openstreetmap.josm.tools.date.DateUtils;
 
@@ -83,14 +85,14 @@ public abstract class AbstractUploadTask extends PleaseWaitRunnable {
     protected void synchronizePrimitive(final OsmPrimitiveType type, final long id) {
         // FIXME: should now about the layer this task is running for. might
         // be different from the current edit layer
-        OsmDataLayer layer = Main.getLayerManager().getEditLayer();
+        OsmDataLayer layer = MainApplication.getLayerManager().getEditLayer();
         if (layer == null)
             throw new IllegalStateException(tr("Failed to update primitive with id {0} because current edit layer is null", id));
         OsmPrimitive p = layer.data.getPrimitiveById(id, type);
         if (p == null)
             throw new IllegalStateException(
                     tr("Failed to update primitive with id {0} because current edit layer does not include such a primitive", id));
-        Main.worker.execute(new UpdatePrimitivesTask(layer, Collections.singleton(p)));
+        MainApplication.worker.execute(new UpdatePrimitivesTask(layer, Collections.singleton(p)));
     }
 
     /**
@@ -272,7 +274,7 @@ public abstract class AbstractUploadTask extends PleaseWaitRunnable {
                 "/Action/Upload#NodeStillInUseInWay"
         );
         if (ret == 0) {
-            DownloadReferrersAction.downloadReferrers(Main.getLayerManager().getEditLayer(), Arrays.asList(conflict.a));
+            DownloadReferrersAction.downloadReferrers(MainApplication.getLayerManager().getEditLayer(), Arrays.asList(conflict.a));
         }
     }
 
@@ -297,7 +299,7 @@ public abstract class AbstractUploadTask extends PleaseWaitRunnable {
                 return;
             }
         }
-        Main.warn(tr("Error header \"{0}\" did not match with an expected pattern", errorHeader));
+        Logging.warn(tr("Error header \"{0}\" did not match with an expected pattern", errorHeader));
         handleUploadConflictForUnknownConflict();
     }
 
@@ -312,7 +314,7 @@ public abstract class AbstractUploadTask extends PleaseWaitRunnable {
         if (conflict != null) {
             handleUploadPreconditionFailedConflict(e, conflict);
         } else {
-            Main.warn(tr("Error header \"{0}\" did not match with an expected pattern", e.getErrorHeader()));
+            Logging.warn(tr("Error header \"{0}\" did not match with an expected pattern", e.getErrorHeader()));
             ExceptionDialogUtil.explainPreconditionFailed(e);
         }
     }

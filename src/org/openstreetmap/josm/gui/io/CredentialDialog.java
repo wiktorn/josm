@@ -32,13 +32,14 @@ import org.openstreetmap.josm.gui.SideButton;
 import org.openstreetmap.josm.gui.help.ContextSensitiveHelpAction;
 import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.preferences.server.ProxyPreferencesPanel;
+import org.openstreetmap.josm.gui.util.WindowGeometry;
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel;
 import org.openstreetmap.josm.gui.widgets.JosmPasswordField;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
 import org.openstreetmap.josm.io.OsmApi;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.InputMapUtils;
-import org.openstreetmap.josm.tools.WindowGeometry;
+import org.openstreetmap.josm.tools.Logging;
 
 /**
  * Dialog box to request username and password from the user.
@@ -112,7 +113,7 @@ public class CredentialDialog extends JDialog {
         try {
             setAlwaysOnTop(true);
         } catch (SecurityException e) {
-            Main.warn(e, tr("Failed to put Credential Dialog always on top. Caught security exception."));
+            Logging.log(Logging.LEVEL_WARN, tr("Failed to put Credential Dialog always on top. Caught security exception."), e);
         }
         build();
     }

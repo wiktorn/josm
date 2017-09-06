@@ -25,7 +25,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 import org.openstreetmap.josm.JOSMFixture;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.PerformanceTestUtils;
 import org.openstreetmap.josm.TestUtils;
 import org.openstreetmap.josm.data.Bounds;
@@ -34,16 +33,19 @@ import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.visitor.paint.RenderBenchmarkCollector.CapturingBenchmark;
 import org.openstreetmap.josm.data.osm.visitor.paint.StyledMapRenderer;
 import org.openstreetmap.josm.data.osm.visitor.paint.StyledMapRenderer.StyleRecord;
+import org.openstreetmap.josm.data.preferences.sources.SourceEntry;
 import org.openstreetmap.josm.data.projection.Projections;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.NavigatableComponent;
 import org.openstreetmap.josm.gui.mappaint.StyleSetting.BooleanStyleSetting;
+import org.openstreetmap.josm.gui.mappaint.loader.MapPaintStyleLoader;
 import org.openstreetmap.josm.gui.mappaint.mapcss.MapCSSStyleSource;
 import org.openstreetmap.josm.gui.mappaint.mapcss.Selector;
 import org.openstreetmap.josm.gui.mappaint.styleelement.StyleElement;
-import org.openstreetmap.josm.gui.preferences.SourceEntry;
 import org.openstreetmap.josm.gui.progress.NullProgressMonitor;
 import org.openstreetmap.josm.io.Compression;
 import org.openstreetmap.josm.io.OsmReader;
+import org.openstreetmap.josm.tools.Logging;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
@@ -93,7 +95,7 @@ public class MapRendererPerformanceTest {
         g.setClip(0, 0, IMG_WIDTH, IMG_WIDTH);
         g.setColor(Color.BLACK);
         g.fillRect(0, 0, IMG_WIDTH, IMG_WIDTH);
-        nc = Main.map.mapView;
+        nc = MainApplication.getMap().mapView;
         nc.setBounds(0, 0, IMG_WIDTH, IMG_HEIGHT);
 
         MapPaintStyles.readFromPreferences();
@@ -140,7 +142,7 @@ public class MapRendererPerformanceTest {
         }
         Assert.assertNotNull(hideIconsSetting);
         hideIconsSetting.setValue(false);
-        MapPaintStyles.reloadStyles(defaultStyleIdx);
+        MapPaintStyleLoader.reloadStyles(defaultStyleIdx);
 
         try (
             InputStream fisC = Compression.getUncompressedFileInputStream(new File("data_nodist/neubrandenburg.osm.bz2"));
@@ -155,7 +157,7 @@ public class MapRendererPerformanceTest {
         if (hideIconsSetting != null) {
             hideIconsSetting.setValue(true);
         }
-        MapPaintStyles.reloadStyles(defaultStyleIdx);
+        MapPaintStyleLoader.reloadStyles(defaultStyleIdx);
     }
 
     private static class PerformanceTester {
@@ -208,7 +210,7 @@ public class MapRendererPerformanceTest {
                 try {
                     Thread.sleep(300);
                 } catch (InterruptedException ex) {
-                    Main.warn(ex);
+                    Logging.warn(ex);
                 }
                 BenchmarkData data = new BenchmarkData();
                 renderer.setBenchmarkFactory(() -> data);
@@ -288,7 +290,7 @@ public class MapRendererPerformanceTest {
             test.label = "all";
             setFilterStyleActive(false);
         }
-        MapPaintStyles.reloadStyles(filterStyleIdx);
+        MapPaintStyleLoader.reloadStyles(filterStyleIdx);
         test.run();
     }
 
@@ -304,6 +306,15 @@ public class MapRendererPerformanceTest {
         for (Feature f : Feature.values()) {
             testDrawFeature(f);
         }
+    }
+
+    /**
+     * Resets MapPaintStyles to a single source.
+     * @param source new map paint style source
+     */
+    public static void resetStylesToSingle(StyleSource source) {
+        MapPaintStyles.getStyles().clear();
+        MapPaintStyles.getStyles().add(source);
     }
 
     private static void setFilterStyleActive(boolean active) {

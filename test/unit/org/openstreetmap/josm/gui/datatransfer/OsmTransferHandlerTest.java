@@ -27,7 +27,7 @@ public class OsmTransferHandlerTest {
      */
     @Rule
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    public JOSMTestRules test = new JOSMTestRules().preferences().projection().commands();
+    public JOSMTestRules test = new JOSMTestRules().preferences().projection().main().platform();
 
     private final OsmTransferHandler transferHandler = new OsmTransferHandler();
 
@@ -63,6 +63,7 @@ public class OsmTransferHandlerTest {
     @Test
     public void testPasteTags() {
         Node n = new Node(LatLon.ZERO);
+        new DataSet(n);
 
         ClipboardUtils.copyString("test=ok");
         transferHandler.pasteTags(Collections.singleton(n));

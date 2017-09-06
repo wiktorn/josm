@@ -11,11 +11,12 @@ import javax.swing.Icon;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.conflict.Conflict;
+import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 
 /**
  * Represents the resolution of conflicts in the member list of two {@link Relation}s.
@@ -34,6 +35,7 @@ public class RelationMemberConflictResolverCommand extends ConflictResolveComman
      */
     @SuppressWarnings("unchecked")
     public RelationMemberConflictResolverCommand(Conflict<? extends OsmPrimitive> conflict, List<RelationMember> mergedMembers) {
+        super(conflict.getMy().getDataSet());
         this.conflict = (Conflict<Relation>) conflict;
         this.mergedMembers = mergedMembers;
     }
@@ -69,17 +71,16 @@ public class RelationMemberConflictResolverCommand extends ConflictResolveComman
 
     @Override
     public void undoCommand() {
-        OsmDataLayer layer = getLayer();
-        if (!Main.getLayerManager().containsLayer(layer)) {
-            Main.warn(tr("Cannot undo command ''{0}'' because layer ''{1}'' is not present any more",
+        DataSet editDs = getAffectedDataSet();
+        if (!Main.main.containsDataSet(editDs)) {
+            Logging.warn(tr("Cannot undo command ''{0}'' because layer ''{1}'' is not present any more",
                     this.toString(),
-                    layer.toString()
+                    editDs.getName()
             ));
             return;
         }
 
-        Main.getLayerManager().setActiveLayer(layer);
-        OsmDataLayer editLayer = Main.getLayerManager().getEditLayer();
+        Main.main.setEditDataSet(editDs);
 
         // restore the former state
         //
@@ -87,8 +88,8 @@ public class RelationMemberConflictResolverCommand extends ConflictResolveComman
 
         // restore a conflict if necessary
         //
-        if (!editLayer.getConflicts().hasConflictForMy(conflict.getMy())) {
-            editLayer.getConflicts().add(conflict);
+        if (!editDs.getConflicts().hasConflictForMy(conflict.getMy())) {
+            editDs.getConflicts().add(conflict);
         }
     }
 

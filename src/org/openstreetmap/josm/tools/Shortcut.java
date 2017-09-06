@@ -22,7 +22,6 @@ import javax.swing.KeyStroke;
 import javax.swing.text.JTextComponent;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.gui.util.GuiHelper;
 
 /**
  * Global shortcut class.
@@ -205,7 +204,7 @@ public final class Shortcut {
 
     public boolean isEvent(KeyEvent e) {
         KeyStroke ks = getKeyStroke();
-        return ks != null && ks.equals(KeyStroke.getKeyStroke(e.getKeyCode(), e.getModifiers()));
+        return ks != null && ks.equals(KeyStroke.getKeyStroke(e.getKeyCode(), e.getModifiersEx()));
     }
 
     /**
@@ -253,9 +252,18 @@ public final class Shortcut {
      * @return a human readable text for the shortcut
      */
     public String getKeyText() {
-        KeyStroke keyStroke = getKeyStroke();
+        return getKeyText(getKeyStroke());
+    }
+
+    /**
+     * Returns a human readable text for the key stroke.
+     * @param keyStroke key stroke to convert to human readable text
+     * @return a human readable text for the key stroke
+     * @since 12520
+     */
+    public static String getKeyText(KeyStroke keyStroke) {
         if (keyStroke == null) return "";
-        String modifText = KeyEvent.getKeyModifiersText(keyStroke.getModifiers());
+        String modifText = KeyEvent.getModifiersExText(keyStroke.getModifiers());
         if ("".equals(modifText)) return KeyEvent.getKeyText(keyStroke.getKeyCode());
         return modifText + '+' + KeyEvent.getKeyText(keyStroke.getKeyCode());
     }
@@ -276,9 +284,9 @@ public final class Shortcut {
         @Override
         public boolean add(Shortcut shortcut) {
             // expensive consistency check only in debug mode
-            if (Main.isDebugEnabled()
+            if (Logging.isDebugEnabled()
                     && stream().map(Shortcut::getShortText).anyMatch(shortcut.getShortText()::equals)) {
-                Main.warn(new AssertionError(shortcut.getShortText() + " already added"));
+                Logging.warn(new AssertionError(shortcut.getShortText() + " already added"));
             }
             return super.add(shortcut);
         }
@@ -360,7 +368,7 @@ public final class Shortcut {
     private static void doInit() {
         if (initdone) return;
         initdone = true;
-        int commandDownMask = GuiHelper.getMenuShortcutKeyMaskEx();
+        int commandDownMask = Main.platform.getMenuShortcutKeyMaskEx();
         groups.put(NONE, -1);
         groups.put(MNEMONIC, KeyEvent.ALT_DOWN_MASK);
         groups.put(DIRECT, 0);
@@ -420,7 +428,7 @@ public final class Shortcut {
             return existing.get();
         } else if (existing.isPresent()) {
             // this always is a logic error in the hook
-            Main.error("CONFLICT WITH SYSTEM KEY " + shortText + ": " + existing.get());
+            Logging.error("CONFLICT WITH SYSTEM KEY " + shortText + ": " + existing.get());
             return null;
         }
         final Shortcut shortcut = new Shortcut(shortText, longText, key, RESERVED, key, modifier, true, false);
@@ -465,7 +473,7 @@ public final class Shortcut {
                 // Try to reassign Meta to Ctrl
                 int newmodifier = findNewOsxModifier(requestedGroup);
                 if (!findShortcut(requestedKey, newmodifier).isPresent()) {
-                    Main.info("Reassigning OSX shortcut '" + shortText + "' from Meta to Ctrl because of conflict with " + conflict);
+                    Logging.info("Reassigning OSX shortcut '" + shortText + "' from Meta to Ctrl because of conflict with " + conflict);
                     return reassignShortcut(shortText, longText, requestedKey, conflict, requestedGroup, requestedKey, newmodifier);
                 }
             }
@@ -473,7 +481,7 @@ public final class Shortcut {
                 for (int k : keys) {
                     int newmodifier = getGroupModifier(m);
                     if (!findShortcut(k, newmodifier).isPresent()) {
-                        Main.info("Reassigning shortcut '" + shortText + "' from " + modifier + " to " + newmodifier +
+                        Logging.info("Reassigning shortcut '" + shortText + "' from " + modifier + " to " + newmodifier +
                                 " because of conflict with " + conflict);
                         return reassignShortcut(shortText, longText, requestedKey, conflict, m, k, newmodifier);
                     }
@@ -502,7 +510,7 @@ public final class Shortcut {
     private static Shortcut reassignShortcut(String shortText, String longText, int requestedKey, Shortcut conflict,
             int m, int k, int newmodifier) {
         Shortcut newsc = new Shortcut(shortText, longText, requestedKey, m, k, newmodifier, false, false);
-        Main.info(tr("Silent shortcut conflict: ''{0}'' moved by ''{1}'' to ''{2}''.",
+        Logging.info(tr("Silent shortcut conflict: ''{0}'' moved by ''{1}'' to ''{2}''.",
             shortText, conflict.getShortText(), newsc.getKeyText()));
         newsc.saveDefault();
         shortcuts.add(newsc);

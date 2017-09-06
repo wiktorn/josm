@@ -16,12 +16,13 @@ import javax.swing.JList;
 
 import org.junit.Rule;
 import org.junit.Test;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
+import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.OsmPrimitivRenderer;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
@@ -38,7 +39,7 @@ public class DrawActionTest {
      */
     @Rule
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    public JOSMTestRules test = new JOSMTestRules().commands();
+    public JOSMTestRules test = new JOSMTestRules().platform().main().projection();
 
     /**
      * Non regression test case for bug #12011.
@@ -52,10 +53,11 @@ public class DrawActionTest {
     public void testTicket12011() throws IllegalArgumentException, IllegalAccessException, NoSuchFieldException, SecurityException {
         DataSet dataSet = new DataSet();
         OsmDataLayer layer = new OsmDataLayer(dataSet, OsmDataLayer.createNewName(), null);
-        Main.getLayerManager().addLayer(layer);
+        MainApplication.getLayerManager().addLayer(layer);
 
         // fix map view position
-        Main.map.mapView.zoomTo(new EastNorth(0, 0), 1);
+        MapFrame map = MainApplication.getMap();
+        map.mapView.zoomTo(new EastNorth(0, 0), 1);
 
         Node n1 = new Node(new EastNorth(0, 0));
         Node n2 = new Node(new EastNorth(100, 0));
@@ -68,15 +70,15 @@ public class DrawActionTest {
         dataSet.addPrimitive(w);
 
         try {
-            assertTrue(Main.map.selectDrawTool(false));
+            assertTrue(map.selectDrawTool(false));
 
-            Main.map.mapModeDraw.mouseReleased(new MouseEvent(
-                    Main.map,
+            map.mapModeDraw.mouseReleased(new MouseEvent(
+                    map,
                     MouseEvent.MOUSE_RELEASED,
                     2000,
-                    InputEvent.BUTTON1_MASK,
+                    InputEvent.BUTTON1_DOWN_MASK,
                     50, 0,
-                    2, false));
+                    2, false, MouseEvent.BUTTON1));
 
             JList<OsmPrimitive> lstPrimitives = new JList<>();
             OsmPrimitivRenderer renderer = new OsmPrimitivRenderer();
@@ -89,7 +91,7 @@ public class DrawActionTest {
 
             assertNotNull(renderer.getListCellRendererComponent(lstPrimitives, n3, 0, false, false));
 
-            Main.main.undoRedo.undo();
+            MainApplication.undoRedo.undo();
 
             assertEquals(2, w.getNodesCount());
             assertTrue(dataSet.getSelectedNodes().isEmpty());
@@ -97,7 +99,7 @@ public class DrawActionTest {
             assertNotNull(renderer.getListCellRendererComponent(lstPrimitives, n3, 0, false, false));
         } finally {
             // Ensure we clean the place before leaving, even if test fails.
-            Main.getLayerManager().removeLayer(layer);
+            MainApplication.getLayerManager().removeLayer(layer);
         }
     }
 

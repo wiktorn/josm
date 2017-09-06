@@ -5,16 +5,17 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.File;
 
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.openstreetmap.josm.JOSMFixture;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.TestUtils;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.io.remotecontrol.handler.RequestHandler.RequestHandlerBadRequestException;
+import org.openstreetmap.josm.testutils.JOSMTestRules;
 import org.openstreetmap.josm.tools.Utils;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Unit tests of {@link ImportHandler} class.
@@ -30,10 +31,9 @@ public class ImportHandlerTest {
     /**
      * Setup test.
      */
-    @BeforeClass
-    public static void setUpBeforeClass() {
-        JOSMFixture.createUnitTestFixture().init(true);
-    }
+    @Rule
+    @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
+    public JOSMTestRules test = new JOSMTestRules().main();
 
     private static ImportHandler newHandler(String url) throws RequestHandlerBadRequestException {
         ImportHandler req = new ImportHandler();
@@ -95,8 +95,8 @@ public class ImportHandlerTest {
         try {
             newHandler("https://localhost?url=" + Utils.encodeUrl(url)).handle();
         } finally {
-            for (OsmDataLayer layer : Main.getLayerManager().getLayersOfType(OsmDataLayer.class)) {
-                Main.getLayerManager().removeLayer(layer);
+            for (OsmDataLayer layer : MainApplication.getLayerManager().getLayersOfType(OsmDataLayer.class)) {
+                MainApplication.getLayerManager().removeLayer(layer);
             }
         }
     }

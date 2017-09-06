@@ -25,13 +25,14 @@ import javax.swing.UIManager;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.downloadtasks.ChangesetQueryTask;
 import org.openstreetmap.josm.data.Bounds;
+import org.openstreetmap.josm.data.UserIdentityManager;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.Changeset;
 import org.openstreetmap.josm.data.osm.UserInfo;
 import org.openstreetmap.josm.data.preferences.IntegerProperty;
 import org.openstreetmap.josm.data.projection.Projection;
 import org.openstreetmap.josm.data.projection.Projections;
-import org.openstreetmap.josm.gui.JosmUserIdentityManager;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapViewState;
 import org.openstreetmap.josm.gui.dialogs.changeset.ChangesetCacheManager;
 import org.openstreetmap.josm.gui.mappaint.mapcss.Selector;
@@ -39,6 +40,7 @@ import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.io.ChangesetQuery;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.ImageProvider.ImageSizes;
+import org.openstreetmap.josm.tools.Logging;
 
 /**
  * List class that read and save its content from the bookmark file.
@@ -190,7 +192,7 @@ public class BookmarkList extends JList<BookmarkList.Bookmark> {
         public HomeLocationBookmark() {
             setName(tr("Home location"));
             setIcon(ImageProvider.get("help", "home", ImageSizes.SMALLICON));
-            UserInfo info = JosmUserIdentityManager.getInstance().getUserInfo();
+            UserInfo info = UserIdentityManager.getInstance().getUserInfo();
             if (info == null) {
                 throw new IllegalStateException("User not identified");
             }
@@ -202,7 +204,7 @@ public class BookmarkList extends JList<BookmarkList.Bookmark> {
             if (zoom <= 3) {
                 // 3 is the default zoom level in OSM database, but the real zoom level was not correct
                 // for a long time, see https://github.com/openstreetmap/openstreetmap-website/issues/1592
-                zoom = 12;
+                zoom = 15;
             }
             Projection mercator = Projections.getProjectionByCode("EPSG:3857");
             setArea(MapViewState.createDefaultState(430, 400) // Size of map on osm.org user profile settings
@@ -221,7 +223,7 @@ public class BookmarkList extends JList<BookmarkList.Bookmark> {
     public static class ChangesetBookmark extends Bookmark {
         /**
          * Constructs a new {@code ChangesetBookmark}.
-         * @param cs changeset
+         * @param cs changeset from which the boundaries are read. Its id, name and comment are used to name the bookmark
          */
         public ChangesetBookmark(Changeset cs) {
             setName(String.format("%d - %tF - %s", cs.getId(), cs.getCreatedAt(), cs.getComment()));
@@ -248,14 +250,14 @@ public class BookmarkList extends JList<BookmarkList.Bookmark> {
     public final void load() {
         final DefaultListModel<Bookmark> model = (DefaultListModel<Bookmark>) getModel();
         model.removeAllElements();
-        JosmUserIdentityManager im = JosmUserIdentityManager.getInstance();
+        UserIdentityManager im = UserIdentityManager.getInstance();
         // Add home location bookmark first, if user fully identified
         if (im.isFullyIdentified()) {
             try {
                 model.addElement(new HomeLocationBookmark());
             } catch (IllegalStateException e) {
-                Main.info(e.getMessage());
-                Main.trace(e);
+                Logging.info(e.getMessage());
+                Logging.trace(e);
             }
         }
         // Then add manual bookmarks previously saved in local preferences
@@ -266,7 +268,7 @@ public class BookmarkList extends JList<BookmarkList.Bookmark> {
                 try {
                     bookmarks.add(new Bookmark(entry));
                 } catch (IllegalArgumentException e) {
-                    Main.error(e, tr("Error reading bookmark entry: %s", e.getMessage()));
+                    Logging.log(Logging.LEVEL_ERROR, tr("Error reading bookmark entry: %s", e.getMessage()), e);
                 }
             }
             Collections.sort(bookmarks);
@@ -332,7 +334,7 @@ public class BookmarkList extends JList<BookmarkList.Bookmark> {
             if (!GraphicsEnvironment.isHeadless()) {
                 final ChangesetQueryTask task = new ChangesetQueryTask(this, query);
                 ChangesetCacheManager.getInstance().runDownloadTask(task);
-                Main.worker.submit(() -> {
+                MainApplication.worker.submit(() -> {
                     if (task.isCanceled() || task.isFailed())
                         return;
                     GuiHelper.runInEDT(() -> task.getDownloadedData().stream()

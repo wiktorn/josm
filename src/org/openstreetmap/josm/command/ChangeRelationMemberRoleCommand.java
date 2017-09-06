@@ -9,11 +9,11 @@ import java.util.Objects;
 import javax.swing.Icon;
 
 import org.openstreetmap.josm.data.osm.DataSet;
+import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.OsmPrimitiveType;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
-import org.openstreetmap.josm.gui.DefaultNameFormatter;
 import org.openstreetmap.josm.tools.ImageProvider;
 
 /**
@@ -36,19 +36,17 @@ public class ChangeRelationMemberRoleCommand extends Command {
 
     /**
      * Constructs a new {@code ChangeRelationMemberRoleCommand}.
-     * @param relation The relation to be changed
+     * @param relation The relation to be changed. Must not be null, and belong to a data set
      * @param position Member position
      * @param newRole New role
      */
     public ChangeRelationMemberRoleCommand(Relation relation, int position, String newRole) {
-        this.relation = relation;
-        this.position = position;
-        this.newRole = newRole;
+        this(relation.getDataSet(), relation, position, newRole);
     }
 
     /**
      * Constructs a new {@code ChangeRelationMemberRoleCommand}.
-     * @param dataSet The data set the role is in
+     * @param dataSet The data set the role is in. Must not be {@code null}
      * @param relation The relation to be changed
      * @param position Member position
      * @param newRole New role

@@ -12,6 +12,7 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.JosmAction;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.gui.ExtendedDialog;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.tools.Shortcut;
 
 /**
@@ -37,12 +38,12 @@ public final class TaggingPresetSearchPrimitiveDialog extends ExtendedDialog {
                     Shortcut.registerShortcut("preset:search-objects", tr("Search for objects by preset"), KeyEvent.VK_F3, Shortcut.SHIFT),
                     false);
             putValue("toolbar", "presets/search-objects");
-            Main.toolbar.register(this);
+            MainApplication.getToolbar().register(this);
         }
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            if (Main.getLayerManager().getEditLayer() != null) {
+            if (MainApplication.getLayerManager().getEditLayer() != null) {
                 TaggingPresetSearchPrimitiveDialog.getInstance().showDialog();
             }
         }
@@ -85,8 +86,8 @@ public final class TaggingPresetSearchPrimitiveDialog extends ExtendedDialog {
         if (buttonIndex == 0) {
             TaggingPreset preset = selector.getSelectedPresetAndUpdateClassification();
             if (preset != null) {
-                final Set<OsmPrimitive> matching = new HashSet<>(Main.getLayerManager().getEditDataSet().getPrimitives(preset));
-                Main.getLayerManager().getEditDataSet().setSelected(matching);
+                final Set<OsmPrimitive> matching = new HashSet<>(Main.main.getEditDataSet().getPrimitives(preset));
+                Main.main.getEditDataSet().setSelected(matching);
             }
         }
     }

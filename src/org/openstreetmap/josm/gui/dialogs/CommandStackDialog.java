@@ -35,15 +35,15 @@ import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.AutoScaleAction;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.PseudoCommand;
+import org.openstreetmap.josm.data.UndoRedoHandler.CommandQueueListener;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.SideButton;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer.CommandQueueListener;
 import org.openstreetmap.josm.gui.widgets.PopupMenuLauncher;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
@@ -231,7 +231,7 @@ public class CommandStackDialog extends ToggleDialog implements CommandQueueList
         for (IEnabledStateUpdating listener : showNotifyListener) {
             listener.updateEnabledState();
         }
-        Main.main.undoRedo.addCommandQueueListener(this);
+        MainApplication.undoRedo.addCommandQueueListener(this);
     }
 
     /**
@@ -247,7 +247,7 @@ public class CommandStackDialog extends ToggleDialog implements CommandQueueList
     public void hideNotify() {
         undoTreeModel.setRoot(new DefaultMutableTreeNode());
         redoTreeModel.setRoot(new DefaultMutableTreeNode());
-        Main.main.undoRedo.removeCommandQueueListener(this);
+        MainApplication.undoRedo.removeCommandQueueListener(this);
     }
 
     /**
@@ -256,17 +256,17 @@ public class CommandStackDialog extends ToggleDialog implements CommandQueueList
      */
     private void buildTrees() {
         setTitle(tr("Command Stack"));
-        if (Main.getLayerManager().getEditLayer() == null)
+        if (MainApplication.getLayerManager().getEditLayer() == null)
             return;
 
-        List<Command> undoCommands = Main.main.undoRedo.commands;
+        List<Command> undoCommands = MainApplication.undoRedo.commands;
         DefaultMutableTreeNode undoRoot = new DefaultMutableTreeNode();
         for (int i = 0; i < undoCommands.size(); ++i) {
             undoRoot.add(getNodeForCommand(undoCommands.get(i), i));
         }
         undoTreeModel.setRoot(undoRoot);
 
-        List<Command> redoCommands = Main.main.undoRedo.redoCommands;
+        List<Command> redoCommands = MainApplication.undoRedo.redoCommands;
         DefaultMutableTreeNode redoRoot = new DefaultMutableTreeNode();
         for (int i = 0; i < redoCommands.size(); ++i) {
             redoRoot.add(getNodeForCommand(redoCommands.get(i), i));
@@ -333,7 +333,7 @@ public class CommandStackDialog extends ToggleDialog implements CommandQueueList
      */
     protected static Collection<? extends OsmPrimitive> getAffectedPrimitives(TreePath path) {
         PseudoCommand c = ((CommandListMutableTreeNode) path.getLastPathComponent()).getCommand();
-        final OsmDataLayer currentLayer = Main.getLayerManager().getEditLayer();
+        final OsmDataLayer currentLayer = MainApplication.getLayerManager().getEditLayer();
         return new SubclassFilteredCollection<>(
                 c.getParticipatingPrimitives(),
                 o -> {
@@ -374,7 +374,7 @@ public class CommandStackDialog extends ToggleDialog implements CommandQueueList
             } else
                 throw new IllegalStateException();
 
-            DataSet dataSet = Main.getLayerManager().getEditDataSet();
+            DataSet dataSet = MainApplication.getLayerManager().getEditDataSet();
             if (dataSet == null) return;
             dataSet.setSelected(getAffectedPrimitives(path));
         }
@@ -455,14 +455,14 @@ public class CommandStackDialog extends ToggleDialog implements CommandQueueList
             switch (type) {
             case UNDO:
                 int numUndo = ((DefaultMutableTreeNode) undoTreeModel.getRoot()).getChildCount() - idx;
-                Main.main.undoRedo.undo(numUndo);
+                MainApplication.undoRedo.undo(numUndo);
                 break;
             case REDO:
                 int numRedo = idx+1;
-                Main.main.undoRedo.redo(numRedo);
+                MainApplication.undoRedo.redo(numRedo);
                 break;
             }
-            Main.map.repaint();
+            MainApplication.getMap().repaint();
         }
 
         @Override

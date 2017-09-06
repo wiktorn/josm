@@ -38,6 +38,7 @@ import org.openstreetmap.josm.data.gpx.GpxLink;
 import org.openstreetmap.josm.data.gpx.WayPoint;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
 import org.openstreetmap.josm.data.preferences.ColorProperty;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.dialogs.LayerListDialog;
 import org.openstreetmap.josm.gui.dialogs.LayerListPopup;
@@ -50,6 +51,7 @@ import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.gpx.ConvertToDataLayerAction;
 import org.openstreetmap.josm.io.audio.AudioPlayer;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -126,7 +128,7 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
                 try {
                     offset = Double.valueOf(exts.get("offset"));
                 } catch (NumberFormatException nfe) {
-                    Main.warn(nfe);
+                    Logging.warn(nfe);
                 }
             }
             if (offset == null) {
@@ -208,7 +210,7 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
 
     @Override public void visitBoundingBox(BoundingXYVisitor v) {
         for (Marker mkr : data) {
-            v.visit(mkr.getEastNorth());
+            v.visit(mkr);
         }
     }
 
@@ -275,7 +277,7 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
                 }
             }
         } catch (URISyntaxException e) {
-            Main.warn(e);
+            Logging.warn(e);
         }
         return true;
     }
@@ -349,7 +351,7 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
                 }
             }
         }
-        Main.map.mapView.zoomTo(currentMarker.getEastNorth());
+        MainApplication.getMap().mapView.zoomTo(currentMarker);
     }
 
     @Override
@@ -368,7 +370,7 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
                 }
             }
         }
-        Main.map.mapView.zoomTo(currentMarker.getEastNorth());
+        MainApplication.getMap().mapView.zoomTo(currentMarker);
     }
 
     public static void playAudio() {
@@ -411,15 +413,15 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
     }
 
     private static void playAdjacentMarker(Marker startMarker, boolean next) {
-        if (!Main.isDisplayingMapView())
+        if (!MainApplication.isDisplayingMapView())
             return;
         Marker m = null;
-        Layer l = Main.getLayerManager().getActiveLayer();
+        Layer l = MainApplication.getLayerManager().getActiveLayer();
         if (l != null) {
             m = getAdjacentMarker(startMarker, next, l);
         }
         if (m == null) {
-            for (Layer layer : Main.getLayerManager().getLayers()) {
+            for (Layer layer : MainApplication.getLayerManager().getLayers()) {
                 m = getAdjacentMarker(startMarker, next, layer);
                 if (m != null) {
                     break;
@@ -563,7 +565,7 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
                         );
                 return;
             }
-            PlayHeadMarker playHeadMarker = Main.map.mapView.playHeadMarker;
+            PlayHeadMarker playHeadMarker = MainApplication.getMap().mapView.playHeadMarker;
             if (playHeadMarker == null)
                 return;
             addAudioMarker(playHeadMarker.time, playHeadMarker.getCoor());

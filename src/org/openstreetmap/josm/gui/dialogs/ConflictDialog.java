@@ -55,6 +55,7 @@ import org.openstreetmap.josm.data.osm.visitor.Visitor;
 import org.openstreetmap.josm.data.preferences.ColorProperty;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane.ButtonSpec;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.NavigatableComponent;
 import org.openstreetmap.josm.gui.OsmPrimitivRenderer;
 import org.openstreetmap.josm.gui.PopupMenuHandler;
@@ -67,6 +68,7 @@ import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.PopupMenuLauncher;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Shortcut;
 
 /**
@@ -128,7 +130,7 @@ public final class ConflictDialog extends ToggleDialog implements ActiveLayerCha
             lstConflicts.setCellRenderer(new OsmPrimitivRenderer());
             lstConflicts.addMouseListener(new MouseEventHandler());
         }
-        addListSelectionListener(e -> Main.map.mapView.repaint());
+        addListSelectionListener(e -> MainApplication.getMap().mapView.repaint());
 
         SideButton btnResolve = new SideButton(actResolve);
         addListSelectionListener(actResolve);
@@ -138,7 +140,7 @@ public final class ConflictDialog extends ToggleDialog implements ActiveLayerCha
 
         createLayout(lstConflicts, true, Arrays.asList(btnResolve, btnSelect));
 
-        popupMenuHandler.addAction(Main.main.menu.autoScaleActions.get("conflict"));
+        popupMenuHandler.addAction(MainApplication.getMenu().autoScaleActions.get("conflict"));
 
         ResolveToMyVersionAction resolveToMyVersionAction = new ResolveToMyVersionAction();
         ResolveToTheirVersionAction resolveToTheirVersionAction = new ResolveToTheirVersionAction();
@@ -152,13 +154,13 @@ public final class ConflictDialog extends ToggleDialog implements ActiveLayerCha
 
     @Override
     public void showNotify() {
-        Main.getLayerManager().addAndFireActiveLayerChangeListener(this);
+        MainApplication.getLayerManager().addAndFireActiveLayerChangeListener(this);
     }
 
     @Override
     public void hideNotify() {
-        Main.getLayerManager().removeActiveLayerChangeListener(this);
-        removeEditLayerListeners(Main.getLayerManager().getEditLayer());
+        MainApplication.getLayerManager().removeActiveLayerChangeListener(this);
+        removeEditLayerListeners(MainApplication.getLayerManager().getEditLayer());
     }
 
     /**
@@ -208,16 +210,16 @@ public final class ConflictDialog extends ToggleDialog implements ActiveLayerCha
 
             lstConflicts.setSelectedIndex(index);
         }
-        Main.map.mapView.repaint();
+        MainApplication.getMap().mapView.repaint();
     }
 
     /**
      * refreshes the view of this dialog
      */
     public void refreshView() {
-        OsmDataLayer editLayer = Main.getLayerManager().getEditLayer();
+        DataSet editDs = MainApplication.getLayerManager().getEditDataSet();
         synchronized (this) {
-            conflicts = editLayer == null ? new ConflictCollection() : editLayer.getConflicts();
+            conflicts = editDs == null ? new ConflictCollection() : editDs.getConflicts();
         }
         GuiHelper.runInEDT(() -> {
             model.fireContentChanged();
@@ -317,7 +319,7 @@ public final class ConflictDialog extends ToggleDialog implements ActiveLayerCha
 
     @Override
     public void onConflictsRemoved(ConflictCollection conflicts) {
-        Main.info("1 conflict has been resolved.");
+        Logging.info("1 conflict has been resolved.");
         refreshView();
     }
 
@@ -480,7 +482,7 @@ public final class ConflictDialog extends ToggleDialog implements ActiveLayerCha
                     sel.add(o);
                 }
             }
-            DataSet ds = Main.getLayerManager().getEditDataSet();
+            DataSet ds = MainApplication.getLayerManager().getEditDataSet();
             if (ds != null) { // Can't see how it is possible but it happened in #7942
                 ds.setSelected(sel);
             }
@@ -517,7 +519,7 @@ public final class ConflictDialog extends ToggleDialog implements ActiveLayerCha
                     }
                 }
             }
-            Main.main.undoRedo.add(new SequenceCommand(name, commands));
+            MainApplication.undoRedo.add(new SequenceCommand(name, commands));
             refreshView();
         }
     }
@@ -630,7 +632,7 @@ public final class ConflictDialog extends ToggleDialog implements ActiveLayerCha
                         ht("/Concepts/Conflict#WarningAboutDetectedConflicts")
                 );
                 unfurlDialog();
-                Main.map.repaint();
+                MainApplication.getMap().repaint();
             });
         }
     }

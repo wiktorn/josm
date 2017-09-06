@@ -23,6 +23,7 @@ import javax.swing.JTextArea;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Version;
 import org.openstreetmap.josm.gui.ExtendedDialog;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel;
 import org.openstreetmap.josm.gui.widgets.JosmTextArea;
@@ -30,6 +31,7 @@ import org.openstreetmap.josm.gui.widgets.UrlLabel;
 import org.openstreetmap.josm.plugins.PluginHandler;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Shortcut;
 
 /**
@@ -114,7 +116,7 @@ public final class AboutAction extends JosmAction {
             .setContent(panel, false)
             .showDialog().getValue();
         if (2 == ret) {
-            Main.main.menu.reportbug.actionPerformed(null);
+            MainApplication.getMenu().reportbug.actionPerformed(null);
         }
     }
 
@@ -136,14 +138,14 @@ public final class AboutAction extends JosmAction {
                     ta.append(line+'\n');
                 }
             } catch (IOException e) {
-                Main.warn(e);
+                Logging.warn(e);
                 displayErrorMessage(ta, tr("Failed to load resource ''{0}'', error is {1}.", filePath, e.toString()));
             }
         }
     }
 
     private static void displayErrorMessage(JTextArea ta, String msg) {
-        Main.warn(msg);
+        Logging.warn(msg);
         ta.setForeground(new Color(200, 0, 0));
         ta.setText(msg);
     }

@@ -21,7 +21,7 @@ import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JToggleButton;
 
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.dialogs.DialogsPanel.Action;
 import org.openstreetmap.josm.gui.dialogs.ToggleDialog;
 import org.openstreetmap.josm.gui.layer.Layer;
@@ -82,8 +82,8 @@ public final class ImageViewerDialog extends ToggleDialog implements LayerChange
         super(tr("Geotagged Images"), "geoimage", tr("Display geotagged images"), Shortcut.registerShortcut("tools:geotagged",
         tr("Tool: {0}", tr("Display geotagged images")), KeyEvent.VK_Y, Shortcut.DIRECT), 200);
         build();
-        Main.getLayerManager().addActiveLayerChangeListener(this);
-        Main.getLayerManager().addLayerChangeListener(this);
+        MainApplication.getLayerManager().addActiveLayerChangeListener(this);
+        MainApplication.getLayerManager().addLayerChangeListener(this);
     }
 
     private void build() {
@@ -99,7 +99,7 @@ public final class ImageViewerDialog extends ToggleDialog implements LayerChange
         Shortcut scPrev = Shortcut.registerShortcut(
                 "geoimage:previous", tr("Geoimage: {0}", tr("Show previous Image")), KeyEvent.VK_PAGE_UP, Shortcut.DIRECT);
         final String previousImage = "Previous Image";
-        Main.registerActionShortcut(prevAction, scPrev);
+        MainApplication.registerActionShortcut(prevAction, scPrev);
         btnPrevious.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(scPrev.getKeyStroke(), previousImage);
         btnPrevious.getActionMap().put(previousImage, prevAction);
         btnPrevious.setEnabled(false);
@@ -110,7 +110,7 @@ public final class ImageViewerDialog extends ToggleDialog implements LayerChange
         btnDelete.setPreferredSize(buttonDim);
         Shortcut scDelete = Shortcut.registerShortcut(
                 "geoimage:deleteimagefromlayer", tr("Geoimage: {0}", tr("Remove photo from layer")), KeyEvent.VK_DELETE, Shortcut.SHIFT);
-        Main.registerActionShortcut(delAction, scDelete);
+        MainApplication.registerActionShortcut(delAction, scDelete);
         btnDelete.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(scDelete.getKeyStroke(), removePhoto);
         btnDelete.getActionMap().put(removePhoto, delAction);
 
@@ -121,7 +121,7 @@ public final class ImageViewerDialog extends ToggleDialog implements LayerChange
         Shortcut scDeleteFromDisk = Shortcut.registerShortcut(
                 "geoimage:deletefilefromdisk", tr("Geoimage: {0}", tr("Delete File from disk")), KeyEvent.VK_DELETE, Shortcut.CTRL_SHIFT);
         final String deleteImage = "Delete image file from disk";
-        Main.registerActionShortcut(delFromDiskAction, scDeleteFromDisk);
+        MainApplication.registerActionShortcut(delFromDiskAction, scDeleteFromDisk);
         btnDeleteFromDisk.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(scDeleteFromDisk.getKeyStroke(), deleteImage);
         btnDeleteFromDisk.getActionMap().put(deleteImage, delFromDiskAction);
 
@@ -131,7 +131,7 @@ public final class ImageViewerDialog extends ToggleDialog implements LayerChange
         Shortcut scCopyPath = Shortcut.registerShortcut(
                 "geoimage:copypath", tr("Geoimage: {0}", tr("Copy image path")), KeyEvent.VK_C, Shortcut.ALT_CTRL_SHIFT);
         final String copyImage = "Copy image path";
-        Main.registerActionShortcut(copyPathAction, scCopyPath);
+        MainApplication.registerActionShortcut(copyPathAction, scCopyPath);
         btnCopyPath.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(scCopyPath.getKeyStroke(), copyImage);
         btnCopyPath.getActionMap().put(copyImage, copyPathAction);
 
@@ -141,17 +141,17 @@ public final class ImageViewerDialog extends ToggleDialog implements LayerChange
         Shortcut scNext = Shortcut.registerShortcut(
                 "geoimage:next", tr("Geoimage: {0}", tr("Show next Image")), KeyEvent.VK_PAGE_DOWN, Shortcut.DIRECT);
         final String nextImage = "Next Image";
-        Main.registerActionShortcut(nextAction, scNext);
+        MainApplication.registerActionShortcut(nextAction, scNext);
         btnNext.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(scNext.getKeyStroke(), nextImage);
         btnNext.getActionMap().put(nextImage, nextAction);
         btnNext.setEnabled(false);
 
-        Main.registerActionShortcut(
+        MainApplication.registerActionShortcut(
                 new ImageAction(COMMAND_FIRST, null, null),
                 Shortcut.registerShortcut(
                         "geoimage:first", tr("Geoimage: {0}", tr("Show first Image")), KeyEvent.VK_HOME, Shortcut.DIRECT)
         );
-        Main.registerActionShortcut(
+        MainApplication.registerActionShortcut(
                 new ImageAction(COMMAND_LAST, null, null),
                 Shortcut.registerShortcut(
                         "geoimage:last", tr("Geoimage: {0}", tr("Show last Image")), KeyEvent.VK_END, Shortcut.DIRECT)
@@ -203,8 +203,8 @@ public final class ImageViewerDialog extends ToggleDialog implements LayerChange
 
     @Override
     public void destroy() {
-        Main.getLayerManager().removeActiveLayerChangeListener(this);
-        Main.getLayerManager().removeLayerChangeListener(this);
+        MainApplication.getLayerManager().removeActiveLayerChangeListener(this);
+        MainApplication.getLayerManager().removeLayerChangeListener(this);
         super.destroy();
     }
 
@@ -235,7 +235,7 @@ public final class ImageViewerDialog extends ToggleDialog implements LayerChange
                 final JToggleButton button = (JToggleButton) e.getSource();
                 centerView = button.isEnabled() && button.isSelected();
                 if (centerView && currentEntry != null && currentEntry.getPos() != null) {
-                    Main.map.mapView.zoomTo(currentEntry.getPos());
+                    MainApplication.getMap().mapView.zoomTo(currentEntry.getPos());
                 }
             } else if (COMMAND_ZOOM.equals(action)) {
                 imgDisplay.zoomBestFitOrOne();
@@ -308,8 +308,8 @@ public final class ImageViewerDialog extends ToggleDialog implements LayerChange
 
             imageChanged = currentEntry != entry;
 
-            if (centerView && entry != null && Main.isDisplayingMapView() && entry.getPos() != null) {
-                Main.map.mapView.zoomTo(entry.getPos());
+            if (centerView && entry != null && MainApplication.isDisplayingMapView() && entry.getPos() != null) {
+                MainApplication.getMap().mapView.zoomTo(entry.getPos());
             }
 
             currentLayer = layer;

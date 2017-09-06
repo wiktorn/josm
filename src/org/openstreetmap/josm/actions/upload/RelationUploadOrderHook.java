@@ -17,10 +17,11 @@ import javax.swing.table.DefaultTableModel;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.APIDataSet;
+import org.openstreetmap.josm.data.osm.CyclicUploadDependencyException;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.OsmPrimitivRenderer;
-import org.openstreetmap.josm.tools.WindowGeometry;
+import org.openstreetmap.josm.gui.util.WindowGeometry;
 
 /**
  * This upload hook reorders the list of new relations to upload such that child

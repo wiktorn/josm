@@ -10,6 +10,7 @@ import javax.swing.JTable;
 import javax.swing.table.TableModel;
 
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.UserIdentityManager;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.OsmPrimitiveType;
@@ -34,13 +35,14 @@ import org.openstreetmap.josm.data.osm.history.HistoryOsmPrimitive;
 import org.openstreetmap.josm.data.osm.history.HistoryRelation;
 import org.openstreetmap.josm.data.osm.history.HistoryWay;
 import org.openstreetmap.josm.data.osm.visitor.AbstractVisitor;
-import org.openstreetmap.josm.gui.JosmUserIdentityManager;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeEvent;
 import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeListener;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.util.ChangeNotifier;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
+import org.openstreetmap.josm.tools.Logging;
 
 /**
  * This is the model used by the history browser.
@@ -99,12 +101,12 @@ public class HistoryBrowserModel extends ChangeNotifier implements ActiveLayerCh
         referenceRelationMemberTableModel = new DiffTableModel();
 
         if (Main.main != null) {
-            OsmDataLayer editLayer = Main.getLayerManager().getEditLayer();
+            OsmDataLayer editLayer = MainApplication.getLayerManager().getEditLayer();
             if (editLayer != null) {
                 editLayer.data.addDataSetListener(this);
             }
         }
-        Main.getLayerManager().addActiveLayerChangeListener(this);
+        MainApplication.getLayerManager().addActiveLayerChangeListener(this);
     }
 
     /**
@@ -137,7 +139,7 @@ public class HistoryBrowserModel extends ChangeNotifier implements ActiveLayerCh
         try {
             HistoryOsmPrimitive.forOsmPrimitive(primitive);
         } catch (IllegalArgumentException ign) {
-            Main.trace(ign);
+            Logging.trace(ign);
             return false;
         }
 
@@ -168,7 +170,7 @@ public class HistoryBrowserModel extends ChangeNotifier implements ActiveLayerCh
         this.history = history;
         if (history.getNumVersions() > 0) {
             HistoryOsmPrimitive newLatest = null;
-            OsmDataLayer editLayer = Main.getLayerManager().getEditLayer();
+            OsmDataLayer editLayer = MainApplication.getLayerManager().getEditLayer();
             if (editLayer != null) {
                 OsmPrimitive p = editLayer.data.getPrimitiveById(history.getId(), history.getType());
                 if (canShowAsLatest(p)) {
@@ -529,11 +531,11 @@ public class HistoryBrowserModel extends ChangeNotifier implements ActiveLayerCh
      *
      */
     public void unlinkAsListener() {
-        OsmDataLayer editLayer = Main.getLayerManager().getEditLayer();
+        OsmDataLayer editLayer = MainApplication.getLayerManager().getEditLayer();
         if (editLayer != null) {
             editLayer.data.removeDataSetListener(this);
         }
-        Main.getLayerManager().removeActiveLayerChangeListener(this);
+        MainApplication.getLayerManager().removeActiveLayerChangeListener(this);
     }
 
     /* ---------------------------------------------------------------------- */
@@ -671,7 +673,7 @@ public class HistoryBrowserModel extends ChangeNotifier implements ActiveLayerCh
         }
 
         private static User getCurrentUser() {
-            UserInfo info = JosmUserIdentityManager.getInstance().getUserInfo();
+            UserInfo info = UserIdentityManager.getInstance().getUserInfo();
             return info == null ? User.getAnonymous() : User.createOsmUser(info.getId(), info.getDisplayName());
         }
 

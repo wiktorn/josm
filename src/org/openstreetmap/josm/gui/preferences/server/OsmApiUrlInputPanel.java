@@ -28,6 +28,7 @@ import javax.swing.text.JTextComponent;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.preferences.CollectionProperty;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.widgets.AbstractTextComponentValidator;
 import org.openstreetmap.josm.gui.widgets.HistoryComboBox;
@@ -36,6 +37,7 @@ import org.openstreetmap.josm.io.OsmApi;
 import org.openstreetmap.josm.io.OsmApiInitializationException;
 import org.openstreetmap.josm.io.OsmTransferCanceledException;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -155,7 +157,7 @@ public class OsmApiUrlInputPanel extends JPanel {
             try {
                 OsmApi.getOsmApi().initialize(null);
             } catch (OsmTransferCanceledException | OsmApiInitializationException ex) {
-                Main.warn(ex);
+                Logging.warn(ex);
             }
         }
     }
@@ -184,7 +186,7 @@ public class OsmApiUrlInputPanel extends JPanel {
         public void actionPerformed(ActionEvent arg0) {
             final String url = getStrippedApiUrl();
             final ApiUrlTestTask task = new ApiUrlTestTask(OsmApiUrlInputPanel.this, url);
-            Main.worker.submit(task);
+            MainApplication.worker.submit(task);
             Runnable r = () -> {
                 if (task.isCanceled())
                     return;
@@ -201,7 +203,7 @@ public class OsmApiUrlInputPanel extends JPanel {
                 };
                 SwingUtilities.invokeLater(r1);
             };
-            Main.worker.submit(r);
+            MainApplication.worker.submit(r);
         }
 
         protected final void updateEnabledState() {

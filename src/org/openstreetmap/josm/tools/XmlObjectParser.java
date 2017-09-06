@@ -24,7 +24,6 @@ import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.ValidatorHandler;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.io.CachedFile;
 import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
@@ -159,7 +158,7 @@ public class XmlObjectParser implements Iterable<Object> {
                     }
                 }
             } catch (ReflectiveOperationException | IllegalArgumentException e) {
-                Main.error(e); // SAXException does not dump inner exceptions.
+                Logging.error(e); // SAXException does not dump inner exceptions.
                 throwException(e);
             }
         }
@@ -205,7 +204,7 @@ public class XmlObjectParser implements Iterable<Object> {
                     fields.put(s, f);
                     return f;
                 } catch (NoSuchFieldException ex) {
-                    Main.trace(ex);
+                    Logging.trace(ex);
                     fields.put(s, null);
                     return null;
                 }
@@ -253,7 +252,7 @@ public class XmlObjectParser implements Iterable<Object> {
                 reader.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
             } catch (SAXException e) {
                 // Exception very unlikely to happen, so no need to translate this
-                Main.error(e, "Cannot disable 'load-external-dtd' feature:");
+                Logging.log(Logging.LEVEL_ERROR, "Cannot disable 'load-external-dtd' feature:", e);
             }
             reader.parse(new InputSource(in));
             queueIterator = queue.iterator();

@@ -35,6 +35,7 @@ import org.openstreetmap.josm.data.osm.OsmUtils;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.Way;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.Notification;
 import org.openstreetmap.josm.gui.dialogs.relation.DownloadRelationMemberTask;
 import org.openstreetmap.josm.gui.dialogs.relation.DownloadRelationTask;
@@ -105,21 +106,22 @@ public class CreateMultipolygonAction extends JosmAction {
 
             // to avoid EDT violations
             SwingUtilities.invokeLater(() -> {
-                    Main.main.undoRedo.add(command);
+                    MainApplication.undoRedo.add(command);
 
                     // Use 'SwingUtilities.invokeLater' to make sure the relationListDialog
                     // knows about the new relation before we try to select it.
                     // (Yes, we are already in event dispatch thread. But DatasetEventManager
                     // uses 'SwingUtilities.invokeLater' to fire events so we have to do the same.)
                     SwingUtilities.invokeLater(() -> {
-                            Main.map.relationListDialog.selectRelation(relation);
+                            MainApplication.getMap().relationListDialog.selectRelation(relation);
                             if (Main.pref.getBoolean("multipoly.show-relation-editor", false)) {
                                 //Open relation edit window, if set up in preferences
-                                RelationEditor editor = RelationEditor.getEditor(Main.getLayerManager().getEditLayer(), relation, null);
+                                RelationEditor editor = RelationEditor.getEditor(
+                                        MainApplication.getLayerManager().getEditLayer(), relation, null);
                                 editor.setModal(true);
                                 editor.setVisible(true);
                             } else {
-                                Main.getLayerManager().getEditLayer().setRecentRelation(relation);
+                                MainApplication.getLayerManager().getEditLayer().setRecentRelation(relation);
                             }
                     });
             });
@@ -128,7 +130,7 @@ public class CreateMultipolygonAction extends JosmAction {
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        DataSet dataSet = Main.getLayerManager().getEditDataSet();
+        DataSet dataSet = getLayerManager().getEditDataSet();
         if (dataSet == null) {
             new Notification(
                     tr("No data loaded."))
@@ -159,15 +161,16 @@ public class CreateMultipolygonAction extends JosmAction {
         // download incomplete relation or incomplete members if necessary
         if (multipolygonRelation != null) {
             if (!multipolygonRelation.isNew() && multipolygonRelation.isIncomplete()) {
-                Main.worker.submit(new DownloadRelationTask(Collections.singleton(multipolygonRelation), Main.getLayerManager().getEditLayer()));
+                MainApplication.worker.submit(
+                        new DownloadRelationTask(Collections.singleton(multipolygonRelation), getLayerManager().getEditLayer()));
             } else if (multipolygonRelation.hasIncompleteMembers()) {
-                Main.worker.submit(new DownloadRelationMemberTask(multipolygonRelation,
+                MainApplication.worker.submit(new DownloadRelationMemberTask(multipolygonRelation,
                         DownloadSelectedIncompleteMembersAction.buildSetOfIncompleteMembers(Collections.singleton(multipolygonRelation)),
-                        Main.getLayerManager().getEditLayer()));
+                        getLayerManager().getEditLayer()));
             }
         }
         // create/update multipolygon relation
-        Main.worker.submit(new CreateUpdateMultipolygonTask(selectedWays, multipolygonRelation));
+        MainApplication.worker.submit(new CreateUpdateMultipolygonTask(selectedWays, multipolygonRelation));
     }
 
     private Relation getSelectedMultipolygonRelation() {
@@ -244,7 +247,7 @@ public class CreateMultipolygonAction extends JosmAction {
         final List<Command> list = removeTagsFromWaysIfNeeded(relation);
         final String commandName;
         if (existingRelation == null) {
-            list.add(new AddCommand(relation));
+            list.add(new AddCommand(selectedWays.iterator().next().getDataSet(), relation));
             commandName = getName(false);
         } else {
             list.add(new ChangeCommand(existingRelation, relation));

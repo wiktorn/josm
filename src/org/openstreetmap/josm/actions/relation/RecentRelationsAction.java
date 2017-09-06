@@ -17,14 +17,14 @@ import javax.swing.JPopupMenu;
 import javax.swing.KeyStroke;
 import javax.swing.plaf.basic.BasicArrowButton;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.JosmAction;
+import org.openstreetmap.josm.data.UndoRedoHandler.CommandQueueListener;
+import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
 import org.openstreetmap.josm.data.osm.Relation;
-import org.openstreetmap.josm.gui.DefaultNameFormatter;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.SideButton;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer.CommandQueueListener;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Shortcut;
 
@@ -48,7 +48,7 @@ public class RecentRelationsAction extends JosmAction implements CommandQueueLis
         this.editButton = editButton;
         arrow = editButton.createArrow(this);
         arrow.setToolTipText(tr("List of recent relations"));
-        Main.main.undoRedo.addCommandQueueListener(this);
+        MainApplication.undoRedo.addCommandQueueListener(this);
         enableArrow();
         shortcut = Shortcut.registerShortcut(
             "relationeditor:editrecentrelation",
@@ -57,7 +57,7 @@ public class RecentRelationsAction extends JosmAction implements CommandQueueLis
             Shortcut.SHIFT
         );
         launchAction = new LaunchEditorAction();
-        Main.registerActionShortcut(launchAction, shortcut);
+        MainApplication.registerActionShortcut(launchAction, shortcut);
     }
 
     /**
@@ -93,7 +93,7 @@ public class RecentRelationsAction extends JosmAction implements CommandQueueLis
     public static boolean isRelationListable(Relation relation) {
         return relation != null &&
             !relation.isDeleted() &&
-            Main.getLayerManager().getEditDataSet().containsRelation(relation);
+            MainApplication.getLayerManager().getEditDataSet().containsRelation(relation);
     }
 
     @Override
@@ -113,7 +113,7 @@ public class RecentRelationsAction extends JosmAction implements CommandQueueLis
 
     @Override
     public void destroy() {
-        Main.unregisterActionShortcut(launchAction, shortcut);
+        MainApplication.unregisterActionShortcut(launchAction, shortcut);
         super.destroy();
     }
 
@@ -122,9 +122,9 @@ public class RecentRelationsAction extends JosmAction implements CommandQueueLis
      * @return the list of recent relations on active layer
      */
     public static List<Relation> getRecentRelationsOnActiveLayer() {
-        if (!Main.isDisplayingMapView())
+        if (!MainApplication.isDisplayingMapView())
             return Collections.emptyList();
-        Layer activeLayer = Main.getLayerManager().getActiveLayer();
+        Layer activeLayer = MainApplication.getLayerManager().getActiveLayer();
         if (!(activeLayer instanceof OsmDataLayer)) {
             return Collections.emptyList();
         } else {

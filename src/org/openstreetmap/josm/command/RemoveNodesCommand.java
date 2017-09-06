@@ -11,11 +11,11 @@ import java.util.Set;
 
 import javax.swing.Icon;
 
+import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.OsmPrimitiveType;
 import org.openstreetmap.josm.data.osm.Way;
-import org.openstreetmap.josm.gui.DefaultNameFormatter;
 import org.openstreetmap.josm.tools.ImageProvider;
 
 /**
@@ -32,10 +32,11 @@ public class RemoveNodesCommand extends Command {
 
     /**
      * Constructs a new {@code RemoveNodesCommand}.
-     * @param way The way to modify
+     * @param way The way to modify. Must not be null, and belong to a data set
      * @param rmNodes The list of nodes to remove
      */
     public RemoveNodesCommand(Way way, List<Node> rmNodes) {
+        super(way.getDataSet());
         this.way = way;
         this.rmNodes = new HashSet<>(rmNodes);
     }

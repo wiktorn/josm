@@ -46,6 +46,7 @@ import org.openstreetmap.josm.actions.ExpertToggleAction;
 import org.openstreetmap.josm.data.Version;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane.ButtonSpec;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.preferences.DefaultTabPreferenceSetting;
 import org.openstreetmap.josm.gui.preferences.PreferenceSetting;
@@ -61,6 +62,7 @@ import org.openstreetmap.josm.plugins.ReadLocalPluginInformationTask;
 import org.openstreetmap.josm.plugins.ReadRemotePluginInformationTask;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -326,8 +328,8 @@ public final class PluginPreference extends DefaultTabPreferenceSetting {
                 });
             }
         };
-        Main.worker.submit(task);
-        Main.worker.submit(r);
+        MainApplication.worker.submit(task);
+        MainApplication.worker.submit(r);
     }
 
     /**
@@ -360,8 +362,8 @@ public final class PluginPreference extends DefaultTabPreferenceSetting {
                     });
                 }
             };
-            Main.worker.submit(task);
-            Main.worker.submit(continuation);
+            MainApplication.worker.submit(task);
+            MainApplication.worker.submit(continuation);
         }
     }
 
@@ -385,7 +387,7 @@ public final class PluginPreference extends DefaultTabPreferenceSetting {
                         null // FIXME: provide help context
                         ));
             } catch (InterruptedException | InvocationTargetException e) {
-                Main.error(e);
+                Logging.error(e);
             }
         }
 
@@ -434,12 +436,12 @@ public final class PluginPreference extends DefaultTabPreferenceSetting {
                     return;
                 }
                 pluginDownloadTask.setPluginsToDownload(toUpdate);
-                Main.worker.submit(pluginDownloadTask);
-                Main.worker.submit(pluginDownloadContinuation);
+                MainApplication.worker.submit(pluginDownloadTask);
+                MainApplication.worker.submit(pluginDownloadContinuation);
             };
 
-            Main.worker.submit(pluginInfoDownloadTask);
-            Main.worker.submit(pluginInfoDownloadContinuation);
+            MainApplication.worker.submit(pluginInfoDownloadTask);
+            MainApplication.worker.submit(pluginInfoDownloadContinuation);
         }
     }
 

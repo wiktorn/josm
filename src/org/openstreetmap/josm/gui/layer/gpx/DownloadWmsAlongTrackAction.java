@@ -20,12 +20,14 @@ import org.openstreetmap.josm.data.gpx.GpxData;
 import org.openstreetmap.josm.data.gpx.GpxTrack;
 import org.openstreetmap.josm.data.gpx.GpxTrackSegment;
 import org.openstreetmap.josm.data.gpx.WayPoint;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.PleaseWaitRunnable;
 import org.openstreetmap.josm.gui.layer.AbstractTileSourceLayer;
 import org.openstreetmap.josm.gui.progress.ProgressTaskId;
 import org.openstreetmap.josm.gui.progress.ProgressTaskIds;
 import org.openstreetmap.josm.io.OsmTransferException;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.xml.sax.SAXException;
 
 /**
@@ -65,7 +67,7 @@ public class DownloadWmsAlongTrackAction extends AbstractAction {
                         wait(200);
                     }
                 } catch (InterruptedException ex) {
-                    Main.warn("InterruptedException in "+getClass().getSimpleName()+" while precaching WMS");
+                    Logging.warn("InterruptedException in "+getClass().getSimpleName()+" while precaching WMS");
                     Thread.currentThread().interrupt();
                 }
             }
@@ -107,13 +109,13 @@ public class DownloadWmsAlongTrackAction extends AbstractAction {
     public void actionPerformed(ActionEvent e) {
         PrecacheWmsTask task = createTask();
         if (task != null) {
-            Main.worker.execute(task);
+            MainApplication.worker.execute(task);
         }
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
     protected AbstractTileSourceLayer<? extends AbstractTMSTileSource> askedLayer() {
-        List<AbstractTileSourceLayer> targetLayers = Main.getLayerManager().getLayersOfType(AbstractTileSourceLayer.class);
+        List<AbstractTileSourceLayer> targetLayers = MainApplication.getLayerManager().getLayersOfType(AbstractTileSourceLayer.class);
         if (targetLayers.isEmpty()) {
             if (!GraphicsEnvironment.isHeadless()) {
                 warnNoImageryLayers();

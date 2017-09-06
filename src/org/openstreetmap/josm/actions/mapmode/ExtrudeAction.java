@@ -38,12 +38,16 @@ import org.openstreetmap.josm.command.MoveCommand;
 import org.openstreetmap.josm.command.SequenceCommand;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.coor.EastNorth;
+import org.openstreetmap.josm.data.osm.DataIntegrityProblemException;
+import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.osm.WaySegment;
 import org.openstreetmap.josm.data.preferences.ColorProperty;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MainMenu;
+import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.draw.MapViewPath;
 import org.openstreetmap.josm.gui.draw.SymbolShape;
@@ -52,15 +56,16 @@ import org.openstreetmap.josm.gui.layer.MapViewPaintable;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.util.KeyPressReleaseListener;
-import org.openstreetmap.josm.gui.util.ModifierListener;
+import org.openstreetmap.josm.gui.util.ModifierExListener;
 import org.openstreetmap.josm.tools.Geometry;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Shortcut;
 
 /**
  * Makes a rectangle from a line, or modifies a rectangle.
  */
-public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPressReleaseListener, ModifierListener {
+public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPressReleaseListener, ModifierExListener {
 
     enum Mode { extrude, translate, select, create_new, translate_node }
 
@@ -202,7 +207,8 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
 
         @Override
         protected void updateEnabledState() {
-            setEnabled(Main.map != null && Main.map.mapMode instanceof ExtrudeAction);
+            MapFrame map = MainApplication.getMap();
+            setEnabled(map != null && map.mapMode instanceof ExtrudeAction);
         }
     }
 
@@ -236,14 +242,14 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
     }
 
     private JCheckBoxMenuItem addDualAlignMenuItem() {
-        int n = Main.main.menu.editMenu.getItemCount();
+        int n = MainApplication.getMenu().editMenu.getItemCount();
         for (int i = n-1; i > 0; i--) {
-            JMenuItem item = Main.main.menu.editMenu.getItem(i);
+            JMenuItem item = MainApplication.getMenu().editMenu.getItem(i);
             if (item != null && item.getAction() != null && item.getAction() instanceof DualAlignChangeAction) {
-                Main.main.menu.editMenu.remove(i);
+                MainApplication.getMenu().editMenu.remove(i);
             }
         }
-        return MainMenu.addWithCheckbox(Main.main.menu.editMenu, dualAlignChangeAction, MainMenu.WINDOW_MENU_GROUP.VOLATILE);
+        return MainMenu.addWithCheckbox(MainApplication.getMenu().editMenu, dualAlignChangeAction, MainMenu.WINDOW_MENU_GROUP.VOLATILE);
     }
 
     // -------------------------------------------------------------------------
@@ -269,7 +275,7 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
             else if (mode == Mode.extrude || mode == Mode.create_new)
                 rv = new StringBuilder(tr("Draw a rectangle of the desired size, then release the mouse button."));
             else {
-                Main.warn("Extrude: unknown mode " + mode);
+                Logging.warn("Extrude: unknown mode " + mode);
                 rv = new StringBuilder();
             }
             if (dualAlignActive) {
@@ -290,11 +296,12 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
     @Override
     public void enterMode() {
         super.enterMode();
-        Main.map.mapView.addMouseListener(this);
-        Main.map.mapView.addMouseMotionListener(this);
+        MapFrame map = MainApplication.getMap();
+        map.mapView.addMouseListener(this);
+        map.mapView.addMouseMotionListener(this);
         ignoreNextKeyRelease = true;
-        Main.map.keyDetector.addKeyListener(this);
-        Main.map.keyDetector.addModifierListener(this);
+        map.keyDetector.addKeyListener(this);
+        map.keyDetector.addModifierExListener(this);
     }
 
     @Override
@@ -318,12 +325,13 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
 
     @Override
     public void exitMode() {
-        Main.map.mapView.removeMouseListener(this);
-        Main.map.mapView.removeMouseMotionListener(this);
-        Main.map.mapView.removeTemporaryLayer(this);
+        MapFrame map = MainApplication.getMap();
+        map.mapView.removeMouseListener(this);
+        map.mapView.removeMouseMotionListener(this);
+        map.mapView.removeTemporaryLayer(this);
         dualAlignCheckboxMenuItem.getAction().setEnabled(false);
-        Main.map.keyDetector.removeKeyListener(this);
-        Main.map.keyDetector.removeModifierListener(this);
+        map.keyDetector.removeKeyListener(this);
+        map.keyDetector.removeModifierExListener(this);
         super.exitMode();
     }
 
@@ -335,12 +343,13 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
      * This method is called to indicate different modes via cursor when the Alt/Ctrl/Shift modifier is pressed,
      */
     @Override
-    public void modifiersChanged(int modifiers) {
-        if (!Main.isDisplayingMapView() || !Main.map.mapView.isActiveLayerDrawable())
+    public void modifiersExChanged(int modifiers) {
+        MapFrame map = MainApplication.getMap();
+        if (!MainApplication.isDisplayingMapView() || !map.mapView.isActiveLayerDrawable())
             return;
-        updateKeyModifiers(modifiers);
+        updateKeyModifiersEx(modifiers);
         if (mode == Mode.select) {
-            Main.map.mapView.setNewCursor(ctrl ? cursorTranslate : alt ? cursorCreateNew : shift ? cursorCreateNodes : cursor, this);
+            map.mapView.setNewCursor(ctrl ? cursorTranslate : alt ? cursorCreateNew : shift ? cursorCreateNodes : cursor, this);
         }
     }
 
@@ -377,7 +386,8 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
      */
     @Override
     public void mousePressed(MouseEvent e) {
-        if (!Main.map.mapView.isActiveLayerVisible())
+        MapFrame map = MainApplication.getMap();
+        if (!map.mapView.isActiveLayerVisible())
             return;
         if (!(Boolean) this.getValue("active"))
             return;
@@ -387,8 +397,8 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
         requestFocusInMapView();
         updateKeyModifiers(e);
 
-        selectedNode = Main.map.mapView.getNearestNode(e.getPoint(), OsmPrimitive::isSelectable);
-        selectedSegment = Main.map.mapView.getNearestWaySegment(e.getPoint(), OsmPrimitive::isSelectable);
+        selectedNode = map.mapView.getNearestNode(e.getPoint(), OsmPrimitive::isSelectable);
+        selectedSegment = map.mapView.getNearestWaySegment(e.getPoint(), OsmPrimitive::isSelectable);
 
         // If nothing gets caught, stay in select mode
         if (selectedSegment == null && selectedNode == null) return;
@@ -438,10 +448,10 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
         moveCommand = null;
         moveCommand2 = null;
 
-        Main.map.mapView.addTemporaryLayer(this);
+        map.mapView.addTemporaryLayer(this);
 
         updateStatusLine();
-        Main.map.mapView.repaint();
+        map.mapView.repaint();
 
         // Make note of time pressed
         mouseDownTime = System.currentTimeMillis();
@@ -456,7 +466,8 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
      */
     @Override
     public void mouseDragged(MouseEvent e) {
-        if (!Main.map.mapView.isActiveLayerVisible())
+        MapView mapView = MainApplication.getMap().mapView;
+        if (!mapView.isActiveLayerVisible())
             return;
 
         // do not count anything as a drag if it lasts less than 100 milliseconds.
@@ -468,10 +479,10 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
         } else {
             //move, create new and extrude mode - move the selected segment
 
-            EastNorth mouseEn = Main.map.mapView.getEastNorth(e.getPoint().x, e.getPoint().y);
+            EastNorth mouseEn = mapView.getEastNorth(e.getPoint().x, e.getPoint().y);
             EastNorth bestMovement = calculateBestMovementAndNewNodes(mouseEn);
 
-            Main.map.mapView.setNewCursor(Cursor.MOVE_CURSOR, this);
+            mapView.setNewCursor(Cursor.MOVE_CURSOR, this);
 
             if (dualAlignActive) {
                 if (mode == Mode.extrude || mode == Mode.create_new) {
@@ -485,7 +496,7 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
                         moveCommand = new MoveCommand(movingNodeList.get(0), movement1.getX(), movement1.getY());
                         moveCommand2 = new MoveCommand(movingNodeList.get(1), movement2.getX(), movement2.getY());
                         Command c = new SequenceCommand(tr("Extrude Way"), moveCommand, moveCommand2);
-                        Main.main.undoRedo.add(c);
+                        MainApplication.undoRedo.add(c);
                     } else {
                         // reuse existing move commands
                         moveCommand.moveAgainTo(movement1.getX(), movement1.getY());
@@ -500,7 +511,7 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
                     if (moveCommand == null) {
                         //make a new move command
                         moveCommand = new MoveCommand(new ArrayList<OsmPrimitive>(movingNodeList), bestMovement);
-                        Main.main.undoRedo.add(moveCommand);
+                        MainApplication.undoRedo.add(moveCommand);
                     } else {
                         //reuse existing move command
                         moveCommand.moveAgainTo(bestMovement.getX(), bestMovement.getY());
@@ -508,7 +519,7 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
                 }
             }
 
-            Main.map.mapView.repaint();
+            mapView.repaint();
         }
     }
 
@@ -519,7 +530,8 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
     @Override
     public void mouseReleased(MouseEvent e) {
 
-        if (!Main.map.mapView.isActiveLayerVisible())
+        MapView mapView = MainApplication.getMap().mapView;
+        if (!mapView.isActiveLayerVisible())
             return;
 
         if (mode == Mode.select) {
@@ -534,8 +546,13 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
                     // double click adds a new node
                     addNewNode(e);
                 } else if (e.getPoint().distance(initialMousePos) > initialMoveThreshold && newN1en != null && selectedSegment != null) {
-                    // main extrusion commands
-                    performExtrusion();
+                    try {
+                        // main extrusion commands
+                        performExtrusion();
+                    } catch (DataIntegrityProblemException ex) {
+                        // Can occur if calling undo while extruding, see #12870
+                        Logging.error(ex);
+                    }
                 }
             } else if (mode == Mode.translate || mode == Mode.translate_node) {
                 //Commit translate
@@ -545,14 +562,14 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
 
             updateKeyModifiers(e);
             // Switch back into select mode
-            Main.map.mapView.setNewCursor(ctrl ? cursorTranslate : alt ? cursorCreateNew : shift ? cursorCreateNodes : cursor, this);
-            Main.map.mapView.removeTemporaryLayer(this);
+            mapView.setNewCursor(ctrl ? cursorTranslate : alt ? cursorCreateNew : shift ? cursorCreateNodes : cursor, this);
+            mapView.removeTemporaryLayer(this);
             selectedSegment = null;
             moveCommand = null;
             mode = Mode.select;
             dualAlignSegmentCollapsed = false;
             updateStatusLine();
-            Main.map.mapView.repaint();
+            mapView.repaint();
         }
     }
 
@@ -566,17 +583,18 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
      */
     private static void addNewNode(MouseEvent e) {
         // Should maybe do the same as in DrawAction and fetch all nearby segments?
-        WaySegment ws = Main.map.mapView.getNearestWaySegment(e.getPoint(), OsmPrimitive::isSelectable);
+        MapView mapView = MainApplication.getMap().mapView;
+        WaySegment ws = mapView.getNearestWaySegment(e.getPoint(), OsmPrimitive::isSelectable);
         if (ws != null) {
-            Node n = new Node(Main.map.mapView.getLatLon(e.getX(), e.getY()));
+            Node n = new Node(mapView.getLatLon(e.getX(), e.getY()));
             EastNorth a = ws.getFirstNode().getEastNorth();
             EastNorth b = ws.getSecondNode().getEastNorth();
             n.setEastNorth(Geometry.closestPointToSegment(a, b, n.getEastNorth()));
             Way wnew = new Way(ws.way);
             wnew.addNode(ws.lowerIndex+1, n);
-            SequenceCommand cmds = new SequenceCommand(tr("Add a new node to an existing way"),
-                    new AddCommand(n), new ChangeCommand(ws.way, wnew));
-            Main.main.undoRedo.add(cmds);
+            DataSet ds = ws.way.getDataSet();
+            MainApplication.undoRedo.add(new SequenceCommand(tr("Add a new node to an existing way"),
+                    new AddCommand(ds, n), new ChangeCommand(ds, ws.way, wnew)));
         }
     }
 
@@ -585,7 +603,8 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
      */
     private void createNewRectangle() {
         if (selectedSegment == null) return;
-        // crete a new rectangle
+        DataSet ds = getLayerManager().getEditDataSet();
+        // create a new rectangle
         Collection<Command> cmds = new LinkedList<>();
         Node third = new Node(newN2en);
         Node fourth = new Node(newN1en);
@@ -600,14 +619,14 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
         // ... and close the way
         wnew.addNode(selectedSegment.getFirstNode());
         // undo support
-        cmds.add(new AddCommand(third));
+        cmds.add(new AddCommand(ds, third));
         if (!dualAlignSegmentCollapsed) {
-            cmds.add(new AddCommand(fourth));
+            cmds.add(new AddCommand(ds, fourth));
         }
-        cmds.add(new AddCommand(wnew));
+        cmds.add(new AddCommand(ds, wnew));
         Command c = new SequenceCommand(tr("Extrude Way"), cmds);
-        Main.main.undoRedo.add(c);
-        getLayerManager().getEditDataSet().setSelected(wnew);
+        MainApplication.undoRedo.add(c);
+        ds.setSelected(wnew);
     }
 
     /**
@@ -616,6 +635,7 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
      * Uses {@link #newN1en}, {@link #newN2en} calculated by {@link #calculateBestMovementAndNewNodes}
      */
     private void performExtrusion() {
+        DataSet ds = getLayerManager().getEditDataSet();
         // create extrusion
         Collection<Command> cmds = new LinkedList<>();
         Way wnew = new Way(selectedSegment.way);
@@ -643,7 +663,7 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
             wnew.addNode(insertionPoint, n1New);
             wnew.removeNode(n1Old);
             wayWasModified = true;
-            cmds.add(new AddCommand(n1New));
+            cmds.add(new AddCommand(ds, n1New));
             changedNodes.add(n1New);
         } else {
             //introduce new node
@@ -651,7 +671,7 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
             wnew.addNode(insertionPoint, n1New);
             wayWasModified = true;
             insertionPoint++;
-            cmds.add(new AddCommand(n1New));
+            cmds.add(new AddCommand(ds, n1New));
             changedNodes.add(n1New);
         }
 
@@ -673,14 +693,14 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
             wnew.addNode(insertionPoint, n2New);
             wnew.removeNode(n2Old);
             wayWasModified = true;
-            cmds.add(new AddCommand(n2New));
+            cmds.add(new AddCommand(ds, n2New));
             changedNodes.add(n2New);
         } else {
             //introduce new node
             Node n2New = new Node(Main.getProjection().eastNorth2latlon(newN2en));
             wnew.addNode(insertionPoint, n2New);
             wayWasModified = true;
-            cmds.add(new AddCommand(n2New));
+            cmds.add(new AddCommand(ds, n2New));
             changedNodes.add(n2New);
         }
 
@@ -694,7 +714,7 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
             cmds.add(new ChangeCommand(selectedSegment.way, wnew));
         }
         Command c = new SequenceCommand(tr("Extrude Way"), cmds);
-        Main.main.undoRedo.add(c);
+        MainApplication.undoRedo.add(c);
         joinNodesIfCollapsed(changedNodes);
     }
 
@@ -704,12 +724,12 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
         // If the dual alignment moved two nodes to the same point, merge them
         Node targetNode = MergeNodesAction.selectTargetNode(changedNodes);
         Node locNode = MergeNodesAction.selectTargetLocationNode(changedNodes);
-        Command mergeCmd = MergeNodesAction.mergeNodes(Main.getLayerManager().getEditLayer(), changedNodes, targetNode, locNode);
+        Command mergeCmd = MergeNodesAction.mergeNodes(changedNodes, targetNode, locNode);
         if (mergeCmd != null) {
-            Main.main.undoRedo.add(mergeCmd);
+            MainApplication.undoRedo.add(mergeCmd);
         } else {
             // undo extruding command itself
-            Main.main.undoRedo.undo();
+            MainApplication.undoRedo.undo();
         }
     }
 
@@ -735,7 +755,7 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
      */
     private EastNorth calculateBestMovement(EastNorth mouseEn) {
 
-        EastNorth initialMouseEn = Main.map.mapView.getEastNorth(initialMousePos.x, initialMousePos.y);
+        EastNorth initialMouseEn = MainApplication.getMap().mapView.getEastNorth(initialMousePos.x, initialMousePos.y);
         EastNorth mouseMovement = mouseEn.subtract(initialMouseEn);
 
         double bestDistance = Double.POSITIVE_INFINITY;
@@ -918,7 +938,7 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
         // find out the movement distance, in metres
         double distance = Main.getProjection().eastNorth2latlon(initialN1en).greatCircleDistance(
                 Main.getProjection().eastNorth2latlon(n1movedEn));
-        Main.map.statusLine.setDist(distance);
+        MainApplication.getMap().statusLine.setDist(distance);
         updateStatusLine();
 
         if (dualAlignActive) {
@@ -1184,7 +1204,7 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
             return new Line2D.Double(start, new Point2D.Double(start.getX() + (unitvector.getX() * linelength), start.getY()
                     + (unitvector.getY() * linelength)));
         } catch (NoninvertibleTransformException e) {
-            Main.debug(e);
+            Logging.debug(e);
             return new Line2D.Double(start, new Point2D.Double(start.getX() + (unitvector.getX() * 10), start.getY()
                     + (unitvector.getY() * 10)));
         }

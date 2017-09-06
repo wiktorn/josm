@@ -7,7 +7,7 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.tools.Shortcut;
 
 /**
@@ -24,19 +24,19 @@ public final class ZoomOutAction extends JosmAction {
                 Shortcut.registerShortcut("view:zoomout", tr("View: {0}", tr("Zoom Out")), KeyEvent.VK_MINUS, Shortcut.DIRECT), true);
         putValue("help", ht("/Action/ZoomOut"));
         // make numpad - behave like -
-        Main.registerActionShortcut(this,
+        MainApplication.registerActionShortcut(this,
             Shortcut.registerShortcut("view:zoomoutkeypad", tr("View: {0}", tr("Zoom Out (Keypad)")),
                 KeyEvent.VK_SUBTRACT, Shortcut.DIRECT));
     }
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        if (!Main.isDisplayingMapView()) return;
-        Main.map.mapView.zoomOut();
+        if (!MainApplication.isDisplayingMapView()) return;
+        MainApplication.getMap().mapView.zoomOut();
     }
 
     @Override
     protected void updateEnabledState() {
-        setEnabled(!Main.getLayerManager().getLayers().isEmpty());
+        setEnabled(!getLayerManager().getLayers().isEmpty());
     }
 }

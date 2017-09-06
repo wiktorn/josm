@@ -8,7 +8,9 @@ import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer;
+import org.openstreetmap.josm.data.UndoRedoHandler.CommandQueueListener;
+import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.tools.Shortcut;
 
 /**
@@ -16,7 +18,7 @@ import org.openstreetmap.josm.tools.Shortcut;
  *
  * @author imi
  */
-public class UndoAction extends JosmAction implements OsmDataLayer.CommandQueueListener {
+public class UndoAction extends JosmAction implements CommandQueueListener {
 
     /**
      * Construct the action with "Undo" as label.
@@ -30,26 +32,27 @@ public class UndoAction extends JosmAction implements OsmDataLayer.CommandQueueL
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        if (Main.map == null)
+        MapFrame map = MainApplication.getMap();
+        if (map == null)
             return;
-        Main.map.repaint();
-        Main.main.undoRedo.undo();
+        map.repaint();
+        MainApplication.undoRedo.undo();
     }
 
     @Override
     protected void updateEnabledState() {
-        setEnabled(Main.main != null && !Main.main.undoRedo.commands.isEmpty());
+        setEnabled(Main.main != null && !MainApplication.undoRedo.commands.isEmpty());
     }
 
     @Override
     public void commandChanged(int queueSize, int redoSize) {
-        if (Main.main.undoRedo.commands.isEmpty()) {
+        if (MainApplication.undoRedo.commands.isEmpty()) {
             putValue(NAME, tr("Undo"));
             setTooltip(tr("Undo the last action."));
         } else {
             putValue(NAME, tr("Undo ..."));
             setTooltip(tr("Undo {0}",
-                    Main.main.undoRedo.commands.getLast().getDescriptionText()));
+                    MainApplication.undoRedo.commands.getLast().getDescriptionText()));
         }
     }
 }

@@ -13,17 +13,18 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.UserIdentityManager;
 import org.openstreetmap.josm.data.osm.Changeset;
 import org.openstreetmap.josm.data.osm.ChangesetCache;
 import org.openstreetmap.josm.data.osm.UserInfo;
 import org.openstreetmap.josm.gui.ExceptionDialogUtil;
-import org.openstreetmap.josm.gui.JosmUserIdentityManager;
 import org.openstreetmap.josm.gui.PleaseWaitRunnable;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.io.ChangesetQuery;
 import org.openstreetmap.josm.io.OsmServerChangesetReader;
 import org.openstreetmap.josm.io.OsmServerUserInfoReader;
 import org.openstreetmap.josm.io.OsmTransferException;
+import org.openstreetmap.josm.tools.Logging;
 import org.xml.sax.SAXException;
 
 /**
@@ -59,12 +60,12 @@ public class DownloadOpenChangesetsTask extends PleaseWaitRunnable {
 
     @Override
     protected void finish() {
-        if (JosmUserIdentityManager.getInstance().isAnonymous()) {
+        if (UserIdentityManager.getInstance().isAnonymous()) {
             String msg = tr("Could not retrieve the list of your open changesets because<br>"
                     + "JOSM does not know your identity.<br>"
                     + "You have either chosen to work anonymously or you are not entitled<br>"
                     + "to know the identity of the user on whose behalf you are working.");
-            Main.warn(msg);
+            Logging.warn(msg);
             if (!GraphicsEnvironment.isHeadless()) {
                 JOptionPane.showMessageDialog(GuiHelper.getFrameForComponent(parent),
                         "<html>" + msg + "</html>", tr("Missing user identity"), JOptionPane.ERROR_MESSAGE);
@@ -94,7 +95,7 @@ public class DownloadOpenChangesetsTask extends PleaseWaitRunnable {
      * Refreshes the user info from the server. This is necessary if we don't know the users id yet.
      */
     protected void refreshUserIdentity() {
-        JosmUserIdentityManager im = JosmUserIdentityManager.getInstance();
+        UserIdentityManager im = UserIdentityManager.getInstance();
         try {
             OsmServerUserInfoReader infoReader = new OsmServerUserInfoReader();
             UserInfo info = infoReader.fetchUserInfo(getProgressMonitor().createSubTaskMonitor(1, false));
@@ -112,14 +113,15 @@ public class DownloadOpenChangesetsTask extends PleaseWaitRunnable {
             if (im.isFullyIdentified()) {
                 im.setPartiallyIdentified(im.getUserName());
             }
-            Main.warn(e, tr("Failed to retrieve user infos for the current JOSM user. Exception was: {0}", e.toString()));
+            Logging.log(Logging.LEVEL_WARN,
+                    tr("Failed to retrieve user infos for the current JOSM user. Exception was: {0}", e.toString()), e);
         }
     }
 
     @Override
     protected void realRun() throws SAXException, IOException, OsmTransferException {
         try {
-            JosmUserIdentityManager im = JosmUserIdentityManager.getInstance();
+            UserIdentityManager im = UserIdentityManager.getInstance();
             if (im.isAnonymous()) {
                 refreshUserIdentity();
             } else if (im.isFullyIdentified()) {

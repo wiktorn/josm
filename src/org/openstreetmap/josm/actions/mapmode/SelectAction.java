@@ -16,7 +16,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.Set;
+import java.util.Optional;
 
 import javax.swing.JOptionPane;
 
@@ -39,6 +39,7 @@ import org.openstreetmap.josm.data.osm.WaySegment;
 import org.openstreetmap.josm.data.osm.visitor.AllNodesVisitor;
 import org.openstreetmap.josm.data.osm.visitor.paint.WireframeMapRenderer;
 import org.openstreetmap.josm.gui.ExtendedDialog;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.MapViewState.MapViewPoint;
@@ -48,8 +49,9 @@ import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.util.KeyPressReleaseListener;
-import org.openstreetmap.josm.gui.util.ModifierListener;
+import org.openstreetmap.josm.gui.util.ModifierExListener;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Pair;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.Utils;
@@ -65,7 +67,7 @@ import org.openstreetmap.josm.tools.Utils;
  * On Mac OS X, Ctrl + mouse button 1 simulates right click (map move), so the
  * feature "selection remove" is disabled on this platform.
  */
-public class SelectAction extends MapMode implements ModifierListener, KeyPressReleaseListener, SelectionEnded {
+public class SelectAction extends MapMode implements ModifierExListener, KeyPressReleaseListener, SelectionEnded {
 
     private static final String NORMAL = "normal";
 
@@ -179,7 +181,7 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
      * to remove the highlight from them again as otherwise the whole data
      * set would have to be checked.
      */
-    private transient Set<OsmPrimitive> oldHighlights = new HashSet<>();
+    private transient Optional<OsmPrimitive> currentHighlight = Optional.empty();
 
     /**
      * Create a new SelectAction
@@ -207,8 +209,9 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
         cycleManager.init();
         virtualManager.init();
         // This is required to update the cursors when ctrl/shift/alt is pressed
-        Main.map.keyDetector.addModifierListener(this);
-        Main.map.keyDetector.addKeyListener(this);
+        MapFrame map = MainApplication.getMap();
+        map.keyDetector.addModifierExListener(this);
+        map.keyDetector.addKeyListener(this);
     }
 
     @Override
@@ -218,14 +221,15 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
         mv.removeMouseListener(this);
         mv.removeMouseMotionListener(this);
         mv.setVirtualNodesEnabled(false);
-        Main.map.keyDetector.removeModifierListener(this);
-        Main.map.keyDetector.removeKeyListener(this);
+        MapFrame map = MainApplication.getMap();
+        map.keyDetector.removeModifierExListener(this);
+        map.keyDetector.removeKeyListener(this);
         removeHighlighting();
     }
 
     @Override
-    public void modifiersChanged(int modifiers) {
-        if (!Main.isDisplayingMapView() || oldEvent == null) return;
+    public void modifiersExChanged(int modifiers) {
+        if (!MainApplication.isDisplayingMapView() || oldEvent == null) return;
         if (giveUserFeedback(oldEvent, modifiers)) {
             mv.repaint();
         }
@@ -238,24 +242,24 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
      * @return {@code true} if repaint is required
      */
     private boolean giveUserFeedback(MouseEvent e) {
-        return giveUserFeedback(e, e.getModifiers());
+        return giveUserFeedback(e, e.getModifiersEx());
     }
 
     /**
      * handles adding highlights and updating the cursor for the given mouse event.
      * Please note that the highlighting for merging while moving is handled via mouseDragged.
      * @param e {@code MouseEvent} which should be used as base for the feedback
-     * @param modifiers define custom keyboard modifiers if the ones from MouseEvent are outdated or similar
+     * @param modifiers define custom keyboard extended modifiers if the ones from MouseEvent are outdated or similar
      * @return {@code true} if repaint is required
      */
     private boolean giveUserFeedback(MouseEvent e, int modifiers) {
-        Collection<OsmPrimitive> c = asColl(
+        Optional<OsmPrimitive> c = Optional.ofNullable(
                 mv.getNearestNodeOrWay(e.getPoint(), mv.isSelectablePredicate, true));
 
-        updateKeyModifiers(modifiers);
-        determineMapMode(!c.isEmpty());
+        updateKeyModifiersEx(modifiers);
+        determineMapMode(c.isPresent());
 
-        Set<OsmPrimitive> newHighlights = new HashSet<>();
+        Optional<OsmPrimitive> newHighlight = Optional.empty();
 
         virtualManager.clear();
         if (mode == Mode.MOVE && !dragInProgress() && virtualManager.activateVirtualNodeNearPoint(e.getPoint())) {
@@ -265,26 +269,24 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
             }
             mv.setNewCursor(SelectActionCursor.virtual_node.cursor(), this);
             // don't highlight anything else if a virtual node will be
-            return repaintIfRequired(newHighlights);
+            return repaintIfRequired(newHighlight);
         }
 
         mv.setNewCursor(getCursor(c), this);
 
         // return early if there can't be any highlights
-        if (!drawTargetHighlight || mode != Mode.MOVE || c.isEmpty())
-            return repaintIfRequired(newHighlights);
+        if (!drawTargetHighlight || mode != Mode.MOVE || !c.isPresent())
+            return repaintIfRequired(newHighlight);
 
         // CTRL toggles selection, but if while dragging CTRL means merge
         final boolean isToggleMode = ctrl && !dragInProgress();
-        for (OsmPrimitive x : c) {
+        if (c.isPresent() && (isToggleMode || !c.get().isSelected())) {
             // only highlight primitives that will change the selection
             // when clicked. I.e. don't highlight selected elements unless
             // we are in toggle mode.
-            if (isToggleMode || !x.isSelected()) {
-                newHighlights.add(x);
-            }
+            newHighlight = c;
         }
-        return repaintIfRequired(newHighlights);
+        return repaintIfRequired(newHighlight);
     }
 
     /**
@@ -294,7 +296,7 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
      * @param nearbyStuff  primitives near the cursor
      * @return the cursor that should be displayed
      */
-    private Cursor getCursor(Collection<OsmPrimitive> nearbyStuff) {
+    private Cursor getCursor(Optional<OsmPrimitive> nearbyStuff) {
         String c = "rect";
         switch(mode) {
         case MOVE:
@@ -302,8 +304,7 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
                 c = "virtual_node";
                 break;
             }
-            final Iterator<OsmPrimitive> it = nearbyStuff.iterator();
-            final OsmPrimitive osm = it.hasNext() ? it.next() : null;
+            final OsmPrimitive osm = nearbyStuff.orElse(null);
 
             if (dragInProgress()) {
                 // only consider merge if ctrl is pressed and there are nodes in
@@ -355,35 +356,22 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
             needsRepaint = true;
             ds.clearHighlightedVirtualNodes();
         }
-        if (oldHighlights.isEmpty())
+        if (!currentHighlight.isPresent()) {
             return needsRepaint;
-
-        for (OsmPrimitive prim : oldHighlights) {
-            prim.setHighlighted(false);
+        } else {
+            currentHighlight.get().setHighlighted(false);
         }
-        oldHighlights = new HashSet<>();
+        currentHighlight = Optional.empty();
         return true;
     }
 
-    private boolean repaintIfRequired(Set<OsmPrimitive> newHighlights) {
-        if (!drawTargetHighlight)
+    private boolean repaintIfRequired(Optional<OsmPrimitive> newHighlight) {
+        if (!drawTargetHighlight || currentHighlight.equals(newHighlight))
             return false;
-
-        boolean needsRepaint = false;
-        for (OsmPrimitive x : newHighlights) {
-            if (oldHighlights.contains(x)) {
-                continue;
-            }
-            needsRepaint = true;
-            x.setHighlighted(true);
-        }
-        oldHighlights.removeAll(newHighlights);
-        for (OsmPrimitive x : oldHighlights) {
-            x.setHighlighted(false);
-            needsRepaint = true;
-        }
-        oldHighlights = newHighlights;
-        return needsRepaint;
+        currentHighlight.ifPresent(osm -> osm.setHighlighted(false));
+        newHighlight.ifPresent(osm -> osm.setHighlighted(true));
+        currentHighlight = newHighlight;
+        return true;
     }
 
     /**
@@ -522,10 +510,10 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
             boolean needsRepaint = removeHighlighting();
             if (p != null) {
                 p.setHighlighted(true);
-                oldHighlights.add(p);
+                currentHighlight = Optional.of(p);
                 needsRepaint = true;
             }
-            mv.setNewCursor(getCursor(asColl(p)), this);
+            mv.setNewCursor(getCursor(Optional.ofNullable(p)), this);
             // also update the stored mouse event, so we can display the correct cursor
             // when dragging a node onto another one and then press CTRL to merge
             oldEvent = e;
@@ -582,6 +570,7 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
 
         startingDraggingPos = null;
         mouseReleaseTime = System.currentTimeMillis();
+        MapFrame map = MainApplication.getMap();
 
         if (mode == Mode.SELECT) {
             if (e.getButton() != MouseEvent.BUTTON1) {
@@ -592,7 +581,7 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
 
             // Select Draw Tool if no selection has been made
             if (!cancelDrawMode && getLayerManager().getEditDataSet().selectionEmpty()) {
-                Main.map.selectDrawTool(true);
+                map.selectDrawTool(true);
                 updateStatusLine();
                 return;
             }
@@ -613,7 +602,7 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
                     if (e.getClickCount() >= 2 && c.size() == 1 && c.iterator().next() instanceof Node) {
                         // We need to do it like this as otherwise drawAction will see a double
                         // click and switch back to SelectMode
-                        Main.worker.execute(() -> Main.map.selectDrawTool(true));
+                        MainApplication.worker.execute(() -> map.selectDrawTool(true));
                         return;
                     }
                 }
@@ -644,16 +633,17 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
 
     @Override
     public void doKeyPressed(KeyEvent e) {
-        if (!repeatedKeySwitchLassoOption || !Main.isDisplayingMapView() || !getShortcut().isEvent(e))
+        if (!repeatedKeySwitchLassoOption || !MainApplication.isDisplayingMapView() || !getShortcut().isEvent(e))
             return;
-        if (Main.isDebugEnabled()) {
-            Main.debug(getClass().getName()+" consuming event "+e);
+        if (Logging.isDebugEnabled()) {
+            Logging.debug("{0} consuming event {1}", getClass().getName(), e);
         }
         e.consume();
+        MapFrame map = MainApplication.getMap();
         if (!lassoMode) {
-            Main.map.selectMapMode(Main.map.mapModeSelectLasso);
+            map.selectMapMode(map.mapModeSelectLasso);
         } else {
-            Main.map.selectMapMode(Main.map.mapModeSelect);
+            map.selectMapMode(map.mapModeSelect);
         }
     }
 
@@ -720,7 +710,7 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
                     ((MoveCommand) c).applyVectorTo(currentEN);
                 } else {
                     c = new MoveCommand(selection, startEN, currentEN);
-                    Main.main.undoRedo.add(c);
+                    MainApplication.undoRedo.add(c);
                 }
                 for (Node n : affectedNodes) {
                     LatLon ll = n.getCoor();
@@ -753,19 +743,19 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
                     if (c instanceof RotateCommand && affectedNodes.equals(((RotateCommand) c).getTransformedNodes())) {
                         ((RotateCommand) c).handleEvent(currentEN);
                     } else {
-                        Main.main.undoRedo.add(new RotateCommand(selection, currentEN));
+                        MainApplication.undoRedo.add(new RotateCommand(selection, currentEN));
                     }
                 } else if (mode == Mode.SCALE) {
                     if (c instanceof ScaleCommand && affectedNodes.equals(((ScaleCommand) c).getTransformedNodes())) {
                         ((ScaleCommand) c).handleEvent(currentEN);
                     } else {
-                        Main.main.undoRedo.add(new ScaleCommand(selection, currentEN));
+                        MainApplication.undoRedo.add(new ScaleCommand(selection, currentEN));
                     }
                 }
 
                 Collection<Way> ways = ds.getSelectedWays();
                 if (doesImpactStatusLine(affectedNodes, ways)) {
-                    Main.map.statusLine.setDist(ways);
+                    MainApplication.getMap().statusLine.setDist(ways);
                 }
             } finally {
                 ds.endUpdate();
@@ -808,7 +798,7 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
      * @return last command
      */
     private static Command getLastCommandInDataset(DataSet ds) {
-        Command lastCommand = Main.main.undoRedo.getLastCommand();
+        Command lastCommand = MainApplication.undoRedo.getLastCommand();
         if (lastCommand instanceof SequenceCommand) {
             lastCommand = ((SequenceCommand) lastCommand).getLastCommand();
         }
@@ -834,7 +824,7 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
             ed.toggleEnable("movedHiddenElements");
             ed.showDialog();
             if (ed.getValue() != 1) {
-                Main.main.undoRedo.undo();
+                MainApplication.undoRedo.undo();
             }
         }
         int max = Main.pref.getInteger("warn.move.maxelements", 20), limit = max;
@@ -857,7 +847,7 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
             ed.showDialog();
 
             if (ed.getValue() != 1) {
-                Main.main.undoRedo.undo();
+                MainApplication.undoRedo.undo();
             }
         } else {
             // if small number of elements were moved,
@@ -929,7 +919,7 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
 
         Collection<Node> nodesToMerge = new LinkedList<>(selNodes);
         nodesToMerge.add(target);
-        mergeNodes(Main.getLayerManager().getEditLayer(), nodesToMerge, target);
+        mergeNodes(MainApplication.getLayerManager().getEditLayer(), nodesToMerge, target);
     }
 
     /**
@@ -1244,20 +1234,21 @@ public class SelectAction extends MapMode implements ModifierListener, KeyPressR
         }
 
         private void createMiddleNodeFromVirtual(EastNorth currentEN) {
+            DataSet ds = getLayerManager().getEditDataSet();
             Collection<Command> virtualCmds = new LinkedList<>();
-            virtualCmds.add(new AddCommand(virtualNode));
+            virtualCmds.add(new AddCommand(ds, virtualNode));
             for (WaySegment virtualWay : virtualWays) {
                 Way w = virtualWay.way;
                 Way wnew = new Way(w);
                 wnew.addNode(virtualWay.lowerIndex + 1, virtualNode);
-                virtualCmds.add(new ChangeCommand(w, wnew));
+                virtualCmds.add(new ChangeCommand(ds, w, wnew));
             }
-            virtualCmds.add(new MoveCommand(virtualNode, startEN, currentEN));
+            virtualCmds.add(new MoveCommand(ds, virtualNode, startEN, currentEN));
             String text = trn("Add and move a virtual new node to way",
                     "Add and move a virtual new node to {0} ways", virtualWays.size(),
                     virtualWays.size());
-            Main.main.undoRedo.add(new SequenceCommand(text, virtualCmds));
-            getLayerManager().getEditDataSet().setSelected(Collections.singleton((OsmPrimitive) virtualNode));
+            MainApplication.undoRedo.add(new SequenceCommand(text, virtualCmds));
+            ds.setSelected(Collections.singleton((OsmPrimitive) virtualNode));
             clear();
         }
 

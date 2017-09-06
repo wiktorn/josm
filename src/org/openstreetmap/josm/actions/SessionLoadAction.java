@@ -20,6 +20,7 @@ import javax.swing.SwingUtilities;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.PleaseWaitRunnable;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.preferences.projection.ProjectionPreference;
@@ -33,6 +34,7 @@ import org.openstreetmap.josm.io.session.SessionReader.SessionProjectionChoiceDa
 import org.openstreetmap.josm.io.session.SessionReader.SessionViewportData;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.JosmRuntimeException;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -58,7 +60,7 @@ public class SessionLoadAction extends DiskAccessAction {
             return;
         File file = fc.getSelectedFile();
         boolean zip = Utils.hasExtension(file, "joz");
-        Main.worker.submit(new Loader(file, zip));
+        MainApplication.worker.submit(new Loader(file, zip));
     }
 
     /**
@@ -131,17 +133,17 @@ public class SessionLoadAction extends DiskAccessAction {
 
         private void addLayers() {
             if (layers != null && !layers.isEmpty()) {
-                boolean noMap = Main.map == null;
+                boolean noMap = MainApplication.getMap() == null;
                 for (Layer l : layers) {
                     if (canceled)
                         return;
-                    Main.getLayerManager().addLayer(l);
+                    MainApplication.getLayerManager().addLayer(l);
                 }
                 if (active != null) {
-                    Main.getLayerManager().setActiveLayer(active);
+                    MainApplication.getLayerManager().setActiveLayer(active);
                 }
                 if (noMap && viewport != null) {
-                    Main.map.mapView.scheduleZoomTo(viewport.getEastNorthViewport(Main.getProjection()));
+                    MainApplication.getMap().mapView.scheduleZoomTo(viewport.getEastNorthViewport(Main.getProjection()));
                 }
             }
         }
@@ -195,7 +197,7 @@ public class SessionLoadAction extends DiskAccessAction {
         }
 
         private void handleException(String dialogTitle, Exception e) {
-            Main.error(e);
+            Logging.error(e);
             HelpAwareOptionPane.showMessageDialogInEDT(
                     Main.parent,
                     tr("<html>Could not load session file ''{0}''.<br>Error is:<br>{1}</html>",

@@ -40,11 +40,13 @@ import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.TagCollection;
 import org.openstreetmap.josm.data.osm.Way;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.Notification;
 import org.openstreetmap.josm.gui.conflict.tags.CombinePrimitiveResolverDialog;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.tools.Geometry;
 import org.openstreetmap.josm.tools.JosmRuntimeException;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Pair;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.UserCancelException;
@@ -58,6 +60,7 @@ public class JoinAreasAction extends JosmAction {
     // This will be used to commit commands and unite them into one large command sequence at the end
     private final transient LinkedList<Command> cmds = new LinkedList<>();
     private int cmdsCount;
+    private DataSet ds;
     private final transient List<Relation> addedRelations = new LinkedList<>();
 
     /**
@@ -453,13 +456,13 @@ public class JoinAreasAction extends JosmAction {
 
     /**
      * Constructs a new {@code JoinAreasAction} with optional shortcut.
-     * @param addShortcut controls whether the shortcut should be registered or not
+     * @param addShortcut controls whether the shortcut should be registered or not, as for toolbar registration
      * @since 11611
      */
     public JoinAreasAction(boolean addShortcut) {
         super(tr("Join overlapping Areas"), "joinareas", tr("Joins areas that overlap each other"), addShortcut ?
         Shortcut.registerShortcut("tools:joinareas", tr("Tool: {0}", tr("Join overlapping Areas")), KeyEvent.VK_J, Shortcut.SHIFT)
-        : null, true);
+        : null, addShortcut);
     }
 
     /**
@@ -468,7 +471,7 @@ public class JoinAreasAction extends JosmAction {
      */
     @Override
     public void actionPerformed(ActionEvent e) {
-        join(Main.getLayerManager().getEditDataSet().getSelectedWays());
+        join(getLayerManager().getEditDataSet().getSelectedWays());
     }
 
     /**
@@ -501,7 +504,7 @@ public class JoinAreasAction extends JosmAction {
         }
 
         // TODO: Only display this warning when nodes outside dataSourceArea are deleted
-        boolean ok = Command.checkAndConfirmOutlyingOperation("joinarea", tr("Join area confirmation"),
+        boolean ok = checkAndConfirmOutlyingOperation("joinarea", tr("Join area confirmation"),
                 trn("The selected way has nodes outside of the downloaded data region.",
                     "The selected ways have nodes outside of the downloaded data region.",
                     ways.size()) + "<br/>"
@@ -535,7 +538,7 @@ public class JoinAreasAction extends JosmAction {
             // see #11026 - Because <ways> is a dynamic filtered (on ways) of a filtered (on selected objects) collection,
             // retrieve effective dataset before joining the ways (which affects the selection, thus, the <ways> collection)
             // Dataset retrieving allows to call this code without relying on Main.getCurrentDataSet(), thus, on a mapview instance
-            DataSet ds = ways.iterator().next().getDataSet();
+            ds = ways.iterator().next().getDataSet();
 
             // Do the job of joining areas
             JoinAreasResult result = joinAreas(areas);
@@ -563,12 +566,12 @@ public class JoinAreasAction extends JosmAction {
                         .show();
             }
         } catch (UserCancelException exception) {
-            Main.trace(exception);
+            Logging.trace(exception);
             //revert changes
             //FIXME: this is dirty hack
             makeCommitsOneAction(tr("Reverting changes"));
-            Main.main.undoRedo.undo();
-            Main.main.undoRedo.redoCommands.clear();
+            MainApplication.undoRedo.undo();
+            MainApplication.undoRedo.redoCommands.clear();
         }
     }
 
@@ -690,7 +693,7 @@ public class JoinAreasAction extends JosmAction {
 
         // Delete the discarded inner ways
         if (!discardedWays.isEmpty()) {
-            Command deleteCmd = DeleteCommand.delete(Main.getLayerManager().getEditLayer(), discardedWays, true);
+            Command deleteCmd = DeleteCommand.delete(discardedWays, true);
             if (deleteCmd != null) {
                 cmds.add(deleteCmd);
                 commitCommands(marktr("Delete Ways that are not part of an inner multipolygon"));
@@ -734,7 +737,7 @@ public class JoinAreasAction extends JosmAction {
             commitCommands(marktr("Fix tag conflicts"));
             return true;
         } catch (UserCancelException ex) {
-            Main.trace(ex);
+            Logging.trace(ex);
             return false;
         }
     }
@@ -824,7 +827,7 @@ public class JoinAreasAction extends JosmAction {
 
     private static void commitCommand(Command c) {
         if (Main.main != null) {
-            Main.main.undoRedo.add(c);
+            MainApplication.undoRedo.add(c);
         } else {
             c.executeCommand();
         }
@@ -1015,7 +1018,7 @@ public class JoinAreasAction extends JosmAction {
         List<List<Node>> chunks = buildNodeChunks(way, nodes);
 
         if (chunks.size() > 1) {
-            SplitWayResult split = SplitWayAction.splitWay(getLayerManager().getEditLayer(), way, chunks,
+            SplitWayResult split = SplitWayAction.splitWay(way, chunks,
                     Collections.<OsmPrimitive>emptyList(), SplitWayAction.Strategy.keepFirstChunk());
 
             if (split != null) {
@@ -1457,14 +1460,14 @@ public class JoinAreasAction extends JosmAction {
      */
     private RelationRole addOwnMultipolygonRelation(Collection<Way> inner) {
         if (inner.isEmpty()) return null;
-        OsmDataLayer layer = Main.getLayerManager().getEditLayer();
+        OsmDataLayer layer = getLayerManager().getEditLayer();
         // Create new multipolygon relation and add all inner ways to it
         Relation newRel = new Relation();
         newRel.put("type", "multipolygon");
         for (Way w : inner) {
             newRel.addMember(new RelationMember("inner", w));
         }
-        cmds.add(layer != null ? new AddCommand(layer, newRel) :
+        cmds.add(layer != null ? new AddCommand(layer.data, newRel) :
             new AddCommand(inner.iterator().next().getDataSet(), newRel));
         addedRelations.add(newRel);
 
@@ -1535,16 +1538,17 @@ public class JoinAreasAction extends JosmAction {
             cmds.add(new ChangeCommand(r.rel, newRel));
         }
 
-        OsmDataLayer layer = Main.getLayerManager().getEditLayer();
         Relation newRel;
+        RelationRole soleOuter;
         switch (multiouters.size()) {
         case 0:
             return;
         case 1:
             // Found only one to be part of a multipolygon relation, so just add it back as well
-            newRel = new Relation(multiouters.get(0).rel);
-            newRel.addMember(new RelationMember(multiouters.get(0).role, outer));
-            cmds.add(new ChangeCommand(multiouters.get(0).rel, newRel));
+            soleOuter = multiouters.get(0);
+            newRel = new Relation(soleOuter.rel);
+            newRel.addMember(new RelationMember(soleOuter.role, outer));
+            cmds.add(new ChangeCommand(ds, soleOuter.rel, newRel));
             return;
         default:
             // Create a new relation with all previous members and (Way)outer as outer.
@@ -1564,7 +1568,7 @@ public class JoinAreasAction extends JosmAction {
                 relationsToDelete.add(r.rel);
             }
             newRel.addMember(new RelationMember("outer", outer));
-            cmds.add(layer != null ? new AddCommand(layer, newRel) : new AddCommand(outer.getDataSet(), newRel));
+            cmds.add(new AddCommand(ds, newRel));
         }
     }
 
@@ -1590,7 +1594,7 @@ public class JoinAreasAction extends JosmAction {
     private void makeCommitsOneAction(String message) {
         cmds.clear();
         if (Main.main != null) {
-            UndoRedoHandler ur = Main.main.undoRedo;
+            UndoRedoHandler ur = MainApplication.undoRedo;
             int i = Math.max(ur.commands.size() - cmdsCount, 0);
             for (; i < ur.commands.size(); i++) {
                 cmds.add(ur.commands.get(i));

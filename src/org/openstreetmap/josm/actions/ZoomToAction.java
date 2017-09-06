@@ -11,6 +11,7 @@ import javax.swing.event.ListSelectionListener;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.conflict.pair.nodes.NodeListTable;
 import org.openstreetmap.josm.gui.conflict.pair.relation.RelationMemberTable;
 import org.openstreetmap.josm.gui.dialogs.relation.MemberTable;
@@ -25,7 +26,7 @@ import org.openstreetmap.josm.gui.widgets.OsmPrimitivesTable;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 
 /**
- * An action that zooms to the selected OSM primitive in a table of primitives
+ * An action that zooms to the selected OSM primitive in a table of primitives.
  */
 public class ZoomToAction extends AbstractAction implements LayerChangeListener, ActiveLayerChangeListener, ListSelectionListener {
 
@@ -103,7 +104,7 @@ public class ZoomToAction extends AbstractAction implements LayerChangeListener,
     }
 
     protected final void updateEnabledState() {
-        if (Main.main == null || Main.getLayerManager().getEditLayer() != this.table.getLayer()) {
+        if (Main.main == null || MainApplication.getLayerManager().getEditLayer() != this.table.getLayer()) {
             setEnabled(false);
             putValue(SHORT_DESCRIPTION, descriptionInactiveLayer);
             return;

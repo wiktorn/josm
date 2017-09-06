@@ -11,11 +11,15 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.AutoScaleAction;
 import org.openstreetmap.josm.command.AddCommand;
 import org.openstreetmap.josm.data.coor.LatLon;
+import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
+import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.io.remotecontrol.AddTagsDialog;
 import org.openstreetmap.josm.io.remotecontrol.PermissionPrefWithDefault;
+import org.openstreetmap.josm.tools.Logging;
 
 /**
  * Handler for add_node request.
@@ -76,32 +80,34 @@ public class AddNodeHandler extends RequestHandler {
     private void addNode(Map<String, String> args) {
 
         // Parse the arguments
-        Main.info("Adding node at (" + lat + ", " + lon + ')');
+        Logging.info("Adding node at (" + lat + ", " + lon + ')');
 
         // Create a new node
         LatLon ll = new LatLon(lat, lon);
 
         Node node = null;
 
-        if (Main.isDisplayingMapView()) {
-            Point p = Main.map.mapView.getPoint(ll);
-            node = Main.map.mapView.getNearestNode(p, OsmPrimitive::isUsable);
+        if (MainApplication.isDisplayingMapView()) {
+            MapView mapView = MainApplication.getMap().mapView;
+            Point p = mapView.getPoint(ll);
+            node = mapView.getNearestNode(p, OsmPrimitive::isUsable);
             if (node != null && node.getCoor().greatCircleDistance(ll) > Main.pref.getDouble("remotecontrol.tolerance", 0.1)) {
                 node = null; // node is too far
             }
         }
 
+        DataSet ds = MainApplication.getLayerManager().getEditDataSet();
         if (node == null) {
             node = new Node(ll);
             // Now execute the commands to add this node.
-            Main.main.undoRedo.add(new AddCommand(node));
+            MainApplication.undoRedo.add(new AddCommand(ds, node));
         }
 
-        Main.getLayerManager().getEditDataSet().setSelected(node);
+        ds.setSelected(node);
         if (PermissionPrefWithDefault.CHANGE_VIEWPORT.isAllowed()) {
             AutoScaleAction.autoScale("selection");
         } else {
-            Main.map.mapView.repaint();
+            MainApplication.getMap().mapView.repaint();
         }
         // parse parameter addtags=tag1=value1|tag2=vlaue2
         AddTagsDialog.addTags(args, sender, Collections.singleton(node));
@@ -115,7 +121,7 @@ public class AddNodeHandler extends RequestHandler {
         } catch (NumberFormatException e) {
             throw new RequestHandlerBadRequestException("NumberFormatException ("+e.getMessage()+')', e);
         }
-        if (Main.getLayerManager().getEditLayer() == null) {
+        if (MainApplication.getLayerManager().getEditLayer() == null) {
              throw new RequestHandlerBadRequestException(tr("There is no layer opened to add node"));
         }
     }

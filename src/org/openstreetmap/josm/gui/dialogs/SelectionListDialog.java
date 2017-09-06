@@ -43,10 +43,10 @@ import org.openstreetmap.josm.actions.AutoScaleAction;
 import org.openstreetmap.josm.actions.relation.DownloadSelectedIncompleteMembersAction;
 import org.openstreetmap.josm.actions.relation.EditRelationAction;
 import org.openstreetmap.josm.actions.relation.SelectInRelationListAction;
-import org.openstreetmap.josm.actions.search.SearchAction.SearchSetting;
 import org.openstreetmap.josm.data.SelectionChangedListener;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.DataSet;
+import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.OsmPrimitiveComparator;
@@ -57,6 +57,7 @@ import org.openstreetmap.josm.data.osm.event.DataChangedEvent;
 import org.openstreetmap.josm.data.osm.event.DataSetListener;
 import org.openstreetmap.josm.data.osm.event.DatasetEventManager;
 import org.openstreetmap.josm.data.osm.event.DatasetEventManager.FireMode;
+import org.openstreetmap.josm.data.osm.search.SearchSetting;
 import org.openstreetmap.josm.data.osm.event.NodeMovedEvent;
 import org.openstreetmap.josm.data.osm.event.PrimitivesAddedEvent;
 import org.openstreetmap.josm.data.osm.event.PrimitivesRemovedEvent;
@@ -65,7 +66,8 @@ import org.openstreetmap.josm.data.osm.event.SelectionEventManager;
 import org.openstreetmap.josm.data.osm.event.TagsChangedEvent;
 import org.openstreetmap.josm.data.osm.event.WayNodesChangedEvent;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
-import org.openstreetmap.josm.gui.DefaultNameFormatter;
+import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.OsmPrimitivRenderer;
 import org.openstreetmap.josm.gui.PopupMenuHandler;
 import org.openstreetmap.josm.gui.SideButton;
@@ -169,16 +171,16 @@ public class SelectionListDialog extends ToggleDialog {
         SelectionEventManager.getInstance().addSelectionListener(actShowHistory, FireMode.IN_EDT_CONSOLIDATED);
         SelectionEventManager.getInstance().addSelectionListener(model, FireMode.IN_EDT_CONSOLIDATED);
         DatasetEventManager.getInstance().addDatasetListener(model, FireMode.IN_EDT);
-        Main.getLayerManager().addActiveLayerChangeListener(actSearch);
+        MainApplication.getLayerManager().addActiveLayerChangeListener(actSearch);
         // editLayerChanged also gets the selection history of the level. Listener calls setJOSMSelection when fired.
-        Main.getLayerManager().addAndFireActiveLayerChangeListener(model);
+        MainApplication.getLayerManager().addAndFireActiveLayerChangeListener(model);
         actSearch.updateEnabledState();
     }
 
     @Override
     public void hideNotify() {
-        Main.getLayerManager().removeActiveLayerChangeListener(actSearch);
-        Main.getLayerManager().removeActiveLayerChangeListener(model);
+        MainApplication.getLayerManager().removeActiveLayerChangeListener(actSearch);
+        MainApplication.getLayerManager().removeActiveLayerChangeListener(model);
         SelectionEventManager.getInstance().removeSelectionListener(actShowHistory);
         SelectionEventManager.getInstance().removeSelectionListener(model);
         DatasetEventManager.getInstance().removeDatasetListener(model);
@@ -200,7 +202,7 @@ public class SelectionListDialog extends ToggleDialog {
             int idx = lstPrimitives.locationToIndex(e.getPoint());
             if (idx < 0) return;
             if (isDoubleClick(e)) {
-                OsmDataLayer layer = Main.getLayerManager().getEditLayer();
+                OsmDataLayer layer = MainApplication.getLayerManager().getEditLayer();
                 if (layer == null) return;
                 OsmPrimitive osm = model.getElementAt(idx);
                 Collection<OsmPrimitive> sel = layer.data.getSelected();
@@ -211,8 +213,8 @@ public class SelectionListDialog extends ToggleDialog {
                     // else open relation editor if applicable
                     actEditRelationSelection.actionPerformed(null);
                 }
-            } else if (highlightEnabled && Main.isDisplayingMapView() && helper.highlightOnly(model.getElementAt(idx))) {
-                Main.map.mapView.repaint();
+            } else if (highlightEnabled && MainApplication.isDisplayingMapView() && helper.highlightOnly(model.getElementAt(idx))) {
+                MainApplication.getMap().mapView.repaint();
             }
         }
 
@@ -296,7 +298,7 @@ public class SelectionListDialog extends ToggleDialog {
         }
 
         protected void updateEnabledState() {
-            setEnabled(Main.getLayerManager().getEditLayer() != null);
+            setEnabled(MainApplication.getLayerManager().getEditLayer() != null);
         }
 
         @Override
@@ -321,7 +323,7 @@ public class SelectionListDialog extends ToggleDialog {
         public void actionPerformed(ActionEvent e) {
             Collection<OsmPrimitive> sel = model.getSelected();
             if (sel.isEmpty()) return;
-            OsmDataLayer editLayer = Main.getLayerManager().getEditLayer();
+            OsmDataLayer editLayer = MainApplication.getLayerManager().getEditLayer();
             if (editLayer == null) return;
             editLayer.data.setSelected(sel);
             model.selectionModel.setSelectionInterval(0, sel.size()-1);
@@ -441,7 +443,7 @@ public class SelectionListDialog extends ToggleDialog {
             if (box.getBounds() == null)
                 return;
             box.enlargeBoundingBox();
-            Main.map.mapView.zoomTo(box);
+            MainApplication.getMap().mapView.zoomTo(box);
         }
 
         protected void updateEnabledState() {
@@ -614,6 +616,7 @@ public class SelectionListDialog extends ToggleDialog {
                     fireContentsChanged(this, 0, getSize());
                     if (selection != null) {
                         remember(selection);
+                        MapFrame map = MainApplication.getMap();
                         if (selection.size() == 2) {
                             Iterator<? extends OsmPrimitive> it = selection.iterator();
                             OsmPrimitive n1 = it.next();
@@ -623,12 +626,12 @@ public class SelectionListDialog extends ToggleDialog {
                                 LatLon c1 = ((Node) n1).getCoor();
                                 LatLon c2 = ((Node) n2).getCoor();
                                 if (c1 != null && c2 != null) {
-                                    Main.map.statusLine.setDist(c1.greatCircleDistance(c2));
+                                    map.statusLine.setDist(c1.greatCircleDistance(c2));
                                     return;
                                 }
                             }
                         }
-                        Main.map.statusLine.setDist(
+                        map.statusLine.setDist(
                                 new SubclassFilteredCollection<OsmPrimitive, Way>(selection, Way.class::isInstance));
                     }
                 }
@@ -841,7 +844,7 @@ public class SelectionListDialog extends ToggleDialog {
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            Main.getLayerManager().getEditDataSet().setSelected(sel);
+            MainApplication.getLayerManager().getEditDataSet().setSelected(sel);
         }
     }
 

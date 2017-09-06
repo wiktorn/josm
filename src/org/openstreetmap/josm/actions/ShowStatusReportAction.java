@@ -27,26 +27,27 @@ import org.openstreetmap.josm.data.Version;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.DatasetConsistencyTest;
 import org.openstreetmap.josm.data.preferences.Setting;
+import org.openstreetmap.josm.data.preferences.sources.MapPaintPrefHelper;
+import org.openstreetmap.josm.data.preferences.sources.PresetPrefHelper;
+import org.openstreetmap.josm.data.preferences.sources.ValidatorPrefHelper;
+import org.openstreetmap.josm.data.preferences.sources.SourcePrefHelper;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.MainApplication;
-import org.openstreetmap.josm.gui.preferences.SourceEditor;
-import org.openstreetmap.josm.gui.preferences.map.MapPaintPreference;
-import org.openstreetmap.josm.gui.preferences.map.TaggingPresetPreference;
-import org.openstreetmap.josm.gui.preferences.validator.ValidatorTagCheckerRulesPreference;
+import org.openstreetmap.josm.gui.bugreport.DebugTextDisplay;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.io.OsmApi;
 import org.openstreetmap.josm.plugins.PluginHandler;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.PlatformHookUnixoid;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.Utils;
 import org.openstreetmap.josm.tools.bugreport.BugReportSender;
-import org.openstreetmap.josm.tools.bugreport.DebugTextDisplay;
 
 /**
- * @author xeen
- *
  * Opens a dialog with useful status information like version numbers for Java, JOSM and plugins
- * Also includes preferences with stripped username and password
+ * Also includes preferences with stripped username and password.
+ *
+ * @author xeen
  */
 public final class ShowStatusReportAction extends JosmAction {
 
@@ -63,7 +64,7 @@ public final class ShowStatusReportAction extends JosmAction {
 
         putValue("help", ht("/Action/ShowStatusReport"));
         putValue("toolbar", "help/showstatusreport");
-        Main.toolbar.register(this);
+        MainApplication.getToolbar().register(this);
     }
 
     private static boolean isRunningJavaWebStart() {
@@ -168,14 +169,14 @@ public final class ShowStatusReportAction extends JosmAction {
                 text.append("VM arguments: ").append(vmArguments.toString().replace("\\\\", "\\")).append('\n');
             }
         } catch (SecurityException e) {
-            Main.trace(e);
+            Logging.trace(e);
         }
         List<String> commandLineArgs = MainApplication.getCommandLineArgs();
         if (!commandLineArgs.isEmpty()) {
             text.append("Program arguments: ").append(Arrays.toString(paramCleanup(commandLineArgs).toArray())).append('\n');
         }
         if (Main.main != null) {
-            DataSet dataset = Main.getLayerManager().getEditDataSet();
+            DataSet dataset = MainApplication.getLayerManager().getEditDataSet();
             if (dataset != null) {
                 String result = DatasetConsistencyTest.runTests(dataset);
                 if (result.isEmpty()) {
@@ -187,10 +188,10 @@ public final class ShowStatusReportAction extends JosmAction {
         }
         text.append('\n');
         appendCollection(text, "Plugins", Utils.transform(PluginHandler.getBugReportInformation(), i -> "+ " + i));
-        appendCollection(text, "Tagging presets", getCustomUrls(TaggingPresetPreference.PresetPrefHelper.INSTANCE));
-        appendCollection(text, "Map paint styles", getCustomUrls(MapPaintPreference.MapPaintPrefHelper.INSTANCE));
-        appendCollection(text, "Validator rules", getCustomUrls(ValidatorTagCheckerRulesPreference.RulePrefHelper.INSTANCE));
-        appendCollection(text, "Last errors/warnings", Utils.transform(Main.getLastErrorAndWarnings(), i -> "- " + i));
+        appendCollection(text, "Tagging presets", getCustomUrls(PresetPrefHelper.INSTANCE));
+        appendCollection(text, "Map paint styles", getCustomUrls(MapPaintPrefHelper.INSTANCE));
+        appendCollection(text, "Validator rules", getCustomUrls(ValidatorPrefHelper.INSTANCE));
+        appendCollection(text, "Last errors/warnings", Utils.transform(Logging.getLastErrorAndWarnings(), i -> "- " + i));
 
         String osmApi = OsmApi.getOsmApi().getServerUrl();
         if (!OsmApi.DEFAULT_API_URL.equals(osmApi.trim())) {
@@ -200,7 +201,7 @@ public final class ShowStatusReportAction extends JosmAction {
         return text.toString();
     }
 
-    private static Collection<String> getCustomUrls(SourceEditor.SourcePrefHelper helper) {
+    private static Collection<String> getCustomUrls(SourcePrefHelper helper) {
         final Set<String> defaultUrls = helper.getDefault().stream()
                 .map(i -> i.url)
                 .collect(Collectors.toSet());

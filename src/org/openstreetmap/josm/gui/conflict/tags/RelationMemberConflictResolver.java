@@ -27,17 +27,22 @@ import javax.swing.UIManager;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.command.ChangePropertyCommand;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Tag;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.tagging.ac.AutoCompletingTextField;
 import org.openstreetmap.josm.gui.tagging.ac.AutoCompletionList;
+import org.openstreetmap.josm.gui.tagging.ac.AutoCompletionManager;
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel;
 import org.openstreetmap.josm.tools.ImageProvider;
 
+/**
+ * This component presents the user with the ability to resolve a relation member conflict
+ * @see RelationMemberConflictResolverModel
+ */
 public class RelationMemberConflictResolver extends JPanel {
 
     private final AutoCompletingTextField tfRole = new AutoCompletingTextField(10);
@@ -196,9 +201,9 @@ public class RelationMemberConflictResolver extends JPanel {
 
     public void prepareForEditing() {
         AutoCompletionList acList = new AutoCompletionList();
-        OsmDataLayer editLayer = Main.getLayerManager().getEditLayer();
+        OsmDataLayer editLayer = MainApplication.getLayerManager().getEditLayer();
         if (editLayer != null) {
-            editLayer.data.getAutoCompletionManager().populateWithMemberRoles(acList);
+            AutoCompletionManager.of(editLayer.data).populateWithMemberRoles(acList);
         }
         tfRole.setAutoCompletionList(acList);
         AutoCompletingTextField editor = (AutoCompletingTextField) tblResolver.getColumnModel().getColumn(2).getCellEditor();
@@ -207,7 +212,7 @@ public class RelationMemberConflictResolver extends JPanel {
         }
         AutoCompletionList acList2 = new AutoCompletionList();
         if (editLayer != null) {
-            editLayer.data.getAutoCompletionManager().populateWithKeys(acList2);
+            AutoCompletionManager.of(editLayer.data).populateWithKeys(acList2);
         }
         tfKey.setAutoCompletionList(acList2);
     }

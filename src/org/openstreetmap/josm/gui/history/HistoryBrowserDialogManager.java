@@ -22,13 +22,14 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.osm.PrimitiveId;
 import org.openstreetmap.josm.data.osm.history.History;
 import org.openstreetmap.josm.data.osm.history.HistoryDataSet;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerAddEvent;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerChangeListener;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerOrderChangeEvent;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerRemoveEvent;
+import org.openstreetmap.josm.gui.util.WindowGeometry;
 import org.openstreetmap.josm.tools.JosmRuntimeException;
 import org.openstreetmap.josm.tools.SubclassFilteredCollection;
-import org.openstreetmap.josm.tools.WindowGeometry;
 import org.openstreetmap.josm.tools.bugreport.BugReportExceptionHandler;
 
 /**
@@ -64,7 +65,7 @@ public final class HistoryBrowserDialogManager implements LayerChangeListener {
 
     protected HistoryBrowserDialogManager() {
         dialogs = new HashMap<>();
-        Main.getLayerManager().addLayerChangeListener(this);
+        MainApplication.getLayerManager().addLayerChangeListener(this);
     }
 
     /**
@@ -212,7 +213,7 @@ public final class HistoryBrowserDialogManager implements LayerChangeListener {
             for (PrimitiveId p : notNewPrimitives) {
                 task.add(p);
             }
-            Main.worker.submit(task);
+            MainApplication.worker.submit(task);
         }
 
         Runnable r = () -> {
@@ -228,6 +229,6 @@ public final class HistoryBrowserDialogManager implements LayerChangeListener {
                 BugReportExceptionHandler.handleException(e);
             }
         };
-        Main.worker.submit(r);
+        MainApplication.worker.submit(r);
     }
 }

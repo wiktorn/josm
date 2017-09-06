@@ -31,18 +31,20 @@ import org.openstreetmap.josm.data.notes.NoteComment;
 import org.openstreetmap.josm.data.osm.NoteData;
 import org.openstreetmap.josm.data.osm.NoteData.NoteDataUpdateListener;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.datatransfer.ClipboardUtils;
 import org.openstreetmap.josm.gui.dialogs.LayerListDialog;
 import org.openstreetmap.josm.gui.dialogs.LayerListPopup;
 import org.openstreetmap.josm.gui.io.AbstractIOTask;
 import org.openstreetmap.josm.gui.io.UploadNoteLayerTask;
+import org.openstreetmap.josm.gui.io.importexport.NoteExporter;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
-import org.openstreetmap.josm.io.NoteExporter;
 import org.openstreetmap.josm.io.OsmApi;
 import org.openstreetmap.josm.io.XmlWriter;
 import org.openstreetmap.josm.tools.ColorHelper;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.date.DateUtils;
 
 /**
@@ -71,12 +73,12 @@ public class NoteLayer extends AbstractModifiableLayer implements MouseListener,
 
     @Override
     public void hookUpMapView() {
-        Main.map.mapView.addMouseListener(this);
+        MainApplication.getMap().mapView.addMouseListener(this);
     }
 
     @Override
     public synchronized void destroy() {
-        Main.map.mapView.removeMouseListener(this);
+        MainApplication.getMap().mapView.removeMouseListener(this);
         noteData.removeNoteDataUpdateListener(this);
         super.destroy();
     }
@@ -132,7 +134,7 @@ public class NoteLayer extends AbstractModifiableLayer implements MouseListener,
             }
             int width = icon.getIconWidth();
             int height = icon.getIconHeight();
-            g.drawImage(icon.getImage(), p.x - (width / 2), p.y - height, Main.map.mapView);
+            g.drawImage(icon.getImage(), p.x - (width / 2), p.y - height, MainApplication.getMap().mapView);
         }
         if (noteData.getSelectedNote() != null) {
             StringBuilder sb = new StringBuilder("<html>");
@@ -182,7 +184,7 @@ public class NoteLayer extends AbstractModifiableLayer implements MouseListener,
                     } catch (IllegalArgumentException e) {
                         // See #11123 - https://bugs.openjdk.java.net/browse/JDK-6719550
                         // Ignore the exception, as Netbeans does: http://hg.netbeans.org/main-silver/rev/c96f4d5fbd20
-                        Main.error(e, false);
+                        Logging.log(Logging.LEVEL_ERROR, e);
                     }
                 }
             }
@@ -258,7 +260,7 @@ public class NoteLayer extends AbstractModifiableLayer implements MouseListener,
         final int iconHeight = ImageProvider.ImageSizes.SMALLICON.getAdjustedHeight();
         Note closestNote = null;
         for (Note note : noteData.getNotes()) {
-            Point notePoint = Main.map.mapView.getPoint(note.getLatLon());
+            Point notePoint = MainApplication.getMap().mapView.getPoint(note.getLatLon());
             //move the note point to the center of the icon where users are most likely to click when selecting
             notePoint.setLocation(notePoint.getX(), notePoint.getY() - iconHeight / 2);
             double dist = clickPoint.distanceSq(notePoint);
@@ -272,7 +274,7 @@ public class NoteLayer extends AbstractModifiableLayer implements MouseListener,
 
     @Override
     public File createAndOpenSaveFileChooser() {
-        return SaveActionBase.createAndOpenSaveFileChooser(tr("Save GPX file"), NoteExporter.FILE_FILTER);
+        return SaveActionBase.createAndOpenSaveFileChooser(tr("Save Note file"), NoteExporter.FILE_FILTER);
     }
 
     @Override

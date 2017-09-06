@@ -34,17 +34,19 @@ import javax.swing.filechooser.FileFilter;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.MapFrameListener;
 import org.openstreetmap.josm.gui.layer.Layer;
+import org.openstreetmap.josm.gui.util.WindowGeometry;
 import org.openstreetmap.josm.gui.widgets.AbstractFileChooser;
 import org.openstreetmap.josm.io.session.SessionLayerExporter;
 import org.openstreetmap.josm.io.session.SessionWriter;
 import org.openstreetmap.josm.tools.GBC;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.MultiMap;
 import org.openstreetmap.josm.tools.UserCancelException;
 import org.openstreetmap.josm.tools.Utils;
-import org.openstreetmap.josm.tools.WindowGeometry;
 
 /**
  * Saves a JOSM session
@@ -72,7 +74,7 @@ public class SessionSaveAsAction extends DiskAccessAction implements MapFrameLis
         super(tr("Save Session As..."), "session", tr("Save the current session to a new file."),
                 null, toolbar, "save_as-session", installAdapters);
         putValue("help", ht("/Action/SessionSaveAs"));
-        Main.addMapFrameListener(this);
+        MainApplication.addMapFrameListener(this);
     }
 
     @Override
@@ -80,7 +82,7 @@ public class SessionSaveAsAction extends DiskAccessAction implements MapFrameLis
         try {
             saveSession();
         } catch (UserCancelException ignore) {
-            Main.trace(ignore);
+            Logging.trace(ignore);
         }
     }
 
@@ -156,7 +158,7 @@ public class SessionSaveAsAction extends DiskAccessAction implements MapFrameLis
         }
 
         int active = -1;
-        Layer activeLayer = Main.getLayerManager().getActiveLayer();
+        Layer activeLayer = getLayerManager().getActiveLayer();
         if (activeLayer != null) {
             active = layersOut.indexOf(activeLayer);
         }
@@ -166,7 +168,7 @@ public class SessionSaveAsAction extends DiskAccessAction implements MapFrameLis
             sw.write(file);
             SaveActionBase.addToFileOpenHistory(file);
         } catch (IOException ex) {
-            Main.error(ex);
+            Logging.error(ex);
             HelpAwareOptionPane.showMessageDialogInEDT(
                     Main.parent,
                     tr("<html>Could not save session file ''{0}''.<br>Error is:<br>{1}</html>",
@@ -200,7 +202,7 @@ public class SessionSaveAsAction extends DiskAccessAction implements MapFrameLis
          * Initializes action.
          */
         public final void initialize() {
-            layers = new ArrayList<>(Main.getLayerManager().getLayers());
+            layers = new ArrayList<>(getLayerManager().getLayers());
             exporters = new HashMap<>();
             dependencies = new MultiMap<>();
 
@@ -281,7 +283,7 @@ public class SessionSaveAsAction extends DiskAccessAction implements MapFrameLis
 
     @Override
     protected void updateEnabledState() {
-        setEnabled(Main.isDisplayingMapView());
+        setEnabled(MainApplication.isDisplayingMapView());
     }
 
     @Override

@@ -65,11 +65,9 @@ import java.util.Locale;
 import java.util.Properties;
 
 import javax.swing.JOptionPane;
-import javax.swing.UIManager;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Preferences;
-import org.openstreetmap.josm.gui.preferences.display.LafPreference;
 import org.openstreetmap.josm.io.CertificateAmendment.CertAmend;
 
 /**
@@ -160,30 +158,11 @@ public class PlatformHookWindows implements PlatformHook {
     @Override
     public void afterPrefStartupHook() {
         extendFontconfig("fontconfig.properties.src");
-        // Workaround for JDK-8180379: crash on Windows 10 1703 with Windows L&F and java < 8u152 / 9+171
-        // To remove during Java 9 migration
-        if (System.getProperty("os.name").toLowerCase(Locale.ENGLISH).contains("windows 10") &&
-                getDefaultStyle().equals(LafPreference.LAF.get())) {
-            try {
-                final int currentBuild = Integer.parseInt(getCurrentBuild());
-                final int javaVersion = Utils.getJavaVersion();
-                final int javaUpdate = Utils.getJavaUpdate();
-                final int javaBuild = Utils.getJavaBuild();
-                // See https://technet.microsoft.com/en-us/windows/release-info.aspx
-                if (currentBuild >= 15_063 && ((javaVersion == 8 && javaUpdate < 141)
-                        || (javaVersion == 9 && javaUpdate == 0 && javaBuild < 173))) {
-                    // Workaround from https://bugs.openjdk.java.net/browse/JDK-8179014
-                    UIManager.put("FileChooser.useSystemExtensionHiding", Boolean.FALSE);
-                }
-            } catch (NumberFormatException | ReflectiveOperationException e) {
-                Main.error(e);
-            }
-        }
     }
 
     @Override
-    public void startupHook() {
-        checkExpiredJava();
+    public void startupHook(JavaExpirationCallback callback) {
+        checkExpiredJava(callback);
     }
 
     @Override
@@ -281,15 +260,36 @@ public class PlatformHookWindows implements PlatformHook {
                 ((System.getenv("ProgramFiles(x86)") == null) ? "32" : "64") + "-Bit";
     }
 
-    private static String getProductName() throws IllegalAccessException, InvocationTargetException {
+    /**
+     * Returns the Windows product name from registry (example: "Windows 10 Pro")
+     * @return the Windows product name from registry
+     * @throws IllegalAccessException if Java language access control is enforced and the underlying method is inaccessible
+     * @throws InvocationTargetException if the underlying method throws an exception
+     * @since 12744
+     */
+    public static String getProductName() throws IllegalAccessException, InvocationTargetException {
         return WinRegistry.readString(HKEY_LOCAL_MACHINE, CURRENT_VERSION, "ProductName");
     }
 
-    private static String getReleaseId() throws IllegalAccessException, InvocationTargetException {
+    /**
+     * Returns the Windows release identifier from registry (example: "1703")
+     * @return the Windows release identifier from registry
+     * @throws IllegalAccessException if Java language access control is enforced and the underlying method is inaccessible
+     * @throws InvocationTargetException if the underlying method throws an exception
+     * @since 12744
+     */
+    public static String getReleaseId() throws IllegalAccessException, InvocationTargetException {
         return WinRegistry.readString(HKEY_LOCAL_MACHINE, CURRENT_VERSION, "ReleaseId");
     }
 
-    private static String getCurrentBuild() throws IllegalAccessException, InvocationTargetException {
+    /**
+     * Returns the Windows current build number from registry (example: "15063")
+     * @return the Windows current build number from registry
+     * @throws IllegalAccessException if Java language access control is enforced and the underlying method is inaccessible
+     * @throws InvocationTargetException if the underlying method throws an exception
+     * @since 12744
+     */
+    public static String getCurrentBuild() throws IllegalAccessException, InvocationTargetException {
         return WinRegistry.readString(HKEY_LOCAL_MACHINE, CURRENT_VERSION, "CurrentBuild");
     }
 
@@ -303,7 +303,7 @@ public class PlatformHookWindows implements PlatformHook {
             }
             sb.append(" (").append(getCurrentBuild()).append(')');
         } catch (ReflectiveOperationException e) {
-            Main.error(e);
+            Logging.error(e);
         }
         return sb.toString();
     }
@@ -345,7 +345,7 @@ public class PlatformHookWindows implements PlatformHook {
         try {
             insecurePubKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(INSECURE_PUBLIC_KEY));
         } catch (InvalidKeySpecException | NoSuchAlgorithmException e) {
-            Main.error(e);
+            Logging.error(e);
             return;
         }
         KeyStore ks = getRootKeystore();
@@ -361,8 +361,8 @@ public class PlatformHookWindows implements PlatformHook {
                     insecureCertificates.add(alias);
                 } catch (InvalidKeyException | NoSuchProviderException | SignatureException e) {
                     // If exception this is not a certificate related to JOSM, just trace it
-                    Main.trace(alias + " --> " + e.getClass().getName());
-                    Main.trace(e);
+                    Logging.trace(alias + " --> " + e.getClass().getName());
+                    Logging.trace(e);
                 }
             }
         }
@@ -384,11 +384,11 @@ public class PlatformHookWindows implements PlatformHook {
                    .append("</html>");
             JOptionPane.showMessageDialog(Main.parent, message.toString(), tr("Warning"), JOptionPane.WARNING_MESSAGE);
             for (String alias : insecureCertificates) {
-                Main.warn(tr("Removing insecure certificate from {0} keystore: {1}", WINDOWS_ROOT, alias));
+                Logging.warn(tr("Removing insecure certificate from {0} keystore: {1}", WINDOWS_ROOT, alias));
                 try {
                     ks.deleteEntry(alias);
                 } catch (KeyStoreException e) {
-                    Main.error(e, tr("Unable to remove insecure certificate from keystore: {0}", e.getMessage()));
+                    Logging.log(Logging.LEVEL_ERROR, tr("Unable to remove insecure certificate from keystore: {0}", e.getMessage()), e);
                 }
             }
         }
@@ -403,12 +403,12 @@ public class PlatformHookWindows implements PlatformHook {
             String alias = ks.getCertificateAlias(trustedCert.getTrustedCertificate());
             if (alias != null) {
                 // JOSM certificate found, return
-                Main.debug(tr("JOSM localhost certificate found in {0} keystore: {1}", WINDOWS_ROOT, alias));
+                Logging.debug(tr("JOSM localhost certificate found in {0} keystore: {1}", WINDOWS_ROOT, alias));
                 return false;
             }
         } catch (ArrayIndexOutOfBoundsException e) {
             // catch error of JDK-8172244 as bug seems to not be fixed anytime soon
-            Main.error(e, "JDK-8172244 occured. Abort HTTPS setup");
+            Logging.log(Logging.LEVEL_ERROR, "JDK-8172244 occured. Abort HTTPS setup", e);
             return false;
         }
         if (!GraphicsEnvironment.isHeadless()) {
@@ -424,7 +424,7 @@ public class PlatformHookWindows implements PlatformHook {
                     tr("HTTPS support in Remote Control"), JOptionPane.INFORMATION_MESSAGE);
         }
         // install it to Windows-ROOT keystore, used by IE, Chrome and Safari, but not by Firefox
-        Main.info(tr("Adding JOSM localhost certificate to {0} keystore", WINDOWS_ROOT));
+        Logging.info(tr("Adding JOSM localhost certificate to {0} keystore", WINDOWS_ROOT));
         ks.setEntry(entryAlias, trustedCert, null);
         return true;
     }
@@ -507,7 +507,7 @@ public class PlatformHookWindows implements PlatformHook {
         String javaLibPath = System.getProperty("java.home") + File.separator + "lib";
         Path templateFile = FileSystems.getDefault().getPath(javaLibPath, templateFileName);
         if (!Files.isReadable(templateFile)) {
-            Main.warn("extended font config - unable to find font config template file {0}", templateFile.toString());
+            Logging.warn("extended font config - unable to find font config template file {0}", templateFile.toString());
             return;
         }
         try (FileInputStream fis = new FileInputStream(templateFile.toFile())) {
@@ -531,11 +531,11 @@ public class PlatformHookWindows implements PlatformHook {
                             allCharSubsets.add(entry.charset);
                             extras.add(entry);
                         } else {
-                            Main.trace("extended font config - already registered font for charset ''{0}'' - skipping ''{1}''",
+                            Logging.trace("extended font config - already registered font for charset ''{0}'' - skipping ''{1}''",
                                     entry.charset, entry.name);
                         }
                     } else {
-                        Main.trace("extended font config - Font ''{0}'' not found on system - skipping", entry.name);
+                        Logging.trace("extended font config - Font ''{0}'' not found on system - skipping", entry.name);
                     }
                 }
                 for (FontEntry entry: extras) {
@@ -547,7 +547,7 @@ public class PlatformHookWindows implements PlatformHook {
                     String value = entry.name;
                     String prevValue = props.getProperty(key);
                     if (prevValue != null && !prevValue.equals(value)) {
-                        Main.warn("extended font config - overriding ''{0}={1}'' with ''{2}''", key, prevValue, value);
+                        Logging.warn("extended font config - overriding ''{0}={1}'' with ''{2}''", key, prevValue, value);
                     }
                     w.append(key + '=' + value + '\n');
                 }
@@ -560,7 +560,7 @@ public class PlatformHookWindows implements PlatformHook {
                     String value = entry.file;
                     String prevValue = props.getProperty(key);
                     if (prevValue != null && !prevValue.equals(value)) {
-                        Main.warn("extended font config - overriding ''{0}={1}'' with ''{2}''", key, prevValue, value);
+                        Logging.warn("extended font config - overriding ''{0}={1}'' with ''{2}''", key, prevValue, value);
                     }
                     w.append(key + '=' + value + '\n');
                 }
@@ -574,7 +574,7 @@ public class PlatformHookWindows implements PlatformHook {
             }
             Utils.updateSystemProperty("sun.awt.fontconfig", fontconfigFile.toString());
         } catch (IOException ex) {
-            Main.error(ex);
+            Logging.error(ex);
         }
     }
 
@@ -602,8 +602,8 @@ public class PlatformHookWindows implements PlatformHook {
             }
             fontsAvail.add(""); // for devanagari
         } catch (IOException ex) {
-            Main.error(ex, false);
-            Main.warn("extended font config - failed to load available Fonts");
+            Logging.log(Logging.LEVEL_ERROR, ex);
+            Logging.warn("extended font config - failed to load available Fonts");
             fontsAvail = null;
         }
         return fontsAvail;

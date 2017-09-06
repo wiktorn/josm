@@ -17,18 +17,17 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.Timeout;
-import org.openstreetmap.josm.JOSMFixture;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.gpx.GpxData;
 import org.openstreetmap.josm.data.osm.DataSet;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.GpxLayer;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.progress.NullProgressMonitor;
+import org.openstreetmap.josm.testutils.JOSMTestRules;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
@@ -38,19 +37,11 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 public class PluginHandlerTestIT {
 
     /**
-     * Global timeout applied to all test methods.
+     * Setup test.
      */
     @Rule
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    public Timeout globalTimeout = Timeout.seconds(10*60);
-
-    /**
-     * Setup test.
-     */
-    @BeforeClass
-    public static void setUp() {
-        JOSMFixture.createUnitTestFixture().init(true);
-    }
+    public JOSMTestRules test = new JOSMTestRules().platform().main().projection().timeout(10*60*1000);
 
     /**
      * Test that available plugins rules can be loaded.
@@ -69,7 +60,7 @@ public class PluginHandlerTestIT {
         assertFalse(info.getClass().getName().isEmpty());
 
         // Filter deprecated and unmaintained ones, or those not responsive enough to match our continuous integration needs
-        List<String> uncooperatingPlugins = Arrays.asList("ebdirigo", "scoutsigns");
+        List<String> uncooperatingPlugins = Arrays.asList("ebdirigo", "scoutsigns", "josm-config");
         Set<String> deprecatedPlugins = PluginHandler.getDeprecatedAndUnmaintainedPlugins();
         for (Iterator<PluginInformation> it = plugins.iterator(); it.hasNext();) {
             PluginInformation pi = it.next();
@@ -97,13 +88,13 @@ public class PluginHandlerTestIT {
         List<PluginInformation> loadedPlugins = PluginHandler.getPlugins();
         for (int i = 0; i < 2; i++) {
             OsmDataLayer layer = new OsmDataLayer(new DataSet(), "Layer "+i, null);
-            testPlugin(Main.getLayerManager()::addLayer, layer, layerExceptions, loadedPlugins);
-            testPlugin(Main.getLayerManager()::removeLayer, layer, layerExceptions, loadedPlugins);
+            testPlugin(MainApplication.getLayerManager()::addLayer, layer, layerExceptions, loadedPlugins);
+            testPlugin(MainApplication.getLayerManager()::removeLayer, layer, layerExceptions, loadedPlugins);
         }
         for (int i = 0; i < 2; i++) {
             GpxLayer layer = new GpxLayer(new GpxData());
-            testPlugin(Main.getLayerManager()::addLayer, layer, layerExceptions, loadedPlugins);
-            testPlugin(Main.getLayerManager()::removeLayer, layer, layerExceptions, loadedPlugins);
+            testPlugin(MainApplication.getLayerManager()::addLayer, layer, layerExceptions, loadedPlugins);
+            testPlugin(MainApplication.getLayerManager()::removeLayer, layer, layerExceptions, loadedPlugins);
         }
 
         MapUtils.debugPrint(System.out, null, loadingExceptions);

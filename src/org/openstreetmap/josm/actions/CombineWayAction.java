@@ -31,9 +31,11 @@ import org.openstreetmap.josm.data.osm.TagCollection;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.gui.ExtendedDialog;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.Notification;
 import org.openstreetmap.josm.gui.conflict.tags.CombinePrimitiveResolverDialog;
 import org.openstreetmap.josm.gui.util.GuiHelper;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Pair;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.UserCancelException;
@@ -106,6 +108,11 @@ public class CombineWayAction extends JosmAction {
 
         // remove duplicates, preserving order
         ways = new LinkedHashSet<>(ways);
+        // remove incomplete ways
+        ways.removeIf(OsmPrimitive::isIncomplete);
+        // we need at least two ways
+        if (ways.size() < 2)
+            return null;
 
         List<DataSet> dataSets = ways.stream().map(Way::getDataSet).distinct().collect(Collectors.toList());
         if (dataSets.size() != 1) {
@@ -166,7 +173,7 @@ public class CombineWayAction extends JosmAction {
                 }
                 if (!reverseWayTagCommands.isEmpty()) {
                     // commands need to be executed for CombinePrimitiveResolverDialog
-                    Main.main.undoRedo.add(new SequenceCommand(tr("Reverse Ways"), reverseWayTagCommands));
+                    MainApplication.undoRedo.add(new SequenceCommand(tr("Reverse Ways"), reverseWayTagCommands));
                 }
                 wayTags = TagCollection.unionOfAllPrimitives(reversedTagWays);
                 wayTags.add(TagCollection.unionOfAllPrimitives(unreversedTagWays));
@@ -185,7 +192,7 @@ public class CombineWayAction extends JosmAction {
         } finally {
             if (!reverseWayTagCommands.isEmpty()) {
                 // undo reverseWayTagCorrector and merge into SequenceCommand below
-                Main.main.undoRedo.undo();
+                MainApplication.undoRedo.undo();
             }
         }
 
@@ -222,14 +229,14 @@ public class CombineWayAction extends JosmAction {
         try {
             combineResult = combineWaysWorker(selectedWays);
         } catch (UserCancelException ex) {
-            Main.trace(ex);
+            Logging.trace(ex);
             return;
         }
 
         if (combineResult == null)
             return;
         final Way selectedWay = combineResult.a;
-        Main.main.undoRedo.add(combineResult.b);
+        MainApplication.undoRedo.add(combineResult.b);
         if (selectedWay != null) {
             GuiHelper.runInEDT(() -> ds.setSelected(selectedWay));
         }
@@ -244,8 +251,8 @@ public class CombineWayAction extends JosmAction {
     protected void updateEnabledState(Collection<? extends OsmPrimitive> selection) {
         int numWays = 0;
         for (OsmPrimitive osm : selection) {
-            if (osm instanceof Way) {
-                numWays++;
+            if (osm instanceof Way && !osm.isIncomplete() && ++numWays >= 2) {
+                break;
             }
         }
         setEnabled(numWays >= 2);

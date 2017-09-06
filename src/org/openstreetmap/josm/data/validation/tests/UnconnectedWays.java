@@ -26,12 +26,13 @@ import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.QuadBuckets;
 import org.openstreetmap.josm.data.osm.Way;
+import org.openstreetmap.josm.data.preferences.sources.ValidatorPrefHelper;
 import org.openstreetmap.josm.data.projection.Ellipsoid;
 import org.openstreetmap.josm.data.validation.Severity;
 import org.openstreetmap.josm.data.validation.Test;
 import org.openstreetmap.josm.data.validation.TestError;
-import org.openstreetmap.josm.gui.preferences.validator.ValidatorPreference;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
+import org.openstreetmap.josm.tools.Logging;
 
 /**
  * Checks if a way has an endpoint very near to another way.
@@ -135,7 +136,7 @@ public abstract class UnconnectedWays extends Test {
     }
 
     protected static final int UNCONNECTED_WAYS = 1301;
-    protected static final String PREFIX = ValidatorPreference.PREFIX + "." + UnconnectedWays.class.getSimpleName();
+    protected static final String PREFIX = ValidatorPrefHelper.PREFIX + "." + UnconnectedWays.class.getSimpleName();
 
     private Set<MyWaySegment> ways;
     private QuadBuckets<Node> endnodes; // nodes at end of way
@@ -166,7 +167,7 @@ public abstract class UnconnectedWays extends Test {
         othernodes = new HashSet<>();
         mindist = Main.pref.getDouble(PREFIX + ".node_way_distance", 10.0);
         minmiddledist = Main.pref.getDouble(PREFIX + ".way_way_distance", 0.0);
-        DataSet dataSet = Main.getLayerManager().getEditDataSet();
+        DataSet dataSet = Main.main != null ? Main.main.getEditDataSet() : null;
         dsArea = dataSet == null ? null : dataSet.getDataSourceArea();
     }
 
@@ -317,7 +318,7 @@ public abstract class UnconnectedWays extends Test {
 
         public boolean nearby(Node n, double dist) {
             if (w == null) {
-                Main.debug("way null");
+                Logging.debug("way null");
                 return false;
             }
             if (w.containsNode(n))

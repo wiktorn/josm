@@ -11,7 +11,6 @@ import java.io.File;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.openstreetmap.josm.JOSMFixture;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.TestUtils;
 import org.openstreetmap.josm.actions.ExpertToggleAction;
 import org.openstreetmap.josm.data.Bounds;
@@ -21,6 +20,7 @@ import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.Way;
+import org.openstreetmap.josm.gui.MainApplication;
 
 /**
  * Unit tests of {@link OsmDataLayer} class.
@@ -43,7 +43,7 @@ public class OsmDataLayerTest {
         DataSet ds = new DataSet();
         OsmDataLayer layer = new OsmDataLayer(ds, "", null);
         try {
-            Main.getLayerManager().addLayer(layer);
+            MainApplication.getLayerManager().addLayer(layer);
             int n = OsmDataLayer.PROPERTY_RECENT_RELATIONS_NUMBER.get();
             assertTrue(n > 0);
             for (int i = 0; i < 2*n; i++) {
@@ -59,7 +59,7 @@ public class OsmDataLayerTest {
             }
             assertTrue(layer.getRecentRelations().isEmpty());
         } finally {
-            Main.getLayerManager().removeLayer(layer);
+            MainApplication.getLayerManager().removeLayer(layer);
         }
     }
 
@@ -133,11 +133,11 @@ public class OsmDataLayerTest {
         fillDataSet(ds);
         OsmDataLayer layer = new OsmDataLayer(ds, "", null);
         try {
-            Main.getLayerManager().addLayer(layer);
+            MainApplication.getLayerManager().addLayer(layer);
             assertTrue(layer.getMenuEntries().length > 0);
-            layer.paint(TestUtils.newGraphics(), Main.map.mapView, new Bounds(LatLon.ZERO));
+            layer.paint(TestUtils.newGraphics(), MainApplication.getMap().mapView, new Bounds(LatLon.ZERO));
         } finally {
-            Main.getLayerManager().removeLayer(layer);
+            MainApplication.getLayerManager().removeLayer(layer);
         }
     }
 

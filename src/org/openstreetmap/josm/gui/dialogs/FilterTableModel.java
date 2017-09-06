@@ -10,12 +10,14 @@ import java.util.List;
 
 import javax.swing.table.AbstractTableModel;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.osm.Filter;
 import org.openstreetmap.josm.data.osm.FilterModel;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
+import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.autofilter.AutoFilterManager;
 import org.openstreetmap.josm.gui.widgets.OSDLabel;
+import org.openstreetmap.josm.tools.Logging;
 
 /**
  * The model that is used for the table in the {@link FilterDialog}.
@@ -85,8 +87,9 @@ public class FilterTableModel extends AbstractTableModel {
     }
 
     private void updateMap() {
-        if (Main.map != null && model.isChanged()) {
-            Main.map.filterDialog.updateDialogHeader();
+        MapFrame map = MainApplication.getMap();
+        if (map != null && model.isChanged()) {
+            map.filterDialog.updateDialogHeader();
         }
     }
 
@@ -266,7 +269,7 @@ public class FilterTableModel extends AbstractTableModel {
             case in_selection: /* filter mode: in selection */
                 return trc("filter", "F");
             default:
-                Main.warn("Unknown filter mode: " + f.mode);
+                Logging.warn("Unknown filter mode: " + f.mode);
             }
             break;
         default: // Do nothing

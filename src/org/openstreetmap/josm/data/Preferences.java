@@ -67,9 +67,8 @@ import org.openstreetmap.josm.data.preferences.PreferencesReader;
 import org.openstreetmap.josm.data.preferences.PreferencesWriter;
 import org.openstreetmap.josm.data.preferences.Setting;
 import org.openstreetmap.josm.data.preferences.StringSetting;
-import org.openstreetmap.josm.gui.preferences.SourceEditor.ExtendedSourceEntry;
-import org.openstreetmap.josm.gui.preferences.validator.ValidatorTagCheckerRulesPreference;
-import org.openstreetmap.josm.gui.preferences.validator.ValidatorTagCheckerRulesPreference.RulePrefHelper;
+import org.openstreetmap.josm.data.preferences.sources.ExtendedSourceEntry;
+import org.openstreetmap.josm.data.preferences.sources.ValidatorPrefHelper;
 import org.openstreetmap.josm.io.OfflineAccessException;
 import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
@@ -77,6 +76,7 @@ import org.openstreetmap.josm.tools.ColorHelper;
 import org.openstreetmap.josm.tools.I18n;
 import org.openstreetmap.josm.tools.JosmRuntimeException;
 import org.openstreetmap.josm.tools.ListenerList;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.MultiMap;
 import org.openstreetmap.josm.tools.Utils;
 import org.xml.sax.SAXException;
@@ -231,6 +231,24 @@ public class Preferences {
     private final ListenerList<PreferenceChangedListener> listeners = ListenerList.create();
 
     private final HashMap<String, ListenerList<PreferenceChangedListener>> keyListeners = new HashMap<>();
+
+    /**
+     * Constructs a new {@code Preferences}.
+     */
+    public Preferences() {
+        // Default constructor
+    }
+
+    /**
+     * Constructs a new {@code Preferences} from an existing instance.
+     * @param pref existing preferences to copy
+     * @since 12634
+     */
+    public Preferences(Preferences pref) {
+        settingsMap.putAll(pref.settingsMap);
+        defaultsMap.putAll(pref.defaultsMap);
+        colornames.putAll(pref.colornames);
+    }
 
     /**
      * Adds a new preferences listener.
@@ -413,7 +431,7 @@ public class Preferences {
             }
         }
         if (!cacheDir.exists() && !cacheDir.mkdirs()) {
-            Main.warn(tr("Failed to create missing cache directory: {0}", cacheDir.getAbsoluteFile()));
+            Logging.warn(tr("Failed to create missing cache directory: {0}", cacheDir.getAbsoluteFile()));
             JOptionPane.showMessageDialog(
                     Main.parent,
                     tr("<html>Failed to create missing cache directory: {0}</html>", cacheDir.getAbsoluteFile()),
@@ -670,20 +688,20 @@ public class Preferences {
     }
 
     private static void setCorrectPermissions(File file) {
-        if (!file.setReadable(false, false) && Main.isDebugEnabled()) {
-            Main.debug(tr("Unable to set file non-readable {0}", file.getAbsolutePath()));
+        if (!file.setReadable(false, false) && Logging.isTraceEnabled()) {
+            Logging.trace(tr("Unable to set file non-readable {0}", file.getAbsolutePath()));
         }
-        if (!file.setWritable(false, false) && Main.isDebugEnabled()) {
-            Main.debug(tr("Unable to set file non-writable {0}", file.getAbsolutePath()));
+        if (!file.setWritable(false, false) && Logging.isTraceEnabled()) {
+            Logging.trace(tr("Unable to set file non-writable {0}", file.getAbsolutePath()));
         }
-        if (!file.setExecutable(false, false) && Main.isDebugEnabled()) {
-            Main.debug(tr("Unable to set file non-executable {0}", file.getAbsolutePath()));
+        if (!file.setExecutable(false, false) && Logging.isTraceEnabled()) {
+            Logging.trace(tr("Unable to set file non-executable {0}", file.getAbsolutePath()));
         }
-        if (!file.setReadable(true, true) && Main.isDebugEnabled()) {
-            Main.debug(tr("Unable to set file readable {0}", file.getAbsolutePath()));
+        if (!file.setReadable(true, true) && Logging.isTraceEnabled()) {
+            Logging.trace(tr("Unable to set file readable {0}", file.getAbsolutePath()));
         }
-        if (!file.setWritable(true, true) && Main.isDebugEnabled()) {
-            Main.debug(tr("Unable to set file writable {0}", file.getAbsolutePath()));
+        if (!file.setWritable(true, true) && Logging.isTraceEnabled()) {
+            Logging.trace(tr("Unable to set file writable {0}", file.getAbsolutePath()));
         }
     }
 
@@ -750,7 +768,7 @@ public class Preferences {
         File prefDir = getPreferencesDirectory();
         if (prefDir.exists()) {
             if (!prefDir.isDirectory()) {
-                Main.warn(tr("Failed to initialize preferences. Preference directory ''{0}'' is not a directory.",
+                Logging.warn(tr("Failed to initialize preferences. Preference directory ''{0}'' is not a directory.",
                         prefDir.getAbsoluteFile()));
                 JOptionPane.showMessageDialog(
                         Main.parent,
@@ -763,7 +781,7 @@ public class Preferences {
             }
         } else {
             if (!prefDir.mkdirs()) {
-                Main.warn(tr("Failed to initialize preferences. Failed to create missing preference directory: {0}",
+                Logging.warn(tr("Failed to initialize preferences. Failed to create missing preference directory: {0}",
                         prefDir.getAbsoluteFile()));
                 JOptionPane.showMessageDialog(
                         Main.parent,
@@ -779,18 +797,18 @@ public class Preferences {
         File preferenceFile = getPreferenceFile();
         try {
             if (!preferenceFile.exists()) {
-                Main.info(tr("Missing preference file ''{0}''. Creating a default preference file.", preferenceFile.getAbsoluteFile()));
+                Logging.info(tr("Missing preference file ''{0}''. Creating a default preference file.", preferenceFile.getAbsoluteFile()));
                 resetToDefault();
                 save();
             } else if (reset) {
                 File backupFile = new File(prefDir, "preferences.xml.bak");
                 Main.platform.rename(preferenceFile, backupFile);
-                Main.warn(tr("Replacing existing preference file ''{0}'' with default preference file.", preferenceFile.getAbsoluteFile()));
+                Logging.warn(tr("Replacing existing preference file ''{0}'' with default preference file.", preferenceFile.getAbsoluteFile()));
                 resetToDefault();
                 save();
             }
         } catch (IOException e) {
-            Main.error(e);
+            Logging.error(e);
             JOptionPane.showMessageDialog(
                     Main.parent,
                     tr("<html>Failed to initialize preferences.<br>Failed to reset preference file to default: {0}</html>",
@@ -804,7 +822,7 @@ public class Preferences {
             load();
             initSuccessful = true;
         } catch (IOException | SAXException | XMLStreamException e) {
-            Main.error(e);
+            Logging.error(e);
             File backupFile = new File(prefDir, "preferences.xml.bak");
             JOptionPane.showMessageDialog(
                     Main.parent,
@@ -819,8 +837,8 @@ public class Preferences {
                 resetToDefault();
                 save();
             } catch (IOException e1) {
-                Main.error(e1);
-                Main.warn(tr("Failed to initialize preferences. Failed to reset preference file to default: {0}", getPreferenceFile()));
+                Logging.error(e1);
+                Logging.warn(tr("Failed to initialize preferences. Failed to reset preference file to default: {0}", getPreferenceFile()));
             }
         }
         File def = getDefaultsCacheFile();
@@ -828,11 +846,11 @@ public class Preferences {
             try {
                 loadDefaults();
             } catch (IOException | XMLStreamException | SAXException e) {
-                Main.error(e);
-                Main.warn(tr("Failed to load defaults cache file: {0}", def));
+                Logging.error(e);
+                Logging.warn(tr("Failed to load defaults cache file: {0}", def));
                 defaultsMap.clear();
                 if (!def.delete()) {
-                    Main.warn(tr("Failed to delete faulty defaults cache file: {0}", def));
+                    Logging.warn(tr("Failed to delete faulty defaults cache file: {0}", def));
                 }
             }
         }
@@ -965,7 +983,7 @@ public class Preferences {
             return Integer.parseInt(v);
         } catch (NumberFormatException e) {
             // fall out
-            Main.trace(e);
+            Logging.trace(e);
         }
         return def;
     }
@@ -988,7 +1006,7 @@ public class Preferences {
             return Integer.parseInt(v);
         } catch (NumberFormatException e) {
             // fall out
-            Main.trace(e);
+            Logging.trace(e);
         }
         return def;
     }
@@ -1009,7 +1027,7 @@ public class Preferences {
             return Long.parseLong(v);
         } catch (NumberFormatException e) {
             // fall out
-            Main.trace(e);
+            Logging.trace(e);
         }
         return def;
     }
@@ -1030,7 +1048,7 @@ public class Preferences {
             return Double.parseDouble(v);
         } catch (NumberFormatException e) {
             // fall out
-            Main.trace(e);
+            Logging.trace(e);
         }
         return def;
     }
@@ -1098,7 +1116,7 @@ public class Preferences {
                 try {
                     save();
                 } catch (IOException e) {
-                    Main.warn(e, tr("Failed to persist preferences to ''{0}''", getPreferenceFile().getAbsoluteFile()));
+                    Logging.log(Logging.LEVEL_WARN, tr("Failed to persist preferences to ''{0}''", getPreferenceFile().getAbsoluteFile()), e);
                 }
             }
         }
@@ -1132,7 +1150,7 @@ public class Preferences {
         CheckParameterUtil.ensureParameterNotNull(def);
         Setting<?> oldDef = defaultsMap.get(key);
         if (oldDef != null && oldDef.isNew() && oldDef.getValue() != null && def.getValue() != null && !def.equals(oldDef)) {
-            Main.info("Defaults for " + key + " differ: " + def + " != " + defaultsMap.get(key));
+            Logging.info("Defaults for " + key + " differ: " + def + " != " + defaultsMap.get(key));
         }
         if (def.getValue() != null || oldDef == null) {
             Setting<?> defCopy = def.copy();
@@ -1456,13 +1474,13 @@ public class Preferences {
         } catch (ReflectiveOperationException ex) {
             throw new IllegalArgumentException(ex);
         }
-        for (Entry<String, String> key_value : hash.entrySet()) {
+        for (Entry<String, String> keyValue : hash.entrySet()) {
             Object value;
             Field f;
             try {
-                f = klass.getDeclaredField(key_value.getKey().replace('-', '_'));
+                f = klass.getDeclaredField(keyValue.getKey().replace('-', '_'));
             } catch (NoSuchFieldException ex) {
-                Main.trace(ex);
+                Logging.trace(ex);
                 continue;
             }
             if (f.getAnnotation(pref.class) == null) {
@@ -1470,25 +1488,25 @@ public class Preferences {
             }
             Utils.setObjectsAccessible(f);
             if (f.getType() == Boolean.class || f.getType() == boolean.class) {
-                value = Boolean.valueOf(key_value.getValue());
+                value = Boolean.valueOf(keyValue.getValue());
             } else if (f.getType() == Integer.class || f.getType() == int.class) {
                 try {
-                    value = Integer.valueOf(key_value.getValue());
+                    value = Integer.valueOf(keyValue.getValue());
                 } catch (NumberFormatException nfe) {
                     continue;
                 }
             } else if (f.getType() == Double.class || f.getType() == double.class) {
                 try {
-                    value = Double.valueOf(key_value.getValue());
+                    value = Double.valueOf(keyValue.getValue());
                 } catch (NumberFormatException nfe) {
                     continue;
                 }
             } else if (f.getType() == String.class) {
-                value = key_value.getValue();
+                value = keyValue.getValue();
             } else if (f.getType().isAssignableFrom(Map.class)) {
-                value = mapFromJson(key_value.getValue());
+                value = mapFromJson(keyValue.getValue());
             } else if (f.getType().isAssignableFrom(MultiMap.class)) {
-                value = multiMapFromJson(key_value.getValue());
+                value = multiMapFromJson(keyValue.getValue());
             } else
                 throw new JosmRuntimeException("unsupported preference primitive type");
 
@@ -1525,7 +1543,7 @@ public class Preferences {
     public void updateSystemProperties() {
         if ("true".equals(get("prefer.ipv6", "auto")) && !"true".equals(Utils.updateSystemProperty("java.net.preferIPv6Addresses", "true"))) {
             // never set this to false, only true!
-            Main.info(tr("Try enabling IPv6 network, prefering IPv6 over IPv4 (only works on early startup)."));
+            Logging.info(tr("Try enabling IPv6 network, prefering IPv6 over IPv4 (only works on early startup)."));
         }
         Utils.updateSystemProperty("http.agent", Version.getInstance().getAgentString());
         Utils.updateSystemProperty("user.language", get("language"));
@@ -1539,7 +1557,7 @@ public class Preferences {
                 field.set(null, ResourceBundle.getBundle("sun.awt.resources.awt"));
             } catch (ReflectiveOperationException | RuntimeException e) { // NOPMD
                 // Catch RuntimeException in order to catch InaccessibleObjectException, new in Java 9
-                Main.warn(e);
+                Logging.warn(e);
             }
         }
         // Possibility to disable SNI (not by default) in case of misconfigured https servers
@@ -1570,7 +1588,7 @@ public class Preferences {
             try {
                 OnlineResource.JOSM_WEBSITE.checkOfflineAccess(it.next(), Main.getJOSMWebsite());
             } catch (OfflineAccessException ex) {
-                Main.warn(ex, false);
+                Logging.log(Logging.LEVEL_WARN, ex);
                 it.remove();
             }
         }
@@ -1612,7 +1630,7 @@ public class Preferences {
             sw.flush();
             return sw.toString();
         } catch (IOException e) {
-            Main.error(e);
+            Logging.error(e);
             return null;
         }
     }
@@ -1642,7 +1660,7 @@ public class Preferences {
         for (String key : OBSOLETE_PREF_KEYS) {
             if (settingsMap.containsKey(key)) {
                 settingsMap.remove(key);
-                Main.info(tr("Preference setting {0} has been removed since it is no longer used.", key));
+                Logging.info(tr("Preference setting {0} has been removed since it is no longer used.", key));
             }
         }
     }
@@ -1655,7 +1673,7 @@ public class Preferences {
                 .forEach(entry -> {
                     final String oldKey = entry.getKey();
                     final String newKey = entry.getValue();
-                    Main.info("Migrating old color key {0} => {1}", oldKey, newKey);
+                    Logging.info("Migrating old color key {0} => {1}", oldKey, newKey);
                     put(newKey, get(oldKey));
                     put(oldKey, null);
                 });
@@ -1694,7 +1712,7 @@ public class Preferences {
         if (setting instanceof MapListSetting) {
             List<Map<String, String>> l = new ArrayList<>(((MapListSetting) setting).getValue());
             if (l.stream().noneMatch(x -> x.containsValue(url))) {
-                RulePrefHelper helper = ValidatorTagCheckerRulesPreference.RulePrefHelper.INSTANCE;
+                ValidatorPrefHelper helper = ValidatorPrefHelper.INSTANCE;
                 Optional<ExtendedSourceEntry> val = helper.getDefault().stream().filter(x -> url.equals(x.url)).findFirst();
                 if (val.isPresent()) {
                     l.add(helper.serialize(val.get()));

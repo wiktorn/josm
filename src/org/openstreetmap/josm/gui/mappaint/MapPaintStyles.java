@@ -1,8 +1,6 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.gui.mappaint;
 
-import static org.openstreetmap.josm.tools.I18n.tr;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -21,19 +19,16 @@ import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.Tag;
-import org.openstreetmap.josm.gui.PleaseWaitRunnable;
-import org.openstreetmap.josm.gui.layer.Layer;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer;
+import org.openstreetmap.josm.data.preferences.sources.MapPaintPrefHelper;
+import org.openstreetmap.josm.data.preferences.sources.SourceEntry;
 import org.openstreetmap.josm.gui.mappaint.mapcss.MapCSSStyleSource;
 import org.openstreetmap.josm.gui.mappaint.styleelement.MapImage;
 import org.openstreetmap.josm.gui.mappaint.styleelement.NodeElement;
 import org.openstreetmap.josm.gui.mappaint.styleelement.StyleElement;
-import org.openstreetmap.josm.gui.preferences.SourceEntry;
-import org.openstreetmap.josm.gui.preferences.map.MapPaintPreference.MapPaintPrefHelper;
-import org.openstreetmap.josm.gui.progress.ProgressMonitor;
 import org.openstreetmap.josm.io.CachedFile;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.ListenerList;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -156,7 +151,7 @@ public final class MapPaintStyles {
         if (test && i.get() == null) {
             String msg = "Mappaint style \""+namespace+"\" ("+ref.source.getDisplayString()+") icon \"" + ref.iconName + "\" not found.";
             ref.source.logWarning(msg);
-            Main.warn(msg);
+            Logging.warn(msg);
             return null;
         }
         return i;
@@ -175,7 +170,7 @@ public final class MapPaintStyles {
         final String namespace = ref.source.getPrefName();
         ImageIcon i = getIconProvider(ref, false).setSize(width, height).get();
         if (i == null) {
-            Main.warn("Mappaint style \""+namespace+"\" ("+ref.source.getDisplayString()+") icon \"" + ref.iconName + "\" not found.");
+            Logging.warn("Mappaint style \""+namespace+"\" ("+ref.source.getDisplayString()+") icon \"" + ref.iconName + "\" not found.");
             return null;
         }
         return i;
@@ -307,16 +302,16 @@ public final class MapPaintStyles {
             try {
                 Main.fileWatcher.registerStyleSource(source);
             } catch (IOException | IllegalStateException | IllegalArgumentException e) {
-                Main.error(e);
+                Logging.error(e);
             }
         }
-        if (Main.isDebugEnabled() || !source.isValid()) {
+        if (Logging.isDebugEnabled() || !source.isValid()) {
             final long elapsedTime = System.currentTimeMillis() - startTime;
             String message = "Initializing map style " + source.url + " completed in " + Utils.getDurationString(elapsedTime);
             if (!source.isValid()) {
-                Main.warn(message + " (" + source.getErrors().size() + " errors, " + source.getWarnings().size() + " warnings)");
+                Logging.warn(message + " (" + source.getErrors().size() + " errors, " + source.getWarnings().size() + " warnings)");
             } else {
-                Main.debug(message);
+                Logging.debug(message);
             }
         }
     }
@@ -333,61 +328,6 @@ public final class MapPaintStyles {
                 entry.zipEntryPath = zipEntryPath;
             }
             return new MapCSSStyleSource(entry);
-        }
-    }
-
-    /**
-     * reload styles
-     * preferences are the same, but the file source may have changed
-     * @param sel the indices of styles to reload
-     */
-    public static void reloadStyles(final int... sel) {
-        List<StyleSource> toReload = new ArrayList<>();
-        List<StyleSource> data = styles.getStyleSources();
-        for (int i : sel) {
-            toReload.add(data.get(i));
-        }
-        Main.worker.submit(new MapPaintStyleLoader(toReload));
-    }
-
-    /**
-     * This class loads the map paint styles
-     */
-    public static class MapPaintStyleLoader extends PleaseWaitRunnable {
-        private boolean canceled;
-        private final Collection<StyleSource> sources;
-
-        /**
-         * Create a new {@link MapPaintStyleLoader}
-         * @param sources The styles to load
-         */
-        public MapPaintStyleLoader(Collection<StyleSource> sources) {
-            super(tr("Reloading style sources"));
-            this.sources = sources;
-        }
-
-        @Override
-        protected void cancel() {
-            canceled = true;
-        }
-
-        @Override
-        protected void finish() {
-            fireMapPaintSylesUpdated();
-            afterStyleUpdate();
-        }
-
-        @Override
-        protected void realRun() {
-            ProgressMonitor monitor = getProgressMonitor();
-            monitor.setTicksCount(sources.size());
-            for (StyleSource s : sources) {
-                if (canceled)
-                    return;
-                monitor.subTask(tr("loading style ''{0}''...", s.getDisplayString()));
-                s.loadStyleSource();
-                monitor.worked(1);
-            }
         }
     }
 
@@ -412,22 +352,6 @@ public final class MapPaintStyles {
         styles.setStyleSources(data);
         MapPaintPrefHelper.INSTANCE.put(data);
         fireMapPaintSylesUpdated();
-        afterStyleUpdate();
-    }
-
-    /**
-     * Manually trigger for now. TODO: Move this to a listener
-     */
-    private static void afterStyleUpdate() {
-        SwingUtilities.invokeLater(() -> {
-            styles.clearCached();
-
-            // Trigger a repaint of all data layers
-            Main.getLayerManager().getLayers()
-                .stream()
-                .filter(layer -> layer instanceof OsmDataLayer)
-                .forEach(Layer::invalidate);
-        });
     }
 
     /**
@@ -466,7 +390,6 @@ public final class MapPaintStyles {
         } else {
             fireMapPaintSylesUpdated();
         }
-        afterStyleUpdate();
     }
 
     /**
@@ -497,7 +420,6 @@ public final class MapPaintStyles {
     private static void refreshStyles() {
         MapPaintPrefHelper.INSTANCE.put(styles.getStyleSources());
         fireMapPaintSylesUpdated();
-        afterStyleUpdate();
     }
 
     /***********************************
@@ -518,6 +440,20 @@ public final class MapPaintStyles {
     }
 
     private static final ListenerList<MapPaintSylesUpdateListener> listeners = ListenerList.createUnchecked();
+
+    static {
+        listeners.addListener(new MapPaintSylesUpdateListener() {
+            @Override
+            public void mapPaintStylesUpdated() {
+                SwingUtilities.invokeLater(styles::clearCached);
+            }
+
+            @Override
+            public void mapPaintStyleEntryUpdated(int index) {
+                mapPaintStylesUpdated();
+            }
+        });
+    }
 
     /**
      * Add a listener that listens to global style changes.

@@ -14,8 +14,8 @@ import javax.swing.JMenuItem;
 import javax.swing.KeyStroke;
 import javax.swing.text.Document;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.JosmAction;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.tools.Pair;
 import org.openstreetmap.josm.tools.Shortcut;
 
@@ -113,8 +113,8 @@ public class DisableShortcutsOnFocusGainedTextField extends JosmTextField {
      */
     protected void disableMenuActions() {
         disabledMenuActions.clear();
-        for (int i = 0; i < Main.main.menu.getMenuCount(); i++) {
-            JMenu menu = Main.main.menu.getMenu(i);
+        for (int i = 0; i < MainApplication.getMenu().getMenuCount(); i++) {
+            JMenu menu = MainApplication.getMenu().getMenu(i);
             if (menu != null) {
                 for (int j = 0; j < menu.getItemCount(); j++) {
                     JMenuItem item = menu.getItem(j);
@@ -146,9 +146,9 @@ public class DisableShortcutsOnFocusGainedTextField extends JosmTextField {
         for (Shortcut shortcut : Shortcut.listAll()) {
             KeyStroke ks = shortcut.getKeyStroke();
             if (hasToBeDisabled(ks)) {
-                Action action = Main.getRegisteredActionShortcut(shortcut);
+                Action action = MainApplication.getRegisteredActionShortcut(shortcut);
                 if (action != null) {
-                    Main.unregisterActionShortcut(action, shortcut);
+                    MainApplication.unregisterActionShortcut(action, shortcut);
                     unregisteredActionShortcuts.add(new Pair<>(action, shortcut));
                 }
             }
@@ -181,7 +181,7 @@ public class DisableShortcutsOnFocusGainedTextField extends JosmTextField {
      */
     protected void restoreActionShortcuts() {
         for (Pair<Action, Shortcut> p : unregisteredActionShortcuts) {
-            Main.registerActionShortcut(p.a, p.b);
+            MainApplication.registerActionShortcut(p.a, p.b);
         }
         unregisteredActionShortcuts.clear();
     }

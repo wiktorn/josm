@@ -60,6 +60,7 @@ import org.openstreetmap.josm.gui.layer.NativeScaleLayer.ScaleList;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
 import org.openstreetmap.josm.gui.mappaint.mapcss.MapCSSStyleSource;
 import org.openstreetmap.josm.gui.util.CursorManager;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -514,12 +515,23 @@ public class NavigatableComponent extends JComponent implements Helpful {
      * @param latlon The point, where this geopoint would be drawn.
      * @return The point on screen where "point" would be drawn, relative to the own top/left.
      */
-    public Point2D getPoint2D(LatLon latlon) {
+    public Point2D getPoint2D(ILatLon latlon) {
         if (latlon == null) {
             return new Point();
         } else {
-            return getPoint2D(latlon.getEastNorth());
+            return getPoint2D(latlon.getEastNorth(Main.getProjection()));
         }
+    }
+
+    /**
+     * Return the point on the screen where this Coordinate would be.
+     *
+     * Alternative: {@link #getState()}, then {@link MapViewState#getPointFor(ILatLon)}
+     * @param latlon The point, where this geopoint would be drawn.
+     * @return The point on screen where "point" would be drawn, relative to the own top/left.
+     */
+    public Point2D getPoint2D(LatLon latlon) {
+        return getPoint2D((ILatLon) latlon);
     }
 
     /**
@@ -549,10 +561,21 @@ public class NavigatableComponent extends JComponent implements Helpful {
      * @param latlon lat/lon
      * @return point
      * @see #getPoint2D(LatLon)
+     * @since 12725
      */
-    public Point getPoint(LatLon latlon) {
+    public Point getPoint(ILatLon latlon) {
         Point2D d = getPoint2D(latlon);
         return new Point((int) d.getX(), (int) d.getY());
+    }
+
+    /**
+     * looses precision, may overflow (depends on p and current scale)
+     * @param latlon lat/lon
+     * @return point
+     * @see #getPoint2D(LatLon)
+     */
+    public Point getPoint(LatLon latlon) {
+        return getPoint((ILatLon) latlon);
     }
 
     /**
@@ -688,9 +711,18 @@ public class NavigatableComponent extends JComponent implements Helpful {
     /**
      * Zoom to given lat/lon.
      * @param newCenter new center coordinates
+     * @since 12725
+     */
+    public void zoomTo(ILatLon newCenter) {
+        zoomTo(Projections.project(newCenter));
+    }
+
+    /**
+     * Zoom to given lat/lon.
+     * @param newCenter new center coordinates
      */
     public void zoomTo(LatLon newCenter) {
-        zoomTo(Projections.project(newCenter));
+        zoomTo((ILatLon) newCenter);
     }
 
     /**
@@ -717,7 +749,7 @@ public class NavigatableComponent extends JComponent implements Helpful {
                         try {
                             Thread.sleep(1000L / fps);
                         } catch (InterruptedException ex) {
-                            Main.warn("InterruptedException in "+NavigatableComponent.class.getSimpleName()+" during smooth scrolling");
+                            Logging.warn("InterruptedException in "+NavigatableComponent.class.getSimpleName()+" during smooth scrolling");
                             Thread.currentThread().interrupt();
                         }
                     }
@@ -900,7 +932,7 @@ public class NavigatableComponent extends JComponent implements Helpful {
      */
     private Map<Double, List<Node>> getNearestNodesImpl(Point p, Predicate<OsmPrimitive> predicate) {
         Map<Double, List<Node>> nearestMap = new TreeMap<>();
-        DataSet ds = Main.getLayerManager().getEditDataSet();
+        DataSet ds = MainApplication.getLayerManager().getEditDataSet();
 
         if (ds != null) {
             double dist, snapDistanceSq = PROP_SNAP_DISTANCE.get();
@@ -1109,7 +1141,7 @@ public class NavigatableComponent extends JComponent implements Helpful {
      */
     private Map<Double, List<WaySegment>> getNearestWaySegmentsImpl(Point p, Predicate<OsmPrimitive> predicate) {
         Map<Double, List<WaySegment>> nearestMap = new TreeMap<>();
-        DataSet ds = Main.getLayerManager().getEditDataSet();
+        DataSet ds = MainApplication.getLayerManager().getEditDataSet();
 
         if (ds != null) {
             double snapDistanceSq = Main.pref.getInteger("mappaint.segment.snap-distance", 10);
@@ -1470,7 +1502,7 @@ public class NavigatableComponent extends JComponent implements Helpful {
      */
     public final OsmPrimitive getNearestNodeOrWay(Point p, Predicate<OsmPrimitive> predicate, boolean useSelected) {
         Collection<OsmPrimitive> sel;
-        DataSet ds = Main.getLayerManager().getEditDataSet();
+        DataSet ds = MainApplication.getLayerManager().getEditDataSet();
         if (useSelected && ds != null) {
             sel = ds.getSelected();
         } else {

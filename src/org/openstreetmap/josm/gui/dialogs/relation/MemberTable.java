@@ -27,6 +27,7 @@ import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.Way;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.dialogs.relation.sort.WayConnectionType;
 import org.openstreetmap.josm.gui.dialogs.relation.sort.WayConnectionType.Direction;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerAddEvent;
@@ -39,6 +40,9 @@ import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.util.HighlightHelper;
 import org.openstreetmap.josm.gui.widgets.OsmPrimitivesTable;
 
+/**
+ * The table of members a selected relation has.
+ */
 public class MemberTable extends OsmPrimitivesTable implements IMemberModelListener {
 
     /** the additional actions in popup menu */
@@ -107,7 +111,7 @@ public class MemberTable extends OsmPrimitivesTable implements IMemberModelListe
     }
 
     private transient ListSelectionListener highlighterListener = lse -> {
-        if (Main.isDisplayingMapView()) {
+        if (MainApplication.isDisplayingMapView()) {
             Collection<RelationMember> sel = getMemberTableModel().getSelectedMembers();
             final Set<OsmPrimitive> toHighlight = new HashSet<>();
             for (RelationMember r: sel) {
@@ -116,8 +120,8 @@ public class MemberTable extends OsmPrimitivesTable implements IMemberModelListe
                 }
             }
             SwingUtilities.invokeLater(() -> {
-                if (Main.isDisplayingMapView() && highlightHelper.highlightOnly(toHighlight)) {
-                    Main.map.mapView.repaint();
+                if (MainApplication.isDisplayingMapView() && highlightHelper.highlightOnly(toHighlight)) {
+                    MainApplication.getMap().mapView.repaint();
                 }
             });
         }
@@ -127,24 +131,24 @@ public class MemberTable extends OsmPrimitivesTable implements IMemberModelListe
         highlightEnabled = Main.pref.getBoolean("draw.target-highlight", true);
         if (!highlightEnabled) return;
         getMemberTableModel().getSelectionModel().addListSelectionListener(highlighterListener);
-        if (Main.isDisplayingMapView()) {
+        if (MainApplication.isDisplayingMapView()) {
             HighlightHelper.clearAllHighlighted();
-            Main.map.mapView.repaint();
+            MainApplication.getMap().mapView.repaint();
         }
     }
 
     @Override
     public void registerListeners() {
-        Main.getLayerManager().addLayerChangeListener(zoomToGap);
-        Main.getLayerManager().addActiveLayerChangeListener(zoomToGap);
+        MainApplication.getLayerManager().addLayerChangeListener(zoomToGap);
+        MainApplication.getLayerManager().addActiveLayerChangeListener(zoomToGap);
         super.registerListeners();
     }
 
     @Override
     public void unregisterListeners() {
         super.unregisterListeners();
-        Main.getLayerManager().removeLayerChangeListener(zoomToGap);
-        Main.getLayerManager().removeActiveLayerChangeListener(zoomToGap);
+        MainApplication.getLayerManager().removeLayerChangeListener(zoomToGap);
+        MainApplication.getLayerManager().removeActiveLayerChangeListener(zoomToGap);
     }
 
     public void stopHighlighting() {
@@ -152,9 +156,9 @@ public class MemberTable extends OsmPrimitivesTable implements IMemberModelListe
         if (!highlightEnabled) return;
         getMemberTableModel().getSelectionModel().removeListSelectionListener(highlighterListener);
         highlighterListener = null;
-        if (Main.isDisplayingMapView()) {
+        if (MainApplication.isDisplayingMapView()) {
             HighlightHelper.clearAllHighlighted();
-            Main.map.mapView.repaint();
+            MainApplication.getMap().mapView.repaint();
         }
     }
 
@@ -237,7 +241,7 @@ public class MemberTable extends OsmPrimitivesTable implements IMemberModelListe
 
         private void updateEnabledState() {
             setEnabled(Main.main != null
-                    && Main.getLayerManager().getEditLayer() == getLayer()
+                    && MainApplication.getLayerManager().getEditLayer() == getLayer()
                     && getSelectedRowCount() == 1
                     && hasGap());
         }

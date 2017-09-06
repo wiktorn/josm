@@ -24,7 +24,7 @@ import java.util.Set;
 import javax.swing.JOptionPane;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.gui.preferences.map.TaggingPresetPreference;
+import org.openstreetmap.josm.data.preferences.sources.PresetPrefHelper;
 import org.openstreetmap.josm.gui.tagging.presets.items.Check;
 import org.openstreetmap.josm.gui.tagging.presets.items.CheckGroup;
 import org.openstreetmap.josm.gui.tagging.presets.items.Combo;
@@ -42,6 +42,7 @@ import org.openstreetmap.josm.gui.tagging.presets.items.Space;
 import org.openstreetmap.josm.gui.tagging.presets.items.Text;
 import org.openstreetmap.josm.io.CachedFile;
 import org.openstreetmap.josm.io.UTFInputStreamReader;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 import org.openstreetmap.josm.tools.XmlObjectParser;
 import org.xml.sax.SAXException;
@@ -101,7 +102,7 @@ public final class TaggingPresetReader {
      * @return The set of preset source URLs.
      */
     public static Set<String> getPresetSources() {
-        return new TaggingPresetPreference.PresetPrefHelper().getActiveUrls();
+        return new PresetPrefHelper().getActiveUrls();
     }
 
     private static XmlObjectParser buildParser() {
@@ -209,7 +210,7 @@ public final class TaggingPresetReader {
                 if (it.hasNext()) {
                     lastIdIterators.push(it);
                 } else {
-                    Main.warn("Ignoring reference '"+ref+"' denoting an empty chunk");
+                    Logging.warn("Ignoring reference '"+ref+"' denoting an empty chunk");
                 }
                 continue;
             }
@@ -359,8 +360,8 @@ public final class TaggingPresetReader {
             try {
                 readAll(source, validate, allPresets);
             } catch (IOException e) {
-                Main.error(e, false);
-                Main.error(source);
+                Logging.log(Logging.LEVEL_ERROR, e);
+                Logging.error(source);
                 if (source.startsWith("http")) {
                     Main.addNetworkError(source, e);
                 }
@@ -373,8 +374,8 @@ public final class TaggingPresetReader {
                             );
                 }
             } catch (SAXException | IllegalArgumentException e) {
-                Main.error(e);
-                Main.error(source);
+                Logging.error(e);
+                Logging.error(source);
                 JOptionPane.showMessageDialog(
                         Main.parent,
                         "<html>" + tr("Error parsing {0}: ", source) + "<br><br><table width=600>" +

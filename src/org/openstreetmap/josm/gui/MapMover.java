@@ -152,7 +152,7 @@ public class MapMover extends MouseAdapter implements Destroyable {
     }
 
     private void registerActionShortcut(ZoomerAction action, Shortcut shortcut) {
-        Main.registerActionShortcut(action, shortcut);
+        MainApplication.registerActionShortcut(action, shortcut);
         registeredShortcuts.add(new Pair<>(action, shortcut));
     }
 
@@ -168,10 +168,11 @@ public class MapMover extends MouseAdapter implements Destroyable {
         int offMask = MouseEvent.BUTTON1_DOWN_MASK | MouseEvent.BUTTON2_DOWN_MASK;
         boolean allowMovement = (e.getModifiersEx() & (MouseEvent.BUTTON3_DOWN_MASK | offMask)) == MouseEvent.BUTTON3_DOWN_MASK;
         if (Main.isPlatformOsx()) {
+            MapFrame map = MainApplication.getMap();
             int macMouseMask = MouseEvent.CTRL_DOWN_MASK | MouseEvent.BUTTON1_DOWN_MASK;
             boolean macMovement = e.getModifiersEx() == macMouseMask;
-            boolean allowedMode = !Main.map.mapModeSelect.equals(Main.map.mapMode)
-                              || SelectAction.Mode.SELECT.equals(Main.map.mapModeSelect.getMode());
+            boolean allowedMode = !map.mapModeSelect.equals(map.mapMode)
+                              || SelectAction.Mode.SELECT.equals(map.mapModeSelect.getMode());
             allowMovement |= macMovement && allowedMode;
         }
         if (allowMovement) {
@@ -269,7 +270,7 @@ public class MapMover extends MouseAdapter implements Destroyable {
     @Override
     public void destroy() {
         for (Pair<ZoomerAction, Shortcut> shortcut : registeredShortcuts) {
-            Main.unregisterActionShortcut(shortcut.a, shortcut.b);
+            MainApplication.unregisterActionShortcut(shortcut.a, shortcut.b);
         }
     }
 }

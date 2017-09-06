@@ -4,8 +4,13 @@ package org.openstreetmap.josm.gui.layer.imagery;
 import java.awt.image.BufferedImage;
 import java.awt.image.ConvolveOp;
 import java.awt.image.Kernel;
+import java.util.Collections;
+import java.util.Map;
 
 import org.openstreetmap.josm.gui.layer.ImageProcessor;
+import org.openstreetmap.josm.io.session.SessionAwareReadApply;
+import org.openstreetmap.josm.tools.Logging;
+import org.openstreetmap.josm.tools.Utils;
 
 /**
  * Sharpens or blurs the image, depending on the sharpen value.
@@ -17,23 +22,23 @@ import org.openstreetmap.josm.gui.layer.ImageProcessor;
  * @author Michael Zangl
  * @since 10547
  */
-public class SharpenImageProcessor implements ImageProcessor {
-    private float sharpenLevel = 1;
+public class SharpenImageProcessor implements ImageProcessor, SessionAwareReadApply {
+    private float sharpenLevel = 1.0f;
     private ConvolveOp op;
 
-    private static float[] KERNEL_IDENTITY = new float[] {
+    private static final float[] KERNEL_IDENTITY = new float[] {
         0, 0, 0,
         0, 1, 0,
         0, 0, 0
     };
 
-    private static float[] KERNEL_BLUR = new float[] {
+    private static final float[] KERNEL_BLUR = new float[] {
         1f / 16, 2f / 16, 1f / 16,
         2f / 16, 4f / 16, 2f / 16,
         1f / 16, 2f / 16, 1f / 16
     };
 
-    private static float[] KERNEL_SHARPEN = new float[] {
+    private static final float[] KERNEL_SHARPEN = new float[] {
         -.5f, -1f, -.5f,
          -1f, 7, -1f,
         -.5f, -1f, -.5f
@@ -85,6 +90,26 @@ public class SharpenImageProcessor implements ImageProcessor {
         } else {
             return image;
         }
+    }
+
+    @Override
+    public void applyFromPropertiesMap(Map<String, String> properties) {
+        String vStr = properties.get("sharpenlevel");
+        if (vStr != null) {
+            try {
+                setSharpenLevel(Float.parseFloat(vStr));
+            } catch (NumberFormatException e) {
+                Logging.trace(e);
+            }
+        }
+    }
+
+    @Override
+    public Map<String, String> toPropertiesMap() {
+        if (Utils.equalsEpsilon(sharpenLevel, 1.0))
+            return Collections.emptyMap();
+        else
+            return Collections.singletonMap("sharpenlevel", Float.toString(sharpenLevel));
     }
 
     @Override

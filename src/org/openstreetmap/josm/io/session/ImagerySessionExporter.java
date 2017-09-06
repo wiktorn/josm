@@ -4,6 +4,7 @@ package org.openstreetmap.josm.io.session;
 import java.awt.Component;
 import java.awt.GridBagLayout;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -19,8 +20,10 @@ import org.openstreetmap.josm.gui.layer.ImageryLayer;
 import org.openstreetmap.josm.gui.layer.TMSLayer;
 import org.openstreetmap.josm.gui.layer.WMSLayer;
 import org.openstreetmap.josm.gui.layer.WMTSLayer;
+import org.openstreetmap.josm.gui.layer.imagery.ImageryFilterSettings;
 import org.openstreetmap.josm.io.session.SessionWriter.ExportSupport;
 import org.openstreetmap.josm.tools.GBC;
+import org.openstreetmap.josm.tools.Utils;
 import org.w3c.dom.Element;
 
 /**
@@ -81,17 +84,32 @@ public class ImagerySessionExporter extends AbstractSessionExporter<ImageryLayer
         layerElem.setAttribute("version", "0.1");
         ImageryPreferenceEntry e = new ImageryPreferenceEntry(layer.getInfo());
         Map<String, String> data = new LinkedHashMap<>(Preferences.serializeStruct(e, ImageryPreferenceEntry.class));
-        if (layer instanceof AbstractTileSourceLayer) {
-            ((AbstractTileSourceLayer<?>) layer).getDisplaySettings().storeTo(data);
-        }
+        Utils.instanceOfThen(layer, AbstractTileSourceLayer.class, tsLayer -> {
+            data.putAll(tsLayer.getDisplaySettings().toPropertiesMap());
+            if (!tsLayer.getDisplaySettings().isAutoZoom()) {
+                data.put("zoom-level", Integer.toString(tsLayer.getZoomLevel()));
+            }
+        });
         addAttributes(layerElem, data, support);
-        if (layer instanceof AbstractTileSourceLayer) {
-            OffsetBookmark offset = ((AbstractTileSourceLayer<?>) layer).getDisplaySettings().getOffsetBookmark();
+        Utils.instanceOfThen(layer, AbstractTileSourceLayer.class, tsLayer -> {
+            OffsetBookmark offset = tsLayer.getDisplaySettings().getOffsetBookmark();
             if (offset != null) {
                 Map<String, String> offsetProps = offset.toPropertiesMap();
                 Element offsetEl = support.createElement("offset");
                 layerElem.appendChild(offsetEl);
                 addAttributes(offsetEl, offsetProps, support);
+            }
+        });
+        ImageryFilterSettings filters = layer.getFilterSettings();
+        if (filters != null) {
+            Map<String, String> filterProps = new HashMap<>();
+            filters.getProcessors().stream()
+                    .flatMap(Utils.castToStream(SessionAwareReadApply.class))
+                    .forEach(proc -> filterProps.putAll(proc.toPropertiesMap()));
+            if (!filterProps.isEmpty()) {
+                Element filterEl = support.createElement("filters");
+                layerElem.appendChild(filterEl);
+                addAttributes(filterEl, filterProps, support);
             }
         }
         return layerElem;

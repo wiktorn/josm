@@ -21,6 +21,8 @@ import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.gpx.GpxTrack;
 import org.openstreetmap.josm.data.gpx.GpxTrackSegment;
 import org.openstreetmap.josm.data.gpx.WayPoint;
+import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.layer.GpxLayer;
 import org.openstreetmap.josm.io.audio.AudioPlayer;
@@ -62,16 +64,17 @@ public final class PlayHeadMarker extends Marker {
         enabled = Main.pref.getBoolean("marker.traceaudio", true);
         if (!enabled) return;
         dropTolerance = Main.pref.getInteger("marker.playHeadDropTolerance", 50);
-        if (Main.isDisplayingMapView()) {
-            Main.map.mapView.addMouseListener(new MouseAdapter() {
+        if (MainApplication.isDisplayingMapView()) {
+            MapFrame map = MainApplication.getMap();
+            map.mapView.addMouseListener(new MouseAdapter() {
                 @Override public void mousePressed(MouseEvent ev) {
                     if (ev.getButton() == MouseEvent.BUTTON1 && playHead.containsPoint(ev.getPoint())) {
                         /* when we get a click on the marker, we need to switch mode to avoid
                          * getting confused with other drag operations (like select) */
-                        oldMode = Main.map.mapMode;
+                        oldMode = map.mapMode;
                         oldCoor = getCoor();
                         PlayHeadDragMode playHeadDragMode = new PlayHeadDragMode(playHead);
-                        Main.map.selectMapMode(playHeadDragMode);
+                        map.selectMapMode(playHeadDragMode);
                         playHeadDragMode.mousePressed(ev);
                     }
                 }
@@ -81,7 +84,7 @@ public final class PlayHeadMarker extends Marker {
 
     @Override
     public boolean containsPoint(Point p) {
-        Point screen = Main.map.mapView.getPoint(getEastNorth());
+        Point screen = MainApplication.getMap().mapView.getPoint(this);
         Rectangle r = new Rectangle(screen.x, screen.y, symbol.getIconWidth(),
                 symbol.getIconHeight());
         return r.contains(p);
@@ -120,9 +123,12 @@ public final class PlayHeadMarker extends Marker {
         if (reset) {
             setCoor(oldCoor);
         }
-        Main.map.selectMapMode(oldMode);
-        Main.map.mapView.repaint();
-        timer.start();
+        MapFrame map = MainApplication.getMap();
+        map.selectMapMode(oldMode);
+        map.mapView.repaint();
+        if (timer != null) {
+            timer.start();
+        }
     }
 
     /**
@@ -131,7 +137,7 @@ public final class PlayHeadMarker extends Marker {
      */
     public void drag(EastNorth en) {
         setEastNorth(en);
-        Main.map.mapView.repaint();
+        MainApplication.getMap().mapView.repaint();
     }
 
     /**
@@ -145,8 +151,9 @@ public final class PlayHeadMarker extends Marker {
         AudioMarker recent = AudioMarker.recentlyPlayedMarker();
         if (recent != null && recent.parentLayer != null && recent.parentLayer.fromLayer != null) {
             /* work out EastNorth equivalent of 50 (default) pixels tolerance */
-            Point p = Main.map.mapView.getPoint(en);
-            EastNorth enPlus25px = Main.map.mapView.getEastNorth(p.x+dropTolerance, p.y);
+            MapView mapView = MainApplication.getMap().mapView;
+            Point p = mapView.getPoint(en);
+            EastNorth enPlus25px = mapView.getEastNorth(p.x+dropTolerance, p.y);
             cw = recent.parentLayer.fromLayer.data.nearestPointOnTrack(en, enPlus25px.east() - en.east());
         }
 
@@ -199,13 +206,14 @@ public final class PlayHeadMarker extends Marker {
         if (recent == null)
             return;
         /* First, see if we dropped onto an existing audio marker in the layer being played */
-        Point startPoint = Main.map.mapView.getPoint(en);
+        MapView mapView = MainApplication.getMap().mapView;
+        Point startPoint = mapView.getPoint(en);
         AudioMarker ca = null;
         if (recent.parentLayer != null) {
             double closestAudioMarkerDistanceSquared = 1.0E100;
             for (Marker m : recent.parentLayer.data) {
                 if (m instanceof AudioMarker) {
-                    double distanceSquared = m.getEastNorth().distanceSq(en);
+                    double distanceSquared = m.getEastNorth(Main.getProjection()).distanceSq(en);
                     if (distanceSquared < closestAudioMarkerDistanceSquared) {
                         ca = (AudioMarker) m;
                         closestAudioMarkerDistanceSquared = distanceSquared;
@@ -222,8 +230,8 @@ public final class PlayHeadMarker extends Marker {
         /* If we didn't hit an audio marker, we need to create one at the nearest point on the track */
         if (ca == null) {
             /* work out EastNorth equivalent of 50 (default) pixels tolerance */
-            Point p = Main.map.mapView.getPoint(en);
-            EastNorth enPlus25px = Main.map.mapView.getEastNorth(p.x+dropTolerance, p.y);
+            Point p = mapView.getPoint(en);
+            EastNorth enPlus25px = mapView.getEastNorth(p.x+dropTolerance, p.y);
             WayPoint cw = recent.parentLayer.fromLayer.data.nearestPointOnTrack(en, enPlus25px.east() - en.east());
             if (cw == null) {
                 JOptionPane.showMessageDialog(
@@ -274,7 +282,7 @@ public final class PlayHeadMarker extends Marker {
      */
     public void paint(Graphics g, MapView mv) {
         if (time < 0.0) return;
-        Point screen = mv.getPoint(getEastNorth());
+        Point screen = mv.getPoint(this);
         paintIcon(mv, g, screen.x, screen.y);
     }
 
@@ -338,14 +346,15 @@ public final class PlayHeadMarker extends Marker {
         if (w1 == null)
             return;
         setEastNorth(w2 == null ?
-                w1.getEastNorth() :
-                    w1.getEastNorth().interpolate(w2.getEastNorth(),
+                w1.getEastNorth(Main.getProjection()) :
+                    w1.getEastNorth(Main.getProjection()).interpolate(w2.getEastNorth(Main.getProjection()),
                             (audioTime - w1.time)/(w2.time - w1.time)));
         time = audioTime;
+        MapView mapView = MainApplication.getMap().mapView;
         if (jumpToMarker) {
             jumpToMarker = false;
-            Main.map.mapView.zoomTo(w1.getEastNorth());
+            mapView.zoomTo(w1);
         }
-        Main.map.mapView.repaint();
+        mapView.repaint();
     }
 }

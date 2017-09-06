@@ -6,10 +6,11 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Rule;
 import org.junit.Test;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.TestUtils;
 import org.openstreetmap.josm.actions.mapmode.DeleteAction.DeleteMode;
 import org.openstreetmap.josm.data.osm.DataSet;
+import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
 
@@ -25,7 +26,7 @@ public class DeleteActionTest {
      */
     @Rule
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    public JOSMTestRules test = new JOSMTestRules().platform().commands();
+    public JOSMTestRules test = new JOSMTestRules().platform().main().projection();
 
     /**
      * Unit test of {@link DeleteAction#enterMode} and {@link DeleteAction#exitMode}.
@@ -34,14 +35,15 @@ public class DeleteActionTest {
     public void testMode() {
         OsmDataLayer layer = new OsmDataLayer(new DataSet(), "", null);
         try {
-            Main.getLayerManager().addLayer(layer);
+            MainApplication.getLayerManager().addLayer(layer);
             DeleteAction mapMode = new DeleteAction();
-            MapMode oldMapMode = Main.map.mapMode;
-            assertTrue(Main.map.selectMapMode(mapMode));
-            assertEquals(mapMode, Main.map.mapMode);
-            assertTrue(Main.map.selectMapMode(oldMapMode));
+            MapFrame map = MainApplication.getMap();
+            MapMode oldMapMode = map.mapMode;
+            assertTrue(map.selectMapMode(mapMode));
+            assertEquals(mapMode, map.mapMode);
+            assertTrue(map.selectMapMode(oldMapMode));
         } finally {
-            Main.getLayerManager().removeLayer(layer);
+            MainApplication.getLayerManager().removeLayer(layer);
         }
     }
 

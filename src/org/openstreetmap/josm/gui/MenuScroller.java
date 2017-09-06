@@ -28,7 +28,8 @@ import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.tools.WindowGeometry;
+import org.openstreetmap.josm.gui.util.WindowGeometry;
+import org.openstreetmap.josm.tools.Logging;
 
 /**
  * A class that provides scrolling capabilities to a long menu dropdown or
@@ -463,8 +464,8 @@ public class MenuScroller {
         public void mouseWheelMoved(MouseWheelEvent mwe) {
             firstIndex += mwe.getWheelRotation();
             refreshMenu();
-            if (Main.isDebugEnabled()) {
-                Main.debug(getClass().getName()+" consuming event "+mwe);
+            if (Logging.isDebugEnabled()) {
+                Logging.debug("{0} consuming event {1}", getClass().getName(), mwe);
             }
             mwe.consume();
         }

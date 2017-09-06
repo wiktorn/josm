@@ -23,24 +23,24 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.CRC32;
 
-import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.actions.search.SearchCompiler;
-import org.openstreetmap.josm.actions.search.SearchCompiler.Match;
-import org.openstreetmap.josm.actions.search.SearchCompiler.ParseError;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
+import org.openstreetmap.josm.data.osm.search.SearchParseError;
+import org.openstreetmap.josm.data.osm.search.SearchCompiler;
+import org.openstreetmap.josm.data.osm.search.SearchCompiler.Match;
 import org.openstreetmap.josm.gui.mappaint.Cascade;
 import org.openstreetmap.josm.gui.mappaint.Environment;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
-import org.openstreetmap.josm.gui.util.RotationAngle;
 import org.openstreetmap.josm.io.XmlWriter;
 import org.openstreetmap.josm.tools.AlphanumComparator;
 import org.openstreetmap.josm.tools.ColorHelper;
 import org.openstreetmap.josm.tools.Geometry;
 import org.openstreetmap.josm.tools.JosmRuntimeException;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.RightAndLefthandTraffic;
+import org.openstreetmap.josm.tools.RotationAngle;
 import org.openstreetmap.josm.tools.SubclassFilteredCollection;
 import org.openstreetmap.josm.tools.Territories;
 import org.openstreetmap.josm.tools.Utils;
@@ -265,7 +265,7 @@ public final class ExpressionFactory {
             try {
                 return new Color(r, g, b);
             } catch (IllegalArgumentException e) {
-                Main.trace(e);
+                Logging.trace(e);
                 return null;
             }
         }
@@ -284,7 +284,7 @@ public final class ExpressionFactory {
             try {
                 return new Color(r, g, b, alpha);
             } catch (IllegalArgumentException e) {
-                Main.trace(e);
+                Logging.trace(e);
                 return null;
             }
         }
@@ -300,7 +300,7 @@ public final class ExpressionFactory {
             try {
                 return Color.getHSBColor(h, s, b);
             } catch (IllegalArgumentException e) {
-                Main.trace(e);
+                Logging.trace(e);
                 return null;
             }
         }
@@ -635,7 +635,7 @@ public final class ExpressionFactory {
             try {
                 return RotationAngle.parseCardinalRotation(cardinal);
             } catch (IllegalArgumentException ignore) {
-                Main.trace(ignore);
+                Logging.trace(ignore);
                 return null;
             }
         }
@@ -675,8 +675,8 @@ public final class ExpressionFactory {
             Match m;
             try {
                 m = SearchCompiler.compile(searchStr);
-            } catch (ParseError ex) {
-                Main.trace(ex);
+            } catch (SearchParseError ex) {
+                Logging.trace(ex);
                 return null;
             }
             return m.match(env.osm);
@@ -875,7 +875,7 @@ public final class ExpressionFactory {
             try {
                 return Utils.decodeUrl(s);
             } catch (IllegalStateException e) {
-                Main.debug(e);
+                Logging.debug(e);
                 return s;
             }
         }
@@ -1032,6 +1032,18 @@ public final class ExpressionFactory {
          */
         public static boolean outside(Environment env, String codes) { // NO_UCD (unused code)
             return !inside(env, codes);
+        }
+
+        /**
+         * Determines if the object centroid lies at given lat/lon coordinates.
+         * @param env the environment
+         * @param lat latitude, i.e., the north-south position in degrees
+         * @param lon longitude, i.e., the east-west position in degrees
+         * @return {@code true} if the object centroid lies at given lat/lon coordinates
+         * @since 12514
+         */
+        public static boolean at(Environment env, double lat, double lon) { // NO_UCD (unused code)
+            return new LatLon(lat, lon).equalsEpsilon(center(env));
         }
     }
 
@@ -1297,7 +1309,7 @@ public final class ExpressionFactory {
             } catch (IllegalAccessException | IllegalArgumentException ex) {
                 throw new JosmRuntimeException(ex);
             } catch (InvocationTargetException ex) {
-                Main.error(ex);
+                Logging.error(ex);
                 return null;
             }
             return result;
@@ -1307,9 +1319,14 @@ public final class ExpressionFactory {
         public String toString() {
             StringBuilder b = new StringBuilder("ParameterFunction~");
             b.append(m.getName()).append('(');
-            for (int i = 0; i < args.size(); ++i) {
+            for (int i = 0; i < expectedParameterTypes.length; ++i) {
                 if (i > 0) b.append(',');
-                b.append(expectedParameterTypes[i]).append(' ').append(args.get(i));
+                b.append(expectedParameterTypes[i]);
+                if (!needsEnvironment) {
+                    b.append(' ').append(args.get(i));
+                } else if (i > 0) {
+                    b.append(' ').append(args.get(i-1));
+                }
             }
             b.append(')');
             return b.toString();
@@ -1363,7 +1380,7 @@ public final class ExpressionFactory {
             } catch (IllegalAccessException | IllegalArgumentException ex) {
                 throw new JosmRuntimeException(ex);
             } catch (InvocationTargetException ex) {
-                Main.error(ex);
+                Logging.error(ex);
                 return null;
             }
             return result;

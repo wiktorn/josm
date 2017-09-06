@@ -7,7 +7,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.osm.BBox;
 import org.openstreetmap.josm.data.osm.DataSet;
@@ -16,6 +15,8 @@ import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.Way;
+import org.openstreetmap.josm.data.projection.Projection;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.tools.Geometry;
 
 /**
@@ -36,7 +37,7 @@ public final class SelectByInternalPointAction {
      * @return the surrounding polygons/multipolygons
      */
     public static Collection<OsmPrimitive> getSurroundingObjects(EastNorth internalPoint) {
-        return getSurroundingObjects(Main.getLayerManager().getEditDataSet(), internalPoint, false);
+        return getSurroundingObjects(MainApplication.getLayerManager().getEditDataSet(), internalPoint, false);
     }
 
     /**
@@ -60,6 +61,7 @@ public final class SelectByInternalPointAction {
                 found.put(Geometry.closedWayArea(w), w);
             }
         }
+        Projection projection = MainApplication.getMap().mapView.getProjection();
         for (Relation r : ds.getRelations()) {
             if (r.isUsable() && r.isMultipolygon() && r.isSelectable() && Geometry.isNodeInsideMultiPolygon(n, r, null)) {
                 if (!includeMultipolygonWays) {
@@ -71,8 +73,8 @@ public final class SelectByInternalPointAction {
                 }
                 // estimate multipolygon size by its bounding box area
                 BBox bBox = r.getBBox();
-                EastNorth en1 = Main.map.mapView.getProjection().latlon2eastNorth(bBox.getTopLeft());
-                EastNorth en2 = Main.map.mapView.getProjection().latlon2eastNorth(bBox.getBottomRight());
+                EastNorth en1 = projection.latlon2eastNorth(bBox.getTopLeft());
+                EastNorth en2 = projection.latlon2eastNorth(bBox.getBottomRight());
                 double s = Math.abs((en1.east() - en2.east()) * (en1.north() - en2.north()));
                 found.put(s <= 0 ? 1e8 : s, r);
             }
@@ -100,7 +102,7 @@ public final class SelectByInternalPointAction {
      */
     public static void performSelection(EastNorth internalPoint, boolean doAdd, boolean doRemove) {
         final Collection<OsmPrimitive> surroundingObjects = getSurroundingObjects(internalPoint);
-        final DataSet ds = Main.getLayerManager().getEditDataSet();
+        final DataSet ds = MainApplication.getLayerManager().getEditDataSet();
         if (surroundingObjects.isEmpty()) {
             return;
         } else if (doRemove) {

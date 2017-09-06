@@ -102,7 +102,6 @@ node[map_type                  ][information!=map],
 *[site_type                    ][historic!=archaeological_site],
 *[artwork_type                 ][tourism!=artwork],
 *[castle_type                  ][historic!=castle],
-*[bridge:movable               ][bridge!=movable],
 *[parking                      ][amenity!~/^(parking|parking_space|parking_entrance|motorcycle_parking)$/],
 way[cutline                    ][man_made!=cutline],
 *[bunker_type                  ][military!=bunker] {
@@ -111,6 +110,7 @@ way[cutline                    ][man_made!=cutline],
 }
 
 /* {0.key} without {1.tag} or {2.tag} */
+*[bridge:movable               ][bridge!=movable][man_made!=bridge],
 *[substation                   ][power!=substation][pipeline!=substation],
 *[reservoir_type               ][landuse!=reservoir][water!=reservoir] {
   throwWarning: tr("{0} without {1} or {2}", "{0.key}", "{1.tag}", "{2.tag}");
@@ -303,8 +303,8 @@ way[highway=footway][cycleway=lane] {
 }
 
 /* {0} on suspicious object */
-*[tunnel  ][!highway][!railway][!waterway][public_transport != platform][man_made != pipeline],
-*[bridge  ][!highway][!railway][!waterway][!piste:type][public_transport != platform][man_made !~ /^(bridge|pipeline)$/][building != bridge],
+*[tunnel  ][!highway][!railway][!waterway][!piste:type][public_transport!=platform][route!=ferry][man_made!=pipeline][man_made!=goods_conveyor],
+*[bridge  ][!highway][!railway][!waterway][!piste:type][public_transport!=platform][route!=ferry][man_made!=pipeline][man_made!=goods_conveyor][man_made!=bridge][building!=bridge],
 *[psv     ][!highway][!railway][!waterway][amenity !~ /^parking.*/],
 *[width   ][!highway][!railway][!waterway][!aeroway][!cycleway][!footway][!barrier][!man_made][!entrance][natural!=stone],
 *[maxspeed][!highway][!railway][traffic_sign !~ /^((.*;)?maxspeed(;.*)?|[A-Z][A-Z]:.+)$/][type != enforcement][waterway !~ /^(river|canal|lock)$/][!traffic_calming][aerialway!=zip_line] {

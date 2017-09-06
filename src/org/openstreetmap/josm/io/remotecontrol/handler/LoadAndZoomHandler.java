@@ -11,12 +11,10 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Future;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.AutoScaleAction;
 import org.openstreetmap.josm.actions.downloadtasks.DownloadOsmTask;
 import org.openstreetmap.josm.actions.downloadtasks.DownloadTask;
 import org.openstreetmap.josm.actions.downloadtasks.PostDownloadHandler;
-import org.openstreetmap.josm.actions.search.SearchCompiler;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.BBox;
@@ -24,10 +22,15 @@ import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.SimplePrimitiveId;
+import org.openstreetmap.josm.data.osm.search.SearchParseError;
+import org.openstreetmap.josm.data.osm.search.SearchCompiler;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
+import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.io.remotecontrol.AddTagsDialog;
 import org.openstreetmap.josm.io.remotecontrol.PermissionPrefWithDefault;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.SubclassFilteredCollection;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -113,13 +116,13 @@ public class LoadAndZoomHandler extends RequestHandler {
 
             if (command.equals(myCommand)) {
                 if (!PermissionPrefWithDefault.LOAD_DATA.isAllowed()) {
-                    Main.info("RemoteControl: download forbidden by preferences");
+                    Logging.info("RemoteControl: download forbidden by preferences");
                 } else {
                     Area toDownload = null;
                     if (!newLayer) {
                         // find out whether some data has already been downloaded
                         Area present = null;
-                        DataSet ds = Main.getLayerManager().getEditDataSet();
+                        DataSet ds = MainApplication.getLayerManager().getEditDataSet();
                         if (ds != null) {
                             present = ds.getDataSourceArea();
                         }
@@ -137,17 +140,17 @@ public class LoadAndZoomHandler extends RequestHandler {
                         }
                     }
                     if (toDownload != null && toDownload.isEmpty()) {
-                        Main.info("RemoteControl: no download necessary");
+                        Logging.info("RemoteControl: no download necessary");
                     } else {
                         Future<?> future = osmTask.download(newLayer, new Bounds(minlat, minlon, maxlat, maxlon),
                                 null /* let the task manage the progress monitor */);
-                        Main.worker.submit(new PostDownloadHandler(osmTask, future));
+                        MainApplication.worker.submit(new PostDownloadHandler(osmTask, future));
                     }
                 }
             }
         } catch (RuntimeException ex) { // NOPMD
-            Main.warn("RemoteControl: Error parsing load_and_zoom remote control request:");
-            Main.error(ex);
+            Logging.warn("RemoteControl: Error parsing load_and_zoom remote control request:");
+            Logging.error(ex);
             throw new RequestHandlerErrorException(ex);
         }
 
@@ -156,7 +159,7 @@ public class LoadAndZoomHandler extends RequestHandler {
          */
         if (args.containsKey("addtags")) {
             GuiHelper.executeByMainWorkerInEDT(() -> {
-                DataSet ds = Main.getLayerManager().getEditDataSet();
+                DataSet ds = MainApplication.getLayerManager().getEditDataSet();
                 if (ds == null) // e.g. download failed
                     return;
                 ds.clearSelection();
@@ -169,7 +172,7 @@ public class LoadAndZoomHandler extends RequestHandler {
             // select objects after downloading, zoom to selection.
             GuiHelper.executeByMainWorkerInEDT(() -> {
                 Set<OsmPrimitive> newSel = new HashSet<>();
-                DataSet ds = Main.getLayerManager().getEditDataSet();
+                DataSet ds = MainApplication.getLayerManager().getEditDataSet();
                 if (ds == null) // e.g. download failed
                     return;
                 for (SimplePrimitiveId id : toSelect) {
@@ -182,24 +185,25 @@ public class LoadAndZoomHandler extends RequestHandler {
                 toSelect.clear();
                 ds.setSelected(newSel);
                 zoom(newSel, bbox);
-                if (Main.isDisplayingMapView() && Main.map.relationListDialog != null) {
-                    Main.map.relationListDialog.selectRelations(null); // unselect all relations to fix #7342
-                    Main.map.relationListDialog.dataChanged(null);
-                    Main.map.relationListDialog.selectRelations(Utils.filteredCollection(newSel, Relation.class));
+                MapFrame map = MainApplication.getMap();
+                if (MainApplication.isDisplayingMapView() && map.relationListDialog != null) {
+                    map.relationListDialog.selectRelations(null); // unselect all relations to fix #7342
+                    map.relationListDialog.dataChanged(null);
+                    map.relationListDialog.selectRelations(Utils.filteredCollection(newSel, Relation.class));
                 }
             });
         } else if (args.containsKey("search") && PermissionPrefWithDefault.CHANGE_SELECTION.isAllowed()) {
             try {
                 final SearchCompiler.Match search = SearchCompiler.compile(args.get("search"));
-                Main.worker.submit(() -> {
-                    final DataSet ds = Main.getLayerManager().getEditDataSet();
+                MainApplication.worker.submit(() -> {
+                    final DataSet ds = MainApplication.getLayerManager().getEditDataSet();
                     final Collection<OsmPrimitive> filteredPrimitives = SubclassFilteredCollection.filter(ds.allPrimitives(), search);
                     ds.setSelected(filteredPrimitives);
                     forTagAdd.addAll(filteredPrimitives);
                     zoom(filteredPrimitives, bbox);
                 });
-            } catch (SearchCompiler.ParseError ex) {
-                Main.error(ex);
+            } catch (SearchParseError ex) {
+                Logging.error(ex);
                 throw new RequestHandlerErrorException(ex);
             }
         } else {
@@ -209,13 +213,13 @@ public class LoadAndZoomHandler extends RequestHandler {
 
         // add changeset tags after download if necessary
         if (args.containsKey("changeset_comment") || args.containsKey("changeset_source")) {
-            Main.worker.submit(() -> {
-                if (Main.getLayerManager().getEditDataSet() != null) {
+            MainApplication.worker.submit(() -> {
+                if (MainApplication.getLayerManager().getEditDataSet() != null) {
                     if (args.containsKey("changeset_comment")) {
-                        Main.getLayerManager().getEditDataSet().addChangeSetTag("comment", args.get("changeset_comment"));
+                        MainApplication.getLayerManager().getEditDataSet().addChangeSetTag("comment", args.get("changeset_comment"));
                     }
                     if (args.containsKey("changeset_source")) {
-                        Main.getLayerManager().getEditDataSet().addChangeSetTag("source", args.get("changeset_source"));
+                        MainApplication.getLayerManager().getEditDataSet().addChangeSetTag("source", args.get("changeset_source"));
                     }
                 }
             });
@@ -231,12 +235,12 @@ public class LoadAndZoomHandler extends RequestHandler {
         // zoom_mode=(download|selection), defaults to selection
         if (!"download".equals(args.get("zoom_mode")) && !primitives.isEmpty()) {
             AutoScaleAction.autoScale("selection");
-        } else if (Main.isDisplayingMapView()) {
+        } else if (MainApplication.isDisplayingMapView()) {
             // make sure this isn't called unless there *is* a MapView
             GuiHelper.executeByMainWorkerInEDT(() -> {
                 BoundingXYVisitor bbox1 = new BoundingXYVisitor();
                 bbox1.visit(bbox);
-                Main.map.mapView.zoomTo(bbox1);
+                MainApplication.getMap().mapView.zoomTo(bbox1);
             });
         }
     }
@@ -283,7 +287,7 @@ public class LoadAndZoomHandler extends RequestHandler {
                     try {
                         toSelect.add(SimplePrimitiveId.fromString(item));
                     } catch (IllegalArgumentException ex) {
-                        Main.warn(ex, "RemoteControl: invalid selection '" + item + "' ignored");
+                        Logging.log(Logging.LEVEL_WARN, "RemoteControl: invalid selection '" + item + "' ignored", ex);
                     }
                 }
             }

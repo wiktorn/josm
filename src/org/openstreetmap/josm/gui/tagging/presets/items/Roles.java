@@ -12,18 +12,32 @@ import java.util.Set;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
-import org.openstreetmap.josm.actions.search.SearchAction;
-import org.openstreetmap.josm.actions.search.SearchCompiler;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Tag;
+import org.openstreetmap.josm.data.osm.search.SearchParseError;
+import org.openstreetmap.josm.data.osm.search.SearchSetting;
+import org.openstreetmap.josm.data.osm.search.SearchCompiler;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetItem;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetType;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.xml.sax.SAXException;
 
+/**
+ * The <code>roles</code> element in tagging presets definition.
+ * <p>
+ * A list of {@link Role} elements. Describes the roles that are expected for
+ * the members of a relation.
+ * <p>
+ * Used for data validation, auto completion, among others.
+ */
 public class Roles extends TaggingPresetItem {
 
+    /**
+     * The <code>role</code> element in tagging preset definition.
+     * 
+     * Information on a certain role, which is expected for the relation members.
+     */
     public static class Role {
         public Set<TaggingPresetType> types; // NOSONAR
         /** Role name used in a relation */
@@ -63,12 +77,12 @@ public class Roles extends TaggingPresetItem {
 
         public void setMember_expression(String memberExpression) throws SAXException {
             try {
-                final SearchAction.SearchSetting searchSetting = new SearchAction.SearchSetting();
+                final SearchSetting searchSetting = new SearchSetting();
                 searchSetting.text = memberExpression;
                 searchSetting.caseSensitive = true;
                 searchSetting.regexSearch = true;
                 this.memberExpression = SearchCompiler.compile(searchSetting);
-            } catch (SearchCompiler.ParseError ex) {
+            } catch (SearchParseError ex) {
                 throw new SAXException(tr("Illegal member expression: {0}", ex.getMessage()), ex);
             }
         }

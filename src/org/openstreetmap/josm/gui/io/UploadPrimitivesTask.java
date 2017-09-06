@@ -17,12 +17,12 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.APIDataSet;
 import org.openstreetmap.josm.data.osm.Changeset;
 import org.openstreetmap.josm.data.osm.ChangesetCache;
+import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
 import org.openstreetmap.josm.data.osm.IPrimitive;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.Way;
-import org.openstreetmap.josm.gui.DefaultNameFormatter;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane.ButtonSpec;
 import org.openstreetmap.josm.gui.Notification;
@@ -30,13 +30,16 @@ import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.io.ChangesetClosedException;
+import org.openstreetmap.josm.io.MaxChangesetSizeExceededPolicy;
 import org.openstreetmap.josm.io.MessageNotifier;
 import org.openstreetmap.josm.io.OsmApi;
 import org.openstreetmap.josm.io.OsmApiPrimitiveGoneException;
 import org.openstreetmap.josm.io.OsmServerWriter;
 import org.openstreetmap.josm.io.OsmTransferCanceledException;
 import org.openstreetmap.josm.io.OsmTransferException;
+import org.openstreetmap.josm.io.UploadStrategySpecification;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 
 /**
  * The task for uploading a collection of primitives.
@@ -199,7 +202,7 @@ public class UploadPrimitivesTask extends AbstractUploadTask {
                 msg = tr("Object ''{0}'' is already deleted. Skipping object in upload.", displayName);
             }
             monitor.appendLogMessage(msg);
-            Main.warn(msg);
+            Logging.warn(msg);
             processedPrimitives.addAll(writer.getProcessedPrimitives());
             processedPrimitives.add(p);
             toUpload.removeProcessed(processedPrimitives);
@@ -223,11 +226,11 @@ public class UploadPrimitivesTask extends AbstractUploadTask {
         try {
             SwingUtilities.invokeAndWait(r);
         } catch (InterruptedException e) {
-            Main.trace(e);
+            Logging.trace(e);
             lastException = e;
             Thread.currentThread().interrupt();
         } catch (InvocationTargetException e) {
-            Main.trace(e);
+            Logging.trace(e);
             lastException = new OsmTransferException(e.getCause());
         }
     }
@@ -248,7 +251,7 @@ public class UploadPrimitivesTask extends AbstractUploadTask {
                     // if we get here we've successfully uploaded the data. Exit the loop.
                     break;
                 } catch (OsmTransferCanceledException e) {
-                    Main.error(e);
+                    Logging.error(e);
                     uploadCanceled = true;
                     break uploadloop;
                 } catch (OsmApiPrimitiveGoneException e) {
@@ -291,7 +294,7 @@ public class UploadPrimitivesTask extends AbstractUploadTask {
             closeChangesetIfRequired();
         } catch (OsmTransferException e) {
             if (uploadCanceled) {
-                Main.info(tr("Ignoring caught exception because upload is canceled. Exception is: {0}", e.toString()));
+                Logging.info(tr("Ignoring caught exception because upload is canceled. Exception is: {0}", e.toString()));
             } else {
                 lastException = e;
             }

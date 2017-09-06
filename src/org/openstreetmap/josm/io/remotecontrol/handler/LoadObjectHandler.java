@@ -8,15 +8,16 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.PrimitiveId;
 import org.openstreetmap.josm.data.osm.SimplePrimitiveId;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.io.DownloadPrimitivesWithReferrersTask;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.io.remotecontrol.AddTagsDialog;
 import org.openstreetmap.josm.io.remotecontrol.PermissionPrefWithDefault;
+import org.openstreetmap.josm.tools.Logging;
 
 /**
  * Loads OSM primitives using their ID
@@ -58,7 +59,7 @@ public class LoadObjectHandler extends RequestHandler {
     @Override
     protected void handleRequest() throws RequestHandlerErrorException, RequestHandlerBadRequestException {
         if (!PermissionPrefWithDefault.LOAD_DATA.isAllowed()) {
-            Main.info("RemoteControl: download forbidden by preferences");
+            Logging.info("RemoteControl: download forbidden by preferences");
         }
         if (!ps.isEmpty()) {
             final boolean newLayer = isLoadInNewLayer();
@@ -66,10 +67,10 @@ public class LoadObjectHandler extends RequestHandler {
             final boolean referrers = Boolean.parseBoolean(args.get("referrers"));
             final DownloadPrimitivesWithReferrersTask task = new DownloadPrimitivesWithReferrersTask(
                     newLayer, ps, referrers, relationMembers, args.get("layer_name"), null);
-            Main.worker.submit(task);
-            Main.worker.submit(() -> {
+            MainApplication.worker.submit(task);
+            MainApplication.worker.submit(() -> {
                 final List<PrimitiveId> downloaded = task.getDownloadedId();
-                final DataSet ds = Main.getLayerManager().getEditDataSet();
+                final DataSet ds = MainApplication.getLayerManager().getEditDataSet();
                 if (downloaded != null) {
                     GuiHelper.runInEDT(() -> ds.setSelected(downloaded));
                     Collection<OsmPrimitive> downlPrim = new HashSet<>();
@@ -101,7 +102,7 @@ public class LoadObjectHandler extends RequestHandler {
                 try {
                     ps.add(SimplePrimitiveId.fromString(i));
                 } catch (IllegalArgumentException e) {
-                    Main.warn(e, "RemoteControl: invalid selection '"+i+"' ignored.");
+                    Logging.log(Logging.LEVEL_WARN, "RemoteControl: invalid selection '"+i+"' ignored.", e);
                 }
             }
         }

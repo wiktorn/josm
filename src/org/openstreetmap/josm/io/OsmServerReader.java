@@ -10,6 +10,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
 
+import javax.xml.parsers.ParserConfigurationException;
+
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.gpx.GpxData;
 import org.openstreetmap.josm.data.notes.Note;
@@ -18,6 +20,12 @@ import org.openstreetmap.josm.gui.progress.ProgressMonitor;
 import org.openstreetmap.josm.io.auth.CredentialsAgentException;
 import org.openstreetmap.josm.io.auth.CredentialsManager;
 import org.openstreetmap.josm.tools.HttpClient;
+import org.openstreetmap.josm.tools.Logging;
+import org.openstreetmap.josm.tools.Utils;
+import org.openstreetmap.josm.tools.XmlParsingException;
+import org.w3c.dom.Document;
+import org.w3c.dom.Node;
+import org.xml.sax.SAXException;
 
 /**
  * This DataReader reads directly from the REST API of the osm server.
@@ -40,7 +48,7 @@ public abstract class OsmServerReader extends OsmConnection {
         try {
             doAuthenticate = OsmApi.isUsingOAuth() && CredentialsManager.getInstance().lookupOAuthAccessToken() != null;
         } catch (CredentialsAgentException e) {
-            Main.warn(e);
+            Logging.warn(e);
         }
     }
 
@@ -111,7 +119,7 @@ public abstract class OsmServerReader extends OsmConnection {
     }
 
     /**
-     * Open a connection to the given url and return a reader on the input stream
+     * Open a connection to the given url (if HTTP, trough a GET request) and return a reader on the input stream
      * from that connection. In case of user cancel, return <code>null</code>.
      * @param urlStr The exact url to connect to.
      * @param progressMonitor progress monitoring and abort handler
@@ -121,9 +129,28 @@ public abstract class OsmServerReader extends OsmConnection {
      * @return An reader reading the input stream (servers answer) or <code>null</code>.
      * @throws OsmTransferException if data transfer errors occur
      */
-    @SuppressWarnings("resource")
     protected InputStream getInputStreamRaw(String urlStr, ProgressMonitor progressMonitor, String reason,
             boolean uncompressAccordingToContentDisposition) throws OsmTransferException {
+        return getInputStreamRaw(urlStr, progressMonitor, reason, uncompressAccordingToContentDisposition, "GET", null);
+    }
+
+    /**
+     * Open a connection to the given url (if HTTP, with the specified method) and return a reader on the input stream
+     * from that connection. In case of user cancel, return <code>null</code>.
+     * @param urlStr The exact url to connect to.
+     * @param progressMonitor progress monitoring and abort handler
+     * @param reason The reason to show on console. Can be {@code null} if no reason is given
+     * @param uncompressAccordingToContentDisposition Whether to inspect the HTTP header {@code Content-Disposition}
+     *                                                for {@code filename} and uncompress a gzip/bzip2 stream.
+     * @param httpMethod HTTP method ("GET", "POST" or "PUT")
+     * @param requestBody HTTP request body (for "POST" and "PUT" methods only). Must be null for "GET" method.
+     * @return An reader reading the input stream (servers answer) or <code>null</code>.
+     * @throws OsmTransferException if data transfer errors occur
+     * @since 12596
+     */
+    @SuppressWarnings("resource")
+    protected InputStream getInputStreamRaw(String urlStr, ProgressMonitor progressMonitor, String reason,
+            boolean uncompressAccordingToContentDisposition, String httpMethod, byte[] requestBody) throws OsmTransferException {
         try {
             OnlineResource.JOSM_WEBSITE.checkOfflineAccess(urlStr, Main.getJOSMWebsite());
             OnlineResource.OSM_API.checkOfflineAccess(urlStr, OsmApi.getOsmApi().getServerUrl());
@@ -143,9 +170,12 @@ public abstract class OsmServerReader extends OsmConnection {
                 }
             }
 
-            final HttpClient client = HttpClient.create(url);
+            final HttpClient client = HttpClient.create(url, httpMethod)
+                    .setFinishOnCloseOutput(false)
+                    .setReasonForRequest(reason)
+                    .setOutputMessage(tr("Downloading data..."))
+                    .setRequestBody(requestBody);
             activeConnection = client;
-            client.setReasonForRequest(reason);
             adaptRequest(client);
             if (doAuthenticate) {
                 addAuth(client);
@@ -157,7 +187,7 @@ public abstract class OsmServerReader extends OsmConnection {
             try {
                 response = client.connect(progressMonitor);
             } catch (IOException e) {
-                Main.error(e);
+                Logging.error(e);
                 OsmTransferException ote = new OsmTransferException(
                         tr("Could not connect to the OSM server. Please check your internet connection."), e);
                 ote.setUrl(url.toString());
@@ -192,7 +222,7 @@ public abstract class OsmServerReader extends OsmConnection {
         try {
             return response.fetchContent();
         } catch (IOException e) {
-            Main.error(e);
+            Logging.error(e);
             return tr("Reading error text failed.");
         }
     }
@@ -358,5 +388,61 @@ public abstract class OsmServerReader extends OsmConnection {
      */
     public List<Note> parseRawNotesBzip2(final ProgressMonitor progressMonitor) throws OsmTransferException {
         return null;
+    }
+
+    /**
+     * Returns an attribute from the given DOM node.
+     * @param node DOM node
+     * @param name attribute name
+     * @return attribute value for the given attribute
+     * @since 12510
+     */
+    protected static String getAttribute(Node node, String name) {
+        return node.getAttributes().getNamedItem(name).getNodeValue();
+    }
+
+    /**
+     * DOM document parser.
+     * @param <R> resulting type
+     * @since 12510
+     */
+    @FunctionalInterface
+    protected interface DomParser<R> {
+        /**
+         * Parses a given DOM document.
+         * @param doc DOM document
+         * @return parsed data
+         * @throws XmlParsingException if an XML parsing error occurs
+         */
+        R parse(Document doc) throws XmlParsingException;
+    }
+
+    /**
+     * Fetches generic data from the DOM document resulting an API call.
+     * @param api the OSM API call
+     * @param subtask the subtask translated message
+     * @param parser the parser converting the DOM document (OSM API result)
+     * @param <T> data type
+     * @param monitor The progress monitor
+     * @param reason The reason to show on console. Can be {@code null} if no reason is given
+     * @return The converted data
+     * @throws OsmTransferException if something goes wrong
+     * @since 12510
+     */
+    public <T> T fetchData(String api, String subtask, DomParser<T> parser, ProgressMonitor monitor, String reason)
+            throws OsmTransferException {
+        try {
+            monitor.beginTask("");
+            monitor.indeterminateSubTask(subtask);
+            try (InputStream in = getInputStream(api, monitor.createSubTaskMonitor(1, true), reason)) {
+                return parser.parse(Utils.parseSafeDOM(in));
+            }
+        } catch (OsmTransferException e) {
+            throw e;
+        } catch (IOException | ParserConfigurationException | SAXException e) {
+            throw new OsmTransferException(e);
+        } finally {
+            monitor.finishTask();
+        }
     }
 }

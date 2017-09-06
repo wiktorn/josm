@@ -15,11 +15,13 @@ import javax.swing.JSeparator;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MenuScroller;
 import org.openstreetmap.josm.gui.tagging.presets.items.CheckGroup;
 import org.openstreetmap.josm.gui.tagging.presets.items.KeyedItem;
 import org.openstreetmap.josm.gui.tagging.presets.items.Roles;
 import org.openstreetmap.josm.gui.tagging.presets.items.Roles.Role;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.MultiMap;
 import org.openstreetmap.josm.tools.SubclassFilteredCollection;
 
@@ -60,19 +62,19 @@ public final class TaggingPresets {
         readFromPreferences();
         for (TaggingPreset tp: taggingPresets) {
             if (!(tp instanceof TaggingPresetSeparator)) {
-                Main.toolbar.register(tp);
+                MainApplication.getToolbar().register(tp);
             }
         }
         if (taggingPresets.isEmpty()) {
-            Main.main.menu.presetsMenu.setVisible(false);
+            MainApplication.getMenu().presetsMenu.setVisible(false);
         } else {
             Map<TaggingPresetMenu, JMenu> submenus = new HashMap<>();
             for (final TaggingPreset p : taggingPresets) {
-                JMenu m = p.group != null ? submenus.get(p.group) : Main.main.menu.presetsMenu;
+                JMenu m = p.group != null ? submenus.get(p.group) : MainApplication.getMenu().presetsMenu;
                 if (m == null && p.group != null) {
-                    Main.error("No tagging preset submenu for " + p.group);
+                    Logging.error("No tagging preset submenu for " + p.group);
                 } else if (m == null) {
-                    Main.error("No tagging preset menu. Tagging preset " + p + " won't be available there");
+                    Logging.error("No tagging preset menu. Tagging preset " + p + " won't be available there");
                 } else if (p instanceof TaggingPresetSeparator) {
                     m.add(new JSeparator());
                 } else if (p instanceof TaggingPresetMenu) {
@@ -94,7 +96,7 @@ public final class TaggingPresets {
             }
         }
         if (Main.pref.getBoolean("taggingpreset.sortmenu")) {
-            TaggingPresetMenu.sortMenu(Main.main.menu.presetsMenu);
+            TaggingPresetMenu.sortMenu(MainApplication.getMenu().presetsMenu);
         }
     }
 

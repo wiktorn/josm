@@ -15,13 +15,14 @@ import java.util.concurrent.FutureTask;
 import javax.swing.SwingUtilities;
 
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.oauth.OAuthAccessTokenHolder;
 import org.openstreetmap.josm.data.oauth.OAuthParameters;
 import org.openstreetmap.josm.gui.oauth.OAuthAuthorizationWizard;
-import org.openstreetmap.josm.gui.preferences.server.OAuthAccessTokenHolder;
 import org.openstreetmap.josm.io.auth.CredentialsAgentException;
 import org.openstreetmap.josm.io.auth.CredentialsAgentResponse;
 import org.openstreetmap.josm.io.auth.CredentialsManager;
 import org.openstreetmap.josm.tools.HttpClient;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
 import oauth.signpost.OAuthConsumer;
@@ -119,8 +120,8 @@ public class OsmConnection {
                 throw new MissingOAuthAccessTokenException();
             }
             final Runnable authTask = new FutureTask<>(() -> {
-                // Concerning Utils.newDirectExecutor: Main.worker cannot be used since this connection is already
-                // executed via Main.worker. The OAuth connections would block otherwise.
+                // Concerning Utils.newDirectExecutor: Main worker cannot be used since this connection is already
+                // executed via main worker. The OAuth connections would block otherwise.
                 final OAuthAuthorizationWizard wizard = new OAuthAuthorizationWizard(
                         Main.parent, apiUrl.toExternalForm(), Utils.newDirectExecutor());
                 wizard.showDialog();
@@ -147,7 +148,7 @@ public class OsmConnection {
             addOAuthAuthorizationHeader(connection);
         } else {
             String msg = tr("Unexpected value for preference ''{0}''. Got ''{1}''.", "osm-server.auth-method", authMethod);
-            Main.warn(msg);
+            Logging.warn(msg);
             throw new OsmTransferException(msg);
         }
     }

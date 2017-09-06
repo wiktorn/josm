@@ -56,6 +56,7 @@ import org.openstreetmap.josm.actions.RestartAction;
 import org.openstreetmap.josm.data.Version;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane.ButtonSpec;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.download.DownloadSelection;
 import org.openstreetmap.josm.gui.preferences.PreferenceSettingFactory;
 import org.openstreetmap.josm.gui.progress.NullProgressMonitor;
@@ -68,6 +69,7 @@ import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.I18n;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.SubclassFilteredCollection;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -286,7 +288,7 @@ public final class PluginHandler {
     /**
      * All exceptions that occured during plugin loading
      */
-    static final Map<String, Exception> pluginLoadingExceptions = new HashMap<>();
+    static final Map<String, Throwable> pluginLoadingExceptions = new HashMap<>();
 
     /**
      * Class loader to locate resources from plugins.
@@ -303,7 +305,7 @@ public final class PluginHandler {
             sources.add(ClassLoader.getSystemClassLoader());
             sources.add(org.openstreetmap.josm.gui.MainApplication.class.getClassLoader());
         } catch (SecurityException ex) {
-            Main.debug(ex);
+            Logging.debug(ex);
             sources.add(ImageProvider.class.getClassLoader());
         }
     }
@@ -413,7 +415,7 @@ public final class PluginHandler {
      */
     public static boolean checkAndConfirmPluginUpdate(Component parent) {
         if (!checkOfflineAccess()) {
-            Main.info(tr("{0} not available (offline mode)", tr("Plugin update")));
+            Logging.info(tr("{0} not available (offline mode)", tr("Plugin update")));
             return false;
         }
         String message = null;
@@ -455,17 +457,17 @@ public final class PluginHandler {
         switch(policy) {
         case "never":
             if ("pluginmanager.version-based-update.policy".equals(togglePreferenceKey)) {
-                Main.info(tr("Skipping plugin update after JOSM upgrade. Automatic update at startup is disabled."));
+                Logging.info(tr("Skipping plugin update after JOSM upgrade. Automatic update at startup is disabled."));
             } else if ("pluginmanager.time-based-update.policy".equals(togglePreferenceKey)) {
-                Main.info(tr("Skipping plugin update after elapsed update interval. Automatic update at startup is disabled."));
+                Logging.info(tr("Skipping plugin update after elapsed update interval. Automatic update at startup is disabled."));
             }
             return false;
 
         case "always":
             if ("pluginmanager.version-based-update.policy".equals(togglePreferenceKey)) {
-                Main.info(tr("Running plugin update after JOSM upgrade. Automatic update at startup is enabled."));
+                Logging.info(tr("Running plugin update after JOSM upgrade. Automatic update at startup is enabled."));
             } else if ("pluginmanager.time-based-update.policy".equals(togglePreferenceKey)) {
-                Main.info(tr("Running plugin update after elapsed update interval. Automatic update at startup is disabled."));
+                Logging.info(tr("Running plugin update after elapsed update interval. Automatic update at startup is disabled."));
             }
             return true;
 
@@ -473,7 +475,7 @@ public final class PluginHandler {
             break;
 
         default:
-            Main.warn(tr("Unexpected value ''{0}'' for preference ''{1}''. Assuming value ''ask''.", policy, togglePreferenceKey));
+            Logging.warn(tr("Unexpected value ''{0}'' for preference ''{1}''. Assuming value ''ask''.", policy, togglePreferenceKey));
         }
 
         ButtonSpec[] options = new ButtonSpec[] {
@@ -528,7 +530,7 @@ public final class PluginHandler {
                 try {
                     OnlineResource.JOSM_WEBSITE.checkOfflineAccess(updateSite, Main.getJOSMWebsite());
                 } catch (OfflineAccessException e) {
-                    Main.trace(e);
+                    Logging.trace(e);
                     return false;
                 }
             }
@@ -588,10 +590,10 @@ public final class PluginHandler {
         // Update plugin list
         final ReadRemotePluginInformationTask pluginInfoDownloadTask = new ReadRemotePluginInformationTask(
                 Main.pref.getOnlinePluginSites());
-        Main.worker.submit(pluginInfoDownloadTask);
+        MainApplication.worker.submit(pluginInfoDownloadTask);
 
         // Continuation
-        Main.worker.submit(() -> {
+        MainApplication.worker.submit(() -> {
             // Build list of plugins to download
             Set<PluginInformation> toDownload = new HashSet<>(pluginInfoDownloadTask.getAvailablePlugins());
             toDownload.removeIf(info -> !missingRequiredPlugin.contains(info.getName()));
@@ -599,8 +601,8 @@ public final class PluginHandler {
             if (!toDownload.isEmpty()) {
                 // download plugins
                 final PluginDownloadTask task = new PluginDownloadTask(parent, toDownload, tr("Download plugins"));
-                Main.worker.submit(task);
-                Main.worker.submit(() -> {
+                MainApplication.worker.submit(task);
+                MainApplication.worker.submit(() -> {
                     // restart if some plugins have been downloaded
                     if (!task.getDownloadedPlugins().isEmpty()) {
                         // update plugin list in preferences
@@ -613,14 +615,14 @@ public final class PluginHandler {
                         try {
                             RestartAction.restartJOSM();
                         } catch (IOException e) {
-                            Main.error(e);
+                            Logging.error(e);
                         }
                     } else {
-                        Main.warn("No plugin downloaded, restart canceled");
+                        Logging.warn("No plugin downloaded, restart canceled");
                     }
                 });
             } else {
-                Main.warn("No plugin to download, operation canceled");
+                Logging.warn("No plugin to download, operation canceled");
             }
         });
     }
@@ -732,7 +734,7 @@ public final class PluginHandler {
     private static synchronized DynamicURLClassLoader getJoinedPluginResourceCL() {
         if (joinedPluginResourceCL == null) {
             joinedPluginResourceCL = AccessController.doPrivileged((PrivilegedAction<DynamicURLClassLoader>)
-                    () -> new DynamicURLClassLoader(new URL[0], Main.class.getClassLoader()));
+                    () -> new DynamicURLClassLoader(new URL[0], PluginHandler.class.getClassLoader()));
             sources.add(0, joinedPluginResourceCL);
         }
         return joinedPluginResourceCL;
@@ -775,22 +777,22 @@ public final class PluginHandler {
         try {
             Class<?> klass = plugin.loadClass(pluginClassLoader);
             if (klass != null) {
-                Main.info(tr("loading plugin ''{0}'' (version {1})", plugin.name, plugin.localversion));
+                Logging.info(tr("loading plugin ''{0}'' (version {1})", plugin.name, plugin.localversion));
                 PluginProxy pluginProxy = plugin.load(klass, pluginClassLoader);
                 pluginList.add(pluginProxy);
-                Main.addAndFireMapFrameListener(pluginProxy);
+                MainApplication.addAndFireMapFrameListener(pluginProxy);
             }
             msg = null;
         } catch (PluginException e) {
             pluginLoadingExceptions.put(plugin.name, e);
-            Main.error(e);
+            Logging.error(e);
             if (e.getCause() instanceof ClassNotFoundException) {
                 msg = tr("<html>Could not load plugin {0} because the plugin<br>main class ''{1}'' was not found.<br>"
                         + "Delete from preferences?</html>", Utils.escapeReservedCharactersHTML(plugin.name), plugin.className);
             }
         } catch (RuntimeException e) { // NOPMD
             pluginLoadingExceptions.put(plugin.name, e);
-            Main.error(e);
+            Logging.error(e);
         }
         if (msg != null && confirmDisablePlugin(parent, msg, plugin.name)) {
             Main.pref.removeFromCollection("plugins", plugin.name);
@@ -829,7 +831,7 @@ public final class PluginHandler {
                 PluginClassLoader cl = AccessController.doPrivileged((PrivilegedAction<PluginClassLoader>)
                     () -> new PluginClassLoader(
                         info.libraries.toArray(new URL[0]),
-                        Main.class.getClassLoader(),
+                        PluginHandler.class.getClassLoader(),
                         null));
                 classLoaders.put(info, cl);
             }
@@ -918,7 +920,7 @@ public final class PluginHandler {
             try {
                 task.run();
             } catch (RuntimeException e) { // NOPMD
-                Main.error(e);
+                Logging.error(e);
                 return null;
             }
             Map<String, PluginInformation> ret = new HashMap<>();
@@ -967,23 +969,17 @@ public final class PluginHandler {
         try {
             monitor.beginTask(tr("Determining plugins to load..."));
             Set<String> plugins = new HashSet<>(Main.pref.getCollection("plugins", new LinkedList<String>()));
-            if (Main.isDebugEnabled()) {
-                Main.debug("Plugins list initialized to " + plugins);
-            }
+            Logging.debug("Plugins list initialized to {0}", plugins);
             String systemProp = System.getProperty("josm.plugins");
             if (systemProp != null) {
                 plugins.addAll(Arrays.asList(systemProp.split(",")));
-                if (Main.isDebugEnabled()) {
-                    Main.debug("josm.plugins system property set to '" + systemProp+"'. Plugins list is now " + plugins);
-                }
+                Logging.debug("josm.plugins system property set to '{0}'. Plugins list is now {1}", systemProp, plugins);
             }
             monitor.subTask(tr("Removing deprecated plugins..."));
             filterDeprecatedPlugins(parent, plugins);
             monitor.subTask(tr("Removing unmaintained plugins..."));
             filterUnmaintainedPlugins(parent, plugins);
-            if (Main.isDebugEnabled()) {
-                Main.debug("Plugins list is finally set to " + plugins);
-            }
+            Logging.debug("Plugins list is finally set to {0}", plugins);
             Map<String, PluginInformation> infos = loadLocallyAvailablePluginInformation(monitor.createSubTaskMonitor(1, false));
             List<PluginInformation> ret = new LinkedList<>();
             if (infos != null) {
@@ -1052,8 +1048,8 @@ public final class PluginHandler {
                         }
                     }
                 } catch (PluginException e) {
-                    Main.warn(tr("Failed to find plugin {0}", name));
-                    Main.error(e);
+                    Logging.warn(tr("Failed to find plugin {0}", name));
+                    Logging.error(e);
                 }
             }
         }
@@ -1096,8 +1092,8 @@ public final class PluginHandler {
                     plugins = SubclassFilteredCollection.filter(plugins, pi -> pluginsWantedName.contains(pi.name));
                 }
             } catch (RuntimeException e) { // NOPMD
-                Main.warn(tr("Failed to download plugin information list"));
-                Main.error(e);
+                Logging.warn(tr("Failed to download plugin information list"));
+                Logging.error(e);
                 // don't abort in case of error, continue with downloading plugins below
             }
 
@@ -1141,7 +1137,7 @@ public final class PluginHandler {
                 try {
                     pluginDownloadTask.run();
                 } catch (RuntimeException e) { // NOPMD
-                    Main.error(e);
+                    Logging.error(e);
                     alertFailedPluginUpdate(parent, pluginsToUpdate);
                     return plugins;
                 }
@@ -1267,8 +1263,8 @@ public final class PluginHandler {
             File plugin = new File(filePath.substring(0, filePath.length() - 4));
             String pluginName = updatedPlugin.getName().substring(0, updatedPlugin.getName().length() - 8);
             if (plugin.exists() && !plugin.delete() && dowarn) {
-                Main.warn(tr("Failed to delete outdated plugin ''{0}''.", plugin.toString()));
-                Main.warn(tr("Failed to install already downloaded plugin ''{0}''. " +
+                Logging.warn(tr("Failed to delete outdated plugin ''{0}''.", plugin.toString()));
+                Logging.warn(tr("Failed to install already downloaded plugin ''{0}''. " +
                         "Skipping installation. JOSM is still going to load the old plugin version.",
                         pluginName));
                 continue;
@@ -1278,16 +1274,16 @@ public final class PluginHandler {
                 new JarFile(updatedPlugin).close();
             } catch (IOException e) {
                 if (dowarn) {
-                    Main.warn(e, tr("Failed to install plugin ''{0}'' from temporary download file ''{1}''. {2}",
-                            plugin.toString(), updatedPlugin.toString(), e.getLocalizedMessage()));
+                    Logging.log(Logging.LEVEL_WARN, tr("Failed to install plugin ''{0}'' from temporary download file ''{1}''. {2}",
+                            plugin.toString(), updatedPlugin.toString(), e.getLocalizedMessage()), e);
                 }
                 continue;
             }
             // Install plugin
             if (!updatedPlugin.renameTo(plugin) && dowarn) {
-                Main.warn(tr("Failed to install plugin ''{0}'' from temporary download file ''{1}''. Renaming failed.",
+                Logging.warn(tr("Failed to install plugin ''{0}'' from temporary download file ''{1}''. Renaming failed.",
                         plugin.toString(), updatedPlugin.toString()));
-                Main.warn(tr("Failed to install already downloaded plugin ''{0}''. " +
+                Logging.warn(tr("Failed to install already downloaded plugin ''{0}''. " +
                         "Skipping installation. JOSM is still going to load the old plugin version.",
                         pluginName));
             }
@@ -1305,12 +1301,12 @@ public final class PluginHandler {
             try {
                 new JarFile(jar).close();
             } catch (IOException e) {
-                Main.warn(e);
+                Logging.warn(e);
                 return false;
             }
             return true;
         } else if (jar != null) {
-            Main.warn("Invalid jar file ''"+jar+"'' (exists: "+jar.exists()+", canRead: "+jar.canRead()+')');
+            Logging.warn("Invalid jar file ''"+jar+"'' (exists: "+jar.exists()+", canRead: "+jar.canRead()+')');
         }
         return false;
     }
@@ -1350,7 +1346,7 @@ public final class PluginHandler {
             try {
                 pi.updateFromJar(new PluginInformation(downloadedPluginFile, pi.name));
             } catch (PluginException e) {
-                Main.error(e);
+                Logging.error(e);
             }
         }
     }
@@ -1404,7 +1400,7 @@ public final class PluginHandler {
             GuiHelper.runInEDT(task);
             return task.get();
         } catch (InterruptedException | ExecutionException e) {
-            Main.warn(e);
+            Logging.warn(e);
         }
         return -1;
     }

@@ -79,6 +79,7 @@ import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.ProjectionBounds;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
+import org.openstreetmap.josm.data.imagery.CoordinateConversion;
 import org.openstreetmap.josm.data.imagery.ImageryInfo;
 import org.openstreetmap.josm.data.imagery.OffsetBookmark;
 import org.openstreetmap.josm.data.imagery.TMSCachedTileLoader;
@@ -88,10 +89,12 @@ import org.openstreetmap.josm.data.preferences.IntegerProperty;
 import org.openstreetmap.josm.data.projection.Projection;
 import org.openstreetmap.josm.data.projection.Projections;
 import org.openstreetmap.josm.gui.ExtendedDialog;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.NavigatableComponent.ZoomChangeListener;
 import org.openstreetmap.josm.gui.dialogs.LayerListDialog;
 import org.openstreetmap.josm.gui.dialogs.LayerListPopup;
+import org.openstreetmap.josm.gui.io.importexport.WMSLayerImporter;
 import org.openstreetmap.josm.gui.layer.imagery.AutoLoadTilesAction;
 import org.openstreetmap.josm.gui.layer.imagery.AutoZoomAction;
 import org.openstreetmap.josm.gui.layer.imagery.DecreaseZoomAction;
@@ -112,8 +115,8 @@ import org.openstreetmap.josm.gui.layer.imagery.ZoomToBestAction;
 import org.openstreetmap.josm.gui.layer.imagery.ZoomToNativeLevelAction;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
 import org.openstreetmap.josm.gui.util.GuiHelper;
-import org.openstreetmap.josm.io.WMSLayerImporter;
 import org.openstreetmap.josm.tools.GBC;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.MemoryManager;
 import org.openstreetmap.josm.tools.MemoryManager.MemoryHandle;
 import org.openstreetmap.josm.tools.MemoryManager.NotEnoughMemoryException;
@@ -152,7 +155,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
 
     //public static final BooleanProperty PROP_DRAW_DEBUG = new BooleanProperty(PREFERENCE_PREFIX + ".draw_debug", false);
     /** Zoomlevel at which tiles is currently downloaded. Initial zoom lvl is set to bestZoom */
-    public int currentZoomLevel;
+    private int currentZoomLevel;
 
     private final AttributionSupport attribution = new AttributionSupport();
     private final TileHolder clickedTileHolder = new TileHolder();
@@ -259,7 +262,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
     }
 
     protected void initTileSource(T tileSource) {
-        coordinateConverter = new TileCoordinateConverter(Main.map.mapView, tileSource, getDisplaySettings());
+        coordinateConverter = new TileCoordinateConverter(MainApplication.getMap().mapView, tileSource, getDisplaySettings());
         attribution.initialize(tileSource);
 
         currentZoomLevel = getBestZoom();
@@ -274,9 +277,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             }
         } catch (MalformedURLException e) {
             // ignore, assume that this is not a file
-            if (Main.isDebugEnabled()) {
-                Main.debug(e.getMessage());
-            }
+            Logging.log(Logging.LEVEL_DEBUG, e);
         }
 
         if (tileLoader == null)
@@ -293,9 +294,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         }
         tile.setLoaded(success);
         invalidateLater();
-        if (Main.isDebugEnabled()) {
-            Main.debug("tileLoadingFinished() tile: " + tile + " success: " + success);
-        }
+        Logging.debug("tileLoadingFinished() tile: {0} success: {1}", tile, success);
     }
 
     /**
@@ -436,7 +435,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
                     url = clickedTile.getUrl();
                 } catch (IOException e) {
                     // silence exceptions
-                    Main.trace(e);
+                    Logging.trace(e);
                 }
 
                 List<List<String>> content = new ArrayList<>();
@@ -594,7 +593,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         int ret = (int) Math.ceil(
                 Math.pow(2d, ZOOM_OFFSET.get()) * visibileTiles // use offset to decide, how many tiles are visible
                 * 4);
-        Main.info("AbstractTileSourceLayer: estimated visible tiles: {0}, estimated cache size: {1}", visibileTiles, ret);
+        Logging.info("AbstractTileSourceLayer: estimated visible tiles: {0}, estimated cache size: {1}", visibileTiles, ret);
         return ret;
     }
 
@@ -701,9 +700,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
     }
 
     private void zoomChanged(boolean invalidate) {
-        if (Main.isDebugEnabled()) {
-            Main.debug("zoomChanged(): " + currentZoomLevel);
-        }
+        Logging.debug("zoomChanged(): {0}", currentZoomLevel);
         if (tileLoader instanceof TMSCachedTileLoader) {
             ((TMSCachedTileLoader) tileLoader).cancelOutstandingTasks();
         }
@@ -732,9 +729,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
      */
     public boolean zoomIncreaseAllowed() {
         boolean zia = currentZoomLevel < this.getMaxZoomLvl();
-        if (Main.isDebugEnabled()) {
-            Main.debug("zoomIncreaseAllowed(): " + zia + ' ' + currentZoomLevel + " vs. " + this.getMaxZoomLvl());
-        }
+        Logging.debug("zoomIncreaseAllowed(): {0} {1} vs. {2}", zia, currentZoomLevel, this.getMaxZoomLvl());
         return zia;
     }
 
@@ -746,16 +741,23 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
     public boolean increaseZoomLevel() {
         if (zoomIncreaseAllowed()) {
             currentZoomLevel++;
-            if (Main.isDebugEnabled()) {
-                Main.debug("increasing zoom level to: " + currentZoomLevel);
-            }
+            Logging.debug("increasing zoom level to: {0}", currentZoomLevel);
             zoomChanged();
         } else {
-            Main.warn("Current zoom level ("+currentZoomLevel+") could not be increased. "+
+            Logging.warn("Current zoom level ("+currentZoomLevel+") could not be increased. "+
                     "Max.zZoom Level "+this.getMaxZoomLvl()+" reached.");
             return false;
         }
         return true;
+    }
+
+    /**
+     * Get the current zoom level of the layer
+     * @return the current zoom level
+     * @since 12603
+     */
+    public int getZoomLevel() {
+        return currentZoomLevel;
     }
 
     /**
@@ -783,9 +785,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
      */
     public boolean zoomDecreaseAllowed() {
         boolean zda = currentZoomLevel > this.getMinZoomLvl();
-        if (Main.isDebugEnabled()) {
-            Main.debug("zoomDecreaseAllowed(): " + zda + ' ' + currentZoomLevel + " vs. " + this.getMinZoomLvl());
-        }
+        Logging.debug("zoomDecreaseAllowed(): {0} {1} vs. {2}", zda, currentZoomLevel, this.getMinZoomLvl());
         return zda;
     }
 
@@ -796,9 +796,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
      */
     public boolean decreaseZoomLevel() {
         if (zoomDecreaseAllowed()) {
-            if (Main.isDebugEnabled()) {
-                Main.debug("decreasing zoom level to: " + currentZoomLevel);
-            }
+            Logging.debug("decreasing zoom level to: {0}", currentZoomLevel);
             currentZoomLevel--;
             zoomChanged();
         } else {
@@ -855,7 +853,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
     }
 
     private TileSet getVisibleTileSet() {
-        ProjectionBounds bounds = Main.map.mapView.getState().getViewArea().getProjectionBounds();
+        ProjectionBounds bounds = MainApplication.getMap().mapView.getState().getViewArea().getProjectionBounds();
         return getTileSet(bounds, currentZoomLevel);
     }
 
@@ -869,7 +867,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
 
         // if there is more than 18 tiles on screen in any direction, do not load all tiles!
         if (ts.tooLarge()) {
-            Main.warn("Not downloading all tiles because there is more than 18 tiles on an axis!");
+            Logging.warn("Not downloading all tiles because there is more than 18 tiles on an axis!");
             return;
         }
         ts.loadAllTiles(force);
@@ -890,9 +888,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
     @Override
     public boolean imageUpdate(Image img, int infoflags, int x, int y, int width, int height) {
         boolean done = (infoflags & (ERROR | FRAMEBITS | ALLBITS)) != 0;
-        if (Main.isDebugEnabled()) {
-            Main.debug("imageUpdate() done: " + done + " calling repaint");
-        }
+        Logging.debug("imageUpdate() done: {0} calling repaint", done);
 
         if (done) {
             invalidate();
@@ -992,16 +988,15 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
                 //cannot paint in parallel
                 drawImageInside(g, img, anchorImage, anchorScreen, null);
             }
-            if (tile instanceof ReprojectionTile) {
+            MapView mapView = MainApplication.getMap().mapView;
+            if (tile instanceof ReprojectionTile && ((ReprojectionTile) tile).needsUpdate(mapView.getScale())) {
                 // This means we have a reprojected tile in memory cache, but not at
                 // current scale. Generally, the positioning of the tile will still
                 // be correct, but for best image quality, the tile should be
                 // reprojected to the target scale. The original tile image should
                 // still be in disk cache, so this is fairly cheap.
-                if (((ReprojectionTile) tile).needsUpdate(Main.map.mapView.getScale())) {
-                    ((ReprojectionTile) tile).invalidate();
-                    loadTile(tile, false);
-                }
+                ((ReprojectionTile) tile).invalidate();
+                loadTile(tile, false);
             }
 
         }, missed::add);
@@ -1128,7 +1123,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             //texty += 1 + fontHeight;
         }
 
-        if (Main.isDebugEnabled()) {
+        if (Logging.isDebugEnabled()) {
             // draw tile outline in semi-transparent red
             g.setColor(new Color(255, 0, 0, 50));
             g.draw(coordinateConverter.getTileShapeScreen(tile));
@@ -1140,7 +1135,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
     }
 
     private ICoordinate getShiftedCoord(EastNorth en) {
-        return getShiftedLatLon(en).toCoordinate();
+        return CoordinateConversion.llToCoor(getShiftedLatLon(en));
     }
 
     private final TileSet nullTileSet = new TileSet();
@@ -1289,17 +1284,17 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         if (zoom == 0)
             return new TileSet();
         TileXY t1, t2;
+        IProjected topLeftUnshifted = coordinateConverter.shiftDisplayToServer(bounds.getMin());
+        IProjected botRightUnshifted = coordinateConverter.shiftDisplayToServer(bounds.getMax());
         if (coordinateConverter.requiresReprojection()) {
             Projection projServer = Projections.getProjectionByCode(tileSource.getServerCRS());
             ProjectionBounds projBounds = new ProjectionBounds(
-                    new EastNorth(coordinateConverter.shiftDisplayToServer(bounds.getMin())),
-                    new EastNorth(coordinateConverter.shiftDisplayToServer(bounds.getMax())));
+                    CoordinateConversion.projToEn(topLeftUnshifted),
+                    CoordinateConversion.projToEn(botRightUnshifted));
             ProjectionBounds bbox = projServer.getEastNorthBoundsBox(projBounds, Main.getProjection());
-            t1 = tileSource.projectedToTileXY(bbox.getMin().toProjected(), zoom);
-            t2 = tileSource.projectedToTileXY(bbox.getMax().toProjected(), zoom);
+            t1 = tileSource.projectedToTileXY(CoordinateConversion.enToProj(bbox.getMin()), zoom);
+            t2 = tileSource.projectedToTileXY(CoordinateConversion.enToProj(bbox.getMax()), zoom);
         } else {
-            IProjected topLeftUnshifted = coordinateConverter.shiftDisplayToServer(bounds.getMin());
-            IProjected botRightUnshifted = coordinateConverter.shiftDisplayToServer(bounds.getMax());
             t1 = tileSource.projectedToTileXY(topLeftUnshifted, zoom);
             t2 = tileSource.projectedToTileXY(botRightUnshifted, zoom);
         }
@@ -1487,8 +1482,8 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             }
             missedTiles = newlyMissedTiles;
         }
-        if (Main.isDebugEnabled() && !missedTiles.isEmpty()) {
-            Main.debug("still missed "+missedTiles.size()+" in the end");
+        if (Logging.isDebugEnabled() && !missedTiles.isEmpty()) {
+            Logging.debug("still missed {0} in the end", missedTiles.size());
         }
         g.setColor(Color.red);
         g.setFont(InfoFont);
@@ -1515,7 +1510,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         if (noTilesAtZoom) {
             myDrawString(g, tr("No tiles at this zoom level"), 120, 120);
         }
-        if (Main.isDebugEnabled()) {
+        if (Logging.isDebugEnabled()) {
             myDrawString(g, tr("Current zoom: {0}", currentZoomLevel), 50, 140);
             myDrawString(g, tr("Display zoom: {0}", displayZoomLevel), 50, 155);
             myDrawString(g, tr("Pixel scale: {0}", getScaleFactor(currentZoomLevel)), 50, 170);
@@ -1539,9 +1534,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
      * @return Tile at pixel position
      */
     private Tile getTileForPixelpos(int px, int py) {
-        if (Main.isDebugEnabled()) {
-            Main.debug("getTileForPixelpos("+px+", "+py+')');
-        }
+        Logging.debug("getTileForPixelpos({0}, {1})", px, py);
         TileXY xy = coordinateConverter.getTileforPixel(px, py, currentZoomLevel);
         return getTile(xy.getXIndex(), xy.getYIndex(), currentZoomLevel);
     }
@@ -1721,7 +1714,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
                 this.progressMonitor.worked(1);
                 this.progressMonitor.setCustomText(tr("Downloaded {0}/{1} tiles", processed, totalCount));
             } else {
-                Main.warn("Tile loading failure: " + tile + " - " + tile.getErrorMessage());
+                Logging.warn("Tile loading failure: " + tile + " - " + tile.getErrorMessage());
             }
         }
 
@@ -1752,7 +1745,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
                 (o1, o2) -> String.CASE_INSENSITIVE_ORDER.compare(o1.getKey(), o2.getKey()));
         for (LatLon point: points) {
             TileXY minTile = tileSource.latLonToTileXY(point.lat() - bufferY, point.lon() - bufferX, currentZoomLevel);
-            TileXY curTile = tileSource.latLonToTileXY(point.toCoordinate(), currentZoomLevel);
+            TileXY curTile = tileSource.latLonToTileXY(CoordinateConversion.llToCoor(point), currentZoomLevel);
             TileXY maxTile = tileSource.latLonToTileXY(point.lat() + bufferY, point.lon() + bufferX, currentZoomLevel);
 
             // take at least one tile of buffer
@@ -1817,7 +1810,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
                     try {
                         memory = manager.allocateMemory("tile source layer", getEstimatedCacheSize(), Object::new);
                     } catch (NotEnoughMemoryException e) {
-                        Main.warn("Could not allocate tile source memory", e);
+                        Logging.warn("Could not allocate tile source memory", e);
                     }
                 }
             }

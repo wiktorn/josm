@@ -31,6 +31,7 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.command.ChangePropertyCommand;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.gui.ExtendedDialog;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.util.TableHelper;
 import org.openstreetmap.josm.tools.GBC;
@@ -215,7 +216,7 @@ public class AddTagsDialog extends ExtendedDialog {
         TableHelper.adjustColumnWidth(propertyTable, 3, 300);
         // get edit results if the table looses the focus, for example if a user clicks "add tags"
         propertyTable.putClientProperty("terminateEditOnFocusLost", Boolean.TRUE);
-        propertyTable.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, KeyEvent.SHIFT_MASK), "shiftenter");
+        propertyTable.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, KeyEvent.SHIFT_DOWN_MASK), "shiftenter");
         propertyTable.getActionMap().put("shiftenter", new AbstractAction() {
             @Override public void actionPerformed(ActionEvent e) {
                 buttonAction(1, e); // add all tags on Shift-Enter
@@ -250,13 +251,13 @@ public class AddTagsDialog extends ExtendedDialog {
     @Override
     protected void buttonAction(int buttonIndex, ActionEvent evt) {
         // if layer all layers were closed, ignore all actions
-        if (buttonIndex != 2 && Main.getLayerManager().getEditDataSet() != null) {
+        if (buttonIndex != 2 && MainApplication.getLayerManager().getEditDataSet() != null) {
             TableModel tm = propertyTable.getModel();
             for (int i = 0; i < tm.getRowCount(); i++) {
                 if (buttonIndex == 1 || (Boolean) tm.getValueAt(i, 0)) {
                     String key = (String) tm.getValueAt(i, 1);
                     Object value = tm.getValueAt(i, 2);
-                    Main.main.undoRedo.add(new ChangePropertyCommand(sel,
+                    MainApplication.undoRedo.add(new ChangePropertyCommand(sel,
                             key, value instanceof String ? (String) value : ""));
                 }
             }
@@ -308,9 +309,9 @@ public class AddTagsDialog extends ExtendedDialog {
      */
     public static void addTags(String[][] keyValue, String sender, Collection<? extends OsmPrimitive> primitives) {
         if (trustedSenders.contains(sender)) {
-            if (Main.getLayerManager().getEditDataSet() != null) {
+            if (MainApplication.getLayerManager().getEditDataSet() != null) {
                 for (String[] row : keyValue) {
-                    Main.main.undoRedo.add(new ChangePropertyCommand(primitives, row[0], row[1]));
+                    MainApplication.undoRedo.add(new ChangePropertyCommand(primitives, row[0], row[1]));
                 }
             }
         } else {

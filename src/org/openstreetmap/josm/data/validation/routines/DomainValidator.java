@@ -20,7 +20,7 @@ import java.net.IDN;
 import java.util.Arrays;
 import java.util.Locale;
 
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.tools.Logging;
 
 /**
  * <p><b>Domain name</b> validation routines.</p>
@@ -948,8 +948,6 @@ public final class DomainValidator extends AbstractValidator {
         "maserati", // maserati Fiat Chrysler Automobiles N.V.
         "mattel", // mattel Mattel Sites, Inc.
         "mba", // mba Lone Hollow, LLC
-        "mcd", // mcd McDonald's Corporation
-        "mcdonalds", // mcdonalds McDonald's Corporation
         "mckinsey", // mckinsey McKinsey Holdings, Inc.
         "med", // med Medistry LLC
         "media", // media Grand Glen, LLC
@@ -982,7 +980,6 @@ public final class DomainValidator extends AbstractValidator {
         "monash", // monash Monash University
         "money", // money Outer McCook, LLC
         "monster", // monster Monster Worldwide, Inc.
-        "montblanc", // montblanc Richemont DNS Inc.
         "mopar", // mopar FCA US LLC.
         "mormon", // mormon IRI Domain Management, LLC (&quot;Applicant&quot;)
         "mortgage", // mortgage United TLD Holdco, Ltd
@@ -2051,7 +2048,7 @@ public final class DomainValidator extends AbstractValidator {
                     return ascii;
             }
         } catch (IllegalArgumentException e) { // input is not valid
-            Main.trace(e);
+            Logging.trace(e);
             return input;
         }
     }

@@ -24,13 +24,23 @@ import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.osm.WaySegment;
+import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.MapViewState;
 import org.openstreetmap.josm.gui.MapViewState.MapViewPoint;
 import org.openstreetmap.josm.gui.draw.MapViewPath;
 import org.openstreetmap.josm.gui.draw.SymbolShape;
 import org.openstreetmap.josm.gui.widgets.PopupMenuLauncher;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
+/**
+ * Class that enables the user to draw way segments in angles of exactly 30, 45,
+ * 60, 90 degrees.
+ *
+ * With enabled snapping, the new way node will be projected onto the helper line
+ * that indicates a certain fixed angle relative to the previous segment.
+ */
 class DrawSnapHelper {
 
     private final DrawAction drawAction;
@@ -238,7 +248,7 @@ class DrawSnapHelper {
         try {
             return Double.parseDouble(string);
         } catch (NumberFormatException e) {
-            Main.warn("Incorrect number in draw.anglesnap.angles preferences: {0}", string);
+            Logging.warn("Incorrect number in draw.anglesnap.angles preferences: {0}", string);
             return 0;
         }
     }
@@ -326,6 +336,7 @@ class DrawSnapHelper {
      * @param curHeading The current mouse heading
      */
     public void checkAngleSnapping(EastNorth currentEN, double baseHeading, double curHeading) {
+        MapView mapView = MainApplication.getMap().mapView;
         EastNorth p0 = drawAction.getCurrentBaseNode().getEastNorth();
         EastNorth snapPoint = currentEN;
         double angle = -1;
@@ -366,7 +377,7 @@ class DrawSnapHelper {
                 // (pe,pn) - direction of snapping line
                 pe = Math.sin(phi);
                 pn = Math.cos(phi);
-                double scale = 20 * Main.map.mapView.getDist100Pixel();
+                double scale = 20 * mapView.getDist100Pixel();
                 dir2 = new EastNorth(e0 + scale * pe, n0 + scale * pn);
                 snapPoint = getSnapPoint(currentEN);
             } else {
@@ -375,7 +386,7 @@ class DrawSnapHelper {
         }
 
         // find out the distance, in metres, between the base point and projected point
-        LatLon mouseLatLon = Main.map.mapView.getProjection().eastNorth2latlon(snapPoint);
+        LatLon mouseLatLon = mapView.getProjection().eastNorth2latlon(snapPoint);
         double distance = this.drawAction.getCurrentBaseNode().getCoor().greatCircleDistance(mouseLatLon);
         double hdg = Utils.toDegrees(p0.heading(snapPoint));
         // heading of segment from current to calculated point, not to mouse position
@@ -427,7 +438,7 @@ class DrawSnapHelper {
         double de = p.east()-e0;
         double dn = p.north()-n0;
         double l = de*pe+dn*pn;
-        double delta = Main.map.mapView.getDist100Pixel()/20;
+        double delta = MainApplication.getMap().mapView.getDist100Pixel()/20;
         if (!absoluteFix && l < delta) {
             active = false;
             return p;

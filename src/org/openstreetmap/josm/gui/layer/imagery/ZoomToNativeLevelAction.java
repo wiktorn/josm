@@ -7,7 +7,7 @@ import java.awt.event.ActionEvent;
 
 import javax.swing.AbstractAction;
 
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.AbstractTileSourceLayer;
 
 /**
@@ -29,8 +29,8 @@ public class ZoomToNativeLevelAction extends AbstractAction {
 
     @Override
     public void actionPerformed(ActionEvent ae) {
-        double newFactor = Math.sqrt(layer.getScaleFactor(layer.currentZoomLevel));
-        Main.map.mapView.zoomToFactor(newFactor);
+        double newFactor = Math.sqrt(layer.getScaleFactor(layer.getZoomLevel()));
+        MainApplication.getMap().mapView.zoomToFactor(newFactor);
         layer.invalidate();
     }
 }

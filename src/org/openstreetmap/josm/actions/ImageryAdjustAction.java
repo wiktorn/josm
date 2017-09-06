@@ -28,12 +28,16 @@ import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.imagery.OffsetBookmark;
 import org.openstreetmap.josm.gui.ExtendedDialog;
+import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapFrame;
+import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.layer.AbstractTileSourceLayer;
 import org.openstreetmap.josm.gui.layer.imagery.TileSourceDisplaySettings;
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 
 /**
  * Adjust the position of an imagery layer.
@@ -70,8 +74,8 @@ public class ImageryAdjustAction extends MapMode implements AWTEventListener {
         old = layer.getDisplaySettings().getOffsetBookmark();
         EastNorth curOff = old == null ? EastNorth.ZERO : old.getDisplacement(Main.getProjection());
         LatLon center;
-        if (Main.isDisplayingMapView()) {
-            center = Main.getProjection().eastNorth2latlon(Main.map.mapView.getCenter());
+        if (MainApplication.isDisplayingMapView()) {
+            center = Main.getProjection().eastNorth2latlon(MainApplication.getMap().mapView.getCenter());
         } else {
             center = LatLon.ZERO;
         }
@@ -96,12 +100,13 @@ public class ImageryAdjustAction extends MapMode implements AWTEventListener {
     }
 
     protected void addListeners() {
-        Main.map.mapView.addMouseListener(this);
-        Main.map.mapView.addMouseMotionListener(this);
+        MapView mapView = MainApplication.getMap().mapView;
+        mapView.addMouseListener(this);
+        mapView.addMouseMotionListener(this);
         try {
             Toolkit.getDefaultToolkit().addAWTEventListener(this, AWTEvent.KEY_EVENT_MASK);
         } catch (SecurityException ex) {
-            Main.error(ex);
+            Logging.error(ex);
         }
     }
 
@@ -122,11 +127,12 @@ public class ImageryAdjustAction extends MapMode implements AWTEventListener {
         try {
             Toolkit.getDefaultToolkit().removeAWTEventListener(this);
         } catch (SecurityException ex) {
-            Main.error(ex);
+            Logging.error(ex);
         }
-        if (Main.isDisplayingMapView()) {
-            Main.map.mapView.removeMouseMotionListener(this);
-            Main.map.mapView.removeMouseListener(this);
+        if (MainApplication.isDisplayingMapView()) {
+            MapFrame map = MainApplication.getMap();
+            map.mapView.removeMouseMotionListener(this);
+            map.mapView.removeMouseListener(this);
         }
     }
 
@@ -156,8 +162,8 @@ public class ImageryAdjustAction extends MapMode implements AWTEventListener {
             if (offsetDialog != null) {
                 offsetDialog.updateOffset();
             }
-            if (Main.isDebugEnabled()) {
-                Main.debug(getClass().getName()+" consuming event "+kev);
+            if (Logging.isDebugEnabled()) {
+                Logging.debug("{0} consuming event {1}", getClass().getName(), kev);
             }
             kev.consume();
         }
@@ -170,15 +176,16 @@ public class ImageryAdjustAction extends MapMode implements AWTEventListener {
 
         if (layer.isVisible()) {
             requestFocusInMapView();
-            prevEastNorth = Main.map.mapView.getEastNorth(e.getX(), e.getY());
-            Main.map.mapView.setNewCursor(Cursor.MOVE_CURSOR, this);
+            MapView mapView = MainApplication.getMap().mapView;
+            prevEastNorth = mapView.getEastNorth(e.getX(), e.getY());
+            mapView.setNewCursor(Cursor.MOVE_CURSOR, this);
         }
     }
 
     @Override
     public void mouseDragged(MouseEvent e) {
         if (layer == null || prevEastNorth == null) return;
-        EastNorth eastNorth = Main.map.mapView.getEastNorth(e.getX(), e.getY());
+        EastNorth eastNorth = MainApplication.getMap().mapView.getEastNorth(e.getX(), e.getY());
         EastNorth d = tempOffset.getDisplacement().add(eastNorth).subtract(prevEastNorth);
         tempOffset.setDisplacement(d);
         layer.getDisplaySettings().setOffsetBookmark(tempOffset);
@@ -190,16 +197,18 @@ public class ImageryAdjustAction extends MapMode implements AWTEventListener {
 
     @Override
     public void mouseReleased(MouseEvent e) {
-        Main.map.mapView.repaint();
-        Main.map.mapView.resetCursor(this);
+        MapView mapView = MainApplication.getMap().mapView;
+        mapView.repaint();
+        mapView.resetCursor(this);
         prevEastNorth = null;
     }
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        if (offsetDialog != null || layer == null || Main.map == null)
+        MapFrame map = MainApplication.getMap();
+        if (offsetDialog != null || layer == null || map == null)
             return;
-        oldMapMode = Main.map.mapMode;
+        oldMapMode = map.mapMode;
         super.actionPerformed(e);
     }
 
@@ -260,12 +269,12 @@ public class ImageryAdjustAction extends MapMode implements AWTEventListener {
                     layer.getDisplaySettings().setOffsetBookmark(tempOffset);
                 } catch (NumberFormatException nfe) {
                     // we repaint offset numbers in any case
-                    Main.trace(nfe);
+                    Logging.trace(nfe);
                 }
             }
             updateOffsetIntl();
-            if (Main.isDisplayingMapView()) {
-                Main.map.repaint();
+            if (MainApplication.isDisplayingMapView()) {
+                MainApplication.getMap().repaint();
             }
         }
 
@@ -328,17 +337,18 @@ public class ImageryAdjustAction extends MapMode implements AWTEventListener {
                     OffsetBookmark.bookmarkOffset(tBookmarkName.getText(), layer);
                 }
             }
-            Main.main.menu.imageryMenu.refreshOffsetMenu();
+            MainApplication.getMenu().imageryMenu.refreshOffsetMenu();
         }
 
         private void restoreMapModeState() {
-            if (Main.map == null)
+            MapFrame map = MainApplication.getMap();
+            if (map == null)
                 return;
             if (oldMapMode != null) {
-                Main.map.selectMapMode(oldMapMode);
+                map.selectMapMode(oldMapMode);
                 oldMapMode = null;
             } else {
-                Main.map.selectSelectTool(false);
+                map.selectSelectTool(false);
             }
         }
 

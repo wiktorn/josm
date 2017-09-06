@@ -20,7 +20,7 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.JoinAreasAction;
 import org.openstreetmap.josm.actions.JoinAreasAction.JoinAreasResult;
 import org.openstreetmap.josm.actions.JoinAreasAction.Multipolygon;
-import org.openstreetmap.josm.actions.PurgeAction;
+import org.openstreetmap.josm.command.PurgeCommand;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
@@ -103,7 +103,7 @@ public final class RightAndLefthandTraffic {
             w.removeAll();
         }
         // Purge all other ways and relations so dataset only contains lefthand traffic data
-        new PurgeAction(false).getPurgeCommand(toPurge).executeCommand();
+        PurgeCommand.build(toPurge, null).executeCommand();
         // Combine adjacent countries into a single polygon
         Collection<Way> optimizedWays = new ArrayList<>();
         List<Multipolygon> areas = JoinAreasAction.collectMultipolygons(ways);
@@ -116,15 +116,15 @@ public final class RightAndLefthandTraffic {
                     }
                 }
             } catch (UserCancelException ex) {
-                Main.warn(ex);
+                Logging.warn(ex);
             } catch (JosmRuntimeException ex) {
                 // Workaround to #10511 / #14185. To remove when #10511 is solved
-                Main.error(ex);
+                Logging.error(ex);
             }
         }
         if (optimizedWays.isEmpty()) {
             // Problem: don't optimize
-            Main.warn("Unable to join left-driving countries polygons");
+            Logging.warn("Unable to join left-driving countries polygons");
             optimizedWays.addAll(ways);
         }
         return optimizedWays;
@@ -141,8 +141,8 @@ public final class RightAndLefthandTraffic {
         for (Relation r : OsmPrimitive.getParentRelations(s)) {
             if (r.isMultipolygon() && LEFT.equals(r.get(DRIVING_SIDE)) &&
                 "inner".equals(r.getMembersFor(s).iterator().next().getRole())) {
-                if (Main.isDebugEnabled()) {
-                    Main.debug("Skipping " + w.get("name:en") + " because inner part of " + r.get("name:en"));
+                if (Logging.isDebugEnabled()) {
+                    Logging.debug("Skipping {0} because inner part of {1}", w.get("name:en"), r.get("name:en"));
                 }
                 return;
             }
@@ -168,7 +168,7 @@ public final class RightAndLefthandTraffic {
         try (InputStream is = new FileInputStream(new File(Main.pref.getCacheDirectory(), "left-right-hand-traffic.osm"))) {
            return OsmReader.parseDataSet(is, null).getWays();
         } catch (IllegalDataException | IOException ex) {
-            Main.trace(ex);
+            Logging.trace(ex);
             return Collections.emptyList();
         }
     }

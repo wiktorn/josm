@@ -13,15 +13,17 @@ import java.nio.file.WatchService;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Executors;
 
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.preferences.sources.SourceEntry;
 import org.openstreetmap.josm.data.validation.OsmValidator;
 import org.openstreetmap.josm.data.validation.tests.MapCSSTagChecker;
-import org.openstreetmap.josm.gui.mappaint.MapPaintStyles.MapPaintStyleLoader;
 import org.openstreetmap.josm.gui.mappaint.StyleSource;
+import org.openstreetmap.josm.gui.mappaint.loader.MapPaintStyleLoader;
 import org.openstreetmap.josm.gui.mappaint.mapcss.parsergen.ParseException;
-import org.openstreetmap.josm.gui.preferences.SourceEntry;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
+import org.openstreetmap.josm.tools.Logging;
+import org.openstreetmap.josm.tools.Utils;
 
 /**
  * Background thread that monitors certain files and perform relevant actions when they change.
@@ -43,7 +45,7 @@ public class FileWatcher {
             watcher = FileSystems.getDefault().newWatchService();
             thread = new Thread((Runnable) this::processEvents, "File Watcher");
         } catch (IOException e) {
-            Main.error(e);
+            Logging.error(e);
         }
     }
 
@@ -103,9 +105,7 @@ public class FileWatcher {
      * Process all events for the key queued to the watcher.
      */
     private void processEvents() {
-        if (Main.isDebugEnabled()) {
-            Main.debug("File watcher thread started");
-        }
+        Logging.debug("File watcher thread started");
         while (true) {
 
             // wait for key to be signaled
@@ -139,20 +139,21 @@ public class FileWatcher {
                     StyleSource style = styleMap.get(fullPath);
                     SourceEntry rule = ruleMap.get(fullPath);
                     if (style != null) {
-                        Main.info("Map style "+style.getDisplayString()+" has been modified. Reloading style...");
-                        Main.worker.submit(new MapPaintStyleLoader(Collections.singleton(style)));
+                        Logging.info("Map style "+style.getDisplayString()+" has been modified. Reloading style...");
+                        Executors.newSingleThreadExecutor(Utils.newThreadFactory("mapstyle-reload-%d", Thread.NORM_PRIORITY)).submit(
+                                new MapPaintStyleLoader(Collections.singleton(style)));
                     } else if (rule != null) {
-                        Main.info("Validator rule "+rule.getDisplayString()+" has been modified. Reloading rule...");
+                        Logging.info("Validator rule "+rule.getDisplayString()+" has been modified. Reloading rule...");
                         MapCSSTagChecker tagChecker = OsmValidator.getTest(MapCSSTagChecker.class);
                         if (tagChecker != null) {
                             try {
                                 tagChecker.addMapCSS(rule.url);
                             } catch (IOException | ParseException e) {
-                                Main.warn(e);
+                                Logging.warn(e);
                             }
                         }
-                    } else if (Main.isDebugEnabled()) {
-                        Main.debug("Received "+kind.name()+" event for unregistered file: "+fullPath);
+                    } else if (Logging.isDebugEnabled()) {
+                        Logging.debug("Received {0} event for unregistered file: {1}", kind.name(), fullPath);
                     }
                 }
             }

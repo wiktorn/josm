@@ -31,6 +31,7 @@ import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.projection.Ellipsoid;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane.ButtonSpec;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.Notification;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Shortcut;
@@ -51,7 +52,7 @@ public class SimplifyWayAction extends JosmAction {
     }
 
     protected boolean confirmWayWithNodesOutsideBoundingBox(List<? extends OsmPrimitive> primitives) {
-        return DeleteCommand.checkAndConfirmOutlyingDelete(primitives, null);
+        return DeleteAction.checkAndConfirmOutlyingDelete(primitives, null);
     }
 
     protected void alertSelectAtLeastOneWay() {
@@ -101,6 +102,7 @@ public class SimplifyWayAction extends JosmAction {
         ds.beginUpdate();
         try {
             List<Way> ways = OsmPrimitive.getFilteredList(ds.getSelected(), Way.class);
+            ways.removeIf(OsmPrimitive::isIncomplete);
             if (ways.isEmpty()) {
                 alertSelectAtLeastOneWay();
                 return;
@@ -121,7 +123,7 @@ public class SimplifyWayAction extends JosmAction {
                     trn("Simplify {0} way", "Simplify {0} ways", allCommands.size(), allCommands.size()),
                     allCommands
                     );
-            Main.main.undoRedo.add(rootCommand);
+            MainApplication.undoRedo.add(rootCommand);
         } finally {
             ds.endUpdate();
         }

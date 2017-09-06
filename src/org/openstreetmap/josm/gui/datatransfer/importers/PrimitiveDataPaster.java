@@ -23,6 +23,7 @@ import org.openstreetmap.josm.data.osm.RelationData;
 import org.openstreetmap.josm.data.osm.RelationMemberData;
 import org.openstreetmap.josm.data.osm.WayData;
 import org.openstreetmap.josm.gui.ExtendedDialog;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.datatransfer.data.PrimitiveTransferData;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.tools.JosmRuntimeException;
@@ -56,7 +57,7 @@ public final class PrimitiveDataPaster extends AbstractOsmDataPaster {
         AddPrimitivesCommand command = createNewPrimitives(pasteBuffer, offset, layer);
 
         /* Now execute the commands to add the duplicated contents of the paste buffer to the map */
-        Main.main.undoRedo.add(command);
+        MainApplication.undoRedo.add(command);
         return true;
     }
 
@@ -71,7 +72,7 @@ public final class PrimitiveDataPaster extends AbstractOsmDataPaster {
             try {
                 if (data instanceof NodeData) {
                     NodeData nodeData = (NodeData) data;
-                    nodeData.setEastNorth(nodeData.getEastNorth().add(offset));
+                    nodeData.setEastNorth(nodeData.getEastNorth(Main.getProjection()).add(offset));
                 } else if (data instanceof WayData) {
                     updateNodes(newIds.get(OsmPrimitiveType.NODE), data);
                 } else if (data instanceof RelationData) {
@@ -81,7 +82,7 @@ public final class PrimitiveDataPaster extends AbstractOsmDataPaster {
                 throw BugReport.intercept(e).put("data", data);
             }
         }
-        return new AddPrimitivesCommand(bufferCopy, toSelect, layer);
+        return new AddPrimitivesCommand(bufferCopy, toSelect, layer.data);
     }
 
     private static EnumMap<OsmPrimitiveType, Map<Long, Long>> generateNewPrimitives(PrimitiveTransferData pasteBuffer,

@@ -6,10 +6,11 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Rule;
 import org.junit.Test;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.TestUtils;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.data.osm.DataSet;
+import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
 
@@ -25,7 +26,7 @@ public class CommandStackDialogTest {
      */
     @Rule
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    public JOSMTestRules test = new JOSMTestRules().commands();
+    public JOSMTestRules test = new JOSMTestRules().main().platform().projection();
 
     /**
      * Unit test of {@link CommandStackDialog} class - empty case.
@@ -44,28 +45,30 @@ public class CommandStackDialogTest {
      */
     @Test
     public void testCommandStackDialogNotEmpty() {
-        OsmDataLayer layer = new OsmDataLayer(new DataSet(), "", null);
-        Main.getLayerManager().addLayer(layer);
+        DataSet ds = new DataSet();
+        OsmDataLayer layer = new OsmDataLayer(ds, "", null);
+        MainApplication.getLayerManager().addLayer(layer);
         try {
-            Command cmd1 = TestUtils.newCommand();
-            Command cmd2 = TestUtils.newCommand();
-            Main.main.undoRedo.add(cmd1);
-            Main.main.undoRedo.add(cmd2);
-            Main.main.undoRedo.undo(1);
+            Command cmd1 = TestUtils.newCommand(ds);
+            Command cmd2 = TestUtils.newCommand(ds);
+            MainApplication.undoRedo.add(cmd1);
+            MainApplication.undoRedo.add(cmd2);
+            MainApplication.undoRedo.undo(1);
 
-            assertFalse(Main.main.undoRedo.commands.isEmpty());
-            assertFalse(Main.main.undoRedo.redoCommands.isEmpty());
+            assertFalse(MainApplication.undoRedo.commands.isEmpty());
+            assertFalse(MainApplication.undoRedo.redoCommands.isEmpty());
 
+            MapFrame map = MainApplication.getMap();
             CommandStackDialog dlg = new CommandStackDialog();
-            Main.map.addToggleDialog(dlg);
+            map.addToggleDialog(dlg);
             dlg.unfurlDialog();
             assertTrue(dlg.isVisible());
-            Main.map.removeToggleDialog(dlg);
+            map.removeToggleDialog(dlg);
             dlg.hideDialog();
             assertFalse(dlg.isVisible());
         } finally {
-            Main.main.undoRedo.clean();
-            Main.getLayerManager().removeLayer(layer);
+            MainApplication.undoRedo.clean();
+            MainApplication.getLayerManager().removeLayer(layer);
         }
     }
 }

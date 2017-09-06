@@ -59,9 +59,13 @@ import org.openstreetmap.josm.data.Preferences.PreferenceChangeEvent;
 import org.openstreetmap.josm.data.Preferences.PreferenceChangedListener;
 import org.openstreetmap.josm.data.SystemOfMeasurement;
 import org.openstreetmap.josm.data.SystemOfMeasurement.SoMChangeListener;
-import org.openstreetmap.josm.data.coor.CoordinateFormat;
 import org.openstreetmap.josm.data.coor.LatLon;
+import org.openstreetmap.josm.data.coor.conversion.CoordinateFormatManager;
+import org.openstreetmap.josm.data.coor.conversion.DMSCoordinateFormat;
+import org.openstreetmap.josm.data.coor.conversion.ICoordinateFormat;
+import org.openstreetmap.josm.data.coor.conversion.ProjectedCoordinateFormat;
 import org.openstreetmap.josm.data.osm.DataSet;
+import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.preferences.AbstractProperty;
@@ -69,15 +73,15 @@ import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.data.preferences.ColorProperty;
 import org.openstreetmap.josm.data.preferences.DoubleProperty;
 import org.openstreetmap.josm.gui.help.Helpful;
-import org.openstreetmap.josm.gui.preferences.projection.ProjectionPreference;
-import org.openstreetmap.josm.gui.progress.PleaseWaitProgressMonitor;
-import org.openstreetmap.josm.gui.progress.PleaseWaitProgressMonitor.ProgressMonitorDialog;
+import org.openstreetmap.josm.gui.progress.swing.PleaseWaitProgressMonitor;
+import org.openstreetmap.josm.gui.progress.swing.PleaseWaitProgressMonitor.ProgressMonitorDialog;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.ImageLabel;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
 import org.openstreetmap.josm.tools.Destroyable;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -137,7 +141,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
     static final class ShowMonitorDialogMouseAdapter extends MouseAdapter {
         @Override
         public void mouseClicked(MouseEvent e) {
-            PleaseWaitProgressMonitor monitor = Main.currentProgressMonitor;
+            PleaseWaitProgressMonitor monitor = PleaseWaitProgressMonitor.getCurrent();
             if (monitor != null) {
                 monitor.showForegroundDialog();
             }
@@ -148,7 +152,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
         @Override
         public void mouseClicked(MouseEvent e) {
             if (e.getButton() != MouseEvent.BUTTON3) {
-                Main.main.menu.jumpToAct.showJumpToDialog();
+                MainApplication.getMenu().jumpToAct.showJumpToDialog();
             }
         }
     }
@@ -202,18 +206,18 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
         @Override
         public void appendLogMessage(String message) {
             if (message != null && !message.isEmpty()) {
-                Main.info("appendLogMessage not implemented for background tasks. Message was: " + message);
+                Logging.info("appendLogMessage not implemented for background tasks. Message was: " + message);
             }
         }
 
     }
 
-    /** The {@link CoordinateFormat} set in the previous update */
-    private transient CoordinateFormat previousCoordinateFormat;
+    /** The {@link ICoordinateFormat} set in the previous update */
+    private transient ICoordinateFormat previousCoordinateFormat;
     private final ImageLabel latText = new ImageLabel("lat",
-            null, LatLon.SOUTH_POLE.latToString(CoordinateFormat.DEGREES_MINUTES_SECONDS).length(), PROP_BACKGROUND_COLOR.get());
+            null, DMSCoordinateFormat.INSTANCE.latToString(LatLon.SOUTH_POLE).length(), PROP_BACKGROUND_COLOR.get());
     private final ImageLabel lonText = new ImageLabel("lon",
-            null, new LatLon(0, 180).lonToString(CoordinateFormat.DEGREES_MINUTES_SECONDS).length(), PROP_BACKGROUND_COLOR.get());
+            null, DMSCoordinateFormat.INSTANCE.lonToString(new LatLon(0, 180)).length(), PROP_BACKGROUND_COLOR.get());
     private final ImageLabel headingText = new ImageLabel("heading",
             tr("The (compass) heading of the line segment being drawn."),
             DECIMAL_FORMAT.format(360).length() + 1, PROP_BACKGROUND_COLOR.get());
@@ -356,7 +360,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
 
                     oldMousePos = ms.mousePos;
                 } catch (ConcurrentModificationException ex) {
-                    Main.warn(ex);
+                    Logging.warn(ex);
                 } finally {
                     if (ds != null) {
                         if (isAtOldPosition && middleMouseDown) {
@@ -404,7 +408,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
                 for (;;) {
                     try {
                         final MouseState ms = incomingMouseState.take();
-                        if (parent != Main.map)
+                        if (parent != MainApplication.getMap())
                             return; // exit, if new parent.
 
                         // Do nothing, if required data is missing
@@ -414,12 +418,12 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
 
                         EventQueue.invokeAndWait(new CollectorWorker(ms));
                     } catch (InvocationTargetException e) {
-                        Main.warn(e);
+                        Logging.warn(e);
                     }
                 }
             } catch (InterruptedException e) {
                 // Occurs frequently during JOSM shutdown, log set to trace only
-                Main.trace("InterruptedException in "+MapStatus.class.getSimpleName());
+                Logging.trace("InterruptedException in "+MapStatus.class.getSimpleName());
                 Thread.currentThread().interrupt();
             } finally {
                 unregisterListeners();
@@ -484,7 +488,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
          * @param mods modifiers (i.e. control keys)
          */
         private void popupCycleSelection(Collection<OsmPrimitive> osms, int mods) {
-            DataSet ds = Main.getLayerManager().getEditDataSet();
+            DataSet ds = MainApplication.getLayerManager().getEditDataSet();
             // Find some items that are required for cycling through
             OsmPrimitive firstItem = null;
             OsmPrimitive firstSelected = null;
@@ -575,7 +579,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
          * @param osm The primitive to derive the colors from
          */
         private void popupSetLabelColors(JLabel lbl, OsmPrimitive osm) {
-            DataSet ds = Main.getLayerManager().getEditDataSet();
+            DataSet ds = MainApplication.getLayerManager().getEditDataSet();
             if (ds.isSelected(osm)) {
                 lbl.setBackground(SystemColor.textHighlight);
                 lbl.setForeground(SystemColor.textHighlightText);
@@ -648,7 +652,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
 
                 @Override
                 public void mouseClicked(MouseEvent e) {
-                    DataSet ds = Main.getLayerManager().getEditDataSet();
+                    DataSet ds = MainApplication.getLayerManager().getEditDataSet();
                     // Let the user toggle the selection
                     ds.toggleSelected(osm);
                     l.validate();
@@ -685,7 +689,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
             // remove mouse states that are in the queue. Our mouse state is newer.
             incomingMouseState.clear();
             if (!incomingMouseState.offer(ms)) {
-                Main.warn("Unable to handle new MouseState: " + ms);
+                Logging.warn("Unable to handle new MouseState: " + ms);
             }
         }
     }
@@ -738,7 +742,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
             Toolkit.getDefaultToolkit().addAWTEventListener(awtListener,
                     AWTEvent.KEY_EVENT_MASK | AWTEvent.MOUSE_EVENT_MASK | AWTEvent.MOUSE_MOTION_EVENT_MASK);
         } catch (SecurityException ex) {
-            Main.trace(ex);
+            Logging.trace(ex);
             mv.addMouseMotionListener(mouseMotionListener);
             mv.addKeyListener(keyAdapter);
         }
@@ -749,7 +753,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
             Toolkit.getDefaultToolkit().removeAWTEventListener(awtListener);
         } catch (SecurityException e) {
             // Don't care, awtListener probably wasn't registered anyway
-            Main.trace(e);
+            Logging.trace(e);
         }
         mv.removeMouseMotionListener(mouseMotionListener);
         mv.removeKeyListener(keyAdapter);
@@ -757,11 +761,11 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
 
     private class MapStatusPopupMenu extends JPopupMenu {
 
-        private final JMenuItem jumpButton = add(Main.main.menu.jumpToAct);
+        private final JMenuItem jumpButton = add(MainApplication.getMenu().jumpToAct);
 
         /** Icons for selecting {@link SystemOfMeasurement} */
         private final Collection<JCheckBoxMenuItem> somItems = new ArrayList<>();
-        /** Icons for selecting {@link CoordinateFormat}  */
+        /** Icons for selecting {@link ICoordinateFormat}  */
         private final Collection<JCheckBoxMenuItem> coordinateFormatItems = new ArrayList<>();
 
         private final JSeparator separator = new JSeparator();
@@ -785,11 +789,11 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
                 somItems.add(item);
                 add(item);
             }
-            for (final CoordinateFormat format : CoordinateFormat.values()) {
+            for (final ICoordinateFormat format : CoordinateFormatManager.getCoordinateFormats()) {
                 JCheckBoxMenuItem item = new JCheckBoxMenuItem(new AbstractAction(format.getDisplayName()) {
                     @Override
                     public void actionPerformed(ActionEvent e) {
-                        CoordinateFormat.setCoordinateFormat(format);
+                        CoordinateFormatManager.setCoordinateFormat(format);
                     }
                 });
                 coordinateFormatItems.add(item);
@@ -804,12 +808,12 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
                 public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
                     Component invoker = ((JPopupMenu) e.getSource()).getInvoker();
                     jumpButton.setVisible(latText.equals(invoker) || lonText.equals(invoker));
-                    String currentSOM = ProjectionPreference.PROP_SYSTEM_OF_MEASUREMENT.get();
+                    String currentSOM = SystemOfMeasurement.PROP_SYSTEM_OF_MEASUREMENT.get();
                     for (JMenuItem item : somItems) {
                         item.setSelected(item.getText().equals(currentSOM));
                         item.setVisible(distText.equals(invoker));
                     }
-                    final String currentCorrdinateFormat = CoordinateFormat.getDefaultFormat().getDisplayName();
+                    final String currentCorrdinateFormat = CoordinateFormatManager.getDefaultFormat().getDisplayName();
                     for (JMenuItem item : coordinateFormatItems) {
                         item.setSelected(currentCorrdinateFormat.equals(item.getText()));
                         item.setVisible(latText.equals(invoker) || lonText.equals(invoker));
@@ -871,13 +875,13 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
                     return;
                 // Do not update the view if ctrl is pressed.
                 if ((e.getModifiersEx() & MouseEvent.CTRL_DOWN_MASK) == 0) {
-                    CoordinateFormat mCord = CoordinateFormat.getDefaultFormat();
+                    ICoordinateFormat mCord = CoordinateFormatManager.getDefaultFormat();
                     LatLon p = mv.getLatLon(e.getX(), e.getY());
-                    latText.setText(p.latToString(mCord));
-                    lonText.setText(p.lonToString(mCord));
+                    latText.setText(mCord.latToString(p));
+                    lonText.setText(mCord.lonToString(p));
                     if (Objects.equals(previousCoordinateFormat, mCord)) {
                         // do nothing
-                    } else if (CoordinateFormat.EAST_NORTH.equals(mCord)) {
+                    } else if (ProjectedCoordinateFormat.INSTANCE.equals(mCord)) {
                         latText.setIcon("northing");
                         lonText.setIcon("easting");
                         latText.setToolTipText(tr("The northing at the mouse pointer."));
@@ -916,7 +920,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
                 @Override
                 public void mouseClicked(MouseEvent e) {
                     if (!e.isPopupTrigger() && e.getButton() == MouseEvent.BUTTON1) {
-                        String som = ProjectionPreference.PROP_SYSTEM_OF_MEASUREMENT.get();
+                        String som = SystemOfMeasurement.PROP_SYSTEM_OF_MEASUREMENT.get();
                         String newsom = soms.get((soms.indexOf(som)+1) % soms.size());
                         updateSystemOfMeasurement(newsom);
                     }
@@ -1110,7 +1114,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
             try {
                 thread.interrupt();
             } catch (SecurityException e) {
-                Main.error(e);
+                Logging.error(e);
             }
         }
     }

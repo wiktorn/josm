@@ -1,7 +1,6 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.command;
 
-import java.awt.GridBagLayout;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -9,9 +8,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
-
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.coor.EastNorth;
@@ -23,17 +19,16 @@ import org.openstreetmap.josm.data.osm.PrimitiveData;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.osm.visitor.AbstractVisitor;
-import org.openstreetmap.josm.gui.ConditionalOptionPaneUtil;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
-import org.openstreetmap.josm.gui.widgets.JMultilineLabel;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 
 /**
  * Classes implementing Command modify a dataset in a specific way. A command is
  * one atomic action on a specific dataset, such as move or delete.
  *
- * The command remembers the {@link OsmDataLayer} it is operating on.
+ * The command remembers the {@link DataSet} it is operating on.
  *
  * @author imi
  * @since 21 (creation)
@@ -133,7 +128,11 @@ public abstract class Command implements PseudoCommand {
     /** the map of OsmPrimitives in the original state to OsmPrimitives in cloned state */
     private Map<OsmPrimitive, PrimitiveData> cloneMap = new HashMap<>();
 
-    /** the layer which this command is applied to */
+    /**
+     * the layer which this command is applied to
+     * @deprecated to be removed end of 2017. Use {@link #data} instead
+     */
+    @Deprecated
     private final OsmDataLayer layer;
 
     /** the dataset which this command is applied to */
@@ -141,10 +140,12 @@ public abstract class Command implements PseudoCommand {
 
     /**
      * Creates a new command in the context of the current edit layer, if any
+     * @deprecated to be removed end of 2017. Use {@link #Command(DataSet)} instead
      */
+    @Deprecated
     public Command() {
-        this.layer = Main.getLayerManager().getEditLayer();
-        this.data = layer != null ? layer.data : null;
+        this.layer = MainApplication.getLayerManager().getEditLayer();
+        this.data = layer != null ? layer.data : Main.main.getEditDataSet();
     }
 
     /**
@@ -152,7 +153,9 @@ public abstract class Command implements PseudoCommand {
      *
      * @param layer the data layer. Must not be null.
      * @throws IllegalArgumentException if layer is null
+     * @deprecated to be removed end of 2017. Use {@link #Command(DataSet)} instead
      */
+    @Deprecated
     public Command(OsmDataLayer layer) {
         CheckParameterUtil.ensureParameterNotNull(layer, "layer");
         this.layer = layer;
@@ -214,7 +217,9 @@ public abstract class Command implements PseudoCommand {
      *
      * @param oldLayer the old layer that was removed
      * @return true if this command is invalid after that layer is removed.
+     * @deprecated to be removed end of 2017.
      */
+    @Deprecated
     public boolean invalidBecauselayerRemoved(Layer oldLayer) {
         return layer == oldLayer;
     }
@@ -232,7 +237,9 @@ public abstract class Command implements PseudoCommand {
     /**
      * Replies the layer this command is (or was) applied to.
      * @return the layer this command is (or was) applied to
+     * @deprecated to be removed end of 2017. Use {@link #getAffectedDataSet} instead
      */
+    @Deprecated
     protected OsmDataLayer getLayer() {
         return layer;
     }
@@ -290,54 +297,6 @@ public abstract class Command implements PseudoCommand {
     }
 
     /**
-     * Check whether user is about to operate on data outside of the download area.
-     * Request confirmation if he is.
-     *
-     * @param operation the operation name which is used for setting some preferences
-     * @param dialogTitle the title of the dialog being displayed
-     * @param outsideDialogMessage the message text to be displayed when data is outside of the download area
-     * @param incompleteDialogMessage the message text to be displayed when data is incomplete
-     * @param primitives the primitives to operate on
-     * @param ignore {@code null} or a primitive to be ignored
-     * @return true, if operating on outlying primitives is OK; false, otherwise
-     */
-    public static boolean checkAndConfirmOutlyingOperation(String operation,
-            String dialogTitle, String outsideDialogMessage, String incompleteDialogMessage,
-            Collection<? extends OsmPrimitive> primitives,
-            Collection<? extends OsmPrimitive> ignore) {
-        int checkRes = checkOutlyingOrIncompleteOperation(primitives, ignore);
-        if ((checkRes & IS_OUTSIDE) != 0) {
-            JPanel msg = new JPanel(new GridBagLayout());
-            msg.add(new JMultilineLabel("<html>" + outsideDialogMessage + "</html>"));
-            boolean answer = ConditionalOptionPaneUtil.showConfirmationDialog(
-                    operation + "_outside_nodes",
-                    Main.parent,
-                    msg,
-                    dialogTitle,
-                    JOptionPane.YES_NO_OPTION,
-                    JOptionPane.QUESTION_MESSAGE,
-                    JOptionPane.YES_OPTION);
-            if (!answer)
-                return false;
-        }
-        if ((checkRes & IS_INCOMPLETE) != 0) {
-            JPanel msg = new JPanel(new GridBagLayout());
-            msg.add(new JMultilineLabel("<html>" + incompleteDialogMessage + "</html>"));
-            boolean answer = ConditionalOptionPaneUtil.showConfirmationDialog(
-                    operation + "_incomplete",
-                    Main.parent,
-                    msg,
-                    dialogTitle,
-                    JOptionPane.YES_NO_OPTION,
-                    JOptionPane.QUESTION_MESSAGE,
-                    JOptionPane.YES_OPTION);
-            if (!answer)
-                return false;
-        }
-        return true;
-    }
-
-    /**
      * Ensures that all primitives that are participating in this command belong to the affected data set.
      *
      * Commands may use this in their update methods to check the consitency of the primitives they operate on.
@@ -369,7 +328,9 @@ public abstract class Command implements PseudoCommand {
     /**
      * Invalidate all layers that were affected by this command.
      * @see Layer#invalidate()
+     * @deprecated to be removed end of 2017.
      */
+    @Deprecated
     public void invalidateAffectedLayers() {
         OsmDataLayer layer = getLayer();
         if (layer != null) {

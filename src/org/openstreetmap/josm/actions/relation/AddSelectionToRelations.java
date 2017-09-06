@@ -10,12 +10,12 @@ import java.util.LinkedList;
 
 import javax.swing.JOptionPane;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.SequenceCommand;
 import org.openstreetmap.josm.data.SelectionChangedListener;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.Notification;
 import org.openstreetmap.josm.gui.dialogs.relation.GenericRelationEditor;
 import org.openstreetmap.josm.gui.util.GuiHelper;
@@ -38,13 +38,13 @@ public class AddSelectionToRelations extends AbstractRelationAction implements S
     public void actionPerformed(ActionEvent e) {
         Collection<Command> cmds = new LinkedList<>();
         for (Relation orig : relations) {
-            Command c = GenericRelationEditor.addPrimitivesToRelation(orig, Main.getLayerManager().getEditDataSet().getSelected());
+            Command c = GenericRelationEditor.addPrimitivesToRelation(orig, MainApplication.getLayerManager().getEditDataSet().getSelected());
             if (c != null) {
                 cmds.add(c);
             }
         }
         if (!cmds.isEmpty()) {
-            Main.main.undoRedo.add(new SequenceCommand(tr("Add selection to relation"), cmds));
+            MainApplication.undoRedo.add(new SequenceCommand(tr("Add selection to relation"), cmds));
             new Notification(
                     "<html>"+
                     tr("{0}Add selection to relation{1}: Verify every single relation to avoid damage!", "<strong>", "</strong>")+

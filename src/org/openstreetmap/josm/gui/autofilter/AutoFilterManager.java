@@ -42,8 +42,10 @@ import org.openstreetmap.josm.data.osm.event.TagsChangedEvent;
 import org.openstreetmap.josm.data.osm.event.WayNodesChangedEvent;
 import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.data.preferences.StringProperty;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.MapFrame.MapModeChangeListener;
+import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.NavigatableComponent;
 import org.openstreetmap.josm.gui.NavigatableComponent.ZoomChangeListener;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerAddEvent;
@@ -53,6 +55,7 @@ import org.openstreetmap.josm.gui.layer.LayerManager.LayerRemoveEvent;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.mappaint.mapcss.Selector;
 import org.openstreetmap.josm.gui.widgets.OSDLabel;
+import org.openstreetmap.josm.tools.Logging;
 
 /**
  * The auto filter manager keeps track of registered auto filter rules and applies the active one on the fly,
@@ -122,14 +125,15 @@ implements ZoomChangeListener, MapModeChangeListener, DataSetListener, Preferenc
         MapFrame.addMapModeChangeListener(this);
         Main.pref.addPreferenceChangeListener(this);
         NavigatableComponent.addZoomChangeListener(this);
-        Main.getLayerManager().addLayerChangeListener(this);
+        MainApplication.getLayerManager().addLayerChangeListener(this);
         DatasetEventManager.getInstance().addDatasetListener(this, FireMode.IN_EDT_CONSOLIDATED);
         registerAutoFilterRules(AutoFilterRule.defaultRules());
     }
 
     private synchronized void updateButtons() {
-        if (enabledRule != null && Main.map != null
-                && enabledRule.getMinZoomLevel() <= Selector.GeneralSelector.scale2level(Main.map.mapView.getDist100Pixel())) {
+        MapFrame map = MainApplication.getMap();
+        if (enabledRule != null && map != null
+                && enabledRule.getMinZoomLevel() <= Selector.GeneralSelector.scale2level(map.mapView.getDist100Pixel())) {
             // Retrieve the values from current rule visible on screen
             NavigableSet<String> values = getNumericValues(enabledRule.getKey(), enabledRule.getValueComparator());
             // Make sure current auto filter button remains visible even if no data is found, to allow user to disable it
@@ -146,6 +150,7 @@ implements ZoomChangeListener, MapModeChangeListener, DataSetListener, Preferenc
     private synchronized void addNewButtons(NavigableSet<String> values) {
         int i = 0;
         int maxWidth = 16;
+        MapView mapView = MainApplication.getMap().mapView;
         for (final String value : values.descendingSet()) {
             Filter filter = new Filter();
             filter.enable = true;
@@ -159,17 +164,17 @@ implements ZoomChangeListener, MapModeChangeListener, DataSetListener, Preferenc
             }
             buttons.put(value, button);
             maxWidth = Math.max(maxWidth, button.getPreferredSize().width);
-            Main.map.mapView.add(button).setLocation(3, 60 + 22*i++);
+            mapView.add(button).setLocation(3, 60 + 22*i++);
         }
         for (AutoFilterButton b : buttons.values()) {
             b.setSize(maxWidth, 20);
         }
-        Main.map.mapView.validate();
+        mapView.validate();
     }
 
     private void removeAllButtons() {
         for (Iterator<String> it = buttons.keySet().iterator(); it.hasNext();) {
-            Main.map.mapView.remove(buttons.get(it.next()));
+            MainApplication.getMap().mapView.remove(buttons.get(it.next()));
             it.remove();
         }
     }
@@ -181,17 +186,17 @@ implements ZoomChangeListener, MapModeChangeListener, DataSetListener, Preferenc
                 Integer.parseInt(s);
                 values.add(s);
             } catch (NumberFormatException e) {
-                Main.trace(e);
+                Logging.trace(e);
             }
         }
         return values;
     }
 
     private static Set<String> getTagValues(String key) {
-        DataSet ds = Main.getLayerManager().getEditDataSet();
+        DataSet ds = MainApplication.getLayerManager().getEditDataSet();
         Set<String> values = new TreeSet<>();
         if (ds != null) {
-            BBox bbox = Main.map.mapView.getState().getViewArea().getLatLonBoundsBox().toBBox();
+            BBox bbox = MainApplication.getMap().mapView.getState().getViewArea().getLatLonBoundsBox().toBBox();
             Consumer<OsmPrimitive> consumer = getTagValuesConsumer(key, values);
             ds.searchNodes(bbox).forEach(consumer);
             ds.searchWays(bbox).forEach(consumer);
@@ -365,7 +370,7 @@ implements ZoomChangeListener, MapModeChangeListener, DataSetListener, Preferenc
             model.addFilter(autoFilter.getFilter());
             model.executeFilters();
             if (model.isChanged()) {
-                OsmDataLayer editLayer = Main.getLayerManager().getEditLayer();
+                OsmDataLayer editLayer = MainApplication.getLayerManager().getEditLayer();
                 if (editLayer != null) {
                     editLayer.invalidate();
                 }
@@ -386,8 +391,9 @@ implements ZoomChangeListener, MapModeChangeListener, DataSetListener, Preferenc
     private void resetCurrentAutoFilter() {
         setCurrentAutoFilter(null);
         removeAllButtons();
-        if (Main.map != null) {
-            Main.map.filterDialog.getFilterModel().executeFilters();
+        MapFrame map = MainApplication.getMap();
+        if (map != null) {
+            map.filterDialog.getFilterModel().executeFilters();
         }
     }
 
@@ -415,7 +421,7 @@ implements ZoomChangeListener, MapModeChangeListener, DataSetListener, Preferenc
 
     @Override
     public void layerRemoving(LayerRemoveEvent e) {
-        if (Main.getLayerManager().getEditLayer() == null) {
+        if (MainApplication.getLayerManager().getEditLayer() == null) {
             resetCurrentAutoFilter();
         }
     }

@@ -69,7 +69,6 @@ import org.openstreetmap.josm.gui.mappaint.styleelement.NodeElement;
 import org.openstreetmap.josm.gui.mappaint.styleelement.StyleElement;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPreset;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPresets;
-import org.openstreetmap.josm.gui.util.GuiSizesHelper;
 import org.openstreetmap.josm.io.CachedFile;
 import org.openstreetmap.josm.plugins.PluginHandler;
 import org.w3c.dom.Element;
@@ -277,6 +276,8 @@ public class ImageProvider {
     protected List<ImageOverlay> overlayInfo;
     /** <code>true</code> if icon must be grayed out */
     protected boolean isDisabled;
+    /** <code>true</code> if multi-resolution image is requested */
+    protected boolean multiResolution = true;
 
     private static SVGUniverse svgUniverse;
 
@@ -288,7 +289,7 @@ public class ImageProvider {
     /**
      * Caches the image data for rotated versions of the same image.
      */
-    private static final Map<Image, Map<Long, ImageResource>> ROTATE_CACHE = new HashMap<>();
+    private static final Map<Image, Map<Long, Image>> ROTATE_CACHE = new HashMap<>();
 
     private static final ExecutorService IMAGE_FETCHER =
             Executors.newSingleThreadExecutor(Utils.newThreadFactory("image-fetcher-%d", Thread.NORM_PRIORITY));
@@ -334,6 +335,7 @@ public class ImageProvider {
         this.additionalClassLoaders = image.additionalClassLoaders;
         this.overlayInfo = image.overlayInfo;
         this.isDisabled = image.isDisabled;
+        this.multiResolution = image.multiResolution;
     }
 
     /**
@@ -596,6 +598,28 @@ public class ImageProvider {
     }
 
     /**
+     * Decide, if multi-resolution image is requested (default <code>true</code>).
+     * <p>
+     * A <code>java.awt.image.MultiResolutionImage</code> is a Java 9 {@link Image}
+     * implementation, which adds support for HiDPI displays. The effect will be
+     * that in HiDPI mode, when GUI elements are scaled by a factor 1.5, 2.0, etc.,
+     * the images are not just up-scaled, but a higher resolution version of the
+     * image is rendered instead.
+     * <p>
+     * Use {@link HiDPISupport#getBaseImage(java.awt.Image)} to extract the original
+     * image from a multi-resolution image.
+     * <p>
+     * See {@link HiDPISupport#processMRImage} for how to process the image without
+     * removing the multi-resolution magic.
+     * @param multiResolution true, if multi-resolution image is requested
+     * @return the current object, for convenience
+     */
+    public ImageProvider setMultiResolution(boolean multiResolution) {
+        this.multiResolution = multiResolution;
+        return this;
+    }
+
+    /**
      * Execute the image request and scale result.
      * @return the requested image or null if the request failed
      */
@@ -606,9 +630,9 @@ public class ImageProvider {
             return null;
         }
         if (virtualMaxWidth != -1 || virtualMaxHeight != -1)
-            return ir.getImageIconBounded(new Dimension(virtualMaxWidth, virtualMaxHeight));
+            return ir.getImageIconBounded(new Dimension(virtualMaxWidth, virtualMaxHeight), multiResolution);
         else
-            return ir.getImageIcon(new Dimension(virtualWidth, virtualHeight));
+            return ir.getImageIcon(new Dimension(virtualWidth, virtualHeight), multiResolution);
     }
 
     /**
@@ -641,7 +665,7 @@ public class ImageProvider {
                                 name + ext));
             } else {
                 if (!suppressWarnings) {
-                    Main.error(tr("Failed to locate image ''{0}''", name));
+                    Logging.error(tr("Failed to locate image ''{0}''", name));
                 }
                 return null;
             }
@@ -916,14 +940,14 @@ public class ImageProvider {
                 try {
                     img = read(Utils.fileToURL(cf.getFile()), false, false);
                 } catch (IOException e) {
-                    Main.warn(e, "IOException while reading HTTP image:");
+                    Logging.log(Logging.LEVEL_WARN, "IOException while reading HTTP image:", e);
                 }
                 return img == null ? null : new ImageResource(img);
             default:
                 throw new AssertionError("Unsupported type: " + type);
             }
         } catch (IOException e) {
-            Main.debug(e);
+            Logging.debug(e);
             return null;
         }
     }
@@ -946,7 +970,7 @@ public class ImageProvider {
                 try {
                     bytes = Utils.decodeUrl(data).getBytes(StandardCharsets.UTF_8);
                 } catch (IllegalArgumentException ex) {
-                    Main.warn(ex, "Unable to decode URL data part: "+ex.getMessage() + " (" + data + ')');
+                    Logging.log(Logging.LEVEL_WARN, "Unable to decode URL data part: "+ex.getMessage() + " (" + data + ')', ex);
                     return null;
                 }
             }
@@ -959,7 +983,7 @@ public class ImageProvider {
                     svg = getSvgUniverse().getDiagram(uri);
                 }
                 if (svg == null) {
-                    Main.warn("Unable to process svg: "+s);
+                    Logging.warn("Unable to process svg: "+s);
                     return null;
                 }
                 return new ImageResource(svg);
@@ -973,7 +997,7 @@ public class ImageProvider {
                     Image img = read(new ByteArrayInputStream(bytes), false, true);
                     return img == null ? null : new ImageResource(img);
                 } catch (IOException e) {
-                    Main.warn(e, "IOException while reading image:");
+                    Logging.log(Logging.LEVEL_WARN, "IOException while reading image:", e);
                 }
             }
         }
@@ -1058,7 +1082,7 @@ public class ImageProvider {
                         try {
                             img = read(new ByteArrayInputStream(buf), false, false);
                         } catch (IOException e) {
-                            Main.warn(e);
+                            Logging.warn(e);
                         }
                         return img == null ? null : new ImageResource(img);
                     default:
@@ -1067,7 +1091,7 @@ public class ImageProvider {
                 }
             }
         } catch (IOException e) {
-            Main.warn(e, tr("Failed to handle zip file ''{0}''. Exception was: {1}", archive.getName(), e.toString()));
+            Logging.log(Logging.LEVEL_WARN, tr("Failed to handle zip file ''{0}''. Exception was: {1}", archive.getName(), e.toString()), e);
         }
         return null;
     }
@@ -1095,11 +1119,11 @@ public class ImageProvider {
                 // This can be removed if someday Oracle fixes https://bugs.openjdk.java.net/browse/JDK-6788458
                 // hg.openjdk.java.net/jdk8u/jdk8u/jdk/file/dc4322602480/src/share/classes/com/sun/imageio/plugins/png/PNGImageReader.java#l656
                 img = read(path, false, true);
-                if (Main.isDebugEnabled() && isTransparencyForced(img)) {
-                    Main.debug("Transparency has been forced for image "+path.toExternalForm());
+                if (Logging.isDebugEnabled() && isTransparencyForced(img)) {
+                    Logging.debug("Transparency has been forced for image {0}", path);
                 }
             } catch (IOException e) {
-                Main.warn(e);
+                Logging.warn(e);
             }
             return img == null ? null : new ImageResource(img);
         default:
@@ -1138,9 +1162,9 @@ public class ImageProvider {
                     if (u != null)
                         return u;
                 } catch (SecurityException e) {
-                    Main.warn(e, tr(
+                    Logging.log(Logging.LEVEL_WARN, tr(
                             "Failed to access directory ''{0}'' for security reasons. Exception was: {1}",
-                            name, e.toString()));
+                            name, e.toString()), e);
                 }
 
             }
@@ -1153,9 +1177,9 @@ public class ImageProvider {
                 if (u != null)
                     return u;
             } catch (SecurityException e) {
-                Main.warn(e, tr(
+                Logging.log(Logging.LEVEL_WARN, tr(
                         "Failed to access directory ''{0}'' for security reasons. Exception was: {1}", dir, e
-                        .toString()));
+                        .toString()), e);
             }
         }
 
@@ -1225,13 +1249,13 @@ public class ImageProvider {
                 parser.parse(new InputSource(is));
             }
         } catch (SAXReturnException e) {
-            Main.trace(e);
+            Logging.trace(e);
             return e.getResult();
         } catch (IOException | SAXException | ParserConfigurationException e) {
-            Main.warn("Parsing " + base + fn + " failed:\n" + e);
+            Logging.warn("Parsing " + base + fn + " failed:\n" + e);
             return null;
         }
-        Main.warn("Parsing " + base + fn + " failed: Unexpected content.");
+        Logging.warn("Parsing " + base + fn + " failed: Unexpected content.");
         return null;
     }
 
@@ -1250,9 +1274,7 @@ public class ImageProvider {
                     .setMaxSize(ImageSizes.CURSOROVERLAY))).get();
         }
         if (GraphicsEnvironment.isHeadless()) {
-            if (Main.isDebugEnabled()) {
-                Main.debug("Cursors are not available in headless mode. Returning null for '"+name+'\'');
-            }
+            Logging.debug("Cursors are not available in headless mode. Returning null for '{0}'", name);
             return null;
         }
         return Toolkit.getDefaultToolkit().createCustomCursor(img.getImage(),
@@ -1278,14 +1300,13 @@ public class ImageProvider {
     }
 
     /**
-     * Creates a rotated version of the input image, scaled to the given dimension.
+     * Creates a rotated version of the input image.
      *
      * @param img the image to be rotated.
      * @param rotatedAngle the rotated angle, in degree, clockwise. It could be any double but we
      * will mod it with 360 before using it. More over for caching performance, it will be rounded to
      * an entire value between 0 and 360.
-     * @param dimension The requested dimensions. Use (-1,-1) for the original size
-     * and (width, -1) to set the width, but otherwise scale the image proportionally.
+     * @param dimension ignored
      * @return the image after rotating and scaling.
      * @since 6172
      */
@@ -1293,67 +1314,64 @@ public class ImageProvider {
         CheckParameterUtil.ensureParameterNotNull(img, "img");
 
         // convert rotatedAngle to an integer value from 0 to 360
-        Long originalAngle = Math.round(rotatedAngle % 360);
-        if (rotatedAngle != 0 && originalAngle == 0) {
-            originalAngle = 360L;
-        }
-
-        ImageResource imageResource;
+        Long angleLong = Math.round(rotatedAngle % 360);
+        Long originalAngle = rotatedAngle != 0 && angleLong == 0 ? 360L : angleLong;
 
         synchronized (ROTATE_CACHE) {
-            Map<Long, ImageResource> cacheByAngle = ROTATE_CACHE.get(img);
+            Map<Long, Image> cacheByAngle = ROTATE_CACHE.get(img);
             if (cacheByAngle == null) {
                 cacheByAngle = new HashMap<>();
                 ROTATE_CACHE.put(img, cacheByAngle);
             }
 
-            imageResource = cacheByAngle.get(originalAngle);
+            Image rotatedImg = cacheByAngle.get(originalAngle);
 
-            if (imageResource == null) {
+            if (rotatedImg == null) {
                 // convert originalAngle to a value from 0 to 90
                 double angle = originalAngle % 90;
                 if (originalAngle != 0 && angle == 0) {
                     angle = 90.0;
                 }
-
                 double radian = Utils.toRadians(angle);
 
-                new ImageIcon(img); // load completely
-                int iw = img.getWidth(null);
-                int ih = img.getHeight(null);
-                int w;
-                int h;
+                rotatedImg = HiDPISupport.processMRImage(img, img0 -> {
+                    new ImageIcon(img0); // load completely
+                    int iw = img0.getWidth(null);
+                    int ih = img0.getHeight(null);
+                    int w;
+                    int h;
 
-                if ((originalAngle >= 0 && originalAngle <= 90) || (originalAngle > 180 && originalAngle <= 270)) {
-                    w = (int) (iw * Math.sin(DEGREE_90 - radian) + ih * Math.sin(radian));
-                    h = (int) (iw * Math.sin(radian) + ih * Math.sin(DEGREE_90 - radian));
-                } else {
-                    w = (int) (ih * Math.sin(DEGREE_90 - radian) + iw * Math.sin(radian));
-                    h = (int) (ih * Math.sin(radian) + iw * Math.sin(DEGREE_90 - radian));
-                }
-                Image image = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
-                imageResource = new ImageResource(image);
-                cacheByAngle.put(originalAngle, imageResource);
-                Graphics g = image.getGraphics();
-                Graphics2D g2d = (Graphics2D) g.create();
+                    if ((originalAngle >= 0 && originalAngle <= 90) || (originalAngle > 180 && originalAngle <= 270)) {
+                        w = (int) (iw * Math.sin(DEGREE_90 - radian) + ih * Math.sin(radian));
+                        h = (int) (iw * Math.sin(radian) + ih * Math.sin(DEGREE_90 - radian));
+                    } else {
+                        w = (int) (ih * Math.sin(DEGREE_90 - radian) + iw * Math.sin(radian));
+                        h = (int) (ih * Math.sin(radian) + iw * Math.sin(DEGREE_90 - radian));
+                    }
+                    Image image = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+                    Graphics g = image.getGraphics();
+                    Graphics2D g2d = (Graphics2D) g.create();
 
-                // calculate the center of the icon.
-                int cx = iw / 2;
-                int cy = ih / 2;
+                    // calculate the center of the icon.
+                    int cx = iw / 2;
+                    int cy = ih / 2;
 
-                // move the graphics center point to the center of the icon.
-                g2d.translate(w / 2, h / 2);
+                    // move the graphics center point to the center of the icon.
+                    g2d.translate(w / 2, h / 2);
 
-                // rotate the graphics about the center point of the icon
-                g2d.rotate(Utils.toRadians(originalAngle));
+                    // rotate the graphics about the center point of the icon
+                    g2d.rotate(Utils.toRadians(originalAngle));
 
-                g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-                g2d.drawImage(img, -cx, -cy, null);
+                    g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+                    g2d.drawImage(img0, -cx, -cy, null);
 
-                g2d.dispose();
-                new ImageIcon(image); // load completely
+                    g2d.dispose();
+                    new ImageIcon(image); // load completely
+                    return image;
+                });
+                cacheByAngle.put(originalAngle, rotatedImg);
             }
-            return imageResource.getImageIcon(dimension).getImage();
+            return rotatedImg;
         }
     }
 
@@ -1414,7 +1432,7 @@ public class ImageProvider {
                                 BufferedImage.TYPE_INT_ARGB);
                         double scaleFactor = Math.min(backgroundRealWidth / (double) iconRealWidth, backgroundRealHeight
                                 / (double) iconRealHeight);
-                        BufferedImage iconImage = icon.getImage(false);
+                        Image iconImage = icon.getImage(false);
                         Image scaledIcon;
                         final int scaledWidth;
                         final int scaledHeight;
@@ -1464,8 +1482,8 @@ public class ImageProvider {
      * @return an image from the given SVG data at the desired dimension.
      */
     public static BufferedImage createImageFromSvg(SVGDiagram svg, Dimension dim) {
-        if (Main.isTraceEnabled()) {
-            Main.trace(String.format("createImageFromSvg: %s %s", svg.getXMLBase(), dim));
+        if (Logging.isTraceEnabled()) {
+            Logging.trace("createImageFromSvg: {0} {1}", svg.getXMLBase(), dim);
         }
         float sourceWidth = svg.getWidth();
         float sourceHeight = svg.getHeight();
@@ -1503,7 +1521,7 @@ public class ImageProvider {
                 svg.render(g);
             }
         } catch (SVGException ex) {
-            Main.error(ex, "Unable to load svg:");
+            Logging.log(Logging.LEVEL_ERROR, "Unable to load svg:", ex);
             return null;
         }
         return img;
@@ -1713,7 +1731,7 @@ public class ImageProvider {
         ImageReader reader = iter.next();
         ImageReadParam param = reader.getDefaultReadParam();
         reader.setInput(stream, true, !readMetadata && !enforceTransparency);
-        BufferedImage bi;
+        BufferedImage bi = null;
         try {
             bi = reader.read(0, param);
             if (bi.getTransparency() != Transparency.TRANSLUCENT && (readMetadata || enforceTransparency)) {
@@ -1723,13 +1741,15 @@ public class ImageProvider {
                     properties.put(PROP_TRANSPARENCY_COLOR, color);
                     bi = new BufferedImage(bi.getColorModel(), bi.getRaster(), bi.isAlphaPremultiplied(), properties);
                     if (enforceTransparency) {
-                        if (Main.isTraceEnabled()) {
-                            Main.trace("Enforcing image transparency of "+stream+" for "+color);
-                        }
+                        Logging.trace("Enforcing image transparency of {0} for {1}", stream, color);
                         bi = makeImageTransparent(bi, color);
                     }
                 }
             }
+        } catch (LinkageError e) {
+            // On Windows, ComponentColorModel.getRGBComponent can fail with "UnsatisfiedLinkError: no awt in java.library.path", see #13973
+            // Then it can leads to "NoClassDefFoundError: Could not initialize class sun.awt.image.ShortInterleavedRaster", see #15079
+            Logging.error(e);
         } finally {
             reader.dispose();
             stream.close();
@@ -1776,7 +1796,7 @@ public class ImageProvider {
                                                 int b = model.getBlue(pixel);
                                                 return new Color(r, g, b);
                                             } else {
-                                                Main.warn("Unable to translate TransparentColor '"+value+"' with color model "+model);
+                                                Logging.warn("Unable to translate TransparentColor '"+value+"' with color model "+model);
                                             }
                                         }
                                     }
@@ -1789,7 +1809,7 @@ public class ImageProvider {
             }
         } catch (IIOException | NumberFormatException e) {
             // JAI doesn't like some JPEG files with error "Inconsistent metadata read from stream" (see #10267)
-            Main.warn(e);
+            Logging.warn(e);
         }
         return null;
     }
@@ -1802,7 +1822,7 @@ public class ImageProvider {
             }
             return new Color(rgb[0], rgb[1], rgb[2]);
         } catch (IllegalArgumentException e) {
-            Main.error(e);
+            Logging.error(e);
             return null;
         }
     }

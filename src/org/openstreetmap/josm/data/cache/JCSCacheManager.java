@@ -30,6 +30,7 @@ import org.openstreetmap.gui.jmapviewer.FeatureAdapter;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.data.preferences.IntegerProperty;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -47,7 +48,7 @@ public final class JCSCacheManager {
     private static final String PREFERENCE_PREFIX = "jcs.cache";
     public static final BooleanProperty USE_BLOCK_CACHE = new BooleanProperty(PREFERENCE_PREFIX + ".use_block_cache", true);
 
-    private static final AuxiliaryCacheFactory diskCacheFactory =
+    private static final AuxiliaryCacheFactory DISK_CACHE_FACTORY =
             USE_BLOCK_CACHE.get() ? new BlockDiskCacheFactory() : new IndexedDiskCacheFactory();
     private static FileLock cacheDirLock;
 
@@ -90,14 +91,14 @@ public final class JCSCacheManager {
             public void publish(LogRecord record) {
                 String msg = formatter.formatMessage(record);
                 if (record.getLevel().intValue() >= Level.SEVERE.intValue()) {
-                    Main.error(msg);
+                    Logging.error(msg);
                 } else if (record.getLevel().intValue() >= Level.WARNING.intValue()) {
-                    Main.warn(msg);
+                    Logging.warn(msg);
                     // downgrade INFO level to debug, as JCS is too verbose at INFO level
                 } else if (record.getLevel().intValue() >= Level.INFO.intValue()) {
-                    Main.debug(msg);
+                    Logging.debug(msg);
                 } else {
-                    Main.trace(msg);
+                    Logging.trace(msg);
                 }
             }
 
@@ -176,8 +177,8 @@ public final class JCSCacheManager {
             IDiskCacheAttributes diskAttributes = getDiskCacheAttributes(maxDiskObjects, cachePath, cacheName);
             try {
                 if (cc.getAuxCaches().length == 0) {
-                    AuxiliaryCache<K, V> diskCache = diskCacheFactory.createCache(diskAttributes, cacheManager, null, new StandardSerializer());
-                    cc.setAuxCaches(new AuxiliaryCache[]{diskCache});
+                    cc.setAuxCaches(new AuxiliaryCache[]{DISK_CACHE_FACTORY.createCache(
+                            diskAttributes, cacheManager, null, new StandardSerializer())});
                 }
             } catch (IOException e) {
                 throw e;

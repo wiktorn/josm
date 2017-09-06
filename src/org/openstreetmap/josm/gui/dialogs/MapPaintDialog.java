@@ -55,15 +55,17 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.ExtensionFileFilter;
 import org.openstreetmap.josm.actions.JosmAction;
 import org.openstreetmap.josm.actions.PreferencesAction;
+import org.openstreetmap.josm.data.preferences.sources.SourceEntry;
 import org.openstreetmap.josm.gui.ExtendedDialog;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.PleaseWaitRunnable;
 import org.openstreetmap.josm.gui.SideButton;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles.MapPaintSylesUpdateListener;
 import org.openstreetmap.josm.gui.mappaint.StyleSetting;
 import org.openstreetmap.josm.gui.mappaint.StyleSource;
+import org.openstreetmap.josm.gui.mappaint.loader.MapPaintStyleLoader;
 import org.openstreetmap.josm.gui.mappaint.mapcss.MapCSSStyleSource;
-import org.openstreetmap.josm.gui.preferences.SourceEntry;
 import org.openstreetmap.josm.gui.preferences.map.MapPaintPreference;
 import org.openstreetmap.josm.gui.util.FileFilterAllFiles;
 import org.openstreetmap.josm.gui.util.GuiHelper;
@@ -78,6 +80,7 @@ import org.openstreetmap.josm.tools.ImageOverlay;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.ImageProvider.ImageSizes;
 import org.openstreetmap.josm.tools.InputMapUtils;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -131,7 +134,7 @@ public class MapPaintDialog extends ToggleDialog {
                 downAction.updateEnabledState();
             }
         });
-        cbWireframe.addActionListener(e -> Main.main.menu.wireFrameToggleAction.actionPerformed(null));
+        cbWireframe.addActionListener(e -> MainApplication.getMenu().wireFrameToggleAction.actionPerformed(null));
         cbWireframe.setBorder(new EmptyBorder(new Insets(1, 1, 1, 1)));
 
         tblStyles = new ScrollableTable(model);
@@ -177,12 +180,12 @@ public class MapPaintDialog extends ToggleDialog {
     @Override
     public void showNotify() {
         MapPaintStyles.addMapPaintSylesUpdateListener(model);
-        Main.main.menu.wireFrameToggleAction.addButtonModel(cbWireframe.getModel());
+        MainApplication.getMenu().wireFrameToggleAction.addButtonModel(cbWireframe.getModel());
     }
 
     @Override
     public void hideNotify() {
-        Main.main.menu.wireFrameToggleAction.removeButtonModel(cbWireframe.getModel());
+        MainApplication.getMenu().wireFrameToggleAction.removeButtonModel(cbWireframe.getModel());
         MapPaintStyles.removeMapPaintSylesUpdateListener(model);
     }
 
@@ -414,8 +417,8 @@ public class MapPaintDialog extends ToggleDialog {
         @Override
         public void actionPerformed(ActionEvent e) {
             final int[] rows = tblStyles.getSelectedRows();
-            MapPaintStyles.reloadStyles(rows);
-            Main.worker.submit(() -> SwingUtilities.invokeLater(() -> {
+            MapPaintStyleLoader.reloadStyles(rows);
+            MainApplication.worker.submit(() -> SwingUtilities.invokeLater(() -> {
                 selectionModel.setValueIsAdjusting(true);
                 selectionModel.clearSelection();
                 for (int r: rows) {
@@ -459,7 +462,7 @@ public class MapPaintDialog extends ToggleDialog {
             AbstractFileChooser fc = fcm.openFileChooser();
             if (fc == null)
                 return;
-            Main.worker.submit(new SaveToFileTask(s, fc.getSelectedFile()));
+            MainApplication.worker.submit(new SaveToFileTask(s, fc.getSelectedFile()));
         }
 
         private class SaveToFileTask extends PleaseWaitRunnable {
@@ -489,7 +492,7 @@ public class MapPaintDialog extends ToggleDialog {
                         Files.copy(in, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
                     }
                 } catch (IOException e) {
-                    Main.warn(e);
+                    Logging.warn(e);
                     error = true;
                 }
             }
@@ -637,7 +640,7 @@ public class MapPaintDialog extends ToggleDialog {
                     s.closeSourceInputStream(is);
                 }
             } catch (IOException ex) {
-                Main.error(ex);
+                Logging.error(ex);
                 txtSource.append("<ERROR: failed to read file!>");
             }
             txtSource.setCaretPosition(0);

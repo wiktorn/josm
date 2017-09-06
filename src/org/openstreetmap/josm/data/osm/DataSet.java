@@ -29,6 +29,7 @@ import org.openstreetmap.josm.data.Data;
 import org.openstreetmap.josm.data.DataSource;
 import org.openstreetmap.josm.data.ProjectionBounds;
 import org.openstreetmap.josm.data.SelectionChangedListener;
+import org.openstreetmap.josm.data.conflict.ConflictCollection;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.DataSelectionListener.SelectionAddEvent;
@@ -54,6 +55,7 @@ import org.openstreetmap.josm.data.projection.ProjectionChangeListener;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
 import org.openstreetmap.josm.gui.tagging.ac.AutoCompletionManager;
 import org.openstreetmap.josm.tools.ListenerList;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.SubclassFilteredCollection;
 
 /**
@@ -166,6 +168,7 @@ public final class DataSet extends QuadBucketPrimitiveStore implements Data, Pro
     // Events that occurred while dataset was locked but should be fired after write lock is released
     private final List<AbstractDatasetChangedEvent> cachedEvents = new ArrayList<>();
 
+    private String name;
     private UploadPolicy uploadPolicy;
 
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
@@ -193,6 +196,8 @@ public final class DataSet extends QuadBucketPrimitiveStore implements Data, Pro
      * All data sources of this DataSet.
      */
     private final Collection<DataSource> dataSources = new LinkedList<>();
+
+    private final ConflictCollection conflicts = new ConflictCollection();
 
     /**
      * Constructs a new {@code DataSet}.
@@ -257,6 +262,23 @@ public final class DataSet extends QuadBucketPrimitiveStore implements Data, Pro
     }
 
     /**
+     * Constructs a new {@code DataSet} initially filled with the given primitives.
+     * @param osmPrimitives primitives to add to this data set
+     * @since 12726
+     */
+    public DataSet(OsmPrimitive... osmPrimitives) {
+        this();
+        beginUpdate();
+        try {
+            for (OsmPrimitive o : osmPrimitives) {
+                addPrimitive(o);
+            }
+        } finally {
+            endUpdate();
+        }
+    }
+
+    /**
      * Adds a new data source.
      * @param source data source to add
      * @return {@code true} if the collection changed as a result of the call
@@ -311,20 +333,13 @@ public final class DataSet extends QuadBucketPrimitiveStore implements Data, Pro
     }
 
     /**
-     * Maintains a list of used tags for autocompletion.
-     */
-    private AutoCompletionManager autocomplete;
-
-    /**
      * Returns the autocompletion manager, which maintains a list of used tags for autocompletion.
      * @return the autocompletion manager
+     * @deprecated to be removed end of 2017. Use {@link AutoCompletionManager#of(DataSet)} instead.
      */
+    @Deprecated
     public AutoCompletionManager getAutoCompletionManager() {
-        if (autocomplete == null) {
-            autocomplete = new AutoCompletionManager(this);
-            addDataSetListener(autocomplete);
-        }
-        return autocomplete;
+        return AutoCompletionManager.of(this);
     }
 
     /**
@@ -1009,10 +1024,10 @@ public final class DataSet extends QuadBucketPrimitiveStore implements Data, Pro
     private OsmPrimitive getPrimitiveByIdChecked(PrimitiveId primitiveId) {
         OsmPrimitive result = getPrimitiveById(primitiveId);
         if (result == null && primitiveId != null) {
-            Main.warn(tr("JOSM expected to find primitive [{0} {1}] in dataset but it is not there. Please report this "
+            Logging.warn(tr("JOSM expected to find primitive [{0} {1}] in dataset but it is not there. Please report this "
                     + "at {2}. This is not a critical error, it should be safe to continue in your work.",
                     primitiveId.getType(), Long.toString(primitiveId.getUniqueId()), Main.getJOSMWebsite()));
-            Main.error(new Exception());
+            Logging.error(new Exception());
         }
 
         return result;
@@ -1343,6 +1358,34 @@ public final class DataSet extends QuadBucketPrimitiveStore implements Data, Pro
                 }
             }
         }
+    }
+
+    /**
+     * Replies the set of conflicts currently managed in this layer.
+     *
+     * @return the set of conflicts currently managed in this layer
+     * @since 12672
+     */
+    public ConflictCollection getConflicts() {
+        return conflicts;
+    }
+
+    /**
+     * Returns the name of this data set (optional).
+     * @return the name of this data set. Can be {@code null}
+     * @since 12718
+     */
+    public String getName() {
+        return name;
+    }
+
+    /**
+     * Sets the name of this data set.
+     * @param name the new name of this data set. Can be {@code null} to reset it
+     * @since 12718
+     */
+    public void setName(String name) {
+        this.name = name;
     }
 
     /* --------------------------------------------------------------------------------- */

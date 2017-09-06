@@ -1,7 +1,6 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.tools;
 
-import java.awt.GraphicsEnvironment;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -21,15 +20,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.jar.JarInputStream;
 import java.util.zip.ZipEntry;
-
-import javax.swing.JColorChooser;
-import javax.swing.JFileChooser;
-import javax.swing.UIManager;
-
-import org.openstreetmap.gui.jmapviewer.FeatureAdapter.TranslationAdapter;
-import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.gui.util.GuiHelper;
-import org.openstreetmap.josm.gui.widgets.AbstractFileChooser;
 
 /**
  * Internationalisation support.
@@ -95,91 +85,7 @@ public final class I18n {
     private static volatile PluralMode pluralMode = PluralMode.MODE_NOTONE; /* english default */
     private static volatile String loadedCode = "en";
 
-    /* Localization keys for file chooser (and color chooser). */
-    private static final String[] javaInternalMessageKeys = new String[] {
-        /* JFileChooser windows laf */
-        "FileChooser.detailsViewActionLabelText",
-        "FileChooser.detailsViewButtonAccessibleName",
-        "FileChooser.detailsViewButtonToolTipText",
-        "FileChooser.fileAttrHeaderText",
-        "FileChooser.fileDateHeaderText",
-        "FileChooser.fileNameHeaderText",
-        "FileChooser.fileNameLabelText",
-        "FileChooser.fileSizeHeaderText",
-        "FileChooser.fileTypeHeaderText",
-        "FileChooser.filesOfTypeLabelText",
-        "FileChooser.homeFolderAccessibleName",
-        "FileChooser.homeFolderToolTipText",
-        "FileChooser.listViewActionLabelText",
-        "FileChooser.listViewButtonAccessibleName",
-        "FileChooser.listViewButtonToolTipText",
-        "FileChooser.lookInLabelText",
-        "FileChooser.newFolderAccessibleName",
-        "FileChooser.newFolderActionLabelText",
-        "FileChooser.newFolderToolTipText",
-        "FileChooser.refreshActionLabelText",
-        "FileChooser.saveInLabelText",
-        "FileChooser.upFolderAccessibleName",
-        "FileChooser.upFolderToolTipText",
-        "FileChooser.viewMenuLabelText",
 
-        /* JFileChooser gtk laf */
-        "FileChooser.acceptAllFileFilterText",
-        "FileChooser.cancelButtonText",
-        "FileChooser.cancelButtonToolTipText",
-        "FileChooser.deleteFileButtonText",
-        "FileChooser.filesLabelText",
-        "FileChooser.filterLabelText",
-        "FileChooser.foldersLabelText",
-        "FileChooser.newFolderButtonText",
-        "FileChooser.newFolderDialogText",
-        "FileChooser.openButtonText",
-        "FileChooser.openButtonToolTipText",
-        "FileChooser.openDialogTitleText",
-        "FileChooser.pathLabelText",
-        "FileChooser.renameFileButtonText",
-        "FileChooser.renameFileDialogText",
-        "FileChooser.renameFileErrorText",
-        "FileChooser.renameFileErrorTitle",
-        "FileChooser.saveButtonText",
-        "FileChooser.saveButtonToolTipText",
-        "FileChooser.saveDialogTitleText",
-
-        /* JFileChooser motif laf */
-        //"FileChooser.cancelButtonText",
-        //"FileChooser.cancelButtonToolTipText",
-        "FileChooser.enterFileNameLabelText",
-        //"FileChooser.filesLabelText",
-        //"FileChooser.filterLabelText",
-        //"FileChooser.foldersLabelText",
-        "FileChooser.helpButtonText",
-        "FileChooser.helpButtonToolTipText",
-        //"FileChooser.openButtonText",
-        //"FileChooser.openButtonToolTipText",
-        //"FileChooser.openDialogTitleText",
-        //"FileChooser.pathLabelText",
-        //"FileChooser.saveButtonText",
-        //"FileChooser.saveButtonToolTipText",
-        //"FileChooser.saveDialogTitleText",
-        "FileChooser.updateButtonText",
-        "FileChooser.updateButtonToolTipText",
-
-        /* gtk color chooser */
-        "GTKColorChooserPanel.blueText",
-        "GTKColorChooserPanel.colorNameText",
-        "GTKColorChooserPanel.greenText",
-        "GTKColorChooserPanel.hueText",
-        "GTKColorChooserPanel.nameText",
-        "GTKColorChooserPanel.redText",
-        "GTKColorChooserPanel.saturationText",
-        "GTKColorChooserPanel.valueText",
-
-        /* JOptionPane */
-        "OptionPane.okButtonText",
-        "OptionPane.yesButtonText",
-        "OptionPane.noButtonText",
-        "OptionPane.cancelButtonText"
-    };
     private static volatile Map<String, String> strings;
     private static volatile Map<String, String[]> pstrings;
     private static Map<String, PluralMode> languages = new HashMap<>();
@@ -362,7 +268,7 @@ public final class I18n {
     }
 
     private static URL getTranslationFile(String lang) {
-        return Main.class.getResource("/data/"+lang.replace('@', '-')+".lang");
+        return I18n.class.getResource("/data/"+lang.replace('@', '-')+".lang");
     }
 
     /**
@@ -486,7 +392,7 @@ public final class I18n {
             }
         } catch (IOException e) {
             // Ignore
-            Main.trace(e);
+            Logging.trace(e);
         }
     }
 
@@ -516,7 +422,7 @@ public final class I18n {
             }
         } catch (IOException e) {
             // Ignore exception
-            Main.trace(e);
+            Logging.trace(e);
         }
         return false;
     }
@@ -642,7 +548,7 @@ public final class I18n {
                 }
             }
         } catch (IOException e) {
-            Main.trace(e);
+            Logging.trace(e);
             return false;
         }
         if (!s.isEmpty()) {
@@ -669,33 +575,12 @@ public final class I18n {
                 Locale.setDefault(l);
             } else {
                 if (!"en".equals(l.getLanguage())) {
-                    Main.info(tr("Unable to find translation for the locale {0}. Reverting to {1}.",
+                    Logging.info(tr("Unable to find translation for the locale {0}. Reverting to {1}.",
                             LanguageInfo.getDisplayName(l), LanguageInfo.getDisplayName(Locale.getDefault())));
                 } else {
                     strings = null;
                     pstrings = null;
                 }
-            }
-        }
-    }
-
-    /**
-     * Localizations for file chooser dialog.
-     * For some locales (e.g. de, fr) translations are provided
-     * by Java, but not for others (e.g. ru, uk).
-     */
-    public static void translateJavaInternalMessages() {
-        Locale l = Locale.getDefault();
-
-        AbstractFileChooser.setDefaultLocale(l);
-        JFileChooser.setDefaultLocale(l);
-        JColorChooser.setDefaultLocale(l);
-        for (String key : javaInternalMessageKeys) {
-            String us = UIManager.getString(key, Locale.US);
-            String loc = UIManager.getString(key, l);
-            // only provide custom translation if it is not already localized by Java
-            if (us != null && us.equals(loc)) {
-                UIManager.put(key, tr(us));
             }
         }
     }
@@ -731,28 +616,5 @@ public final class I18n {
         //            || ((n % 100) == 4)) ? 3 : 0)));
         }
         return 0;
-    }
-
-    public static TranslationAdapter getTranslationAdapter() {
-        return I18n::tr;
-    }
-
-    /**
-     * Setup special font for Khmer script, as the default Java fonts do not display these characters.
-     *
-     * @since 8282
-     */
-    public static void setupLanguageFonts() {
-        // Use special font for Khmer script, as the default Java font do not display these characters
-        if ("km".equals(LanguageInfo.getJOSMLocaleCode())) {
-            Collection<String> fonts = Arrays.asList(
-                    GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames());
-            for (String f : new String[]{"Khmer UI", "DaunPenh", "MoolBoran"}) {
-                if (fonts.contains(f)) {
-                    GuiHelper.setUIFont(f);
-                    break;
-                }
-            }
-        }
     }
 }

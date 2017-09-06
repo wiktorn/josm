@@ -33,8 +33,6 @@ import javax.swing.SwingUtilities;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.AdaptableAction;
-import org.openstreetmap.josm.actions.search.SearchCompiler;
-import org.openstreetmap.josm.actions.search.SearchCompiler.Match;
 import org.openstreetmap.josm.command.ChangePropertyCommand;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.SequenceCommand;
@@ -43,7 +41,11 @@ import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.Tag;
+import org.openstreetmap.josm.data.osm.search.SearchCompiler;
+import org.openstreetmap.josm.data.osm.search.SearchCompiler.Match;
+import org.openstreetmap.josm.data.osm.search.SearchParseError;
 import org.openstreetmap.josm.gui.ExtendedDialog;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.Notification;
 import org.openstreetmap.josm.gui.dialogs.relation.RelationEditor;
 import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeEvent;
@@ -59,6 +61,7 @@ import org.openstreetmap.josm.gui.tagging.presets.items.Space;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 import org.openstreetmap.josm.tools.template_engine.ParseError;
 import org.openstreetmap.josm.tools.template_engine.TemplateEntry;
@@ -126,7 +129,7 @@ public class TaggingPreset extends AbstractAction implements ActiveLayerChangeLi
      * Use this as default item for "do not select anything".
      */
     public TaggingPreset() {
-        Main.getLayerManager().addActiveLayerChangeListener(this);
+        MainApplication.getLayerManager().addActiveLayerChangeListener(this);
         updateEnabledState();
     }
 
@@ -216,7 +219,7 @@ public class TaggingPreset extends AbstractAction implements ActiveLayerChangeLi
             if (result != null) {
                 GuiHelper.runInEDT(() -> result.attachImageIcon(this));
             } else {
-                Main.warn(toString() + ": " + PRESET_ICON_ERROR_MSG_PREFIX + iconName);
+                Logging.warn(toString() + ": " + PRESET_ICON_ERROR_MSG_PREFIX + iconName);
             }
         });
     }
@@ -235,7 +238,7 @@ public class TaggingPreset extends AbstractAction implements ActiveLayerChangeLi
         try {
             this.nameTemplate = new TemplateParser(pattern).parse();
         } catch (ParseError e) {
-            Main.error("Error while parsing " + pattern + ": " + e.getMessage());
+            Logging.error("Error while parsing " + pattern + ": " + e.getMessage());
             throw new SAXException(e);
         }
     }
@@ -243,8 +246,8 @@ public class TaggingPreset extends AbstractAction implements ActiveLayerChangeLi
     public void setName_template_filter(String filter) throws SAXException {
         try {
             this.nameTemplateFilter = SearchCompiler.compile(filter);
-        } catch (SearchCompiler.ParseError e) {
-            Main.error("Error while parsing" + filter + ": " + e.getMessage());
+        } catch (SearchParseError e) {
+            Logging.error("Error while parsing" + filter + ": " + e.getMessage());
             throw new SAXException(e);
         }
     }
@@ -378,9 +381,9 @@ public class TaggingPreset extends AbstractAction implements ActiveLayerChangeLi
         if (Main.main == null) {
             return;
         }
-        DataSet ds = Main.getLayerManager().getEditDataSet();
+        DataSet ds = Main.main.getEditDataSet();
         Collection<OsmPrimitive> participants = Collections.emptyList();
-        if (Main.main != null && ds != null) {
+        if (ds != null) {
             participants = ds.getSelected();
         }
 
@@ -395,7 +398,7 @@ public class TaggingPreset extends AbstractAction implements ActiveLayerChangeLi
         if (!sel.isEmpty() && answer == DIALOG_ANSWER_APPLY) {
             Command cmd = createCommand(sel, getChangedTags());
             if (cmd != null) {
-                Main.main.undoRedo.add(cmd);
+                MainApplication.undoRedo.add(cmd);
             }
         } else if (answer == DIALOG_ANSWER_NEW_RELATION) {
             final Relation r = new Relation();
@@ -409,7 +412,8 @@ public class TaggingPreset extends AbstractAction implements ActiveLayerChangeLi
                 r.addMember(rm);
                 members.add(rm);
             }
-            SwingUtilities.invokeLater(() -> RelationEditor.getEditor(Main.getLayerManager().getEditLayer(), r, members).setVisible(true));
+            SwingUtilities.invokeLater(() -> RelationEditor.getEditor(
+                    MainApplication.getLayerManager().getEditLayer(), r, members).setVisible(true));
         }
         ds.setSelected(ds.getSelected()); // force update
     }
@@ -551,7 +555,7 @@ public class TaggingPreset extends AbstractAction implements ActiveLayerChangeLi
     }
 
     protected final void updateEnabledState() {
-        setEnabled(Main.main != null && Main.getLayerManager().getEditDataSet() != null);
+        setEnabled(Main.main != null && Main.main.getEditDataSet() != null);
     }
 
     @Override
@@ -621,7 +625,7 @@ public class TaggingPreset extends AbstractAction implements ActiveLayerChangeLi
         @Override
         public void actionPerformed(ActionEvent ae) {
             String res = getToolbarString();
-            Main.toolbar.addCustomButton(res, toolbarIndex, true);
+            MainApplication.getToolbar().addCustomButton(res, toolbarIndex, true);
         }
     }
 

@@ -52,6 +52,7 @@ public final class HttpClient {
     private int maxRedirects = Main.pref.getInteger("socket.maxredirects", 5);
     private boolean useCache;
     private String reasonForRequest;
+    private String outputMessage = tr("Uploading data ...");
     private HttpURLConnection connection; // to allow disconnecting before `response` is set
     private Response response;
     private boolean finishOnCloseOutput = true;
@@ -110,11 +111,12 @@ public final class HttpClient {
         progressMonitor.indeterminateSubTask(null);
 
         if ("PUT".equals(requestMethod) || "POST".equals(requestMethod) || "DELETE".equals(requestMethod)) {
-            Main.info("{0} {1} ({2}) ...", requestMethod, url, Utils.getSizeString(requestBody.length, Locale.getDefault()));
+            Logging.info("{0} {1} ({2}) ...", requestMethod, url, Utils.getSizeString(requestBody.length, Locale.getDefault()));
             connection.setFixedLengthStreamingMode(requestBody.length);
             connection.setDoOutput(true);
             try (OutputStream out = new BufferedOutputStream(
-                    new ProgressOutputStream(connection.getOutputStream(), requestBody.length, progressMonitor, finishOnCloseOutput))) {
+                    new ProgressOutputStream(connection.getOutputStream(), requestBody.length,
+                            progressMonitor, outputMessage, finishOnCloseOutput))) {
                 out.write(requestBody);
             }
         }
@@ -124,22 +126,22 @@ public final class HttpClient {
             try {
                 connection.connect();
                 final boolean hasReason = reasonForRequest != null && !reasonForRequest.isEmpty();
-                Main.info("{0} {1}{2} -> {3}{4}",
+                Logging.info("{0} {1}{2} -> {3}{4}",
                         requestMethod, url, hasReason ? (" (" + reasonForRequest + ')') : "",
                         connection.getResponseCode(),
                         connection.getContentLengthLong() > 0
                                 ? (" (" + Utils.getSizeString(connection.getContentLengthLong(), Locale.getDefault()) + ')')
                                 : ""
                 );
-                if (Main.isDebugEnabled()) {
-                    Main.debug("RESPONSE: " + connection.getHeaderFields());
+                if (Logging.isDebugEnabled()) {
+                    Logging.debug("RESPONSE: {0}", connection.getHeaderFields());
                 }
                 if (DefaultAuthenticator.getInstance().isEnabled() && connection.getResponseCode() == HttpURLConnection.HTTP_UNAUTHORIZED) {
                     DefaultAuthenticator.getInstance().addFailedCredentialHost(url.getHost());
                 }
             } catch (IOException e) {
-                Main.info("{0} {1} -> !!!", requestMethod, url);
-                Main.warn(e);
+                Logging.info("{0} {1} -> !!!", requestMethod, url);
+                Logging.warn(e);
                 //noinspection ThrowableResultOfMethodCallIgnored
                 Main.addNetworkError(url, Utils.getRootCause(e));
                 throw e;
@@ -153,7 +155,7 @@ public final class HttpClient {
                 } else if (maxRedirects > 0) {
                     url = new URL(url, redirectLocation);
                     maxRedirects--;
-                    Main.info(tr("Download redirected to ''{0}''", redirectLocation));
+                    Logging.info(tr("Download redirected to ''{0}''", redirectLocation));
                     return connect();
                 } else if (maxRedirects == 0) {
                     String msg = tr("Too many redirects to the download URL detected. Aborting.");
@@ -209,13 +211,13 @@ public final class HttpClient {
                         ) {
                     String content = this.fetchContent();
                     if (content.isEmpty()) {
-                        Main.debug("Server did not return any body");
+                        Logging.debug("Server did not return any body");
                     } else {
-                        Main.debug("Response body: ");
-                        Main.debug(this.fetchContent());
+                        Logging.debug("Response body: ");
+                        Logging.debug(this.fetchContent());
                     }
                 } else {
-                    Main.debug("Server returned content: {0} of length: {1}. Not printing.", contentType, this.getContentLength());
+                    Logging.debug("Server returned content: {0} of length: {1}. Not printing.", contentType, this.getContentLength());
                 }
             }
         }
@@ -282,7 +284,7 @@ public final class HttpClient {
             try {
                 in = connection.getInputStream();
             } catch (IOException ioe) {
-                Main.debug(ioe);
+                Logging.debug(ioe);
                 in = Optional.ofNullable(connection.getErrorStream()).orElseGet(() -> new ByteArrayInputStream(new byte[]{}));
             }
             in = new ProgressInputStream(in, getContentLength(), monitor);
@@ -290,7 +292,7 @@ public final class HttpClient {
             Compression compression = Compression.NONE;
             if (uncompress) {
                 final String contentType = getContentType();
-                Main.debug("Uncompressing input stream according to Content-Type header: {0}", contentType);
+                Logging.debug("Uncompressing input stream according to Content-Type header: {0}", contentType);
                 compression = Compression.forContentType(contentType);
             }
             if (uncompressAccordingToContentDisposition && Compression.NONE.equals(compression)) {
@@ -298,7 +300,7 @@ public final class HttpClient {
                 final Matcher matcher = Pattern.compile("filename=\"([^\"]+)\"").matcher(
                         contentDisposition != null ? contentDisposition : "");
                 if (matcher.find()) {
-                    Main.debug("Uncompressing input stream according to Content-Disposition header: {0}", contentDisposition);
+                    Logging.debug("Uncompressing input stream according to Content-Disposition header: {0}", contentDisposition);
                     compression = Compression.byExtension(matcher.group(1));
                 }
             }
@@ -621,6 +623,18 @@ public final class HttpClient {
     }
 
     /**
+     * Sets the output message to be displayed in progress monitor for {@code PUT}, {@code POST} and {@code DELETE} methods.
+     * Defaults to "Uploading data ..." (translated). Has no effect for {@code GET} or any other method.
+     * @param outputMessage message to be displayed in progress monitor
+     * @return {@code this}
+     * @since 12711
+     */
+    public HttpClient setOutputMessage(String outputMessage) {
+        this.outputMessage = outputMessage;
+        return this;
+    }
+
+    /**
      * Sets whether the progress monitor task will be finished when the output stream is closed. This is {@code true} by default.
      * @param finishOnCloseOutput whether the progress monitor task will be finished when the output stream is closed
      * @return {@code this}
@@ -653,15 +667,17 @@ public final class HttpClient {
     }
 
     private static void disconnect(final HttpURLConnection connection) {
-        // Fix upload aborts - see #263
-        connection.setConnectTimeout(100);
-        connection.setReadTimeout(100);
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException ex) {
-            Main.warn("InterruptedException in " + HttpClient.class + " during cancel");
-            Thread.currentThread().interrupt();
+        if (connection != null) {
+            // Fix upload aborts - see #263
+            connection.setConnectTimeout(100);
+            connection.setReadTimeout(100);
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException ex) {
+                Logging.warn("InterruptedException in " + HttpClient.class + " during cancel");
+                Thread.currentThread().interrupt();
+            }
+            connection.disconnect();
         }
-        connection.disconnect();
     }
 }

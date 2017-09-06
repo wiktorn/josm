@@ -39,22 +39,27 @@ import org.openstreetmap.josm.data.preferences.CachingProperty;
 import org.openstreetmap.josm.data.preferences.ColorProperty;
 import org.openstreetmap.josm.data.preferences.IntegerProperty;
 import org.openstreetmap.josm.data.preferences.StrokeProperty;
+import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.draw.MapViewPath;
 import org.openstreetmap.josm.gui.draw.SymbolShape;
 import org.openstreetmap.josm.gui.layer.AbstractMapViewPaintable;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
-import org.openstreetmap.josm.gui.util.ModifierListener;
+import org.openstreetmap.josm.gui.util.ModifierExListener;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Pair;
 import org.openstreetmap.josm.tools.Shortcut;
 
 /**
+ * A special map mode that is optimized for improving way geometry.
+ * (by efficiently moving, adding and deleting way-nodes)
+ *
  * @author Alexander Kachkaev &lt;alexander@kachkaev.ru&gt;, 2011
  */
 public class ImproveWayAccuracyAction extends MapMode implements
-        SelectionChangedListener, ModifierListener {
+        SelectionChangedListener, ModifierExListener {
 
     private static final String CROSSHAIR = "crosshair";
 
@@ -134,7 +139,8 @@ public class ImproveWayAccuracyAction extends MapMode implements
         super.enterMode();
         readPreferences();
 
-        mv = Main.map.mapView;
+        MapFrame map = MainApplication.getMap();
+        mv = map.mapView;
         mousePos = null;
         oldModeHelpText = "";
 
@@ -144,12 +150,12 @@ public class ImproveWayAccuracyAction extends MapMode implements
 
         updateStateByCurrentSelection();
 
-        Main.map.mapView.addMouseListener(this);
-        Main.map.mapView.addMouseMotionListener(this);
-        Main.map.mapView.addTemporaryLayer(temporaryLayer);
+        map.mapView.addMouseListener(this);
+        map.mapView.addMouseMotionListener(this);
+        map.mapView.addTemporaryLayer(temporaryLayer);
         DataSet.addSelectionListener(this);
 
-        Main.map.keyDetector.addModifierListener(this);
+        map.keyDetector.addModifierExListener(this);
     }
 
     @Override
@@ -161,12 +167,13 @@ public class ImproveWayAccuracyAction extends MapMode implements
     public void exitMode() {
         super.exitMode();
 
-        Main.map.mapView.removeMouseListener(this);
-        Main.map.mapView.removeMouseMotionListener(this);
-        Main.map.mapView.removeTemporaryLayer(temporaryLayer);
+        MapFrame map = MainApplication.getMap();
+        map.mapView.removeMouseListener(this);
+        map.mapView.removeMouseMotionListener(this);
+        map.mapView.removeTemporaryLayer(temporaryLayer);
         DataSet.removeSelectionListener(this);
 
-        Main.map.keyDetector.removeModifierListener(this);
+        map.keyDetector.removeModifierExListener(this);
         temporaryLayer.invalidate();
     }
 
@@ -175,8 +182,9 @@ public class ImproveWayAccuracyAction extends MapMode implements
         String newModeHelpText = getModeHelpText();
         if (!newModeHelpText.equals(oldModeHelpText)) {
             oldModeHelpText = newModeHelpText;
-            Main.map.statusLine.setHelpText(newModeHelpText);
-            Main.map.statusLine.repaint();
+            MapFrame map = MainApplication.getMap();
+            map.statusLine.setHelpText(newModeHelpText);
+            map.statusLine.repaint();
         }
     }
 
@@ -343,11 +351,11 @@ public class ImproveWayAccuracyAction extends MapMode implements
     // Event handlers
     // -------------------------------------------------------------------------
     @Override
-    public void modifiersChanged(int modifiers) {
-        if (!Main.isDisplayingMapView() || !Main.map.mapView.isActiveLayerDrawable()) {
+    public void modifiersExChanged(int modifiers) {
+        if (!MainApplication.isDisplayingMapView() || !MainApplication.getMap().mapView.isActiveLayerDrawable()) {
             return;
         }
-        updateKeyModifiers(modifiers);
+        updateKeyModifiersEx(modifiers);
         updateCursorDependentObjectsIfNeeded();
         updateCursor();
         updateStatusLine();
@@ -390,12 +398,13 @@ public class ImproveWayAccuracyAction extends MapMode implements
             return;
         }
 
+        DataSet ds = getLayerManager().getEditDataSet();
         updateKeyModifiers(e);
         mousePos = e.getPoint();
 
         if (state == State.SELECTING) {
             if (targetWay != null) {
-                getLayerManager().getEditDataSet().setSelected(targetWay.getPrimitiveId());
+                ds.setSelected(targetWay.getPrimitiveId());
                 updateStateByCurrentSelection();
             }
         } else if (state == State.IMPROVING) {
@@ -416,7 +425,7 @@ public class ImproveWayAccuracyAction extends MapMode implements
                 // Creating a new node
                 Node virtualNode = new Node(mv.getEastNorth(mousePos.x,
                         mousePos.y));
-                virtualCmds.add(new AddCommand(virtualNode));
+                virtualCmds.add(new AddCommand(ds, virtualNode));
 
                 // Looking for candidateSegment copies in ways that are
                 // referenced
@@ -464,7 +473,7 @@ public class ImproveWayAccuracyAction extends MapMode implements
                         "Add a new node to {0} ways",
                         virtualSegments.size(), virtualSegments.size());
 
-                Main.main.undoRedo.add(new SequenceCommand(text, virtualCmds));
+                MainApplication.undoRedo.add(new SequenceCommand(text, virtualCmds));
 
             } else if (alt && !ctrl && candidateNode != null) {
                 // Deleting the highlighted node
@@ -479,21 +488,21 @@ public class ImproveWayAccuracyAction extends MapMode implements
                     nodes.remove(candidateNode);
                     newWay.setNodes(nodes);
                     if (nodes.size() < 2) {
-                        final Command deleteCmd = DeleteCommand.delete(getLayerManager().getEditLayer(), Collections.singleton(targetWay), true);
+                        final Command deleteCmd = DeleteCommand.delete(Collections.singleton(targetWay), true);
                         if (deleteCmd != null) {
-                            Main.main.undoRedo.add(deleteCmd);
+                            MainApplication.undoRedo.add(deleteCmd);
                         }
                     } else {
-                        Main.main.undoRedo.add(new ChangeCommand(targetWay, newWay));
+                        MainApplication.undoRedo.add(new ChangeCommand(targetWay, newWay));
                     }
                 } else if (candidateNode.isTagged()) {
                     JOptionPane.showMessageDialog(Main.parent,
                             tr("Cannot delete node that has tags"),
                             tr("Error"), JOptionPane.ERROR_MESSAGE);
                 } else {
-                    final Command deleteCmd = DeleteCommand.delete(getLayerManager().getEditLayer(), Collections.singleton(candidateNode), true);
+                    final Command deleteCmd = DeleteCommand.delete(Collections.singleton(candidateNode), true);
                     if (deleteCmd != null) {
-                        Main.main.undoRedo.add(deleteCmd);
+                        MainApplication.undoRedo.add(deleteCmd);
                     }
                 }
 
@@ -503,7 +512,7 @@ public class ImproveWayAccuracyAction extends MapMode implements
                 EastNorth nodeEN = candidateNode.getEastNorth();
                 EastNorth cursorEN = mv.getEastNorth(mousePos.x, mousePos.y);
 
-                Main.main.undoRedo.add(new MoveCommand(candidateNode, cursorEN.east() - nodeEN.east(), cursorEN.north() - nodeEN.north()));
+                MainApplication.undoRedo.add(new MoveCommand(candidateNode, cursorEN.east() - nodeEN.east(), cursorEN.north() - nodeEN.north()));
             }
         }
 

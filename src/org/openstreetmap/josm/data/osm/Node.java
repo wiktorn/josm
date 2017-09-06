@@ -99,6 +99,22 @@ public final class Node extends OsmPrimitive implements INode {
         return lon;
     }
 
+    /**
+     * Replies the projected east/north coordinates.
+     * <p>
+     * Uses the {@link Main#getProjection() global projection} to project the lat/lon-coordinates.
+     * <p>
+     * Method {@link org.openstreetmap.josm.data.coor.ILatLon#getEastNorth()} of
+     * implemented interface <code>ILatLon</code> is deprecated, but this method is not.
+     * @return the east north coordinates or {@code null} if {@link #isLatLonKnown()}
+     * is false.
+     */
+    @SuppressWarnings("deprecation")
+    @Override
+    public EastNorth getEastNorth() {
+        return getEastNorth(Main.getProjection());
+    }
+
     @Override
     public EastNorth getEastNorth(Projecting projection) {
         if (!isLatLonKnown()) return null;

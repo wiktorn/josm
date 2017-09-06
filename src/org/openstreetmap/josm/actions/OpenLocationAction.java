@@ -40,9 +40,11 @@ import org.openstreetmap.josm.actions.downloadtasks.PostDownloadHandler;
 import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
-import org.openstreetmap.josm.gui.progress.PleaseWaitProgressMonitor;
+import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.progress.swing.PleaseWaitProgressMonitor;
 import org.openstreetmap.josm.gui.widgets.HistoryComboBox;
 import org.openstreetmap.josm.tools.GBC;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -165,7 +167,7 @@ public class OpenLocationAction extends JosmAction {
                     try {
                         return taskClass.getConstructor().newInstance();
                     } catch (ReflectiveOperationException e) {
-                        Main.error(e);
+                        Logging.error(e);
                         return null;
                     }
                 })
@@ -187,7 +189,7 @@ public class OpenLocationAction extends JosmAction {
                     DownloadTask task = taskClass.getConstructor().newInstance();
                     result.append(task.acceptsDocumentationSummary());
                 } catch (ReflectiveOperationException e) {
-                    Main.error(e);
+                    Logging.error(e);
                 }
             }
         }
@@ -231,9 +233,9 @@ public class OpenLocationAction extends JosmAction {
         List<Future<?>> result = new ArrayList<>();
         for (final DownloadTask task : tasks) {
             try {
-                result.add(Main.worker.submit(new PostDownloadHandler(task, task.loadUrl(newLayer, url, monitor))));
+                result.add(MainApplication.worker.submit(new PostDownloadHandler(task, task.loadUrl(newLayer, url, monitor))));
             } catch (IllegalArgumentException e) {
-                Main.error(e);
+                Logging.error(e);
             }
         }
         return result;

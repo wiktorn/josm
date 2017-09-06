@@ -5,7 +5,6 @@ import static org.openstreetmap.josm.tools.I18n.marktr;
 import static org.openstreetmap.josm.tools.I18n.tr;
 import static org.openstreetmap.josm.tools.I18n.trn;
 
-import java.awt.GridBagLayout;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -21,13 +20,11 @@ import java.util.Objects;
 import java.util.Set;
 
 import javax.swing.Icon;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.SplitWayAction;
 import org.openstreetmap.josm.actions.SplitWayAction.SplitWayResult;
 import org.openstreetmap.josm.data.osm.DataSet;
+import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.OsmPrimitiveType;
@@ -36,17 +33,15 @@ import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationToChildReference;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.osm.WaySegment;
-import org.openstreetmap.josm.gui.ConditionalOptionPaneUtil;
-import org.openstreetmap.josm.gui.DefaultNameFormatter;
-import org.openstreetmap.josm.gui.dialogs.DeleteFromRelationConfirmationDialog;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
-import org.openstreetmap.josm.gui.widgets.JMultilineLabel;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
  * A command to delete a number of primitives from the dataset.
+ * To be used correctly, this class requires an initial call to {@link #setDeletionCallback(DeletionCallback)} to
+ * allow interactive confirmation actions.
  * @since 23
  */
 public class DeleteCommand extends Command {
@@ -74,8 +69,51 @@ public class DeleteCommand extends Command {
 
         @Override
         public String toString() {
-            return "DeleteChildCommand [osm=" + osm + "]";
+            return "DeleteChildCommand [osm=" + osm + ']';
         }
+    }
+
+    /**
+     * Called when a deletion operation must be checked and confirmed by user.
+     * @since 12749
+     */
+    public interface DeletionCallback {
+        /**
+         * Check whether user is about to delete data outside of the download area.
+         * Request confirmation if he is.
+         * @param primitives the primitives to operate on
+         * @param ignore {@code null} or a primitive to be ignored
+         * @return true, if operating on outlying primitives is OK; false, otherwise
+         */
+        boolean checkAndConfirmOutlyingDelete(Collection<? extends OsmPrimitive> primitives, Collection<? extends OsmPrimitive> ignore);
+
+        /**
+         * Confirm before deleting a relation, as it is a common newbie error.
+         * @param relations relation to check for deletion
+         * @return {@code true} if user confirms the deletion
+         * @since 12760
+         */
+        boolean confirmRelationDeletion(Collection<Relation> relations);
+
+        /**
+         * Confirm before removing a collection of primitives from their parent relations.
+         * @param references the list of relation-to-child references
+         * @return {@code true} if user confirms the deletion
+         * @since 12763
+         */
+        boolean confirmDeletionFromRelation(Collection<RelationToChildReference> references);
+    }
+
+    private static DeletionCallback callback;
+
+    /**
+     * Sets the global {@link DeletionCallback}.
+     * @param deletionCallback the new {@code DeletionCallback}. Must not be null
+     * @throws NullPointerException if {@code deletionCallback} is null
+     * @since 12749
+     */
+    public static void setDeletionCallback(DeletionCallback deletionCallback) {
+        callback = Objects.requireNonNull(deletionCallback);
     }
 
     /**
@@ -87,13 +125,11 @@ public class DeleteCommand extends Command {
     /**
      * Constructor. Deletes a collection of primitives in the current edit layer.
      *
-     * @param data the primitives to delete. Must neither be null nor empty.
+     * @param data the primitives to delete. Must neither be null nor empty, and belong to a data set
      * @throws IllegalArgumentException if data is null or empty
      */
     public DeleteCommand(Collection<? extends OsmPrimitive> data) {
-        CheckParameterUtil.ensureParameterNotNull(data, "data");
-        this.toDelete = data;
-        checkConsistency();
+        this(data.iterator().next().getDataSet(), data);
     }
 
     /**
@@ -107,27 +143,42 @@ public class DeleteCommand extends Command {
     }
 
     /**
-     * Constructor for a single data item. Use the collection constructor to delete multiple
-     * objects.
+     * Constructor for a single data item. Use the collection constructor to delete multiple objects.
      *
      * @param layer the layer context for deleting this primitive. Must not be null.
      * @param data the primitive to delete. Must not be null.
      * @throws IllegalArgumentException if data is null
      * @throws IllegalArgumentException if layer is null
+     * @deprecated to be removed end of 2017. Use {@link #DeleteCommand(DataSet, OsmPrimitive)} instead
      */
+    @Deprecated
     public DeleteCommand(OsmDataLayer layer, OsmPrimitive data) {
         this(layer, Collections.singleton(data));
     }
 
     /**
-     * Constructor for a collection of data to be deleted in the context of
-     * a specific layer
+     * Constructor for a single data item. Use the collection constructor to delete multiple objects.
+     *
+     * @param dataset the data set context for deleting this primitive. Must not be null.
+     * @param data the primitive to delete. Must not be null.
+     * @throws IllegalArgumentException if data is null
+     * @throws IllegalArgumentException if layer is null
+     * @since 12718
+     */
+    public DeleteCommand(DataSet dataset, OsmPrimitive data) {
+        this(dataset, Collections.singleton(data));
+    }
+
+    /**
+     * Constructor for a collection of data to be deleted in the context of a specific layer
      *
      * @param layer the layer context for deleting these primitives. Must not be null.
      * @param data the primitives to delete. Must neither be null nor empty.
      * @throws IllegalArgumentException if layer is null
      * @throws IllegalArgumentException if data is null or empty
+     * @deprecated to be removed end of 2017. Use {@link #DeleteCommand(DataSet, Collection)} instead
      */
+    @Deprecated
     public DeleteCommand(OsmDataLayer layer, Collection<? extends OsmPrimitive> data) {
         super(layer);
         CheckParameterUtil.ensureParameterNotNull(data, "data");
@@ -136,8 +187,7 @@ public class DeleteCommand extends Command {
     }
 
     /**
-     * Constructor for a collection of data to be deleted in the context of
-     * a specific data set
+     * Constructor for a collection of data to be deleted in the context of a specific data set
      *
      * @param dataset the dataset context for deleting these primitives. Must not be null.
      * @param data the primitives to delete. Must neither be null nor empty.
@@ -285,18 +335,11 @@ public class DeleteCommand extends Command {
      * @param silent  Set to true if the user should not be bugged with additional dialogs
      * @return command A command to perform the deletions, or null of there is nothing to delete.
      * @throws IllegalArgumentException if layer is null
+     * @deprecated to be removed end of 2017. Use {@link #deleteWithReferences(Collection, boolean)} instead
      */
+    @Deprecated
     public static Command deleteWithReferences(OsmDataLayer layer, Collection<? extends OsmPrimitive> selection, boolean silent) {
-        CheckParameterUtil.ensureParameterNotNull(layer, "layer");
-        if (selection == null || selection.isEmpty()) return null;
-        Set<OsmPrimitive> parents = OsmPrimitive.getReferrer(selection);
-        parents.addAll(selection);
-
-        if (parents.isEmpty())
-            return null;
-        if (!silent && !checkAndConfirmOutlyingDelete(parents, null))
-            return null;
-        return new DeleteCommand(layer, parents);
+        return deleteWithReferences(selection, silent);
     }
 
     /**
@@ -306,13 +349,56 @@ public class DeleteCommand extends Command {
      * If a way is deleted, all relations the way is member of are also deleted.
      * If a way is deleted, only the way and no nodes are deleted.
      *
-     * @param layer the {@link OsmDataLayer} in whose context primitives are deleted. Must not be null.
+     * @param selection The list of all object to be deleted.
+     * @param silent  Set to true if the user should not be bugged with additional dialogs
+     * @return command A command to perform the deletions, or null of there is nothing to delete.
+     * @throws IllegalArgumentException if layer is null
+     * @since 12718
+     */
+    public static Command deleteWithReferences(Collection<? extends OsmPrimitive> selection, boolean silent) {
+        if (selection == null || selection.isEmpty()) return null;
+        Set<OsmPrimitive> parents = OsmPrimitive.getReferrer(selection);
+        parents.addAll(selection);
+
+        if (parents.isEmpty())
+            return null;
+        if (!silent && !callback.checkAndConfirmOutlyingDelete(parents, null))
+            return null;
+        return new DeleteCommand(parents.iterator().next().getDataSet(), parents);
+    }
+
+    /**
+     * Delete the primitives and everything they reference.
+     *
+     * If a node is deleted, the node and all ways and relations the node is part of are deleted as well.
+     * If a way is deleted, all relations the way is member of are also deleted.
+     * If a way is deleted, only the way and no nodes are deleted.
+     *
+     * @param layer unused
      * @param selection The list of all object to be deleted.
      * @return command A command to perform the deletions, or null of there is nothing to delete.
      * @throws IllegalArgumentException if layer is null
+     * @deprecated to be removed end of 2017. Use {@link #deleteWithReferences(Collection)} instead
      */
+    @Deprecated
     public static Command deleteWithReferences(OsmDataLayer layer, Collection<? extends OsmPrimitive> selection) {
-        return deleteWithReferences(layer, selection, false);
+        return deleteWithReferences(selection);
+    }
+
+    /**
+     * Delete the primitives and everything they reference.
+     *
+     * If a node is deleted, the node and all ways and relations the node is part of are deleted as well.
+     * If a way is deleted, all relations the way is member of are also deleted.
+     * If a way is deleted, only the way and no nodes are deleted.
+     *
+     * @param selection The list of all object to be deleted.
+     * @return command A command to perform the deletions, or null of there is nothing to delete.
+     * @throws IllegalArgumentException if layer is null
+     * @since 12718
+     */
+    public static Command deleteWithReferences(Collection<? extends OsmPrimitive> selection) {
+        return deleteWithReferences(selection, false);
     }
 
     /**
@@ -324,12 +410,31 @@ public class DeleteCommand extends Command {
      * If this would cause ways with less than 2 nodes to be created, delete these ways instead. If
      * they are part of a relation, inform the user and do not delete.
      *
-     * @param layer the {@link OsmDataLayer} in whose context the primitives are deleted
+     * @param layer unused
      * @param selection the objects to delete.
      * @return command a command to perform the deletions, or null if there is nothing to delete.
+     * @deprecated to be removed end of 2017. Use {@link #delete(Collection)} instead
      */
+    @Deprecated
     public static Command delete(OsmDataLayer layer, Collection<? extends OsmPrimitive> selection) {
-        return delete(layer, selection, true, false);
+        return delete(selection);
+    }
+
+    /**
+     * Try to delete all given primitives.
+     *
+     * If a node is used by a way, it's removed from that way. If a node or a way is used by a
+     * relation, inform the user and do not delete.
+     *
+     * If this would cause ways with less than 2 nodes to be created, delete these ways instead. If
+     * they are part of a relation, inform the user and do not delete.
+     *
+     * @param selection the objects to delete.
+     * @return command a command to perform the deletions, or null if there is nothing to delete.
+     * @since 12718
+     */
+    public static Command delete(Collection<? extends OsmPrimitive> selection) {
+        return delete(selection, true, false);
     }
 
     /**
@@ -375,14 +480,16 @@ public class DeleteCommand extends Command {
      * If this would cause ways with less than 2 nodes to be created, delete these ways instead. If
      * they are part of a relation, inform the user and do not delete.
      *
-     * @param layer the {@link OsmDataLayer} in whose context the primitives are deleted
+     * @param layer unused
      * @param selection the objects to delete.
      * @param alsoDeleteNodesInWay <code>true</code> if nodes should be deleted as well
      * @return command a command to perform the deletions, or null if there is nothing to delete.
+     * @deprecated to be removed end of 2017. Use {@link #delete(Collection, boolean)} instead
      */
+    @Deprecated
     public static Command delete(OsmDataLayer layer, Collection<? extends OsmPrimitive> selection,
             boolean alsoDeleteNodesInWay) {
-        return delete(layer, selection, alsoDeleteNodesInWay, false /* not silent */);
+        return delete(selection, alsoDeleteNodesInWay);
     }
 
     /**
@@ -394,21 +501,60 @@ public class DeleteCommand extends Command {
      * If this would cause ways with less than 2 nodes to be created, delete these ways instead. If
      * they are part of a relation, inform the user and do not delete.
      *
-     * @param layer the {@link OsmDataLayer} in whose context the primitives are deleted
+     * @param selection the objects to delete.
+     * @param alsoDeleteNodesInWay <code>true</code> if nodes should be deleted as well
+     * @return command a command to perform the deletions, or null if there is nothing to delete.
+     * @since 12718
+     */
+    public static Command delete(Collection<? extends OsmPrimitive> selection, boolean alsoDeleteNodesInWay) {
+        return delete(selection, alsoDeleteNodesInWay, false /* not silent */);
+    }
+
+    /**
+     * Try to delete all given primitives.
+     *
+     * If a node is used by a way, it's removed from that way. If a node or a way is used by a
+     * relation, inform the user and do not delete.
+     *
+     * If this would cause ways with less than 2 nodes to be created, delete these ways instead. If
+     * they are part of a relation, inform the user and do not delete.
+     *
+     * @param layer unused
      * @param selection the objects to delete.
      * @param alsoDeleteNodesInWay <code>true</code> if nodes should be deleted as well
      * @param silent set to true if the user should not be bugged with additional questions
      * @return command a command to perform the deletions, or null if there is nothing to delete.
+     * @deprecated to be removed end of 2017. Use {@link #delete(Collection, boolean, boolean)} instead
      */
+    @Deprecated
     public static Command delete(OsmDataLayer layer, Collection<? extends OsmPrimitive> selection,
             boolean alsoDeleteNodesInWay, boolean silent) {
+        return delete(selection, alsoDeleteNodesInWay, silent);
+    }
+
+    /**
+     * Try to delete all given primitives.
+     *
+     * If a node is used by a way, it's removed from that way. If a node or a way is used by a
+     * relation, inform the user and do not delete.
+     *
+     * If this would cause ways with less than 2 nodes to be created, delete these ways instead. If
+     * they are part of a relation, inform the user and do not delete.
+     *
+     * @param selection the objects to delete.
+     * @param alsoDeleteNodesInWay <code>true</code> if nodes should be deleted as well
+     * @param silent set to true if the user should not be bugged with additional questions
+     * @return command a command to perform the deletions, or null if there is nothing to delete.
+     * @since 12718
+     */
+    public static Command delete(Collection<? extends OsmPrimitive> selection, boolean alsoDeleteNodesInWay, boolean silent) {
         if (selection == null || selection.isEmpty())
             return null;
 
         Set<OsmPrimitive> primitivesToDelete = new HashSet<>(selection);
 
         Collection<Relation> relationsToDelete = Utils.filteredCollection(primitivesToDelete, Relation.class);
-        if (!relationsToDelete.isEmpty() && !silent && !confirmRelationDeletion(relationsToDelete))
+        if (!relationsToDelete.isEmpty() && !silent && !callback.confirmRelationDeletion(relationsToDelete))
             return null;
 
         if (alsoDeleteNodesInWay) {
@@ -417,7 +563,7 @@ public class DeleteCommand extends Command {
             primitivesToDelete.addAll(nodesToDelete);
         }
 
-        if (!silent && !checkAndConfirmOutlyingDelete(
+        if (!silent && !callback.checkAndConfirmOutlyingDelete(
                 primitivesToDelete, Utils.filteredCollection(primitivesToDelete, Way.class)))
             return null;
 
@@ -439,12 +585,8 @@ public class DeleteCommand extends Command {
         if (!silent) {
             Set<RelationToChildReference> references = RelationToChildReference.getRelationToChildReferences(primitivesToDelete);
             references.removeIf(ref -> ref.getParent().isDeleted());
-            if (!references.isEmpty()) {
-                DeleteFromRelationConfirmationDialog dialog = DeleteFromRelationConfirmationDialog.getInstance();
-                dialog.getModel().populate(references);
-                dialog.setVisible(true);
-                if (dialog.isCanceled())
-                    return null;
+            if (!references.isEmpty() && !callback.confirmDeletionFromRelation(references)) {
+                return null;
             }
         }
 
@@ -459,8 +601,7 @@ public class DeleteCommand extends Command {
         // build the delete command
         //
         if (!primitivesToDelete.isEmpty()) {
-            cmds.add(layer != null ? new DeleteCommand(layer, primitivesToDelete) :
-                new DeleteCommand(primitivesToDelete.iterator().next().getDataSet(), primitivesToDelete));
+            cmds.add(new DeleteCommand(primitivesToDelete.iterator().next().getDataSet(), primitivesToDelete));
         }
 
         return new SequenceCommand(tr("Delete"), cmds);
@@ -468,13 +609,25 @@ public class DeleteCommand extends Command {
 
     /**
      * Create a command that deletes a single way segment. The way may be split by this.
-     * @param layer The layer the segment is in.
+     * @param layer unused
      * @param ws The way segment that should be deleted
      * @return A matching command to safely delete that segment.
+     * @deprecated to be removed end of 2017. Use {@link #deleteWaySegment(WaySegment)} instead
      */
+    @Deprecated
     public static Command deleteWaySegment(OsmDataLayer layer, WaySegment ws) {
+        return deleteWaySegment(ws);
+    }
+
+    /**
+     * Create a command that deletes a single way segment. The way may be split by this.
+     * @param ws The way segment that should be deleted
+     * @return A matching command to safely delete that segment.
+     * @since 12718
+     */
+    public static Command deleteWaySegment(WaySegment ws) {
         if (ws.way.getNodesCount() < 3)
-            return delete(layer, Collections.singleton(ws.way), false);
+            return delete(Collections.singleton(ws.way), false);
 
         if (ws.way.isClosed()) {
             // If the way is circular (first and last nodes are the same), the way shouldn't be splitted
@@ -505,50 +658,9 @@ public class DeleteCommand extends Command {
             wnew.setNodes(n1);
             return new ChangeCommand(ws.way, wnew);
         } else {
-            SplitWayResult split = SplitWayAction.splitWay(layer, ws.way, Arrays.asList(n1, n2), Collections.<OsmPrimitive>emptyList());
+            SplitWayResult split = SplitWayAction.splitWay(ws.way, Arrays.asList(n1, n2), Collections.<OsmPrimitive>emptyList());
             return split != null ? split.getCommand() : null;
         }
-    }
-
-    public static boolean checkAndConfirmOutlyingDelete(Collection<? extends OsmPrimitive> primitives,
-            Collection<? extends OsmPrimitive> ignore) {
-        return Command.checkAndConfirmOutlyingOperation("delete",
-                tr("Delete confirmation"),
-                tr("You are about to delete nodes outside of the area you have downloaded."
-                        + "<br>"
-                        + "This can cause problems because other objects (that you do not see) might use them."
-                        + "<br>"
-                        + "Do you really want to delete?"),
-                tr("You are about to delete incomplete objects."
-                        + "<br>"
-                        + "This will cause problems because you don''t see the real object."
-                        + "<br>" + "Do you really want to delete?"),
-                primitives, ignore);
-    }
-
-    private static boolean confirmRelationDeletion(Collection<Relation> relations) {
-        JPanel msg = new JPanel(new GridBagLayout());
-        msg.add(new JMultilineLabel("<html>" + trn(
-                "You are about to delete {0} relation: {1}"
-                + "<br/>"
-                + "This step is rarely necessary and cannot be undone easily after being uploaded to the server."
-                + "<br/>"
-                + "Do you really want to delete?",
-                "You are about to delete {0} relations: {1}"
-                + "<br/>"
-                + "This step is rarely necessary and cannot be undone easily after being uploaded to the server."
-                + "<br/>"
-                + "Do you really want to delete?",
-                relations.size(), relations.size(), DefaultNameFormatter.getInstance().formatAsHtmlUnorderedList(relations, 20))
-                + "</html>"));
-        return ConditionalOptionPaneUtil.showConfirmationDialog(
-                "delete_relations",
-                Main.parent,
-                msg,
-                tr("Delete relation?"),
-                JOptionPane.YES_NO_OPTION,
-                JOptionPane.QUESTION_MESSAGE,
-                JOptionPane.YES_OPTION);
     }
 
     @Override

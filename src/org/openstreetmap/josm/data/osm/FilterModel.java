@@ -16,10 +16,12 @@ import java.util.Stack;
 import javax.swing.JOptionPane;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.actions.search.SearchCompiler.ParseError;
 import org.openstreetmap.josm.data.osm.Filter.FilterPreferenceEntry;
+import org.openstreetmap.josm.data.osm.search.SearchParseError;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.widgets.OSDLabel;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -49,8 +51,8 @@ public class FilterModel {
         for (Filter filter : filters) {
             try {
                 filterMatcher.add(filter);
-            } catch (ParseError e) {
-                Main.error(e);
+            } catch (SearchParseError e) {
+                Logging.error(e);
                 JOptionPane.showMessageDialog(
                         Main.parent,
                         tr("<html>Error in filter <code>{0}</code>:<br>{1}",
@@ -93,7 +95,7 @@ public class FilterModel {
      * Runs the filters on the current edit data set.
      */
     public void executeFilters() {
-        DataSet ds = Main.getLayerManager().getEditDataSet();
+        DataSet ds = Main.main.getEditDataSet();
         changed = false;
         if (ds == null) {
             disabledAndHiddenCount = 0;
@@ -142,7 +144,7 @@ public class FilterModel {
      * @param primitives The primitives
      */
     public void executeFilters(Collection<? extends OsmPrimitive> primitives) {
-        DataSet ds = Main.getLayerManager().getEditDataSet();
+        DataSet ds = Main.main.getEditDataSet();
         if (ds == null)
             return;
 
@@ -194,7 +196,7 @@ public class FilterModel {
     }
 
     private static void updateMap() {
-        OsmDataLayer editLayer = Main.getLayerManager().getEditLayer();
+        OsmDataLayer editLayer = MainApplication.getLayerManager().getEditLayer();
         if (editLayer != null) {
             editLayer.invalidate();
         }
@@ -204,7 +206,7 @@ public class FilterModel {
      * Clears all filtered flags from all primitives in the dataset
      */
     public void clearFilterFlags() {
-        DataSet ds = Main.getLayerManager().getEditDataSet();
+        DataSet ds = Main.main.getEditDataSet();
         if (ds != null) {
             FilterWorker.clearFilterFlags(ds.allPrimitives());
         }
@@ -321,7 +323,7 @@ public class FilterModel {
         lblOSD.setText(message);
         lblOSD.setSize(lblOSD.getPreferredSize());
 
-        int dx = Main.map.mapView.getWidth() - lblOSD.getPreferredSize().width - 15;
+        int dx = MainApplication.getMap().mapView.getWidth() - lblOSD.getPreferredSize().width - 15;
         int dy = 15;
         g.translate(dx, dy);
         lblOSD.paintComponent(g);

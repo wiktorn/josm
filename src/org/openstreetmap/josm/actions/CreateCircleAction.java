@@ -24,9 +24,11 @@ import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.SequenceCommand;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
+import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.Notification;
 import org.openstreetmap.josm.tools.Geometry;
 import org.openstreetmap.josm.tools.RightAndLefthandTraffic;
@@ -135,7 +137,8 @@ public final class CreateCircleAction extends JosmAction {
             numberOfNodesInCircle = 100;
         }
 
-        Collection<OsmPrimitive> sel = getLayerManager().getEditDataSet().getSelected();
+        DataSet ds = getLayerManager().getEditDataSet();
+        Collection<OsmPrimitive> sel = ds.getSelected();
         List<Node> nodes = OsmPrimitive.getFilteredList(sel, Node.class);
         List<Way> ways = OsmPrimitive.getFilteredList(sel, Way.class);
 
@@ -220,7 +223,7 @@ public final class CreateCircleAction extends JosmAction {
                 }
                 Node n = new Node(ll);
                 nodesToAdd.add(n);
-                cmds.add(new AddCommand(n));
+                cmds.add(new AddCommand(ds, n));
             }
         }
         nodesToAdd.add(nodesToAdd.get(0)); // close the circle
@@ -232,14 +235,14 @@ public final class CreateCircleAction extends JosmAction {
         if (existingWay == null) {
             Way newWay = new Way();
             newWay.setNodes(nodesToAdd);
-            cmds.add(new AddCommand(newWay));
+            cmds.add(new AddCommand(ds, newWay));
         } else {
             Way newWay = new Way(existingWay);
             newWay.setNodes(nodesToAdd);
-            cmds.add(new ChangeCommand(existingWay, newWay));
+            cmds.add(new ChangeCommand(ds, existingWay, newWay));
         }
 
-        Main.main.undoRedo.add(new SequenceCommand(tr("Create Circle"), cmds));
+        MainApplication.undoRedo.add(new SequenceCommand(tr("Create Circle"), cmds));
     }
 
     /**

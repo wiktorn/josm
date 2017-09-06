@@ -6,10 +6,10 @@ import java.util.List;
 
 import javax.swing.table.AbstractTableModel;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.SelectionChangedListener;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerAddEvent;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerChangeListener;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerOrderChangeEvent;
@@ -19,6 +19,9 @@ import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeListen
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 
+/**
+ * This table shows the primitives that are currently selected in the main OSM view.
+ */
 public class SelectionTableModel extends AbstractTableModel implements SelectionChangedListener, ActiveLayerChangeListener, LayerChangeListener {
 
     /** this selection table model only displays selected primitives in this layer */
@@ -26,7 +29,7 @@ public class SelectionTableModel extends AbstractTableModel implements Selection
     private final transient List<OsmPrimitive> cache;
 
     /**
-     * constructor
+     * Creates a new {@link SelectionTableModel} for a given layer
      *
      * @param layer  the data layer. Must not be null.
      * @throws IllegalArgumentException if layer is null
@@ -43,7 +46,7 @@ public class SelectionTableModel extends AbstractTableModel implements Selection
      */
     public void register() {
         DataSet.addSelectionListener(this);
-        Main.getLayerManager().addActiveLayerChangeListener(this);
+        MainApplication.getLayerManager().addActiveLayerChangeListener(this);
     }
 
     /**
@@ -51,7 +54,7 @@ public class SelectionTableModel extends AbstractTableModel implements Selection
      */
     public void unregister() {
         DataSet.removeSelectionListener(this);
-        Main.getLayerManager().removeActiveLayerChangeListener(this);
+        MainApplication.getLayerManager().removeActiveLayerChangeListener(this);
     }
 
     @Override
@@ -61,7 +64,7 @@ public class SelectionTableModel extends AbstractTableModel implements Selection
 
     @Override
     public int getRowCount() {
-        if (Main.getLayerManager().getEditLayer() != layer)
+        if (MainApplication.getLayerManager().getEditLayer() != layer)
             return 0;
         return cache.size();
     }
@@ -103,7 +106,7 @@ public class SelectionTableModel extends AbstractTableModel implements Selection
 
     @Override
     public void selectionChanged(Collection<? extends OsmPrimitive> newSelection) {
-        if (layer == Main.getLayerManager().getEditLayer()) {
+        if (layer == MainApplication.getLayerManager().getEditLayer()) {
             cache.clear();
             cache.addAll(newSelection);
         } else {

@@ -18,7 +18,8 @@ import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.tools.ListenerList;
+import org.openstreetmap.josm.tools.Logging;
 
 /**
  * Helper object that allows cross-platform detection of key press and release events
@@ -34,8 +35,14 @@ public class AdvancedKeyPressDetector implements AWTEventListener {
     private Timer timer;
 
     private final List<KeyPressReleaseListener> keyListeners = new CopyOnWriteArrayList<>();
+    /** @deprecated replaced by {@link #modifierExListeners} */
+    @Deprecated
     private final List<ModifierListener> modifierListeners = new CopyOnWriteArrayList<>();
+    private final ListenerList<ModifierExListener> modifierExListeners = ListenerList.create();
+    /** @deprecated replaced by {@link #previousModifiersEx} */
+    @Deprecated
     private int previousModifiers;
+    private int previousModifiersEx;
 
     private boolean enabled = true;
 
@@ -50,9 +57,20 @@ public class AdvancedKeyPressDetector implements AWTEventListener {
     /**
      * Adds an object that wants to receive key modifier changed events.
      * @param l listener to add
+     * @deprecated use {@link #addModifierExListener} instead
      */
+    @Deprecated
     public void addModifierListener(ModifierListener l) {
         modifierListeners.add(l);
+    }
+
+    /**
+     * Adds an object that wants to receive extended key modifier changed events.
+     * @param l listener to add
+     * @since 12517
+     */
+    public void addModifierExListener(ModifierExListener l) {
+        modifierExListeners.addListener(l);
     }
 
     /**
@@ -66,9 +84,20 @@ public class AdvancedKeyPressDetector implements AWTEventListener {
     /**
      * Removes the key modifier listener.
      * @param l listener to remove
+     * @deprecated use {@link #removeModifierExListener} instead
      */
+    @Deprecated
     public void removeModifierListener(ModifierListener l) {
         modifierListeners.remove(l);
+    }
+
+    /**
+     * Removes the extended key modifier listener.
+     * @param l listener to remove
+     * @since 12517
+     */
+    public void removeModifierExListener(ModifierExListener l) {
+        modifierExListeners.removeListener(l);
     }
 
     /**
@@ -78,7 +107,7 @@ public class AdvancedKeyPressDetector implements AWTEventListener {
         try {
             Toolkit.getDefaultToolkit().addAWTEventListener(this, AWTEvent.KEY_EVENT_MASK);
         } catch (SecurityException ex) {
-            Main.warn(ex);
+            Logging.warn(ex);
         }
         timer = new Timer(0, e -> {
             timer.stop();
@@ -100,30 +129,32 @@ public class AdvancedKeyPressDetector implements AWTEventListener {
         }
         set.clear();
         if (!keyListeners.isEmpty()) {
-            Main.warn(tr("Some of the key listeners forgot to remove themselves: {0}"), keyListeners.toString());
+            Logging.warn(tr("Some of the key listeners forgot to remove themselves: {0}"), keyListeners.toString());
         }
         if (!modifierListeners.isEmpty()) {
-            Main.warn(tr("Some of the key modifier listeners forgot to remove themselves: {0}"), modifierListeners.toString());
+            Logging.warn(tr("Some of the key modifier listeners forgot to remove themselves: {0}"), modifierListeners.toString());
+        }
+        if (modifierExListeners.hasListeners()) {
+            Logging.warn(tr("Some of the key modifier listeners forgot to remove themselves: {0}"), modifierExListeners.toString());
         }
         try {
             Toolkit.getDefaultToolkit().removeAWTEventListener(this);
         } catch (SecurityException ex) {
-            Main.warn(ex);
+            Logging.warn(ex);
         }
     }
 
     private void processKeyEvent(KeyEvent e) {
-        if (Main.isTraceEnabled()) {
-            Main.trace("AdvancedKeyPressDetector enabled="+enabled+" => processKeyEvent("+e+") from "+new Exception().getStackTrace()[2]);
+        if (Logging.isTraceEnabled()) {
+            Logging.trace("AdvancedKeyPressDetector enabled={0} => processKeyEvent({1}) from {2}",
+                    enabled, e, new Exception().getStackTrace()[2]);
         }
         if (e.getID() == KeyEvent.KEY_PRESSED) {
             if (timer.isRunning()) {
                 timer.stop();
             } else if (set.add(e.getKeyCode()) && enabled && isFocusInMainWindow()) {
                 for (KeyPressReleaseListener q: keyListeners) {
-                    if (Main.isTraceEnabled()) {
-                        Main.trace(q+" => doKeyPressed("+e+')');
-                    }
+                    Logging.trace("{0} => doKeyPressed({1})", q, e);
                     q.doKeyPressed(e);
                 }
             }
@@ -132,9 +163,7 @@ public class AdvancedKeyPressDetector implements AWTEventListener {
                 timer.stop();
                 if (set.remove(e.getKeyCode()) && enabled && isFocusInMainWindow()) {
                     for (KeyPressReleaseListener q: keyListeners) {
-                        if (Main.isTraceEnabled()) {
-                            Main.trace(q+" => doKeyReleased("+e+')');
-                        }
+                        Logging.trace("{0} => doKeyReleased({1})", q, e);
                         q.doKeyReleased(e);
                     }
                 }
@@ -146,6 +175,7 @@ public class AdvancedKeyPressDetector implements AWTEventListener {
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public void eventDispatched(AWTEvent e) {
         if (!(e instanceof KeyEvent)) {
             return;
@@ -159,6 +189,13 @@ public class AdvancedKeyPressDetector implements AWTEventListener {
             for (ModifierListener m: modifierListeners) {
                 m.modifiersChanged(modif);
             }
+        }
+
+        // check if ctrl, alt, shift extended modifiers are changed
+        int modifEx = ke.getModifiersEx();
+        if (previousModifiersEx != modifEx) {
+            previousModifiersEx = modifEx;
+            modifierExListeners.fireEvent(m -> m.modifiersExChanged(modifEx));
         }
 
         processKeyEvent(ke);
@@ -181,8 +218,8 @@ public class AdvancedKeyPressDetector implements AWTEventListener {
      */
     public final void setEnabled(boolean enabled) {
         this.enabled = enabled;
-        if (Main.isTraceEnabled()) {
-            Main.trace("AdvancedKeyPressDetector enabled="+enabled+" from "+new Exception().getStackTrace()[1]);
+        if (Logging.isTraceEnabled()) {
+            Logging.trace("AdvancedKeyPressDetector enabled={0} from {1}", enabled, new Exception().getStackTrace()[1]);
         }
     }
 

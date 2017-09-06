@@ -57,6 +57,7 @@ import org.openstreetmap.josm.gui.layer.NativeScaleLayer.ScaleList;
 import org.openstreetmap.josm.io.CachedFile;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.GBC;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -292,7 +293,7 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
         this.baseUrl = GetCapabilitiesParseHelper.normalizeCapabilitiesUrl(handleTemplate(info.getUrl()));
         this.layers = getCapabilities();
         if (info.getDefaultLayers().isEmpty()) {
-            Main.warn(tr("No default layer selected, choosing first layer."));
+            Logging.warn(tr("No default layer selected, choosing first layer."));
             if (!layers.isEmpty()) {
                 Layer first = layers.iterator().next();
                 this.defaultLayer = new WMTSDefaultLayer(first.identifier, first.tileMatrixSet.identifier);
@@ -382,7 +383,7 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
                 return ret;
             } catch (XMLStreamException e) {
                 cf.clear();
-                Main.warn(new String(data, StandardCharsets.UTF_8));
+                Logging.warn(new String(data, StandardCharsets.UTF_8));
                 throw new IllegalArgumentException(e);
             }
         }
@@ -490,7 +491,7 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
         }
         if (layer.format == null) {
             // no format found - it's mandatory parameter - can't use this layer
-            Main.warn(tr("Can''t use layer {0} because no supported formats where found. Layer is available in formats: {1}",
+            Logging.warn(tr("Can''t use layer {0} because no supported formats where found. Layer is available in formats: {1}",
                     layer.getUserTitle(),
                     String.join(", ", unsupportedFormats)));
             return null;
@@ -659,7 +660,7 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
         if (matchingLayers.size() > 1) {
             this.currentLayer = matchingLayers.stream().filter(
                     l -> l.tileMatrixSet.identifier.equals(defaultLayer.getTileMatrixSet()))
-                    .findFirst().orElse(null);
+                    .findFirst().orElse(matchingLayers.get(0));
             this.tileProjection = proj;
         } else if (matchingLayers.size() == 1) {
             this.currentLayer = matchingLayers.get(0);
@@ -683,12 +684,14 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
                     return;
             } // else: keep currentLayer and tileProjection as is
         }
-        this.currentTileMatrixSet = this.currentLayer.tileMatrixSet;
-        Collection<Double> scales = new ArrayList<>(currentTileMatrixSet.tileMatrix.size());
-        for (TileMatrix tileMatrix : currentTileMatrixSet.tileMatrix) {
-            scales.add(tileMatrix.scaleDenominator * 0.28e-03);
+        if (this.currentLayer != null) {
+            this.currentTileMatrixSet = this.currentLayer.tileMatrixSet;
+            Collection<Double> scales = new ArrayList<>(currentTileMatrixSet.tileMatrix.size());
+            for (TileMatrix tileMatrix : currentTileMatrixSet.tileMatrix) {
+                scales.add(tileMatrix.scaleDenominator * 0.28e-03);
+            }
+            this.nativeScaleList = new ScaleList(scales);
         }
-        this.nativeScaleList = new ScaleList(scales);
         this.crsScale = getTileSize() * 0.28e-03 / this.tileProjection.getMetersPerUnit();
     }
 
@@ -722,7 +725,7 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
             return projLayers.iterator().next().tileMatrixSet.tileMatrix.get(0).tileHeight;
         }
         // if no layers is found, fallback to default mercator tile size. Maybe it will work
-        Main.warn("WMTS: Could not determine tile size. Using default tile size of: {0}", getDefaultTileSize());
+        Logging.warn("WMTS: Could not determine tile size. Using default tile size of: {0}", getDefaultTileSize());
         return getDefaultTileSize();
     }
 
@@ -804,11 +807,11 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
     public ICoordinate tileXYToLatLon(int x, int y, int zoom) {
         TileMatrix matrix = getTileMatrix(zoom);
         if (matrix == null) {
-            return tileProjection.getWorldBoundsLatLon().getCenter().toCoordinate();
+            return CoordinateConversion.llToCoor(tileProjection.getWorldBoundsLatLon().getCenter());
         }
         double scale = matrix.scaleDenominator * this.crsScale;
         EastNorth ret = new EastNorth(matrix.topLeftCorner.east() + x * scale, matrix.topLeftCorner.north() - y * scale);
-        return tileProjection.eastNorth2latlon(ret).toCoordinate();
+        return CoordinateConversion.llToCoor(tileProjection.eastNorth2latlon(ret));
     }
 
     @Override
@@ -1010,10 +1013,13 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
                 -(projected.getNorth() - matrix.topLeftCorner.north()) / scale);
     }
 
+    private EastNorth tileToEastNorth(int x, int y, int z) {
+        return CoordinateConversion.projToEn(this.tileXYtoProjected(x, y, z));
+    }
+
     private ProjectionBounds getTileProjectionBounds(Tile tile) {
-        ProjectionBounds pb = new ProjectionBounds(new EastNorth(
-                this.tileXYtoProjected(tile.getXtile(), tile.getYtile(), tile.getZoom())));
-        pb.extend(new EastNorth(this.tileXYtoProjected(tile.getXtile() + 1, tile.getYtile() + 1, tile.getZoom())));
+        ProjectionBounds pb = new ProjectionBounds(tileToEastNorth(tile.getXtile(), tile.getYtile(), tile.getZoom()));
+        pb.extend(tileToEastNorth(tile.getXtile() + 1, tile.getYtile() + 1, tile.getZoom()));
         return pb;
     }
 
@@ -1021,8 +1027,7 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
     public boolean isInside(Tile inner, Tile outer) {
         ProjectionBounds pbInner = getTileProjectionBounds(inner);
         ProjectionBounds pbOuter = getTileProjectionBounds(outer);
-        // a little tolerance, for when inner tile touches the border of the
-        // outer tile
+        // a little tolerance, for when inner tile touches the border of the outer tile
         double epsilon = 1e-7 * (pbOuter.maxEast - pbOuter.minEast);
         return pbOuter.minEast <= pbInner.minEast + epsilon &&
                 pbOuter.minNorth <= pbInner.minNorth + epsilon &&

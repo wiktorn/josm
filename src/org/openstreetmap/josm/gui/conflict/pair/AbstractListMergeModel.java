@@ -39,6 +39,7 @@ import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.util.ChangeNotifier;
 import org.openstreetmap.josm.gui.widgets.OsmPrimitivesTableModel;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -73,6 +74,7 @@ import org.openstreetmap.josm.tools.Utils;
  * @param <T> the type of the list entries
  * @param <C> the type of conflict resolution command
  * @see AbstractListMerger
+ * @see PairTable For the table displaying this model
  */
 public abstract class AbstractListMergeModel<T extends PrimitiveId, C extends ConflictResolveCommand> extends ChangeNotifier {
     /**
@@ -735,7 +737,7 @@ public abstract class AbstractListMergeModel<T extends PrimitiveId, C extends Co
             } else if (value instanceof RelationMember) {
                 return ((RelationMember) value).getMember();
             } else {
-                Main.error("Unknown object type: "+value);
+                Logging.error("Unknown object type: "+value);
                 return null;
             }
         }

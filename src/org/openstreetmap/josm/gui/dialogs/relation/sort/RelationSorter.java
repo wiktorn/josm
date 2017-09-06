@@ -2,6 +2,7 @@
 package org.openstreetmap.josm.gui.dialogs.relation.sort;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -10,13 +11,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
-import org.openstreetmap.josm.gui.DefaultNameFormatter;
 import org.openstreetmap.josm.tools.AlphanumComparator;
 import org.openstreetmap.josm.tools.Utils;
 
+/**
+ * This class sorts the relation members by connectivity.
+ * <p>
+ * Multiple {@link AdditionalSorter}s are implemented to handle special relation types.
+ */
 public class RelationSorter {
 
     private interface AdditionalSorter {
@@ -25,13 +31,12 @@ public class RelationSorter {
         List<RelationMember> sortMembers(List<RelationMember> list);
     }
 
-    private static final Collection<AdditionalSorter> additionalSorters = new ArrayList<>();
-    static {
+    private static final Collection<AdditionalSorter> ADDITIONAL_SORTERS = Arrays.asList(
         // first adequate sorter is used, so order matters
-        additionalSorters.add(new AssociatedStreetRoleStreetSorter());
-        additionalSorters.add(new AssociatedStreetRoleAddressHouseSorter());
-        additionalSorters.add(new PublicTransportRoleStopPlatformSorter());
-    }
+        new AssociatedStreetRoleStreetSorter(),
+        new AssociatedStreetRoleAddressHouseSorter(),
+        new PublicTransportRoleStopPlatformSorter()
+    );
 
     /**
      * Class that sorts the {@code street} members of
@@ -143,7 +148,7 @@ public class RelationSorter {
         // Dispatch members to the first adequate sorter
         for (RelationMember m : relationMembers) {
             boolean wasAdded = false;
-            for (AdditionalSorter sorter : additionalSorters) {
+            for (AdditionalSorter sorter : ADDITIONAL_SORTERS) {
                 if (sorter.acceptsMember(m)) {
                     List<RelationMember> list;
                     list = customMap.get(sorter);
@@ -169,6 +174,11 @@ public class RelationSorter {
         return newMembers;
     }
 
+    /**
+     * Sorts a list of members by connectivity
+     * @param defaultMembers The members to sort
+     * @return A sorted list of the same members
+     */
     public static List<RelationMember> sortMembersByConnectivity(List<RelationMember> defaultMembers) {
 
         List<RelationMember> newMembers = new ArrayList<>();

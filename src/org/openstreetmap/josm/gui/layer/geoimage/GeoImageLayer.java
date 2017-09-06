@@ -46,6 +46,7 @@ import org.openstreetmap.josm.actions.mapmode.SelectAction;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
 import org.openstreetmap.josm.gui.ExtendedDialog;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.MapFrame.MapModeChangeListener;
 import org.openstreetmap.josm.gui.MapView;
@@ -54,6 +55,7 @@ import org.openstreetmap.josm.gui.PleaseWaitRunnable;
 import org.openstreetmap.josm.gui.datatransfer.ClipboardUtils;
 import org.openstreetmap.josm.gui.dialogs.LayerListDialog;
 import org.openstreetmap.josm.gui.dialogs.LayerListPopup;
+import org.openstreetmap.josm.gui.io.importexport.JpgImporter;
 import org.openstreetmap.josm.gui.layer.AbstractModifiableLayer;
 import org.openstreetmap.josm.gui.layer.GpxLayer;
 import org.openstreetmap.josm.gui.layer.JumpToMarkerActions.JumpToMarkerLayer;
@@ -65,8 +67,8 @@ import org.openstreetmap.josm.gui.layer.LayerManager.LayerChangeListener;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerOrderChangeEvent;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerRemoveEvent;
 import org.openstreetmap.josm.gui.util.GuiHelper;
-import org.openstreetmap.josm.io.JpgImporter;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -194,7 +196,7 @@ public class GeoImageLayer extends AbstractModifiableLayer implements
             try {
                 addRecursiveFiles(files, selection);
             } catch (IllegalStateException e) {
-                Main.debug(e);
+                Logging.debug(e);
                 rememberError(e.getMessage());
             }
 
@@ -240,7 +242,7 @@ public class GeoImageLayer extends AbstractModifiableLayer implements
                     try {
                         canonical = f.getCanonicalPath();
                     } catch (IOException e) {
-                        Main.error(e);
+                        Logging.error(e);
                         rememberError(tr("Unable to get canonical path for directory {0}\n",
                                 f.getAbsolutePath()));
                     }
@@ -291,7 +293,7 @@ public class GeoImageLayer extends AbstractModifiableLayer implements
                         );
             }
             if (layer != null) {
-                Main.getLayerManager().addLayer(layer);
+                MainApplication.getLayerManager().addLayer(layer);
 
                 if (!canceled && layer.data != null && !layer.data.isEmpty()) {
                     boolean noGeotagFound = true;
@@ -313,7 +315,7 @@ public class GeoImageLayer extends AbstractModifiableLayer implements
     }
 
     public static void create(Collection<File> files, GpxLayer gpxLayer) {
-        Main.worker.execute(new Loader(files, gpxLayer));
+        MainApplication.worker.execute(new Loader(files, gpxLayer));
     }
 
     @Override
@@ -456,7 +458,7 @@ public class GeoImageLayer extends AbstractModifiableLayer implements
     }
 
     private static Dimension scaledDimension(Image thumb) {
-        final double d = Main.map.mapView.getDist100Pixel();
+        final double d = MainApplication.getMap().mapView.getDist100Pixel();
         final double size = 10 /*meter*/;     /* size of the photo on the map */
         double s = size * 100 /*px*/ / d;
 
@@ -734,7 +736,7 @@ public class GeoImageLayer extends AbstractModifiableLayer implements
                 }
 
                 if (Utils.deleteFile(toDelete.getFile())) {
-                    Main.info("File "+toDelete.getFile()+" deleted. ");
+                    Logging.info("File "+toDelete.getFile()+" deleted. ");
                 } else {
                     JOptionPane.showMessageDialog(
                             Main.parent,
@@ -776,7 +778,7 @@ public class GeoImageLayer extends AbstractModifiableLayer implements
         if (idx >= 0 && data != null && idx < data.size()) {
             ImageEntry img = data.get(idx);
             if (img.getPos() != null) {
-                Point imgCenter = Main.map.mapView.getPoint(img.getPos());
+                Point imgCenter = MainApplication.getMap().mapView.getPoint(img.getPos());
                 Rectangle imgRect;
                 if (useThumbs && img.hasThumbnail()) {
                     Dimension imgDim = scaledDimension(img.getThumbnail());
@@ -885,7 +887,7 @@ public class GeoImageLayer extends AbstractModifiableLayer implements
      */
     private void clearOtherCurrentPhotos() {
         for (GeoImageLayer layer:
-                 Main.getLayerManager().getLayersOfType(GeoImageLayer.class)) {
+                 MainApplication.getLayerManager().getLayersOfType(GeoImageLayer.class)) {
             if (layer != this) {
                 layer.clearCurrentPhoto(false);
             }
@@ -930,7 +932,8 @@ public class GeoImageLayer extends AbstractModifiableLayer implements
     public void hookUpMapView() {
         mouseAdapter = new MouseAdapter() {
             private boolean isMapModeOk() {
-                return Main.map.mapMode == null || isSupportedMapMode(Main.map.mapMode);
+                MapMode mapMode = MainApplication.getMap().mapMode;
+                return mapMode == null || isSupportedMapMode(mapMode);
             }
 
             @Override
@@ -975,26 +978,27 @@ public class GeoImageLayer extends AbstractModifiableLayer implements
         };
 
         mapModeListener = (oldMapMode, newMapMode) -> {
+            MapView mapView = MainApplication.getMap().mapView;
             if (newMapMode == null || isSupportedMapMode(newMapMode)) {
-                Main.map.mapView.addMouseListener(mouseAdapter);
-                Main.map.mapView.addMouseMotionListener(mouseMotionAdapter);
+                mapView.addMouseListener(mouseAdapter);
+                mapView.addMouseMotionListener(mouseMotionAdapter);
             } else {
-                Main.map.mapView.removeMouseListener(mouseAdapter);
-                Main.map.mapView.removeMouseMotionListener(mouseMotionAdapter);
+                mapView.removeMouseListener(mouseAdapter);
+                mapView.removeMouseMotionListener(mouseMotionAdapter);
             }
         };
 
         MapFrame.addMapModeChangeListener(mapModeListener);
-        mapModeListener.mapModeChange(null, Main.map.mapMode);
+        mapModeListener.mapModeChange(null, MainApplication.getMap().mapMode);
 
-        Main.getLayerManager().addActiveLayerChangeListener(e -> {
-            if (Main.getLayerManager().getActiveLayer() == this) {
+        MainApplication.getLayerManager().addActiveLayerChangeListener(e -> {
+            if (MainApplication.getLayerManager().getActiveLayer() == this) {
                 // only in select mode it is possible to click the images
-                Main.map.selectSelectTool(false);
+                MainApplication.getMap().selectSelectTool(false);
             }
         });
 
-        Main.getLayerManager().addLayerChangeListener(new LayerChangeListener() {
+        MainApplication.getLayerManager().addLayerChangeListener(new LayerChangeListener() {
             @Override
             public void layerAdded(LayerAddEvent e) {
                 // Do nothing
@@ -1004,8 +1008,9 @@ public class GeoImageLayer extends AbstractModifiableLayer implements
             public void layerRemoving(LayerRemoveEvent e) {
                 if (e.getRemovedLayer() == GeoImageLayer.this) {
                     stopLoadThumbs();
-                    Main.map.mapView.removeMouseListener(mouseAdapter);
-                    Main.map.mapView.removeMouseMotionListener(mouseMotionAdapter);
+                    MapView mapView = MainApplication.getMap().mapView;
+                    mapView.removeMouseListener(mouseAdapter);
+                    mapView.removeMouseMotionListener(mouseMotionAdapter);
                     MapFrame.removeMapModeChangeListener(mapModeListener);
                     currentPhoto = -1;
                     if (data != null) {
@@ -1013,7 +1018,7 @@ public class GeoImageLayer extends AbstractModifiableLayer implements
                     }
                     data = null;
                     // stop listening to layer change events
-                    Main.getLayerManager().removeLayerChangeListener(this);
+                    MainApplication.getLayerManager().removeLayerChangeListener(this);
                 }
             }
 
@@ -1023,9 +1028,10 @@ public class GeoImageLayer extends AbstractModifiableLayer implements
             }
         });
 
-        if (Main.map.getToggleDialog(ImageViewerDialog.class) == null) {
+        MapFrame map = MainApplication.getMap();
+        if (map.getToggleDialog(ImageViewerDialog.class) == null) {
             ImageViewerDialog.newInstance();
-            Main.map.addToggleDialog(ImageViewerDialog.getInstance());
+            map.addToggleDialog(ImageViewerDialog.getInstance());
         }
     }
 

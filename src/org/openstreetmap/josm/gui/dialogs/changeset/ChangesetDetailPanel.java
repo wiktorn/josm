@@ -35,6 +35,7 @@ import org.openstreetmap.josm.data.osm.Changeset;
 import org.openstreetmap.josm.data.osm.ChangesetCache;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeEvent;
 import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeListener;
@@ -89,24 +90,24 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
         actDownloadChangesetContent.initProperties();
 
         tb.add(actSelectInCurrentLayer);
-        Main.getLayerManager().addActiveLayerChangeListener(actSelectInCurrentLayer);
+        MainApplication.getLayerManager().addActiveLayerChangeListener(actSelectInCurrentLayer);
 
         tb.add(actZoomInCurrentLayerAction);
-        Main.getLayerManager().addActiveLayerChangeListener(actZoomInCurrentLayerAction);
+        MainApplication.getLayerManager().addActiveLayerChangeListener(actZoomInCurrentLayerAction);
 
         addComponentListener(
                 new ComponentAdapter() {
                     @Override
                     public void componentShown(ComponentEvent e) {
-                        Main.getLayerManager().addAndFireActiveLayerChangeListener(actSelectInCurrentLayer);
-                        Main.getLayerManager().addAndFireActiveLayerChangeListener(actZoomInCurrentLayerAction);
+                        MainApplication.getLayerManager().addAndFireActiveLayerChangeListener(actSelectInCurrentLayer);
+                        MainApplication.getLayerManager().addAndFireActiveLayerChangeListener(actZoomInCurrentLayerAction);
                     }
 
                     @Override
                     public void componentHidden(ComponentEvent e) {
                         // make sure the listener is unregistered when the panel becomes invisible
-                        Main.getLayerManager().removeActiveLayerChangeListener(actSelectInCurrentLayer);
-                        Main.getLayerManager().removeActiveLayerChangeListener(actZoomInCurrentLayerAction);
+                        MainApplication.getLayerManager().removeActiveLayerChangeListener(actSelectInCurrentLayer);
+                        MainApplication.getLayerManager().removeActiveLayerChangeListener(actZoomInCurrentLayerAction);
                     }
                 }
         );
@@ -315,7 +316,7 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
                     ChangesetDetailPanel.this,
                     Collections.singleton(currentChangeset.getId())
             );
-            Main.worker.submit(new PostDownloadHandler(task, task.download()));
+            MainApplication.worker.submit(new PostDownloadHandler(task, task.download()));
         }
 
         public void initProperties(Changeset cs) {
@@ -342,7 +343,7 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
                     tr("<html>None of the objects in the content of changeset {0} is available in the current<br>"
                             + "edit layer ''{1}''.</html>",
                             currentChangeset.getId(),
-                            Utils.escapeReservedCharactersHTML(Main.getLayerManager().getEditLayer().getName())
+                            Utils.escapeReservedCharactersHTML(MainApplication.getLayerManager().getEditLayer().getName())
                     ),
                     tr("Nothing to select"),
                     JOptionPane.WARNING_MESSAGE,
@@ -354,7 +355,7 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
         public void actionPerformed(ActionEvent arg0) {
             if (!isEnabled())
                 return;
-            OsmDataLayer layer = Main.getLayerManager().getEditLayer();
+            OsmDataLayer layer = MainApplication.getLayerManager().getEditLayer();
             if (layer == null) {
                 return;
             }
@@ -372,7 +373,7 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
         }
 
         public void updateEnabledState() {
-            setEnabled(Main.getLayerManager().getEditLayer() != null && currentChangeset != null);
+            setEnabled(MainApplication.getLayerManager().getEditLayer() != null && currentChangeset != null);
         }
 
         @Override
@@ -401,7 +402,7 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
                     tr("<html>None of the objects in the content of changeset {0} is available in the current<br>"
                             + "edit layer ''{1}''.</html>",
                             currentChangeset.getId(),
-                            Main.getLayerManager().getEditLayer().getName()
+                            MainApplication.getLayerManager().getEditLayer().getName()
                     ),
                     tr("Nothing to zoom to"),
                     JOptionPane.WARNING_MESSAGE,
@@ -413,7 +414,7 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
         public void actionPerformed(ActionEvent arg0) {
             if (!isEnabled())
                 return;
-            OsmDataLayer layer = Main.getLayerManager().getEditLayer();
+            OsmDataLayer layer = MainApplication.getLayerManager().getEditLayer();
             if (layer == null) {
                 return;
             }
@@ -432,7 +433,7 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
         }
 
         public void updateEnabledState() {
-            setEnabled(Main.getLayerManager().getEditLayer() != null && currentChangeset != null);
+            setEnabled(MainApplication.getLayerManager().getEditLayer() != null && currentChangeset != null);
         }
 
         @Override

@@ -9,6 +9,7 @@ import java.util.Collection;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.dialogs.relation.DownloadRelationTask;
 import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.tools.ImageProvider;
@@ -32,8 +33,8 @@ public class DownloadMembersAction extends AbstractRelationAction {
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        if (!isEnabled() || relations.isEmpty() || !Main.isDisplayingMapView()) return;
-        Main.worker.submit(new DownloadRelationTask(relations, Main.getLayerManager().getEditLayer()));
+        if (!isEnabled() || relations.isEmpty() || !MainApplication.isDisplayingMapView()) return;
+        MainApplication.worker.submit(new DownloadRelationTask(relations, MainApplication.getLayerManager().getEditLayer()));
     }
 
     @Override

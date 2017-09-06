@@ -9,8 +9,8 @@ import java.io.IOException;
 import javax.swing.JOptionPane;
 
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.UserIdentityManager;
 import org.openstreetmap.josm.data.osm.UserInfo;
-import org.openstreetmap.josm.gui.JosmUserIdentityManager;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.io.ChangesetQuery;
 import org.openstreetmap.josm.io.OsmServerUserInfoReader;
@@ -18,6 +18,7 @@ import org.openstreetmap.josm.io.OsmTransferCanceledException;
 import org.openstreetmap.josm.io.OsmTransferException;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.ExceptionUtil;
+import org.openstreetmap.josm.tools.Logging;
 import org.xml.sax.SAXException;
 
 /**
@@ -46,14 +47,14 @@ public class ChangesetQueryTask extends AbstractChangesetDownloadTask {
             getProgressMonitor().indeterminateSubTask(tr("Determine user id for current user..."));
 
             UserInfo info = userInfoReader.fetchUserInfo(getProgressMonitor().createSubTaskMonitor(1, false));
-            JosmUserIdentityManager im = JosmUserIdentityManager.getInstance();
+            UserIdentityManager im = UserIdentityManager.getInstance();
             im.setFullyIdentified(im.getUserName(), info);
         }
 
         @Override
         protected void realRun() throws SAXException, IOException, OsmTransferException {
             try {
-                JosmUserIdentityManager im = JosmUserIdentityManager.getInstance();
+                UserIdentityManager im = UserIdentityManager.getInstance();
                 if (query.isRestrictedToPartiallyIdentifiedUser() && im.isCurrentUser(query.getUserName())) {
                     // if we query changesets for the current user, make sure we query against
                     // its user id, not its user name. If necessary, determine the user id first.
@@ -61,7 +62,7 @@ public class ChangesetQueryTask extends AbstractChangesetDownloadTask {
                     if (im.isPartiallyIdentified()) {
                         fullyIdentifyCurrentUser();
                     }
-                    query = query.forUser(JosmUserIdentityManager.getInstance().getUserId());
+                    query = query.forUser(UserIdentityManager.getInstance().getUserId());
                 }
                 if (isCanceled())
                     return;
@@ -70,7 +71,7 @@ public class ChangesetQueryTask extends AbstractChangesetDownloadTask {
             } catch (OsmTransferCanceledException e) {
                 // thrown if user cancel the authentication dialog
                 setCanceled(true);
-                Main.trace(e);
+                Logging.trace(e);
             } catch (OsmTransferException e) {
                 if (isCanceled())
                     return;

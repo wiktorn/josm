@@ -11,12 +11,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Future;
 
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.dialogs.LayerListDialog;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -50,7 +51,7 @@ public class MergeLayerAction extends AbstractMergeAction {
         if (targetLayer == null)
             return null;
         final Object actionName = getValue(NAME);
-        return Main.worker.submit(() -> {
+        return MainApplication.worker.submit(() -> {
                 final long start = System.currentTimeMillis();
                 boolean layerMerged = false;
                 for (final Layer sourceLayer: sourceLayers) {
@@ -62,13 +63,13 @@ public class MergeLayerAction extends AbstractMergeAction {
                             break;
                         }
                         targetLayer.mergeFrom(sourceLayer);
-                        GuiHelper.runInEDTAndWait(() -> Main.getLayerManager().removeLayer(sourceLayer));
+                        GuiHelper.runInEDTAndWait(() -> getLayerManager().removeLayer(sourceLayer));
                         layerMerged = true;
                     }
                 }
                 if (layerMerged) {
-                    Main.getLayerManager().setActiveLayer(targetLayer);
-                    Main.info(tr("{0} completed in {1}", actionName, Utils.getDurationString(System.currentTimeMillis() - start)));
+                    getLayerManager().setActiveLayer(targetLayer);
+                    Logging.info(tr("{0} completed in {1}", actionName, Utils.getDurationString(System.currentTimeMillis() - start)));
                 }
         });
     }
@@ -117,7 +118,7 @@ public class MergeLayerAction extends AbstractMergeAction {
                     } catch (IllegalStateException e) {
                         // May occur when destroying last layer / exiting JOSM, see #14476
                         setEnabled(false);
-                        Main.error(e);
+                        Logging.error(e);
                     }
                 }
         });
@@ -128,7 +129,7 @@ public class MergeLayerAction extends AbstractMergeAction {
      * @return the source layer
      */
     protected Layer getSourceLayer() {
-        return Main.getLayerManager().getActiveLayer();
+        return getLayerManager().getActiveLayer();
     }
 
     /**

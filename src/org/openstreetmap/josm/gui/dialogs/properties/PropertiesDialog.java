@@ -59,13 +59,12 @@ import org.openstreetmap.josm.actions.relation.DownloadSelectedIncompleteMembers
 import org.openstreetmap.josm.actions.relation.SelectInRelationListAction;
 import org.openstreetmap.josm.actions.relation.SelectMembersAction;
 import org.openstreetmap.josm.actions.relation.SelectRelationAction;
-import org.openstreetmap.josm.actions.search.SearchAction.SearchSetting;
-import org.openstreetmap.josm.actions.search.SearchCompiler;
 import org.openstreetmap.josm.command.ChangeCommand;
 import org.openstreetmap.josm.command.ChangePropertyCommand;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.data.Preferences.PreferenceChangedListener;
 import org.openstreetmap.josm.data.SelectionChangedListener;
+import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
 import org.openstreetmap.josm.data.osm.IRelation;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
@@ -78,10 +77,12 @@ import org.openstreetmap.josm.data.osm.event.DataSetListenerAdapter;
 import org.openstreetmap.josm.data.osm.event.DatasetEventManager;
 import org.openstreetmap.josm.data.osm.event.DatasetEventManager.FireMode;
 import org.openstreetmap.josm.data.osm.event.SelectionEventManager;
+import org.openstreetmap.josm.data.osm.search.SearchCompiler;
+import org.openstreetmap.josm.data.osm.search.SearchSetting;
 import org.openstreetmap.josm.data.preferences.StringProperty;
 import org.openstreetmap.josm.gui.ConditionalOptionPaneUtil;
-import org.openstreetmap.josm.gui.DefaultNameFormatter;
 import org.openstreetmap.josm.gui.ExtendedDialog;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.PopupMenuHandler;
 import org.openstreetmap.josm.gui.SideButton;
 import org.openstreetmap.josm.gui.datatransfer.ClipboardUtils;
@@ -104,6 +105,7 @@ import org.openstreetmap.josm.tools.HttpClient;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.InputMapUtils;
 import org.openstreetmap.josm.tools.LanguageInfo;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.OpenBrowser;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.Utils;
@@ -227,7 +229,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
             + tr("Select objects for which to change tags.") + "</p></html>");
 
     private final PreferenceChangedListener preferenceListener = e -> {
-                if (Main.getLayerManager().getEditDataSet() != null) {
+                if (MainApplication.getLayerManager().getEditDataSet() != null) {
                     // Re-load data when display preference change
                     updateSelection();
                 }
@@ -383,10 +385,10 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
             @Override
             public void mouseClicked(MouseEvent e) {
                 //update highlights
-                if (Main.isDisplayingMapView()) {
+                if (MainApplication.isDisplayingMapView()) {
                     int row = membershipTable.rowAtPoint(e.getPoint());
                     if (row >= 0 && highlightHelper.highlightOnly((Relation) membershipTable.getValueAt(row, 0))) {
-                        Main.map.mapView.repaint();
+                        MainApplication.getMap().mapView.repaint();
                     }
                 }
                 super.mouseClicked(e);
@@ -448,7 +450,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
         tagTable.setTransferHandler(null);
 
         tagTable.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
-                .put(KeyStroke.getKeyStroke(KeyEvent.VK_C, InputEvent.CTRL_MASK), "onCopy");
+                .put(KeyStroke.getKeyStroke(KeyEvent.VK_C, InputEvent.CTRL_DOWN_MASK), "onCopy");
         tagTable.getActionMap().put("onCopy", copyKeyValueAction);
 
         // allow using enter to add tags for all look&feel configurations
@@ -482,9 +484,9 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
      */
     private void editMembership(int row) {
         Relation relation = (Relation) membershipData.getValueAt(row, 0);
-        Main.map.relationListDialog.selectRelation(relation);
+        MainApplication.getMap().relationListDialog.selectRelation(relation);
         RelationEditor.getEditor(
-                Main.getLayerManager().getEditLayer(),
+                MainApplication.getLayerManager().getEditLayer(),
                 relation,
                 ((MemberInfo) membershipData.getValueAt(row, 1)).role
         ).setVisible(true);
@@ -510,9 +512,9 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
     public void showNotify() {
         DatasetEventManager.getInstance().addDatasetListener(dataChangedAdapter, FireMode.IN_EDT_CONSOLIDATED);
         SelectionEventManager.getInstance().addSelectionListener(this, FireMode.IN_EDT_CONSOLIDATED);
-        Main.getLayerManager().addActiveLayerChangeListener(this);
+        MainApplication.getLayerManager().addActiveLayerChangeListener(this);
         for (JosmAction action : josmActions) {
-            Main.registerActionShortcut(action);
+            MainApplication.registerActionShortcut(action);
         }
         updateSelection();
     }
@@ -521,16 +523,16 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
     public void hideNotify() {
         DatasetEventManager.getInstance().removeDatasetListener(dataChangedAdapter);
         SelectionEventManager.getInstance().removeSelectionListener(this);
-        Main.getLayerManager().removeActiveLayerChangeListener(this);
+        MainApplication.getLayerManager().removeActiveLayerChangeListener(this);
         for (JosmAction action : josmActions) {
-            Main.unregisterActionShortcut(action);
+            MainApplication.unregisterActionShortcut(action);
         }
     }
 
     @Override
     public void setVisible(boolean b) {
         super.setVisible(b);
-        if (b && Main.getLayerManager().getEditDataSet() != null) {
+        if (b && MainApplication.getLayerManager().getEditDataSet() != null) {
             updateSelection();
         }
     }
@@ -827,7 +829,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
         public void updateTags(List<Tag> tags) {
             Command command = TaggingPreset.createCommand(getSelection(), tags);
             if (command != null) {
-                Main.main.undoRedo.add(command);
+                MainApplication.undoRedo.add(command);
             }
         }
 
@@ -994,7 +996,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
             }
 
             Collection<OsmPrimitive> sel = Main.main.getInProgressSelection();
-            Main.main.undoRedo.add(new ChangePropertyCommand(sel, tags));
+            MainApplication.undoRedo.add(new ChangePropertyCommand(sel, tags));
 
             membershipTable.clearSelection();
             if (nextKey != null) {
@@ -1025,7 +1027,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
             for (OsmPrimitive primitive: Main.main.getInProgressSelection()) {
                 rel.removeMembersFor(primitive);
             }
-            Main.main.undoRedo.add(new ChangeCommand(cur, rel));
+            MainApplication.undoRedo.add(new ChangeCommand(cur, rel));
 
             tagTable.clearSelection();
             if (nextRelation != null) {
@@ -1169,9 +1171,9 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
                     uris.add(new URI(String.format("%sMap_Features", base)));
                 }
 
-                Main.worker.execute(() -> displayHelp(uris));
+                MainApplication.worker.execute(() -> displayHelp(uris));
             } catch (URISyntaxException e1) {
-                Main.error(e1);
+                Logging.error(e1);
             }
         }
 
@@ -1201,7 +1203,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
                          *  content lengths, so we have to be fuzzy.. (this is UGLY, recode if u know better)
                          */
                         if (osize > -1 && conn.getContentLength() != -1 && Math.abs(conn.getContentLength() - osize) > 200) {
-                            Main.info("{0} is a mediawiki redirect", u);
+                            Logging.info("{0} is a mediawiki redirect", u);
                             conn.disconnect();
                         } else {
                             conn.disconnect();
@@ -1212,7 +1214,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
                     }
                 }
             } catch (URISyntaxException | IOException e1) {
-                Main.error(e1);
+                Logging.error(e1);
             }
         }
     }
@@ -1263,7 +1265,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
             String clipboard = ClipboardUtils.getClipboardStringContent();
             if (sel.isEmpty() || clipboard == null)
                 return;
-            Main.main.undoRedo.add(new ChangePropertyCommand(sel, key, Utils.strip(clipboard)));
+            MainApplication.undoRedo.add(new ChangePropertyCommand(sel, key, Utils.strip(clipboard)));
         }
     }
 
@@ -1332,7 +1334,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
             putValue(NAME, tr("Copy all Keys/Values"));
             putValue(SHORT_DESCRIPTION, tr("Copy the key and value of all the tags to clipboard"));
             Shortcut sc = Shortcut.registerShortcut("system:copytags", tr("Edit: {0}", tr("Copy Tags")), KeyEvent.CHAR_UNDEFINED, Shortcut.NONE);
-            Main.registerActionShortcut(this, sc);
+            MainApplication.registerActionShortcut(this, sc);
             sc.setAccelerator(this);
         }
 
@@ -1414,8 +1416,8 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
             try {
                 tagRowSorter.convertRowIndexToModel(tagTable.getSelectedRow());
             } catch (IndexOutOfBoundsException ignore) {
-                Main.trace(ignore);
-                Main.trace("Clearing tagTable selection");
+                Logging.trace(ignore);
+                Logging.trace("Clearing tagTable selection");
                 tagTable.clearSelection();
             }
         }

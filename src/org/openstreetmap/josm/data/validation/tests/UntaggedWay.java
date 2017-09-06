@@ -141,7 +141,7 @@ public class UntaggedWay extends Test {
     @Override
     public void startTest(ProgressMonitor monitor) {
         super.startTest(monitor);
-        DataSet ds = Main.getLayerManager().getEditDataSet();
+        DataSet ds = Main.main.getEditDataSet();
         if (ds == null)
             return;
         waysUsedInRelations = new HashSet<>();

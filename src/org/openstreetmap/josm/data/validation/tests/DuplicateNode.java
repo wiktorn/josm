@@ -332,7 +332,7 @@ public class DuplicateNode extends Test {
             }
 
             if (Command.checkOutlyingOrIncompleteOperation(nodes, Collections.singleton(target)) == Command.IS_OK)
-                return MergeNodesAction.mergeNodes(Main.getLayerManager().getEditLayer(), nodes, target);
+                return MergeNodesAction.mergeNodes(nodes, target);
         }
 
         return null; // undoRedo handling done in mergeNodes

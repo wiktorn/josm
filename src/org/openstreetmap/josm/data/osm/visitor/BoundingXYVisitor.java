@@ -14,6 +14,8 @@ import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.Way;
+import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapFrame;
 
 /**
  * Calculates the total bounding rectangle of a series of {@link OsmPrimitive} objects, using the
@@ -71,15 +73,20 @@ public class BoundingXYVisitor extends AbstractVisitor {
     /**
      * Visiting call for lat/lon.
      * @param latlon lat/lon
+     * @since 12725 (public for ILatLon parameter)
      */
-    public void visit(LatLon latlon) {
+    public void visit(ILatLon latlon) {
         if (latlon != null) {
-            visit((ILatLon) latlon);
+            visit(latlon.getEastNorth(Main.getProjection()));
         }
     }
 
-    private void visit(ILatLon latlon) {
-        visit(latlon.getEastNorth());
+    /**
+     * Visiting call for lat/lon.
+     * @param latlon lat/lon
+     */
+    public void visit(LatLon latlon) {
+        visit((ILatLon) latlon);
     }
 
     /**
@@ -135,10 +142,10 @@ public class BoundingXYVisitor extends AbstractVisitor {
         LatLon maxLatlon = Main.getProjection().eastNorth2latlon(bounds.getMax());
         bounds = new ProjectionBounds(new LatLon(
                         Math.max(-90, minLatlon.lat() - enlargeDegree),
-                        Math.max(-180, minLatlon.lon() - enlargeDegree)).getEastNorth(),
+                        Math.max(-180, minLatlon.lon() - enlargeDegree)).getEastNorth(Main.getProjection()),
                 new LatLon(
                         Math.min(90, maxLatlon.lat() + enlargeDegree),
-                        Math.min(180, maxLatlon.lon() + enlargeDegree)).getEastNorth());
+                        Math.min(180, maxLatlon.lon() + enlargeDegree)).getEastNorth(Main.getProjection()));
     }
 
     /**
@@ -196,7 +203,8 @@ public class BoundingXYVisitor extends AbstractVisitor {
         if (bounds == null)
             return;
         // convert size from meters to east/north units
-        double enSize = size * Main.map.mapView.getScale() / Main.map.mapView.getDist100Pixel() * 100;
+        MapFrame map = MainApplication.getMap();
+        double enSize = size * map.mapView.getScale() / map.mapView.getDist100Pixel() * 100;
         visit(bounds.getMin().add(-enSize/2, -enSize/2));
         visit(bounds.getMax().add(+enSize/2, +enSize/2));
     }

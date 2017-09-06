@@ -16,15 +16,20 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import javax.swing.JOptionPane;
 
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.preferences.sources.ValidatorPrefHelper;
 import org.openstreetmap.josm.data.validation.tests.Addresses;
 import org.openstreetmap.josm.data.validation.tests.ApiCapabilitiesTest;
 import org.openstreetmap.josm.data.validation.tests.BarriersEntrances;
@@ -57,9 +62,11 @@ import org.openstreetmap.josm.data.validation.tests.UntaggedNode;
 import org.openstreetmap.josm.data.validation.tests.UntaggedWay;
 import org.openstreetmap.josm.data.validation.tests.WayConnectedToArea;
 import org.openstreetmap.josm.data.validation.tests.WronglyOrderedWays;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.ValidatorLayer;
 import org.openstreetmap.josm.gui.preferences.projection.ProjectionPreference;
-import org.openstreetmap.josm.gui.preferences.validator.ValidatorPreference;
+import org.openstreetmap.josm.tools.AlphanumComparator;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -142,7 +149,7 @@ public final class OsmValidator {
         try {
             allTestsMap.put(testClass.getName(), testClass.getConstructor().newInstance());
         } catch (ReflectiveOperationException e) {
-            Main.error(e);
+            Logging.error(e);
         }
     }
 
@@ -182,15 +189,15 @@ public final class OsmValidator {
 
     private static void loadIgnoredErrors() {
         ignoredErrors.clear();
-        if (ValidatorPreference.PREF_USE_IGNORE.get()) {
+        if (ValidatorPrefHelper.PREF_USE_IGNORE.get()) {
             Path path = Paths.get(getValidatorDir()).resolve("ignorederrors");
             if (path.toFile().exists()) {
                 try {
                     ignoredErrors.addAll(Files.readAllLines(path, StandardCharsets.UTF_8));
                 } catch (final FileNotFoundException e) {
-                    Main.debug(Main.getErrorMessage(e));
+                    Logging.debug(Logging.getErrorMessage(e));
                 } catch (final IOException e) {
-                    Main.error(e);
+                    Logging.error(e);
                 }
             }
         }
@@ -224,7 +231,7 @@ public final class OsmValidator {
                 out.println(e);
             }
         } catch (IOException e) {
-            Main.error(e);
+            Logging.error(e);
         }
     }
 
@@ -232,11 +239,11 @@ public final class OsmValidator {
      * Initializes error layer.
      */
     public static synchronized void initializeErrorLayer() {
-        if (!ValidatorPreference.PREF_LAYER.get())
+        if (!ValidatorPrefHelper.PREF_LAYER.get())
             return;
         if (errorLayer == null) {
             errorLayer = new ValidatorLayer();
-            Main.getLayerManager().addLayer(errorLayer);
+            MainApplication.getLayerManager().addLayer(errorLayer);
         }
     }
 
@@ -275,7 +282,7 @@ public final class OsmValidator {
 
     private static void applyPrefs(Map<String, Test> tests, boolean beforeUpload) {
         for (String testName : Main.pref.getCollection(beforeUpload
-        ? ValidatorPreference.PREF_SKIP_TESTS_BEFORE_UPLOAD : ValidatorPreference.PREF_SKIP_TESTS)) {
+        ? ValidatorPrefHelper.PREF_SKIP_TESTS_BEFORE_UPLOAD : ValidatorPrefHelper.PREF_SKIP_TESTS)) {
             Test test = tests.get(testName);
             if (test != null) {
                 if (beforeUpload) {
@@ -354,13 +361,13 @@ public final class OsmValidator {
      */
     public static synchronized void initializeTests() {
         if (!testsInitialized) {
-            Main.debug("Initializing validator tests");
+            Logging.debug("Initializing validator tests");
             final long startTime = System.currentTimeMillis();
             initializeTests(getTests());
             testsInitialized = true;
-            if (Main.isDebugEnabled()) {
+            if (Logging.isDebugEnabled()) {
                 final long elapsedTime = System.currentTimeMillis() - startTime;
-                Main.debug("Initializing validator tests completed in " + Utils.getDurationString(elapsedTime));
+                Logging.debug("Initializing validator tests completed in {0}", Utils.getDurationString(elapsedTime));
             }
         }
     }
@@ -376,7 +383,7 @@ public final class OsmValidator {
                     test.initialize();
                 }
             } catch (Exception e) { // NOPMD
-                Main.error(e);
+                Logging.error(e);
                 if (!GraphicsEnvironment.isHeadless()) {
                     JOptionPane.showMessageDialog(Main.parent,
                             tr("Error initializing test {0}:\n {1}", test.getClass().getSimpleName(), e),
@@ -386,4 +393,21 @@ public final class OsmValidator {
         }
     }
 
+    /**
+     * Groups the given collection of errors by severity, then message, then description.
+     * @param errors list of errors to group
+     * @param filterToUse optional filter
+     * @return collection of errors grouped by severity, then message, then description
+     * @since 12667
+     */
+    public static Map<Severity, Map<String, Map<String, List<TestError>>>> getErrorsBySeverityMessageDescription(
+            Collection<TestError> errors, Predicate<? super TestError> filterToUse) {
+        return errors.stream().filter(filterToUse).collect(
+                Collectors.groupingBy(TestError::getSeverity, () -> new EnumMap<>(Severity.class),
+                        Collectors.groupingBy(TestError::getMessage, () -> new TreeMap<>(AlphanumComparator.getInstance()),
+                                Collectors.groupingBy(e -> e.getDescription() == null ? "" : e.getDescription(),
+                                        () -> new TreeMap<>(AlphanumComparator.getInstance()),
+                                        Collectors.toList()
+                                ))));
+    }
 }

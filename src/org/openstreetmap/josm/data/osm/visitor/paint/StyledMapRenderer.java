@@ -81,6 +81,7 @@ import org.openstreetmap.josm.tools.Geometry.AreaAndPerimeter;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.JosmRuntimeException;
 import org.openstreetmap.josm.tools.Logging;
+import org.openstreetmap.josm.tools.HiDPISupport;
 import org.openstreetmap.josm.tools.Utils;
 import org.openstreetmap.josm.tools.bugreport.BugReport;
 
@@ -205,7 +206,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         }
     }
 
-    private static Map<Font, Boolean> IS_GLYPH_VECTOR_DOUBLE_TRANSLATION_BUG = new HashMap<>();
+    private static final Map<Font, Boolean> IS_GLYPH_VECTOR_DOUBLE_TRANSLATION_BUG = new HashMap<>();
 
     /**
      * Check, if this System has the GlyphVector double translation bug.
@@ -240,8 +241,8 @@ public class StyledMapRenderer extends AbstractMapRenderer {
             GlyphVector gv = font.createGlyphVector(frc, "x");
             gv.setGlyphTransform(0, AffineTransform.getTranslateInstance(1000, 1000));
             Shape shape = gv.getGlyphOutline(0);
-            if (Main.isTraceEnabled()) {
-                Main.trace("#10446: shape: "+shape.getBounds());
+            if (Logging.isTraceEnabled()) {
+                Logging.trace("#10446: shape: {0}", shape.getBounds());
             }
             // x is about 1000 on normal stystems and about 2000 when the bug occurs
             int x = shape.getBounds().x;
@@ -416,7 +417,11 @@ public class StyledMapRenderer extends AbstractMapRenderer {
                     g.setClip(oldClip);
                 }
             } else {
-                TexturePaint texture = new TexturePaint(fillImage.getImage(disabled),
+                Image img = fillImage.getImage(disabled);
+                // TexturePaint requires BufferedImage -> get base image from
+                // possible multi-resolution image
+                img = HiDPISupport.getBaseImage(img);
+                TexturePaint texture = new TexturePaint((BufferedImage) img,
                         new Rectangle(0, 0, fillImage.getWidth(), fillImage.getHeight()));
                 g.setPaint(texture);
                 Float alpha = fillImage.getAlphaFloat();
@@ -656,7 +661,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
 
         double startOffset = computeStartOffset(phase, repeat);
 
-        BufferedImage image = pattern.getImage(disabled);
+        Image image = pattern.getImage(disabled);
 
         path.visitClippedLine(repeat, (inLineOffset, start, end, startIsOldEnd) -> {
             final double segmentLength = start.distanceToInView(end);
@@ -1128,8 +1133,8 @@ public class StyledMapRenderer extends AbstractMapRenderer {
                                 (p, gv) -> p.append(gv.getOutline(0, 0), false),
                                 (p1, p2) -> p1.append(p2, false)),
                         osm.isDisabled(), text);
-            } else if (Main.isTraceEnabled()) {
-                Main.trace("Couldn't find a correct label placement for " + osm + " / " + name);
+            } else {
+                Logging.trace("Couldn't find a correct label placement for {0} / {1}", osm, name);
             }
         });
         g.setFont(defaultFont);
@@ -1149,7 +1154,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         }
         displayText(() -> {
             AffineTransform defaultTransform = g.getTransform();
-            g.setTransform(at);
+            g.transform(at);
             g.setFont(text.font);
             g.drawString(name, 0, 0);
             g.setTransform(defaultTransform);

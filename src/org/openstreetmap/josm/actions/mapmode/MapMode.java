@@ -15,6 +15,7 @@ import org.openstreetmap.josm.actions.JosmAction;
 import org.openstreetmap.josm.data.Preferences.PreferenceChangeEvent;
 import org.openstreetmap.josm.data.Preferences.PreferenceChangedListener;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.tools.ImageProvider;
@@ -98,7 +99,7 @@ public abstract class MapMode extends JosmAction implements MouseListener, Mouse
         putValue("active", Boolean.TRUE);
         Main.pref.addPreferenceChangeListener(this);
         readPreferences();
-        Main.map.mapView.setNewCursor(cursor, this);
+        MainApplication.getMap().mapView.setNewCursor(cursor, this);
         updateStatusLine();
     }
 
@@ -108,13 +109,14 @@ public abstract class MapMode extends JosmAction implements MouseListener, Mouse
     public void exitMode() {
         putValue("active", Boolean.FALSE);
         Main.pref.removePreferenceChangeListener(this);
-        Main.map.mapView.resetCursor(this);
+        MainApplication.getMap().mapView.resetCursor(this);
     }
 
     protected void updateStatusLine() {
-        if (Main.map != null && Main.map.statusLine != null) {
-            Main.map.statusLine.setHelpText(getModeHelpText());
-            Main.map.statusLine.repaint();
+        MapFrame map = MainApplication.getMap();
+        if (map != null && map.statusLine != null) {
+            map.statusLine.setHelpText(getModeHelpText());
+            map.statusLine.repaint();
         }
     }
 
@@ -133,8 +135,8 @@ public abstract class MapMode extends JosmAction implements MouseListener, Mouse
      */
     @Override
     public void actionPerformed(ActionEvent e) {
-        if (Main.isDisplayingMapView()) {
-            Main.map.selectMapMode(this);
+        if (MainApplication.isDisplayingMapView()) {
+            MainApplication.getMap().selectMapMode(this);
         }
     }
 
@@ -149,24 +151,82 @@ public abstract class MapMode extends JosmAction implements MouseListener, Mouse
         return l != null;
     }
 
+    /**
+     * Update internal ctrl, alt, shift mask from given input event.
+     * @param e input event
+     */
     protected void updateKeyModifiers(InputEvent e) {
-        updateKeyModifiers(e.getModifiers());
+        updateKeyModifiersEx(e.getModifiersEx());
     }
 
+    /**
+     * Update internal ctrl, alt, shift mask from given mouse event.
+     * @param e mouse event
+     */
     protected void updateKeyModifiers(MouseEvent e) {
-        updateKeyModifiers(e.getModifiers());
+        updateKeyModifiersEx(e.getModifiersEx());
     }
 
+    /**
+     * Update internal ctrl, alt, shift mask from given action event.
+     * @param e action event
+     * @since 12526
+     */
+    protected void updateKeyModifiers(ActionEvent e) {
+        // ActionEvent does not have a getModifiersEx() method like other events :(
+        updateKeyModifiersEx(mapOldModifiers(e.getModifiers()));
+    }
+
+    /**
+     * Update internal ctrl, alt, shift mask from given modifiers mask.
+     * @param modifiers event modifiers mask
+     * @deprecated use {@link #updateKeyModifiersEx} instead
+     */
+    @Deprecated
     protected void updateKeyModifiers(int modifiers) {
         ctrl = (modifiers & ActionEvent.CTRL_MASK) != 0;
         alt = (modifiers & (ActionEvent.ALT_MASK | InputEvent.ALT_GRAPH_MASK)) != 0;
         shift = (modifiers & ActionEvent.SHIFT_MASK) != 0;
     }
 
+    /**
+     * Update internal ctrl, alt, shift mask from given extended modifiers mask.
+     * @param modifiers event extended modifiers mask
+     * @since 12517
+     */
+    protected void updateKeyModifiersEx(int modifiers) {
+        ctrl = (modifiers & InputEvent.CTRL_DOWN_MASK) != 0;
+        alt = (modifiers & (InputEvent.ALT_DOWN_MASK | InputEvent.ALT_GRAPH_DOWN_MASK)) != 0;
+        shift = (modifiers & InputEvent.SHIFT_DOWN_MASK) != 0;
+    }
+
+    /**
+     * Map old (pre jdk 1.4) modifiers to extended modifiers (only for Ctrl, Alt, Shift).
+     * @param modifiers old modifiers
+     * @return extended modifiers
+     */
+    @SuppressWarnings("deprecation")
+    private static int mapOldModifiers(int modifiers) {
+        if ((modifiers & InputEvent.CTRL_MASK) != 0) {
+            modifiers |= InputEvent.CTRL_DOWN_MASK;
+        }
+        if ((modifiers & InputEvent.ALT_MASK) != 0) {
+            modifiers |= InputEvent.ALT_DOWN_MASK;
+        }
+        if ((modifiers & InputEvent.ALT_GRAPH_MASK) != 0) {
+            modifiers |= InputEvent.ALT_GRAPH_DOWN_MASK;
+        }
+        if ((modifiers & InputEvent.SHIFT_MASK) != 0) {
+            modifiers |= InputEvent.SHIFT_DOWN_MASK;
+        }
+
+        return modifiers;
+    }
+
     protected void requestFocusInMapView() {
         if (isEnabled()) {
             // request focus in order to enable the expected keyboard shortcuts (see #8710)
-            Main.map.mapView.requestFocus();
+            MainApplication.getMap().mapView.requestFocus();
         }
     }
 

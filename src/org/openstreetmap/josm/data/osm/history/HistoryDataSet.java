@@ -11,12 +11,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.osm.Changeset;
 import org.openstreetmap.josm.data.osm.IPrimitive;
 import org.openstreetmap.josm.data.osm.OsmPrimitiveType;
 import org.openstreetmap.josm.data.osm.PrimitiveId;
 import org.openstreetmap.josm.data.osm.SimplePrimitiveId;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerAddEvent;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerChangeListener;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerOrderChangeEvent;
@@ -40,7 +40,7 @@ public class HistoryDataSet implements LayerChangeListener {
     public static synchronized HistoryDataSet getInstance() {
         if (historyDataSet == null) {
             historyDataSet = new HistoryDataSet();
-            Main.getLayerManager().addLayerChangeListener(historyDataSet);
+            MainApplication.getLayerManager().addLayerChangeListener(historyDataSet);
         }
         return historyDataSet;
     }
@@ -225,8 +225,8 @@ public class HistoryDataSet implements LayerChangeListener {
 
     @Override
     public void layerRemoving(LayerRemoveEvent e) {
-        if (!Main.isDisplayingMapView()) return;
-        if (Main.getLayerManager().getLayers().isEmpty()) {
+        if (!MainApplication.isDisplayingMapView()) return;
+        if (MainApplication.getLayerManager().getLayers().isEmpty()) {
             data.clear();
             fireCacheCleared();
         }

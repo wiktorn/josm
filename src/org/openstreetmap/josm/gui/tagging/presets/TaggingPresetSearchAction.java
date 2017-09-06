@@ -6,8 +6,8 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.JosmAction;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.tools.Shortcut;
 
 /**
@@ -23,13 +23,13 @@ public class TaggingPresetSearchAction extends JosmAction {
         super(tr("Search preset"), "dialogs/search", tr("Show preset search dialog"),
                 Shortcut.registerShortcut("preset:search", tr("Search presets"), KeyEvent.VK_F3, Shortcut.DIRECT), false);
         putValue("toolbar", "presets/search");
-        Main.toolbar.register(this);
+        MainApplication.getToolbar().register(this);
     }
 
     @Override
     public void actionPerformed(ActionEvent e) {
 
-        if (Main.getLayerManager().getEditLayer() == null)
+        if (MainApplication.getLayerManager().getEditLayer() == null)
             return;
 
         TaggingPresetSearchDialog.getInstance().showDialog();

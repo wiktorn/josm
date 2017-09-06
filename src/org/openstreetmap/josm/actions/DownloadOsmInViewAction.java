@@ -10,6 +10,7 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.downloadtasks.DownloadOsmTask;
 import org.openstreetmap.josm.actions.downloadtasks.PostDownloadHandler;
 import org.openstreetmap.josm.data.Bounds;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.io.BoundingBoxDownloader;
 import org.openstreetmap.josm.io.OnlineResource;
 
@@ -30,16 +31,16 @@ public final class DownloadOsmInViewAction extends JosmAction {
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        final Bounds bounds = Main.map.mapView.getRealBounds();
+        final Bounds bounds = MainApplication.getMap().mapView.getRealBounds();
         DownloadOsmInViewTask task = new DownloadOsmInViewTask();
         task.setZoomAfterDownload(false);
         Future<?> future = task.download(bounds);
-        Main.worker.submit(new PostDownloadHandler(task, future));
+        MainApplication.worker.submit(new PostDownloadHandler(task, future));
     }
 
     @Override
     protected void updateEnabledState() {
-        setEnabled(Main.getLayerManager().getActiveLayer() != null
+        setEnabled(getLayerManager().getActiveLayer() != null
                 && !Main.isOffline(OnlineResource.OSM_API));
     }
 

@@ -23,17 +23,19 @@ import java.util.TimeZone;
 import javax.swing.ImageIcon;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.actions.search.SearchCompiler.Match;
 import org.openstreetmap.josm.data.Preferences.PreferenceChangeEvent;
 import org.openstreetmap.josm.data.coor.CachedLatLon;
 import org.openstreetmap.josm.data.coor.EastNorth;
+import org.openstreetmap.josm.data.coor.ILatLon;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.gpx.GpxConstants;
 import org.openstreetmap.josm.data.gpx.WayPoint;
+import org.openstreetmap.josm.data.osm.search.SearchCompiler.Match;
 import org.openstreetmap.josm.data.preferences.CachedProperty;
 import org.openstreetmap.josm.data.preferences.IntegerProperty;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.template_engine.ParseError;
 import org.openstreetmap.josm.tools.template_engine.TemplateEngineDataProvider;
 import org.openstreetmap.josm.tools.template_engine.TemplateEntry;
@@ -74,7 +76,7 @@ import org.openstreetmap.josm.tools.template_engine.TemplateParser;
  *
  * @author Frederik Ramm
  */
-public class Marker implements TemplateEngineDataProvider {
+public class Marker implements TemplateEngineDataProvider, ILatLon {
 
     public static final class TemplateEntryProperty extends CachedProperty<TemplateEntry> {
         // This class is a bit complicated because it supports both global and per layer settings. I've added per layer settings because
@@ -144,8 +146,8 @@ public class Marker implements TemplateEngineDataProvider {
             try {
                 return new TemplateParser(s).parse();
             } catch (ParseError e) {
-                Main.debug(e);
-                Main.warn("Unable to parse template engine pattern ''{0}'' for property {1}. Using default (''{2}'') instead",
+                Logging.debug(e);
+                Logging.warn("Unable to parse template engine pattern ''{0}'' for property {1}. Using default (''{2}'') instead",
                         s, getKey(), super.getDefaultValueAsString());
                 return getDefaultValue();
             }
@@ -317,11 +319,29 @@ public class Marker implements TemplateEngineDataProvider {
     }
 
     /**
+     * @since 12725
+     */
+    @Override
+    public double lon() {
+        return coor == null ? Double.NaN : coor.lon();
+    }
+
+    /**
+     * @since 12725
+     */
+    @Override
+    public double lat() {
+        return coor == null ? Double.NaN : coor.lat();
+    }
+
+    /**
      * Returns the marker's projected coordinates.
      * @return The marker's projected coordinates (easting/northing)
+     * @deprecated use {@link #getEastNorth(org.openstreetmap.josm.data.projection.Projecting)}
      */
+    @Deprecated
     public final EastNorth getEastNorth() {
-        return coor.getEastNorth();
+        return coor.getEastNorth(Main.getProjection());
     }
 
     /**
@@ -353,7 +373,7 @@ public class Marker implements TemplateEngineDataProvider {
      * @param showTextOrIcon true if text and icon shall be drawn
      */
     public void paint(Graphics g, MapView mv, boolean mousePressed, boolean showTextOrIcon) {
-        Point screen = mv.getPoint(getEastNorth());
+        Point screen = mv.getPoint(this);
         if (symbol != null && showTextOrIcon) {
             paintIcon(mv, g, screen.x-symbol.getIconWidth()/2, screen.y-symbol.getIconHeight()/2);
         } else {

@@ -3,19 +3,13 @@ package org.openstreetmap.josm;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
 
-import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.GraphicsEnvironment;
-import java.awt.event.KeyEvent;
-import java.io.File;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -26,7 +20,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.StringTokenizer;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -34,76 +27,37 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import javax.swing.Action;
-import javax.swing.InputMap;
-import javax.swing.JComponent;
-import javax.swing.JOptionPane;
-import javax.swing.KeyStroke;
-import javax.swing.LookAndFeel;
-import javax.swing.UIManager;
-import javax.swing.UnsupportedLookAndFeelException;
 
-import org.openstreetmap.gui.jmapviewer.FeatureAdapter;
 import org.openstreetmap.josm.actions.JosmAction;
-import org.openstreetmap.josm.actions.OpenFileAction;
-import org.openstreetmap.josm.actions.OpenLocationAction;
-import org.openstreetmap.josm.actions.downloadtasks.DownloadGpsTask;
-import org.openstreetmap.josm.actions.downloadtasks.DownloadOsmTask;
-import org.openstreetmap.josm.actions.downloadtasks.DownloadTask;
-import org.openstreetmap.josm.actions.downloadtasks.PostDownloadHandler;
-import org.openstreetmap.josm.actions.mapmode.DrawAction;
-import org.openstreetmap.josm.actions.search.SearchAction;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.Preferences;
 import org.openstreetmap.josm.data.UndoRedoHandler;
-import org.openstreetmap.josm.data.cache.JCSCacheManager;
-import org.openstreetmap.josm.data.coor.CoordinateFormat;
-import org.openstreetmap.josm.data.coor.LatLon;
+import org.openstreetmap.josm.data.coor.conversion.CoordinateFormatManager;
+import org.openstreetmap.josm.data.coor.conversion.DecimalDegreesCoordinateFormat;
+import org.openstreetmap.josm.data.coor.conversion.ICoordinateFormat;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.projection.Projection;
 import org.openstreetmap.josm.data.projection.ProjectionChangeListener;
-import org.openstreetmap.josm.data.validation.OsmValidator;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MainMenu;
 import org.openstreetmap.josm.gui.MainPanel;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.MapFrameListener;
-import org.openstreetmap.josm.gui.ProgramArguments;
-import org.openstreetmap.josm.gui.ProgramArguments.Option;
-import org.openstreetmap.josm.gui.io.SaveLayersDialog;
 import org.openstreetmap.josm.gui.layer.MainLayerManager;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer.CommandQueueListener;
-import org.openstreetmap.josm.gui.layer.TMSLayer;
 import org.openstreetmap.josm.gui.preferences.ToolbarPreferences;
-import org.openstreetmap.josm.gui.preferences.display.LafPreference;
-import org.openstreetmap.josm.gui.preferences.imagery.ImageryPreference;
-import org.openstreetmap.josm.gui.preferences.map.MapPaintPreference;
-import org.openstreetmap.josm.gui.preferences.projection.ProjectionPreference;
-import org.openstreetmap.josm.gui.progress.PleaseWaitProgressMonitor;
-import org.openstreetmap.josm.gui.progress.ProgressMonitorExecutor;
-import org.openstreetmap.josm.gui.tagging.presets.TaggingPresets;
-import org.openstreetmap.josm.gui.util.GuiHelper;
-import org.openstreetmap.josm.gui.util.RedirectInputMap;
 import org.openstreetmap.josm.io.FileWatcher;
 import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.io.OsmApi;
-import org.openstreetmap.josm.io.OsmApiInitializationException;
-import org.openstreetmap.josm.io.OsmTransferCanceledException;
-import org.openstreetmap.josm.plugins.PluginHandler;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
-import org.openstreetmap.josm.tools.I18n;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.JosmRuntimeException;
 import org.openstreetmap.josm.tools.Logging;
-import org.openstreetmap.josm.tools.OpenBrowser;
-import org.openstreetmap.josm.tools.OsmUrlToBounds;
-import org.openstreetmap.josm.tools.OverpassTurboQueryWizard;
 import org.openstreetmap.josm.tools.PlatformHook;
 import org.openstreetmap.josm.tools.PlatformHookOsx;
 import org.openstreetmap.josm.tools.PlatformHookUnixoid;
 import org.openstreetmap.josm.tools.PlatformHookWindows;
-import org.openstreetmap.josm.tools.RightAndLefthandTraffic;
 import org.openstreetmap.josm.tools.Shortcut;
-import org.openstreetmap.josm.tools.Territories;
 import org.openstreetmap.josm.tools.Utils;
 import org.openstreetmap.josm.tools.bugreport.BugReport;
 
@@ -132,9 +86,11 @@ public abstract class Main {
      * You do not need this when accessing the layer manager. The layer manager will be empty if no map view is shown.
      *
      * @return <code>true</code> if JOSM currently displays a map view
+     * @deprecated use {@link org.openstreetmap.josm.gui.MainApplication#isDisplayingMapView()}
      */
+    @Deprecated
     public static boolean isDisplayingMapView() {
-        return map != null && map.mapView != null;
+        return MainApplication.isDisplayingMapView();
     }
 
     /**
@@ -149,10 +105,11 @@ public abstract class Main {
 
     /**
      * The worker thread slave. This is for executing all long and intensive
-     * calculations. The executed runnables are guaranteed to be executed separately
-     * and sequential.
+     * calculations. The executed runnables are guaranteed to be executed separately and sequential.
+     * @deprecated use {@link MainApplication#worker} instead
      */
-    public static final ExecutorService worker = new ProgressMonitorExecutor("main-worker-%d", Thread.NORM_PRIORITY);
+    @Deprecated
+    public static ExecutorService worker;
 
     /**
      * Global application preferences
@@ -162,21 +119,19 @@ public abstract class Main {
     /**
      * The MapFrame.
      * <p>
-     * There should be no need to access this to access any map data. Use {@link #layerManager} instead.
+     * There should be no need to access this to access any map data. Use {@link MainApplication#getLayerManager} instead.
      *
+     * @deprecated Use {@link MainApplication#getMap()} instead
      * @see MainPanel
      */
+    @Deprecated
     public static MapFrame map;
 
     /**
-     * Provides access to the layers displayed in the main view.
-     * @since 10271
-     */
-    private static final MainLayerManager layerManager = new MainLayerManager();
-
-    /**
      * The toolbar preference control to register new actions.
+     * @deprecated Use {@link MainApplication#getToolbar} instead
      */
+    @Deprecated
     public static volatile ToolbarPreferences toolbar;
 
     /**
@@ -185,30 +140,19 @@ public abstract class Main {
     public final UndoRedoHandler undoRedo = new UndoRedoHandler();
 
     /**
-     * The progress monitor being currently displayed.
-     */
-    public static PleaseWaitProgressMonitor currentProgressMonitor;
-
-    /**
      * The main menu bar at top of screen.
+     * @deprecated Use {@link MainApplication#getMenu} instead
      */
+    @Deprecated
     public MainMenu menu;
 
     /**
      * The main panel.
+     * @deprecated Use {@link MainApplication#getMainPanel} instead
      * @since 12125
      */
+    @Deprecated
     public MainPanel panel;
-
-    /**
-     * The same main panel, required to be static for {@code MapFrameListener} handling.
-     */
-    protected static MainPanel mainPanel;
-
-    /**
-     * The private content pane of {@code MainFrame}, required to be static for shortcut handling.
-     */
-    protected static JComponent contentPanePrivate;
 
     /**
      * The file watcher service.
@@ -231,7 +175,9 @@ public abstract class Main {
      * Replies the first lines of last 5 error and warning messages, used for bug reports
      * @return the first lines of last 5 error and warning messages
      * @since 7420
+     * @deprecated Use {@link Logging#getLastErrorAndWarnings}.
      */
+    @Deprecated
     public static final Collection<String> getLastErrorAndWarnings() {
         return Logging.getLastErrorAndWarnings();
     }
@@ -239,7 +185,9 @@ public abstract class Main {
     /**
      * Clears the list of last error and warning messages.
      * @since 8959
+     * @deprecated Use {@link Logging#clearLastErrorAndWarnings}.
      */
+    @Deprecated
     public static void clearLastErrorAndWarnings() {
         Logging.clearLastErrorAndWarnings();
     }
@@ -248,7 +196,9 @@ public abstract class Main {
      * Prints an error message if logging is on.
      * @param msg The message to print.
      * @since 6248
+     * @deprecated Use {@link Logging#error(String)}.
      */
+    @Deprecated
     public static void error(String msg) {
         Logging.error(msg);
     }
@@ -256,7 +206,9 @@ public abstract class Main {
     /**
      * Prints a warning message if logging is on.
      * @param msg The message to print.
+     * @deprecated Use {@link Logging#warn(String)}.
      */
+    @Deprecated
     public static void warn(String msg) {
         Logging.warn(msg);
     }
@@ -264,7 +216,9 @@ public abstract class Main {
     /**
      * Prints an informational message if logging is on.
      * @param msg The message to print.
+     * @deprecated Use {@link Logging#info(String)}.
      */
+    @Deprecated
     public static void info(String msg) {
         Logging.info(msg);
     }
@@ -272,7 +226,9 @@ public abstract class Main {
     /**
      * Prints a debug message if logging is on.
      * @param msg The message to print.
+     * @deprecated Use {@link Logging#debug(String)}.
      */
+    @Deprecated
     public static void debug(String msg) {
         Logging.debug(msg);
     }
@@ -280,7 +236,9 @@ public abstract class Main {
     /**
      * Prints a trace message if logging is on.
      * @param msg The message to print.
+     * @deprecated Use {@link Logging#trace(String)}.
      */
+    @Deprecated
     public static void trace(String msg) {
         Logging.trace(msg);
     }
@@ -290,9 +248,11 @@ public abstract class Main {
      * Useful to avoid costly construction of debug messages when not enabled.
      * @return {@code true} if log level is at least debug, {@code false} otherwise
      * @since 6852
+     * @deprecated Use {@link Logging#isDebugEnabled}.
      */
+    @Deprecated
     public static boolean isDebugEnabled() {
-        return Logging.isLoggingEnabled(Logging.LEVEL_DEBUG);
+        return Logging.isDebugEnabled();
     }
 
     /**
@@ -300,9 +260,11 @@ public abstract class Main {
      * Useful to avoid costly construction of trace messages when not enabled.
      * @return {@code true} if log level is at least trace, {@code false} otherwise
      * @since 6852
+     * @deprecated Use {@link Logging#isTraceEnabled}.
      */
+    @Deprecated
     public static boolean isTraceEnabled() {
-        return Logging.isLoggingEnabled(Logging.LEVEL_TRACE);
+        return Logging.isTraceEnabled();
     }
 
     /**
@@ -311,7 +273,9 @@ public abstract class Main {
      * @param msg The formatted message to print.
      * @param objects The objects to insert into format string.
      * @since 6248
+     * @deprecated Use {@link Logging#error(String, Object...)}.
      */
+    @Deprecated
     public static void error(String msg, Object... objects) {
         Logging.error(msg, objects);
     }
@@ -321,7 +285,9 @@ public abstract class Main {
      * function to format text.
      * @param msg The formatted message to print.
      * @param objects The objects to insert into format string.
+     * @deprecated Use {@link Logging#warn(String, Object...)}.
      */
+    @Deprecated
     public static void warn(String msg, Object... objects) {
         Logging.warn(msg, objects);
     }
@@ -331,7 +297,9 @@ public abstract class Main {
      * function to format text.
      * @param msg The formatted message to print.
      * @param objects The objects to insert into format string.
+     * @deprecated Use {@link Logging#info(String, Object...)}.
      */
+    @Deprecated
     public static void info(String msg, Object... objects) {
         Logging.info(msg, objects);
     }
@@ -341,7 +309,9 @@ public abstract class Main {
      * function to format text.
      * @param msg The formatted message to print.
      * @param objects The objects to insert into format string.
+     * @deprecated Use {@link Logging#debug(String, Object...)}.
      */
+    @Deprecated
     public static void debug(String msg, Object... objects) {
         Logging.debug(msg, objects);
     }
@@ -351,7 +321,9 @@ public abstract class Main {
      * function to format text.
      * @param msg The formatted message to print.
      * @param objects The objects to insert into format string.
+     * @deprecated Use {@link Logging#trace(String, Object...)}.
      */
+    @Deprecated
     public static void trace(String msg, Object... objects) {
         Logging.trace(msg, objects);
     }
@@ -360,36 +332,44 @@ public abstract class Main {
      * Prints an error message for the given Throwable.
      * @param t The throwable object causing the error
      * @since 6248
+     * @deprecated Use {@link Logging#error(Throwable)}.
      */
+    @Deprecated
     public static void error(Throwable t) {
-        Logging.logWithStackTrace(Logging.LEVEL_ERROR, t);
+        Logging.error(t);
     }
 
     /**
      * Prints a warning message for the given Throwable.
      * @param t The throwable object causing the error
      * @since 6248
+     * @deprecated Use {@link Logging#warn(Throwable)}.
      */
+    @Deprecated
     public static void warn(Throwable t) {
-        Logging.logWithStackTrace(Logging.LEVEL_WARN, t);
+        Logging.warn(t);
     }
 
     /**
      * Prints a debug message for the given Throwable. Useful for exceptions usually ignored
      * @param t The throwable object causing the error
      * @since 10420
+     * @deprecated Use {@link Logging#debug(Throwable)}.
      */
+    @Deprecated
     public static void debug(Throwable t) {
-        Logging.log(Logging.LEVEL_DEBUG, t);
+        Logging.debug(t);
     }
 
     /**
      * Prints a trace message for the given Throwable. Useful for exceptions usually ignored
      * @param t The throwable object causing the error
      * @since 10420
+     * @deprecated Use {@link Logging#trace(Throwable)}.
      */
+    @Deprecated
     public static void trace(Throwable t) {
-        Logging.log(Logging.LEVEL_TRACE, t);
+        Logging.trace(t);
     }
 
     /**
@@ -397,7 +377,10 @@ public abstract class Main {
      * @param t The throwable object causing the error
      * @param stackTrace {@code true}, if the stacktrace should be displayed
      * @since 6642
+     * @deprecated Use {@link Logging#log(java.util.logging.Level, Throwable)}
+     *              or {@link Logging#logWithStackTrace(java.util.logging.Level, Throwable)}.
      */
+    @Deprecated
     public static void error(Throwable t, boolean stackTrace) {
         if (stackTrace) {
             Logging.log(Logging.LEVEL_ERROR, t);
@@ -411,7 +394,9 @@ public abstract class Main {
      * @param t The throwable object causing the error
      * @param message additional error message
      * @since 10420
+     * @deprecated Use {@link Logging#log(java.util.logging.Level, String, Throwable)}.
      */
+    @Deprecated
     public static void error(Throwable t, String message) {
         Logging.log(Logging.LEVEL_ERROR, message, t);
     }
@@ -421,7 +406,10 @@ public abstract class Main {
      * @param t The throwable object causing the error
      * @param stackTrace {@code true}, if the stacktrace should be displayed
      * @since 6642
+     * @deprecated Use {@link Logging#log(java.util.logging.Level, Throwable)}
+     *              or {@link Logging#logWithStackTrace(java.util.logging.Level, Throwable)}.
      */
+    @Deprecated
     public static void warn(Throwable t, boolean stackTrace) {
         if (stackTrace) {
             Logging.log(Logging.LEVEL_WARN, t);
@@ -435,7 +423,9 @@ public abstract class Main {
      * @param t The throwable object causing the error
      * @param message additional error message
      * @since 10420
+     * @deprecated Use {@link Logging#log(java.util.logging.Level, String, Throwable)}.
      */
+    @Deprecated
     public static void warn(Throwable t, String message) {
         Logging.log(Logging.LEVEL_WARN, message, t);
     }
@@ -445,7 +435,9 @@ public abstract class Main {
      * @param t The error
      * @return The human-readable error message
      * @since 6642
+     * @deprecated Use {@link Logging#getErrorMessage}.
      */
+    @Deprecated
     public static String getErrorMessage(Throwable t) {
         if (t == null) {
             return null;
@@ -456,7 +448,7 @@ public abstract class Main {
 
     /**
      * Platform specific code goes in here.
-     * Plugins may replace it, however, some hooks will be called before any plugins have been loeaded.
+     * Plugins may replace it, however, some hooks will be called before any plugins have been loaded.
      * So if you need to hook into those early ones, split your class and send the one with the early hooks
      * to the JOSM team for inclusion.
      */
@@ -509,92 +501,95 @@ public abstract class Main {
      * @since 10340
      */
     public void initialize() {
-        fileWatcher.start();
+        // Initializes tasks that must be run before parallel tasks
+        runInitializationTasks(beforeInitializationTasks());
 
-        new InitializationTask(tr("Executing platform startup hook"), platform::startupHook).call();
-
-        new InitializationTask(tr("Building main menu"), this::initializeMainWindow).call();
-
-        undoRedo.addCommandQueueListener(redoUndoListener);
-
-        // creating toolbar
-        GuiHelper.runInEDTAndWait(() -> contentPanePrivate.add(toolbar.control, BorderLayout.NORTH));
-
-        registerActionShortcut(menu.help, Shortcut.registerShortcut("system:help", tr("Help"),
-                KeyEvent.VK_F1, Shortcut.DIRECT));
-
-        // This needs to be done before RightAndLefthandTraffic::initialize is called
-        try {
-            new InitializationTask(tr("Initializing internal boundaries data"), Territories::initialize).call();
-        } catch (JosmRuntimeException e) {
-            // Can happen if the current projection needs NTV2 grid which is not available
-            // In this case we want the user be able to change his projection
-            BugReport.intercept(e).warn();
-        }
-
-        // contains several initialization tasks to be executed (in parallel) by a ExecutorService
-        List<Callable<Void>> tasks = new ArrayList<>();
-
-        tasks.add(new InitializationTask(tr("Initializing OSM API"), () -> {
-                // We try to establish an API connection early, so that any API
-                // capabilities are already known to the editor instance. However
-                // if it goes wrong that's not critical at this stage.
-                try {
-                    OsmApi.getOsmApi().initialize(null, true);
-                } catch (OsmTransferCanceledException | OsmApiInitializationException e) {
-                    Main.warn(getErrorMessage(Utils.getRootCause(e)));
-                }
-            }));
-
-        tasks.add(new InitializationTask(tr("Initializing internal traffic data"), RightAndLefthandTraffic::initialize));
-
-        tasks.add(new InitializationTask(tr("Initializing validator"), OsmValidator::initialize));
-
-        tasks.add(new InitializationTask(tr("Initializing presets"), TaggingPresets::initialize));
-
-        tasks.add(new InitializationTask(tr("Initializing map styles"), MapPaintPreference::initialize));
-
-        tasks.add(new InitializationTask(tr("Loading imagery preferences"), ImageryPreference::initialize));
-
+        // Initializes tasks to be executed (in parallel) by a ExecutorService
         try {
             ExecutorService service = Executors.newFixedThreadPool(
                     Runtime.getRuntime().availableProcessors(), Utils.newThreadFactory("main-init-%d", Thread.NORM_PRIORITY));
-            for (Future<Void> i : service.invokeAll(tasks)) {
+            for (Future<Void> i : service.invokeAll(parallelInitializationTasks())) {
                 i.get();
             }
             // asynchronous initializations to be completed eventually
-            service.submit((Runnable) TMSLayer::getCache);
-            service.submit((Runnable) OsmValidator::initializeTests);
-            service.submit(OverpassTurboQueryWizard::getInstance);
+            asynchronousRunnableTasks().forEach(service::submit);
+            asynchronousCallableTasks().forEach(service::submit);
             service.shutdown();
         } catch (InterruptedException | ExecutionException ex) {
             throw new JosmRuntimeException(ex);
         }
 
-        // hooks for the jmapviewer component
-        FeatureAdapter.registerBrowserAdapter(OpenBrowser::displayUrl);
-        FeatureAdapter.registerTranslationAdapter(I18n.getTranslationAdapter());
-        FeatureAdapter.registerLoggingAdapter(name -> Logging.getLogger());
+        // Initializes tasks that must be run after parallel tasks
+        runInitializationTasks(afterInitializationTasks());
+    }
 
-        new InitializationTask(tr("Updating user interface"), () -> GuiHelper.runInEDTAndWait(() -> {
-            toolbar.refreshToolbarControl();
-            toolbar.control.updateUI();
-            contentPanePrivate.updateUI();
-        })).call();
+    private static void runInitializationTasks(List<InitializationTask> tasks) {
+        for (InitializationTask task : tasks) {
+            try {
+                task.call();
+            } catch (JosmRuntimeException e) {
+                // Can happen if the current projection needs NTV2 grid which is not available
+                // In this case we want the user be able to change his projection
+                BugReport.intercept(e).warn();
+            }
+        }
     }
 
     /**
-     * Called once at startup to initialize the main window content.
-     * Should set {@link #menu} and {@link #panel}
+     * Returns tasks that must be run before parallel tasks.
+     * @return tasks that must be run before parallel tasks
+     * @see #afterInitializationTasks
+     * @see #parallelInitializationTasks
      */
-    protected abstract void initializeMainWindow();
+    protected List<InitializationTask> beforeInitializationTasks() {
+        return Collections.emptyList();
+    }
 
-    static final class InitializationTask implements Callable<Void> {
+    /**
+     * Returns tasks to be executed (in parallel) by a ExecutorService.
+     * @return tasks to be executed (in parallel) by a ExecutorService
+     */
+    protected Collection<InitializationTask> parallelInitializationTasks() {
+        return Collections.emptyList();
+    }
+
+    /**
+     * Returns asynchronous callable initializations to be completed eventually
+     * @return asynchronous callable initializations to be completed eventually
+     */
+    protected List<Callable<?>> asynchronousCallableTasks() {
+        return Collections.emptyList();
+    }
+
+    /**
+     * Returns asynchronous runnable initializations to be completed eventually
+     * @return asynchronous runnable initializations to be completed eventually
+     */
+    protected List<Runnable> asynchronousRunnableTasks() {
+        return Collections.emptyList();
+    }
+
+    /**
+     * Returns tasks that must be run after parallel tasks.
+     * @return tasks that must be run after parallel tasks
+     * @see #beforeInitializationTasks
+     * @see #parallelInitializationTasks
+     */
+    protected List<InitializationTask> afterInitializationTasks() {
+        return Collections.emptyList();
+    }
+
+    protected static final class InitializationTask implements Callable<Void> {
 
         private final String name;
         private final Runnable task;
 
-        protected InitializationTask(String name, Runnable task) {
+        /**
+         * Constructs a new {@code InitializationTask}.
+         * @param name translated name to be displayed to user
+         * @param task runnable initialization task
+         */
+        public InitializationTask(String name, Runnable task) {
             this.name = name;
             this.task = task;
         }
@@ -617,102 +612,107 @@ public abstract class Main {
      * Returns the main layer manager that is used by the map view.
      * @return The layer manager. The value returned will never change.
      * @since 10279
+     * @deprecated use {@link MainApplication#getLayerManager} instead
      */
+    @Deprecated
     public static MainLayerManager getLayerManager() {
-        return layerManager;
+        return MainApplication.getLayerManager();
     }
 
     /**
      * Replies the current selected primitives, from a end-user point of view.
      * It is not always technically the same collection of primitives than {@link DataSet#getSelected()}.
-     * Indeed, if the user is currently in drawing mode, only the way currently being drawn is returned,
-     * see {@link DrawAction#getInProgressSelection()}.
-     *
      * @return The current selected primitives, from a end-user point of view. Can be {@code null}.
      * @since 6546
      */
     public Collection<OsmPrimitive> getInProgressSelection() {
-        if (map != null && map.mapMode instanceof DrawAction) {
-            return ((DrawAction) map.mapMode).getInProgressSelection();
-        } else {
-            DataSet ds = getLayerManager().getEditDataSet();
-            if (ds == null) return null;
-            return ds.getSelected();
-        }
+        return Collections.emptyList();
     }
 
-    public static void redirectToMainContentPane(JComponent source) {
-        RedirectInputMap.redirect(source, contentPanePrivate);
-    }
+    /**
+     * Gets the active edit data set.
+     * @return That data set, <code>null</code>.
+     * @since 12691
+     */
+    public abstract DataSet getEditDataSet();
+
+    /**
+     * Sets the active data set.
+     * @param ds New edit data set, or <code>null</code>
+     * @since 12718
+     */
+    public abstract void setEditDataSet(DataSet ds);
+
+    /**
+     * Determines if the list of data sets managed by JOSM contains {@code ds}.
+     * @param ds the data set to look for
+     * @return {@code true} if the list of data sets managed by JOSM contains {@code ds}
+     * @since 12718
+     */
+    public abstract boolean containsDataSet(DataSet ds);
 
     /**
      * Registers a {@code JosmAction} and its shortcut.
      * @param action action defining its own shortcut
+     * @deprecated use {@link MainApplication#registerActionShortcut(JosmAction)} instead
      */
+    @Deprecated
     public static void registerActionShortcut(JosmAction action) {
-        registerActionShortcut(action, action.getShortcut());
+        MainApplication.registerActionShortcut(action);
     }
 
     /**
      * Registers an action and its shortcut.
      * @param action action to register
      * @param shortcut shortcut to associate to {@code action}
+     * @deprecated use {@link MainApplication#registerActionShortcut(Action, Shortcut)} instead
      */
+    @Deprecated
     public static void registerActionShortcut(Action action, Shortcut shortcut) {
-        KeyStroke keyStroke = shortcut.getKeyStroke();
-        if (keyStroke == null)
-            return;
-
-        InputMap inputMap = contentPanePrivate.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
-        Object existing = inputMap.get(keyStroke);
-        if (existing != null && !existing.equals(action)) {
-            info(String.format("Keystroke %s is already assigned to %s, will be overridden by %s", keyStroke, existing, action));
-        }
-        inputMap.put(keyStroke, action);
-
-        contentPanePrivate.getActionMap().put(action, action);
+        MainApplication.registerActionShortcut(action, shortcut);
     }
 
     /**
      * Unregisters a shortcut.
      * @param shortcut shortcut to unregister
+     * @deprecated use {@link MainApplication#unregisterShortcut(Shortcut)} instead
      */
+    @Deprecated
     public static void unregisterShortcut(Shortcut shortcut) {
-        contentPanePrivate.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).remove(shortcut.getKeyStroke());
+        MainApplication.unregisterShortcut(shortcut);
     }
 
     /**
      * Unregisters a {@code JosmAction} and its shortcut.
      * @param action action to unregister
+     * @deprecated use {@link MainApplication#unregisterActionShortcut(JosmAction)} instead
      */
+    @Deprecated
     public static void unregisterActionShortcut(JosmAction action) {
-        unregisterActionShortcut(action, action.getShortcut());
+        MainApplication.unregisterActionShortcut(action);
     }
 
     /**
      * Unregisters an action and its shortcut.
      * @param action action to unregister
      * @param shortcut shortcut to unregister
+     * @deprecated use {@link MainApplication#unregisterActionShortcut(Action, Shortcut)} instead
      */
+    @Deprecated
     public static void unregisterActionShortcut(Action action, Shortcut shortcut) {
-        unregisterShortcut(shortcut);
-        contentPanePrivate.getActionMap().remove(action);
+        MainApplication.unregisterActionShortcut(action, shortcut);
     }
 
     /**
      * Replies the registered action for the given shortcut
      * @param shortcut The shortcut to look for
      * @return the registered action for the given shortcut
+     * @deprecated use {@link MainApplication#getRegisteredActionShortcut(Shortcut)} instead
      * @since 5696
      */
+    @Deprecated
     public static Action getRegisteredActionShortcut(Shortcut shortcut) {
-        KeyStroke keyStroke = shortcut.getKeyStroke();
-        if (keyStroke == null)
-            return null;
-        Object action = contentPanePrivate.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).get(keyStroke);
-        if (action instanceof Action)
-            return (Action) action;
-        return null;
+        return MainApplication.getRegisteredActionShortcut(shortcut);
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -720,133 +720,33 @@ public abstract class Main {
     ///////////////////////////////////////////////////////////////////////////
 
     /**
-     * Listener that sets the enabled state of undo/redo menu entries.
-     */
-    protected final CommandQueueListener redoUndoListener = (queueSize, redoSize) -> {
-            menu.undo.setEnabled(queueSize > 0);
-            menu.redo.setEnabled(redoSize > 0);
-        };
-
-    /**
      * Should be called before the main constructor to setup some parameter stuff
      */
     public static void preConstructorInit() {
-        ProjectionPreference.setProjection();
-
-        String defaultlaf = platform.getDefaultStyle();
-        String laf = LafPreference.LAF.get();
-        try {
-            UIManager.setLookAndFeel(laf);
-        } catch (final NoClassDefFoundError | ClassNotFoundException e) {
-            // Try to find look and feel in plugin classloaders
-            Main.trace(e);
-            Class<?> klass = null;
-            for (ClassLoader cl : PluginHandler.getResourceClassLoaders()) {
-                try {
-                    klass = cl.loadClass(laf);
-                    break;
-                } catch (ClassNotFoundException ex) {
-                    Main.trace(ex);
-                }
-            }
-            if (klass != null && LookAndFeel.class.isAssignableFrom(klass)) {
-                try {
-                    UIManager.setLookAndFeel((LookAndFeel) klass.getConstructor().newInstance());
-                } catch (ReflectiveOperationException ex) {
-                    warn(ex, "Cannot set Look and Feel: " + laf + ": "+ex.getMessage());
-                } catch (UnsupportedLookAndFeelException ex) {
-                    info("Look and Feel not supported: " + laf);
-                    LafPreference.LAF.put(defaultlaf);
-                    trace(ex);
-                }
-            } else {
-                info("Look and Feel not found: " + laf);
-                LafPreference.LAF.put(defaultlaf);
-            }
-        } catch (UnsupportedLookAndFeelException e) {
-            info("Look and Feel not supported: " + laf);
-            LafPreference.LAF.put(defaultlaf);
-            trace(e);
-        } catch (InstantiationException | IllegalAccessException e) {
-            error(e);
-        }
-        toolbar = new ToolbarPreferences();
-
-        UIManager.put("OptionPane.okIcon", ImageProvider.get("ok"));
-        UIManager.put("OptionPane.yesIcon", UIManager.get("OptionPane.okIcon"));
-        UIManager.put("OptionPane.cancelIcon", ImageProvider.get("cancel"));
-        UIManager.put("OptionPane.noIcon", UIManager.get("OptionPane.cancelIcon"));
-        // Ensures caret color is the same than text foreground color, see #12257
-        // See http://docs.oracle.com/javase/8/docs/api/javax/swing/plaf/synth/doc-files/componentProperties.html
-        for (String p : Arrays.asList(
-                "EditorPane", "FormattedTextField", "PasswordField", "TextArea", "TextField", "TextPane")) {
-            UIManager.put(p+".caretForeground", UIManager.getColor(p+".foreground"));
-        }
-
-        I18n.translateJavaInternalMessages();
-
         // init default coordinate format
-        //
-        try {
-            CoordinateFormat.setCoordinateFormat(CoordinateFormat.valueOf(Main.pref.get("coordinates")));
-        } catch (IllegalArgumentException iae) {
-            Main.trace(iae);
-            CoordinateFormat.setCoordinateFormat(CoordinateFormat.DECIMAL_DEGREES);
+        ICoordinateFormat fmt = CoordinateFormatManager.getCoordinateFormat(Main.pref.get("coordinates"));
+        if (fmt == null) {
+            fmt = DecimalDegreesCoordinateFormat.INSTANCE;
         }
-    }
-
-    /**
-     * Handle command line instructions after GUI has been initialized.
-     * @param args program arguments
-     * @return the list of submitted tasks
-     */
-    protected static List<Future<?>> postConstructorProcessCmdLine(ProgramArguments args) {
-        List<Future<?>> tasks = new ArrayList<>();
-        List<File> fileList = new ArrayList<>();
-        for (String s : args.get(Option.DOWNLOAD)) {
-            tasks.addAll(DownloadParamType.paramType(s).download(s, fileList));
-        }
-        if (!fileList.isEmpty()) {
-            tasks.add(OpenFileAction.openFiles(fileList, true));
-        }
-        for (String s : args.get(Option.DOWNLOADGPS)) {
-            tasks.addAll(DownloadParamType.paramType(s).downloadGps(s));
-        }
-        final Collection<String> selectionArguments = args.get(Option.SELECTION);
-        if (!selectionArguments.isEmpty()) {
-            tasks.add(Main.worker.submit(() -> {
-                for (String s : selectionArguments) {
-                    SearchAction.search(s, SearchAction.SearchMode.add);
-                }
-            }));
-        }
-        return tasks;
+        CoordinateFormatManager.setCoordinateFormat(fmt);
     }
 
     /**
      * Closes JOSM and optionally terminates the Java Virtual Machine (JVM).
-     * If there are some unsaved data layers, asks first for user confirmation.
      * @param exit If {@code true}, the JVM is terminated by running {@link System#exit} with a given return code.
      * @param exitCode The return code
-     * @param reason the reason for exiting
-     * @return {@code true} if JOSM has been closed, {@code false} if the user has cancelled the operation.
-     * @since 11093 (3378 with a different function signature)
+     * @return {@code true}
+     * @since 12636
      */
-    public static boolean exitJosm(boolean exit, int exitCode, SaveLayersDialog.Reason reason) {
-        final boolean proceed = Boolean.TRUE.equals(GuiHelper.runInEDTAndWaitAndReturn(() ->
-                SaveLayersDialog.saveUnsavedModifications(getLayerManager().getLayers(),
-                        reason != null ? reason : SaveLayersDialog.Reason.EXIT)));
-        if (proceed) {
-            if (Main.main != null) {
-                Main.main.shutdown();
-            }
-
-            if (exit) {
-                System.exit(exitCode);
-            }
-            return true;
+    public static boolean exitJosm(boolean exit, int exitCode) {
+        if (Main.main != null) {
+            Main.main.shutdown();
         }
-        return false;
+
+        if (exit) {
+            System.exit(exitCode);
+        }
+        return true;
     }
 
     /**
@@ -854,160 +754,16 @@ public abstract class Main {
      */
     protected void shutdown() {
         if (!GraphicsEnvironment.isHeadless()) {
-            worker.shutdown();
             ImageProvider.shutdown(false);
-            JCSCacheManager.shutdown();
         }
-        if (map != null) {
-            map.rememberToggleDialogWidth();
-        }
-        // Remove all layers because somebody may rely on layerRemoved events (like AutosaveTask)
-        getLayerManager().resetState();
         try {
             pref.saveDefaults();
         } catch (IOException ex) {
-            Main.warn(ex, tr("Failed to save default preferences."));
+            Logging.log(Logging.LEVEL_WARN, tr("Failed to save default preferences."), ex);
         }
         if (!GraphicsEnvironment.isHeadless()) {
-            worker.shutdownNow();
             ImageProvider.shutdown(true);
         }
-    }
-
-    /**
-     * The type of a command line parameter, to be used in switch statements.
-     * @see #paramType
-     */
-    enum DownloadParamType {
-        httpUrl {
-            @Override
-            List<Future<?>> download(String s, Collection<File> fileList) {
-                return new OpenLocationAction().openUrl(false, s);
-            }
-
-            @Override
-            List<Future<?>> downloadGps(String s) {
-                final Bounds b = OsmUrlToBounds.parse(s);
-                if (b == null) {
-                    JOptionPane.showMessageDialog(
-                            Main.parent,
-                            tr("Ignoring malformed URL: \"{0}\"", s),
-                            tr("Warning"),
-                            JOptionPane.WARNING_MESSAGE
-                    );
-                    return Collections.emptyList();
-                }
-                return downloadFromParamBounds(true, b);
-            }
-        }, fileUrl {
-            @Override
-            List<Future<?>> download(String s, Collection<File> fileList) {
-                File f = null;
-                try {
-                    f = new File(new URI(s));
-                } catch (URISyntaxException e) {
-                    Main.warn(e);
-                    JOptionPane.showMessageDialog(
-                            Main.parent,
-                            tr("Ignoring malformed file URL: \"{0}\"", s),
-                            tr("Warning"),
-                            JOptionPane.WARNING_MESSAGE
-                    );
-                }
-                if (f != null) {
-                    fileList.add(f);
-                }
-                return Collections.emptyList();
-            }
-        }, bounds {
-
-            /**
-             * Download area specified on the command line as bounds string.
-             * @param rawGps Flag to download raw GPS tracks
-             * @param s The bounds parameter
-             * @return the complete download task (including post-download handler), or {@code null}
-             */
-            private List<Future<?>> downloadFromParamBounds(final boolean rawGps, String s) {
-                final StringTokenizer st = new StringTokenizer(s, ",");
-                if (st.countTokens() == 4) {
-                    return Main.downloadFromParamBounds(rawGps, new Bounds(
-                            new LatLon(Double.parseDouble(st.nextToken()), Double.parseDouble(st.nextToken())),
-                            new LatLon(Double.parseDouble(st.nextToken()), Double.parseDouble(st.nextToken()))
-                    ));
-                }
-                return Collections.emptyList();
-            }
-
-            @Override
-            List<Future<?>> download(String param, Collection<File> fileList) {
-                return downloadFromParamBounds(false, param);
-            }
-
-            @Override
-            List<Future<?>> downloadGps(String param) {
-                return downloadFromParamBounds(true, param);
-            }
-        }, fileName {
-            @Override
-            List<Future<?>> download(String s, Collection<File> fileList) {
-                fileList.add(new File(s));
-                return Collections.emptyList();
-            }
-        };
-
-        /**
-         * Performs the download
-         * @param param represents the object to be downloaded
-         * @param fileList files which shall be opened, should be added to this collection
-         * @return the download task, or {@code null}
-         */
-        abstract List<Future<?>> download(String param, Collection<File> fileList);
-
-        /**
-         * Performs the GPS download
-         * @param param represents the object to be downloaded
-         * @return the download task, or {@code null}
-         */
-        List<Future<?>> downloadGps(String param) {
-            if (!GraphicsEnvironment.isHeadless()) {
-                JOptionPane.showMessageDialog(
-                        Main.parent,
-                        tr("Parameter \"downloadgps\" does not accept file names or file URLs"),
-                        tr("Warning"),
-                        JOptionPane.WARNING_MESSAGE
-                );
-            }
-            return Collections.emptyList();
-        }
-
-        /**
-         * Guess the type of a parameter string specified on the command line with --download= or --downloadgps.
-         *
-         * @param s A parameter string
-         * @return The guessed parameter type
-         */
-        static DownloadParamType paramType(String s) {
-            if (s.startsWith("http:") || s.startsWith("https:")) return DownloadParamType.httpUrl;
-            if (s.startsWith("file:")) return DownloadParamType.fileUrl;
-            String coorPattern = "\\s*[+-]?[0-9]+(\\.[0-9]+)?\\s*";
-            if (s.matches(coorPattern + "(," + coorPattern + "){3}")) return DownloadParamType.bounds;
-            // everything else must be a file name
-            return DownloadParamType.fileName;
-        }
-    }
-
-    /**
-     * Download area specified as Bounds value.
-     * @param rawGps Flag to download raw GPS tracks
-     * @param b The bounds value
-     * @return the complete download task (including post-download handler)
-     */
-    private static List<Future<?>> downloadFromParamBounds(final boolean rawGps, Bounds b) {
-        DownloadTask task = rawGps ? new DownloadGpsTask() : new DownloadOsmTask();
-        // asynchronously launch the download task ...
-        Future<?> future = task.download(true, b, null);
-        // ... and the continuation when the download is finished (this will wait for the download to finish)
-        return Collections.singletonList(Main.worker.submit(new PostDownloadHandler(task, future)));
     }
 
     /**
@@ -1017,7 +773,7 @@ public abstract class Main {
     public static void determinePlatformHook() {
         String os = System.getProperty("os.name");
         if (os == null) {
-            warn("Your operating system has no name, so I'm guessing its some kind of *nix.");
+            Logging.warn("Your operating system has no name, so I'm guessing its some kind of *nix.");
             platform = new PlatformHookUnixoid();
         } else if (os.toLowerCase(Locale.ENGLISH).startsWith("windows")) {
             platform = new PlatformHookWindows();
@@ -1028,7 +784,7 @@ public abstract class Main {
         } else if (os.toLowerCase(Locale.ENGLISH).startsWith("mac os x")) {
             platform = new PlatformHookOsx();
         } else {
-            warn("I don't know your operating system '"+os+"', so I'm guessing its some kind of *nix.");
+            Logging.warn("I don't know your operating system '"+os+"', so I'm guessing its some kind of *nix.");
             platform = new PlatformHookUnixoid();
         }
     }
@@ -1041,7 +797,7 @@ public abstract class Main {
     /* ----------------------------------------------------------------------------------------- */
     /**
      * The projection method used.
-     * use {@link #getProjection()} and {@link #setProjection(Projection)} for access.
+     * Use {@link #getProjection()} and {@link #setProjection(Projection)} for access.
      * Use {@link #setProjection(Projection)} in order to trigger a projection change event.
      */
     private static volatile Projection proj;
@@ -1063,9 +819,28 @@ public abstract class Main {
     public static void setProjection(Projection p) {
         CheckParameterUtil.ensureParameterNotNull(p);
         Projection oldValue = proj;
-        Bounds b = isDisplayingMapView() ? map.mapView.getRealBounds() : null;
+        Bounds b = main != null ? main.getRealBounds() : null;
         proj = p;
         fireProjectionChanged(oldValue, proj, b);
+    }
+
+    /**
+     * Returns the bounds for the current projection. Used for projection events.
+     * @return the bounds for the current projection
+     * @see #restoreOldBounds
+     */
+    protected Bounds getRealBounds() {
+        // To be overriden
+        return null;
+    }
+
+    /**
+     * Restore clean state corresponding to old bounds after a projection change event.
+     * @param oldBounds bounds previously returned by {@link #getRealBounds}, before the change of projection
+     * @see #getRealBounds
+     */
+    protected void restoreOldBounds(Bounds oldBounds) {
+        // To be overriden
     }
 
     /*
@@ -1090,8 +865,8 @@ public abstract class Main {
                     listener.projectionChanged(oldValue, newValue);
                 }
             }
-            if (newValue != null && oldBounds != null) {
-                Main.map.mapView.zoomTo(oldBounds);
+            if (newValue != null && oldBounds != null && main != null) {
+                main.restoreOldBounds(oldBounds);
             }
             /* TODO - remove layers with fixed projection */
         }
@@ -1155,10 +930,12 @@ public abstract class Main {
      * @param listener The MapFrameListener
      * @return {@code true} if the listeners collection changed as a result of the call
      * @see #addMapFrameListener
+     * @deprecated use {@link MainApplication#addAndFireMapFrameListener} instead
      * @since 11904
      */
+    @Deprecated
     public static boolean addAndFireMapFrameListener(MapFrameListener listener) {
-        return mainPanel.addAndFireMapFrameListener(listener);
+        return MainApplication.addAndFireMapFrameListener(listener);
     }
 
     /**
@@ -1166,20 +943,24 @@ public abstract class Main {
      * @param listener The MapFrameListener
      * @return {@code true} if the listeners collection changed as a result of the call
      * @see #addAndFireMapFrameListener
+     * @deprecated use {@link MainApplication#addMapFrameListener} instead
      * @since 5957
      */
+    @Deprecated
     public static boolean addMapFrameListener(MapFrameListener listener) {
-        return mainPanel.addMapFrameListener(listener);
+        return MainApplication.addMapFrameListener(listener);
     }
 
     /**
      * Unregisters the given {@code MapFrameListener} from MapFrame changes
      * @param listener The MapFrameListener
      * @return {@code true} if the listeners collection changed as a result of the call
+     * @deprecated use {@link MainApplication#removeMapFrameListener} instead
      * @since 5957
      */
+    @Deprecated
     public static boolean removeMapFrameListener(MapFrameListener listener) {
-        return mainPanel.removeMapFrameListener(listener);
+        return MainApplication.removeMapFrameListener(listener);
     }
 
     /**
@@ -1195,7 +976,7 @@ public abstract class Main {
         if (url != null && t != null) {
             Throwable old = addNetworkError(url.toExternalForm(), t);
             if (old != null) {
-                Main.warn("Already here "+old);
+                Logging.warn("Already here "+old);
             }
             return old;
         }

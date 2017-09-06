@@ -9,6 +9,7 @@ import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -24,7 +25,9 @@ import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.Notification;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.UserCancelException;
 
@@ -112,7 +115,8 @@ public final class ReverseWayAction extends JosmAction {
         if (!isEnabled() || ds == null)
             return;
 
-        final Collection<Way> sel = ds.getSelectedWays();
+        final Collection<Way> sel = new LinkedHashSet<>(ds.getSelectedWays());
+        sel.removeIf(Way::isIncomplete);
         if (sel.isEmpty()) {
             new Notification(
                     tr("Please select at least one way."))
@@ -128,12 +132,12 @@ public final class ReverseWayAction extends JosmAction {
             try {
                 revResult = reverseWay(w);
             } catch (UserCancelException ex) {
-                Main.trace(ex);
+                Logging.trace(ex);
                 return;
             }
             c.addAll(revResult.getCommands());
         }
-        Main.main.undoRedo.add(new SequenceCommand(tr("Reverse ways"), c));
+        MainApplication.undoRedo.add(new SequenceCommand(tr("Reverse ways"), c));
     }
 
     /**
@@ -152,7 +156,7 @@ public final class ReverseWayAction extends JosmAction {
         if (Main.pref.getBoolean("tag-correction.reverse-way", true)) {
             corrCmds = (new ReverseWayTagCorrector()).execute(w, wnew);
         }
-        return new ReverseWayResult(wnew, corrCmds, new ChangeCommand(w.getDataSet(), w, wnew));
+        return new ReverseWayResult(wnew, corrCmds, new ChangeCommand(w, wnew));
     }
 
     @Override
@@ -162,6 +166,6 @@ public final class ReverseWayAction extends JosmAction {
 
     @Override
     protected void updateEnabledState(Collection<? extends OsmPrimitive> selection) {
-        setEnabled(selection.stream().anyMatch(Way.class::isInstance));
+        setEnabled(selection.stream().anyMatch(o -> o instanceof Way && !o.isIncomplete()));
     }
 }

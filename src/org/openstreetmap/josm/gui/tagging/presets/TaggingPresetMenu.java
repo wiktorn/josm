@@ -21,17 +21,23 @@ import javax.swing.JPopupMenu;
 import javax.swing.JSeparator;
 
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.tools.AlphanumComparator;
 
+/**
+ * Menu that groups several presets from one topic.
+ * <p>
+ * Used, to create the nested directory structure in the preset main menu entry.
+ */
 public class TaggingPresetMenu extends TaggingPreset {
     public JMenu menu; // set by TaggingPresets
 
     private static class PresetTextComparator implements Comparator<JMenuItem>, Serializable {
         @Override
         public int compare(JMenuItem o1, JMenuItem o2) {
-            if (Main.main.menu.presetSearchAction.equals(o1.getAction()))
+            if (MainApplication.getMenu().presetSearchAction.equals(o1.getAction()))
                 return -1;
-            else if (Main.main.menu.presetSearchAction.equals(o2.getAction()))
+            else if (MainApplication.getMenu().presetSearchAction.equals(o2.getAction()))
                 return 1;
             else
                 return AlphanumComparator.getInstance().compare(o1.getText(), o2.getText());

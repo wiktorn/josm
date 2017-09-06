@@ -39,9 +39,12 @@ import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.WaySegment;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
+import org.openstreetmap.josm.data.preferences.sources.ValidatorPrefHelper;
 import org.openstreetmap.josm.data.validation.OsmValidator;
 import org.openstreetmap.josm.data.validation.TestError;
 import org.openstreetmap.josm.data.validation.ValidatorVisitor;
+import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.PleaseWaitRunnable;
 import org.openstreetmap.josm.gui.PopupMenuHandler;
 import org.openstreetmap.josm.gui.SideButton;
@@ -98,7 +101,7 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
                 Shortcut.registerShortcut("subwindow:validator", tr("Toggle: {0}", tr("Validation results")),
                         KeyEvent.VK_V, Shortcut.ALT_SHIFT), 150, false, ValidatorPreference.class);
 
-        popupMenuHandler.addAction(Main.main.menu.autoScaleActions.get("problem"));
+        popupMenuHandler.addAction(MainApplication.getMenu().autoScaleActions.get("problem"));
         popupMenuHandler.addAction(new EditRelationAction());
 
         tree = new ValidatorTreePanel();
@@ -128,7 +131,7 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                final DataSet ds = Main.getLayerManager().getEditDataSet();
+                final DataSet ds = MainApplication.getLayerManager().getEditDataSet();
                 if (ds == null) {
                     return;
                 }
@@ -154,7 +157,7 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
         fixButton.setEnabled(false);
         buttons.add(fixButton);
 
-        if (ValidatorPreference.PREF_USE_IGNORE.get()) {
+        if (ValidatorPrefHelper.PREF_USE_IGNORE.get()) {
             ignoreButton = new SideButton(new AbstractAction() {
                 {
                     putValue(NAME, tr("Ignore"));
@@ -177,16 +180,16 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
     @Override
     public void showNotify() {
         DataSet.addSelectionListener(this);
-        DataSet ds = Main.getLayerManager().getEditDataSet();
+        DataSet ds = MainApplication.getLayerManager().getEditDataSet();
         if (ds != null) {
             updateSelection(ds.getAllSelected());
         }
-        Main.getLayerManager().addAndFireActiveLayerChangeListener(this);
+        MainApplication.getLayerManager().addAndFireActiveLayerChangeListener(this);
     }
 
     @Override
     public void hideNotify() {
-        Main.getLayerManager().removeActiveLayerChangeListener(this);
+        MainApplication.getLayerManager().removeActiveLayerChangeListener(this);
         DataSet.removeSelectionListener(this);
     }
 
@@ -234,7 +237,7 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
         // run fix task asynchronously
         //
         FixTask fixTask = new FixTask(errorsToFix);
-        Main.worker.submit(fixTask);
+        MainApplication.worker.submit(fixTask);
     }
 
     /**
@@ -314,7 +317,7 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
         if (changed) {
             tree.resetErrors();
             OsmValidator.saveIgnoredErrors();
-            Main.map.repaint();
+            MainApplication.getMap().repaint();
         }
     }
 
@@ -346,7 +349,7 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
                 }
             }
         }
-        DataSet ds = Main.getLayerManager().getEditDataSet();
+        DataSet ds = MainApplication.getLayerManager().getEditDataSet();
         if (ds != null) {
             ds.setSelected(sel);
         }
@@ -485,7 +488,7 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
             fixButton.setEnabled(hasFixes);
 
             if (isDblClick) {
-                DataSet ds = Main.getLayerManager().getEditDataSet();
+                DataSet ds = MainApplication.getLayerManager().getEditDataSet();
                 if (ds != null) {
                     ds.setSelected(sel);
                 }
@@ -523,8 +526,9 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
             boolean hasFixes = setSelection(sel, true);
             fixButton.setEnabled(hasFixes);
             popupMenuHandler.setPrimitives(sel);
-            if (Main.map != null) {
-                Main.map.repaint();
+            MapFrame map = MainApplication.getMap();
+            if (map != null) {
+                map.repaint();
             }
         }
     }
@@ -568,7 +572,7 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
      * @param newSelection The new selection
      */
     public void updateSelection(Collection<? extends OsmPrimitive> newSelection) {
-        if (!Main.pref.getBoolean(ValidatorPreference.PREF_FILTER_BY_SELECTION, false))
+        if (!Main.pref.getBoolean(ValidatorPrefHelper.PREF_FILTER_BY_SELECTION, false))
             return;
         if (newSelection.isEmpty()) {
             tree.setFilter(null);
@@ -609,7 +613,7 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
             if (error.isFixable()) {
                 final Command fixCommand = error.getFix();
                 if (fixCommand != null) {
-                    SwingUtilities.invokeAndWait(() -> Main.main.undoRedo.addNoRedraw(fixCommand));
+                    SwingUtilities.invokeAndWait(() -> MainApplication.undoRedo.addNoRedraw(fixCommand));
                 }
                 // It is wanted to ignore an error if it said fixable, even if fixCommand was null
                 // This is to fix #5764 and #5773:
@@ -623,7 +627,7 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
             ProgressMonitor monitor = getProgressMonitor();
             try {
                 monitor.setTicksCount(testErrors.size());
-                final DataSet ds = Main.getLayerManager().getEditDataSet();
+                final DataSet ds = MainApplication.getLayerManager().getEditDataSet();
                 int i = 0;
                 SwingUtilities.invokeAndWait(ds::beginUpdate);
                 try {
@@ -640,8 +644,8 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
                 }
                 monitor.subTask(tr("Updating map ..."));
                 SwingUtilities.invokeAndWait(() -> {
-                    Main.main.undoRedo.afterAdd();
-                    Main.getLayerManager().getLayersOfType(ValidatorLayer.class).forEach(ValidatorLayer::invalidate);
+                    MainApplication.undoRedo.afterAdd();
+                    MainApplication.getLayerManager().getLayersOfType(ValidatorLayer.class).forEach(ValidatorLayer::invalidate);
                     tree.resetErrors();
                 });
             } catch (InterruptedException | InvocationTargetException e) {

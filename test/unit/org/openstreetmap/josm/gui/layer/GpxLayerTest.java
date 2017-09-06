@@ -14,19 +14,21 @@ import java.util.TimeZone;
 
 import javax.swing.JScrollPane;
 
-import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
-import org.openstreetmap.josm.JOSMFixture;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.TestUtils;
 import org.openstreetmap.josm.data.gpx.GpxData;
 import org.openstreetmap.josm.data.gpx.ImmutableGpxTrack;
 import org.openstreetmap.josm.data.gpx.WayPoint;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.projection.Projections;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.widgets.HtmlPanel;
 import org.openstreetmap.josm.io.GpxReaderTest;
+import org.openstreetmap.josm.testutils.JOSMTestRules;
 import org.xml.sax.SAXException;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Unit tests of {@link GpxLayer} class.
@@ -36,10 +38,9 @@ public class GpxLayerTest {
     /**
      * Setup tests
      */
-    @BeforeClass
-    public static void setUpBeforeClass() {
-        JOSMFixture.createUnitTestFixture().init(true);
-    }
+    @Rule
+    @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
+    public JOSMTestRules test = new JOSMTestRules().platform().main().projection().i18n();
 
     private static String getHtml(GpxLayer layer) {
         return ((HtmlPanel) ((JScrollPane) layer.getInfoComponent()).getViewport().getView()).getEditorPane().getText();
@@ -144,7 +145,7 @@ public class GpxLayerTest {
                      "          \n" +
                      "        </td>\n" +
                      "        <td>\n" +
-                     "          1/3/16 12:59 PM - 1:00 PM (0:00)\n" +
+                     "          1/3/16 11:59 AM - 12:00 PM (0:00)\n" +
                      "        </td>\n" +
                      "        <td>\n" +
                      "          12.0 m\n" +
@@ -207,11 +208,11 @@ public class GpxLayerTest {
     public void testPaint() throws Exception {
         GpxLayer layer = getMinimalGpxLayer();
         try {
-            Main.getLayerManager().addLayer(layer);
+            MainApplication.getLayerManager().addLayer(layer);
             assertTrue(layer.getMenuEntries().length > 0);
-            layer.paint(TestUtils.newGraphics(), Main.map.mapView, layer.data.getMetaBounds());
+            layer.paint(TestUtils.newGraphics(), MainApplication.getMap().mapView, layer.data.getMetaBounds());
         } finally {
-            Main.getLayerManager().removeLayer(layer);
+            MainApplication.getLayerManager().removeLayer(layer);
         }
     }
 }

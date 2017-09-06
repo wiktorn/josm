@@ -43,6 +43,7 @@ import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.event.DatasetEventManager;
 import org.openstreetmap.josm.data.osm.event.DatasetEventManager.FireMode;
 import org.openstreetmap.josm.data.osm.event.SelectionEventManager;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.SideButton;
 import org.openstreetmap.josm.gui.dialogs.changeset.ChangesetCacheManager;
 import org.openstreetmap.josm.gui.dialogs.changeset.ChangesetInSelectionListModel;
@@ -57,6 +58,7 @@ import org.openstreetmap.josm.gui.widgets.ListPopupMenu;
 import org.openstreetmap.josm.gui.widgets.PopupMenuLauncher;
 import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.OpenBrowser;
 import org.openstreetmap.josm.tools.bugreport.BugReportExceptionHandler;
 
@@ -118,8 +120,8 @@ public class ChangesetDialog extends ToggleDialog {
         // let the model for changesets in the current layer listen to various
         // events and bootstrap it's content
         ChangesetCache.getInstance().addChangesetCacheListener(inActiveDataLayerModel);
-        Main.getLayerManager().addActiveLayerChangeListener(inActiveDataLayerModel);
-        OsmDataLayer editLayer = Main.getLayerManager().getEditLayer();
+        MainApplication.getLayerManager().addActiveLayerChangeListener(inActiveDataLayerModel);
+        OsmDataLayer editLayer = MainApplication.getLayerManager().getEditLayer();
         if (editLayer != null) {
             editLayer.data.addDataSetListener(inActiveDataLayerModel);
             inActiveDataLayerModel.initFromDataSet(editLayer.data);
@@ -131,8 +133,8 @@ public class ChangesetDialog extends ToggleDialog {
         // remove the list model for the current edit layer as listener
         //
         ChangesetCache.getInstance().removeChangesetCacheListener(inActiveDataLayerModel);
-        Main.getLayerManager().removeActiveLayerChangeListener(inActiveDataLayerModel);
-        OsmDataLayer editLayer = Main.getLayerManager().getEditLayer();
+        MainApplication.getLayerManager().removeActiveLayerChangeListener(inActiveDataLayerModel);
+        OsmDataLayer editLayer = MainApplication.getLayerManager().getEditLayer();
         if (editLayer != null) {
             editLayer.data.removeDataSetListener(inActiveDataLayerModel);
         }
@@ -231,7 +233,7 @@ public class ChangesetDialog extends ToggleDialog {
     }
 
     protected void initWithCurrentData() {
-        OsmDataLayer editLayer = Main.getLayerManager().getEditLayer();
+        OsmDataLayer editLayer = MainApplication.getLayerManager().getEditLayer();
         if (editLayer != null) {
             inSelectionModel.initFromPrimitives(editLayer.data.getAllSelected());
             inActiveDataLayerModel.initFromDataSet(editLayer.data);
@@ -262,9 +264,9 @@ public class ChangesetDialog extends ToggleDialog {
             Set<Integer> sel = getCurrentChangesetListModel().getSelectedChangesetIds();
             if (sel.isEmpty())
                 return;
-            if (Main.getLayerManager().getEditDataSet() == null)
+            if (MainApplication.getLayerManager().getEditDataSet() == null)
                 return;
-            new SelectObjectsAction().selectObjectsByChangesetIds(Main.getLayerManager().getEditDataSet(), sel);
+            new SelectObjectsAction().selectObjectsByChangesetIds(MainApplication.getLayerManager().getEditDataSet(), sel);
         }
 
     }
@@ -310,14 +312,14 @@ public class ChangesetDialog extends ToggleDialog {
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            if (Main.getLayerManager().getEditLayer() == null)
+            if (MainApplication.getLayerManager().getEditLayer() == null)
                 return;
             ChangesetListModel model = getCurrentChangesetListModel();
             Set<Integer> sel = model.getSelectedChangesetIds();
             if (sel.isEmpty())
                 return;
 
-            DataSet ds = Main.getLayerManager().getEditLayer().data;
+            DataSet ds = MainApplication.getLayerManager().getEditLayer().data;
             selectObjectsByChangesetIds(ds, sel);
         }
 
@@ -356,7 +358,7 @@ public class ChangesetDialog extends ToggleDialog {
             if (sel.isEmpty())
                 return;
             ChangesetHeaderDownloadTask task = new ChangesetHeaderDownloadTask(sel);
-            Main.worker.submit(new PostDownloadHandler(task, task.download()));
+            MainApplication.worker.submit(new PostDownloadHandler(task, task.download()));
         }
 
         protected void updateEnabledState() {
@@ -391,7 +393,7 @@ public class ChangesetDialog extends ToggleDialog {
             List<Changeset> sel = getCurrentChangesetListModel().getSelectedOpenChangesets();
             if (sel.isEmpty())
                 return;
-            Main.worker.submit(new CloseChangesetTask(sel));
+            MainApplication.worker.submit(new CloseChangesetTask(sel));
         }
 
         protected void updateEnabledState() {
@@ -513,7 +515,7 @@ public class ChangesetDialog extends ToggleDialog {
                 future = null;
             } else {
                 task = new ChangesetHeaderDownloadTask(toDownload);
-                future = Main.worker.submit(new PostDownloadHandler(task, task.download()));
+                future = MainApplication.worker.submit(new PostDownloadHandler(task, task.download()));
             }
 
             Runnable r = () -> {
@@ -522,10 +524,10 @@ public class ChangesetDialog extends ToggleDialog {
                     try {
                         future.get();
                     } catch (InterruptedException e1) {
-                        Main.warn(e1, "InterruptedException in ChangesetDialog while downloading changeset header");
+                        Logging.log(Logging.LEVEL_WARN, "InterruptedException in ChangesetDialog while downloading changeset header", e1);
                         Thread.currentThread().interrupt();
                     } catch (ExecutionException e2) {
-                        Main.error(e2);
+                        Logging.error(e2);
                         BugReportExceptionHandler.handleException(e2.getCause());
                         return;
                     }
@@ -541,7 +543,7 @@ public class ChangesetDialog extends ToggleDialog {
                 // launch the task
                 GuiHelper.runInEDT(() -> launchChangesetManager(sel));
             };
-            Main.worker.submit(r);
+            MainApplication.worker.submit(r);
         }
     }
 

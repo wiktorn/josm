@@ -4,19 +4,23 @@ package org.openstreetmap.josm.gui.dialogs;
 import static org.openstreetmap.josm.tools.I18n.tr;
 import static org.openstreetmap.josm.tools.I18n.trn;
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.conflict.Conflict;
 import org.openstreetmap.josm.data.coor.EastNorth;
+import org.openstreetmap.josm.data.coor.ILatLon;
+import org.openstreetmap.josm.data.coor.conversion.DecimalDegreesCoordinateFormat;
 import org.openstreetmap.josm.data.osm.BBox;
+import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.Way;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.tools.Geometry;
+import org.openstreetmap.josm.tools.Utils;
 import org.openstreetmap.josm.tools.date.DateUtils;
 
 /**
@@ -28,10 +32,10 @@ public class InspectPrimitiveDataText {
     private static final char NL = '\n';
 
     private final StringBuilder s = new StringBuilder();
-    private final OsmDataLayer layer;
+    private final DataSet ds;
 
-    InspectPrimitiveDataText(OsmDataLayer layer) {
-        this.layer = layer;
+    InspectPrimitiveDataText(DataSet ds) {
+        this.ds = ds;
     }
 
     private InspectPrimitiveDataText add(String title, String... values) {
@@ -158,8 +162,9 @@ public class InspectPrimitiveDataText {
             addCoordinates((Node) o);
         } else if (o instanceof Way) {
             addBbox(o);
-            add(tr("Centroid: "), Main.getProjection().eastNorth2latlon(
-                    Geometry.getCentroid(((Way) o).getNodes())).toStringCSV(", "));
+            add(tr("Centroid: "),
+                    toStringCSV(", ", Main.getProjection().eastNorth2latlon(
+                            Geometry.getCentroid(((Way) o).getNodes()))));
             addWayNodes((Way) o);
         } else if (o instanceof Relation) {
             addBbox(o);
@@ -190,14 +195,14 @@ public class InspectPrimitiveDataText {
         BBox bbox = o.getBBox();
         if (bbox != null) {
             add(tr("Bounding box: "), bbox.toStringCSV(", "));
-            EastNorth bottomRigth = bbox.getBottomRight().getEastNorth();
-            EastNorth topLeft = bbox.getTopLeft().getEastNorth();
+            EastNorth bottomRigth = bbox.getBottomRight().getEastNorth(Main.getProjection());
+            EastNorth topLeft = bbox.getTopLeft().getEastNorth(Main.getProjection());
             add(tr("Bounding box (projected): "),
                     Double.toString(topLeft.east()), ", ",
                     Double.toString(bottomRigth.north()), ", ",
                     Double.toString(bottomRigth.east()), ", ",
                     Double.toString(topLeft.north()));
-            add(tr("Center of bounding box: "), bbox.getCenter().toStringCSV(", "));
+            add(tr("Center of bounding box: "), toStringCSV(", ", bbox.getCenter()));
         }
     }
 
@@ -225,11 +230,24 @@ public class InspectPrimitiveDataText {
     }
 
     void addConflicts(OsmPrimitive o) {
-        Conflict<?> c = layer.getConflicts().getConflictForMy(o);
+        Conflict<?> c = ds.getConflicts().getConflictForMy(o);
         if (c != null) {
             add(tr("In conflict with: "));
             addNameAndId(c.getTheir());
         }
+    }
+
+    /**
+     * Returns lat/lon coordinate in human-readable format separated by {@code separator}.
+     * @param separator values separator
+     * @param ll the lat/lon
+     * @return String in the format {@code "1.23456[separator]2.34567"}
+     */
+    private static String toStringCSV(String separator, ILatLon ll) {
+        return Utils.join(separator, Arrays.asList(
+                DecimalDegreesCoordinateFormat.INSTANCE.latToString(ll),
+                DecimalDegreesCoordinateFormat.INSTANCE.lonToString(ll)
+        ));
     }
 
     @Override

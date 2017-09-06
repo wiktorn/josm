@@ -6,6 +6,7 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -15,7 +16,6 @@ import java.util.concurrent.Future;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.DataSource;
 import org.openstreetmap.josm.data.ProjectionBounds;
@@ -26,6 +26,8 @@ import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
+import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.PleaseWaitRunnable;
 import org.openstreetmap.josm.gui.io.UpdatePrimitivesTask;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
@@ -33,9 +35,11 @@ import org.openstreetmap.josm.gui.progress.NullProgressMonitor;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
 import org.openstreetmap.josm.io.BoundingBoxDownloader;
 import org.openstreetmap.josm.io.OsmServerLocationReader;
+import org.openstreetmap.josm.io.OsmServerLocationReader.OsmUrlPattern;
 import org.openstreetmap.josm.io.OsmServerReader;
 import org.openstreetmap.josm.io.OsmTransferCanceledException;
 import org.openstreetmap.josm.io.OsmTransferException;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 import org.xml.sax.SAXException;
 
@@ -44,13 +48,6 @@ import org.xml.sax.SAXException;
  * Run in the worker thread.
  */
 public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
-
-    // CHECKSTYLE.OFF: SingleSpaceSeparator
-    protected static final String PATTERN_OSM_API_URL           = "https?://.*/api/0.6/(map|nodes?|ways?|relations?|\\*).*";
-    protected static final String PATTERN_OVERPASS_API_URL      = "https?://.*/interpreter\\?data=.*";
-    protected static final String PATTERN_OVERPASS_API_XAPI_URL = "https?://.*/xapi(\\?.*\\[@meta\\]|_meta\\?).*";
-    protected static final String PATTERN_EXTERNAL_OSM_FILE     = "https?://.*/.*\\.osm";
-    // CHECKSTYLE.ON: SingleSpaceSeparator
 
     protected Bounds currentBounds;
     protected DownloadTask downloadTask;
@@ -63,8 +60,7 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
     @Override
     public String[] getPatterns() {
         if (this.getClass() == DownloadOsmTask.class) {
-            return new String[]{PATTERN_OSM_API_URL, PATTERN_OVERPASS_API_URL,
-                PATTERN_OVERPASS_API_XAPI_URL, PATTERN_EXTERNAL_OSM_FILE};
+            return Arrays.stream(OsmUrlPattern.values()).map(OsmUrlPattern::pattern).toArray(String[]::new);
         } else {
             return super.getPatterns();
         }
@@ -112,7 +108,7 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
      *           doSomethingAfterTheTaskCompleted();
      *       }
      *    }
-     *    Main.worker.submit(runAfterTask);
+     *    MainApplication.worker.submit(runAfterTask);
      * </pre>
      * @param reader the reader used to parse OSM data (see {@link OsmServerReader#parseOsm})
      * @param newLayer true, if the data is to be downloaded into a new layer. If false, the task
@@ -130,7 +126,7 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
         this.currentBounds = new Bounds(downloadArea);
         // We need submit instead of execute so we can wait for it to finish and get the error
         // message if necessary. If no one calls getErrorMessage() it just behaves like execute.
-        return Main.worker.submit(downloadTask);
+        return MainApplication.worker.submit(downloadTask);
     }
 
     /**
@@ -156,7 +152,7 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
         currentBounds = null;
         // Extract .osm filename from URL to set the new layer name
         extractOsmFilename("https?://.*/(.*\\.osm)", newUrl);
-        return Main.worker.submit(downloadTask);
+        return MainApplication.worker.submit(downloadTask);
     }
 
     protected final void extractOsmFilename(String pattern, String url) {
@@ -226,16 +222,16 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
         }
 
         protected OsmDataLayer getEditLayer() {
-            if (!Main.isDisplayingMapView()) return null;
-            return Main.getLayerManager().getEditLayer();
+            if (!MainApplication.isDisplayingMapView()) return null;
+            return MainApplication.getLayerManager().getEditLayer();
         }
 
         protected int getNumDataLayers() {
-            return Main.getLayerManager().getLayersOfType(OsmDataLayer.class).size();
+            return MainApplication.getLayerManager().getLayersOfType(OsmDataLayer.class).size();
         }
 
         protected OsmDataLayer getFirstDataLayer() {
-            return Utils.find(Main.getLayerManager().getLayers(), OsmDataLayer.class);
+            return Utils.find(MainApplication.getLayerManager().getLayers(), OsmDataLayer.class);
         }
 
         protected OsmDataLayer createNewLayer(String layerName) {
@@ -266,7 +262,7 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
                 // or it is not clear which layer to merge to
                 //
                 final OsmDataLayer layer = createNewLayer(newLayerName);
-                Main.getLayerManager().addLayer(layer, zoomAfterDownload);
+                MainApplication.getLayerManager().addLayer(layer, zoomAfterDownload);
                 return layer;
             }
             return null;
@@ -278,11 +274,12 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
                 layer = Optional.ofNullable(getEditLayer()).orElseGet(this::getFirstDataLayer);
                 Collection<OsmPrimitive> primitivesToUpdate = searchPrimitivesToUpdate(bounds, layer.data);
                 layer.mergeFrom(dataSet);
-                if (Main.map != null && zoomAfterDownload && bounds != null) {
-                    Main.map.mapView.zoomTo(new ViewportData(computeBbox(bounds)));
+                MapFrame map = MainApplication.getMap();
+                if (map != null && zoomAfterDownload && bounds != null) {
+                    map.mapView.zoomTo(new ViewportData(computeBbox(bounds)));
                 }
                 if (!primitivesToUpdate.isEmpty()) {
-                    Main.worker.submit(new UpdatePrimitivesTask(layer, primitivesToUpdate));
+                    MainApplication.worker.submit(new UpdatePrimitivesTask(layer, primitivesToUpdate));
                 }
                 layer.onPostDownloadFromServer();
             }
@@ -359,7 +356,7 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
                 dataSet = parseDataSet();
             } catch (OsmTransferException e) {
                 if (isCanceled()) {
-                    Main.info(tr("Ignoring exception because download has been canceled. Exception was: {0}", e.toString()));
+                    Logging.info(tr("Ignoring exception because download has been canceled. Exception was: {0}", e.toString()));
                     return;
                 }
                 if (e instanceof OsmTransferCanceledException) {
@@ -404,7 +401,7 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
     public String getConfirmationMessage(URL url) {
         if (url != null) {
             String urlString = url.toExternalForm();
-            if (urlString.matches(PATTERN_OSM_API_URL)) {
+            if (urlString.matches(OsmUrlPattern.OSM_API_URL.pattern())) {
                 // TODO: proper i18n after stabilization
                 Collection<String> items = new ArrayList<>();
                 items.add(tr("OSM Server URL:") + ' ' + url.getHost());

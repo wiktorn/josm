@@ -16,7 +16,6 @@ import java.util.Set;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.TestUtils;
 import org.openstreetmap.josm.actions.search.SearchAction;
 import org.openstreetmap.josm.data.osm.DataSet;
@@ -25,6 +24,8 @@ import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.Way;
+import org.openstreetmap.josm.data.osm.search.SearchMode;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.progress.NullProgressMonitor;
@@ -46,7 +47,7 @@ public class JoinAreasActionTest {
      */
     @Rule
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    public JOSMTestRules test = new JOSMTestRules().commands();
+    public JOSMTestRules test = new JOSMTestRules().platform().main().projection();
 
     /**
      * Non-regression test for bug #10511.
@@ -59,12 +60,12 @@ public class JoinAreasActionTest {
         try (InputStream is = TestUtils.getRegressionDataStream(10511, "10511_mini.osm")) {
             DataSet ds = OsmReader.parseDataSet(is, null);
             Layer layer = new OsmDataLayer(ds, null, null);
-            Main.getLayerManager().addLayer(layer);
+            MainApplication.getLayerManager().addLayer(layer);
             try {
-                new JoinAreasAction().join(ds.getWays());
+                new JoinAreasAction(false).join(ds.getWays());
             } finally {
                 // Ensure we clean the place before leaving, even if test fails.
-                Main.getLayerManager().removeLayer(layer);
+                MainApplication.getLayerManager().removeLayer(layer);
             }
         }
     }
@@ -80,15 +81,15 @@ public class JoinAreasActionTest {
             DataSet ds = OsmReader.parseDataSet(is, null);
             assertEquals(10, ds.getWays().size());
             Layer layer = new OsmDataLayer(ds, null, null);
-            Main.getLayerManager().addLayer(layer);
+            MainApplication.getLayerManager().addLayer(layer);
             for (String ref : new String[]{"A", "B", "C", "D", "E"}) {
                 System.out.print("Joining ways " + ref);
-                Collection<OsmPrimitive> found = SearchAction.searchAndReturn("type:way ref="+ref, SearchAction.SearchMode.replace);
+                Collection<OsmPrimitive> found = SearchAction.searchAndReturn("type:way ref="+ref, SearchMode.replace);
                 assertEquals(2, found.size());
 
-                Main.main.menu.joinAreas.join(Utils.filteredCollection(found, Way.class));
+                MainApplication.getMenu().joinAreas.join(Utils.filteredCollection(found, Way.class));
 
-                Collection<OsmPrimitive> found2 = SearchAction.searchAndReturn("type:way ref="+ref, SearchAction.SearchMode.replace);
+                Collection<OsmPrimitive> found2 = SearchAction.searchAndReturn("type:way ref="+ref, SearchMode.replace);
                 assertEquals(1, found2.size());
                 System.out.println(" ==> OK");
             }
@@ -111,7 +112,7 @@ public class JoinAreasActionTest {
         }
 
         // set current edit layer
-        Main.getLayerManager().addLayer(new OsmDataLayer(dsToJoin, "join", null));
+        MainApplication.getLayerManager().addLayer(new OsmDataLayer(dsToJoin, "join", null));
 
         Collection<OsmPrimitive> testPrims = dsToJoin.getPrimitives(osm -> osm.get("test") != null);
         MultiMap<String, OsmPrimitive> tests = new MultiMap<>();
@@ -123,7 +124,7 @@ public class JoinAreasActionTest {
             for (OsmPrimitive osm : primitives) {
                 assertTrue(test + "; expected way, but got: " + osm, osm instanceof Way);
             }
-            new JoinAreasAction().join((Collection) primitives);
+            new JoinAreasAction(false).join((Collection) primitives);
             Collection<OsmPrimitive> joinedCol = dsToJoin.getPrimitives(osm -> !osm.isDeleted() && Objects.equals(osm.get("test"), test));
             assertEquals("in test " + test + ":", 1, joinedCol.size());
             Collection<OsmPrimitive> expectedCol = dsExpected.getPrimitives(osm -> !osm.isDeleted() && Objects.equals(osm.get("test"), test));

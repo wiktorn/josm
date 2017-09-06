@@ -24,12 +24,14 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.imagery.ImageryInfo;
 import org.openstreetmap.josm.data.imagery.ImageryInfo.ImageryType;
 import org.openstreetmap.josm.gui.ExtendedDialog;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.datatransfer.ClipboardUtils;
-import org.openstreetmap.josm.gui.layer.WMSLayer;
+import org.openstreetmap.josm.gui.layer.ImageryLayer;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
 import org.openstreetmap.josm.gui.widgets.UrlLabel;
 import org.openstreetmap.josm.io.imagery.WMSImagery.WMSGetCapabilitiesException;
 import org.openstreetmap.josm.tools.GBC;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Shortcut;
 
 /**
@@ -192,7 +194,7 @@ public class MapRectifierWMSmenuAction extends JosmAction {
                         addWMSLayer(s.name + " (" + text + ')', text);
                         break outer;
                     } catch (IllegalStateException ex) {
-                        Main.error(ex, false);
+                        Logging.log(Logging.LEVEL_ERROR, ex);
                     }
                 }
 
@@ -239,16 +241,16 @@ public class MapRectifierWMSmenuAction extends JosmAction {
             try {
                 info = AddImageryLayerAction.getWMSLayerInfo(info);
             } catch (IOException | WMSGetCapabilitiesException e) {
-                Main.error(e);
+                Logging.error(e);
                 JOptionPane.showMessageDialog(Main.parent, e.getMessage(), tr("No valid WMS URL or id"), JOptionPane.ERROR_MESSAGE);
                 return;
             }
         }
-        Main.getLayerManager().addLayer(new WMSLayer(info));
+        MainApplication.getLayerManager().addLayer(ImageryLayer.create(info));
     }
 
     @Override
     protected void updateEnabledState() {
-        setEnabled(!Main.getLayerManager().getLayers().isEmpty());
+        setEnabled(!getLayerManager().getLayers().isEmpty());
     }
 }

@@ -13,6 +13,7 @@ import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.MainLayerManager;
 import org.openstreetmap.josm.gui.layer.MainLayerManager.LayerAvailabilityEvent;
 import org.openstreetmap.josm.gui.layer.MainLayerManager.LayerAvailabilityListener;
+import org.openstreetmap.josm.gui.progress.swing.PleaseWaitProgressMonitor;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 
 /**
@@ -43,6 +44,7 @@ public class MainPanel extends JPanel {
      * Update the content of this {@link MainFrame} to either display the map or display the welcome screen.
      * @param showMap If the map should be displayed.
      */
+    @SuppressWarnings("deprecation")
     protected synchronized void updateContent(boolean showMap) {
         GuiHelper.assertCallFromEdt();
         MapFrame old = map;
@@ -64,6 +66,7 @@ public class MainPanel extends JPanel {
         } else {
             map = null;
             Main.map = map;
+            MainApplication.map = map;
             add(getGettingStarted(), BorderLayout.CENTER);
         }
         setVisible(true);
@@ -77,20 +80,22 @@ public class MainPanel extends JPanel {
         for (MapFrameListener listener : mapFrameListeners) {
             listener.mapFrameInitialized(old, map);
         }
-        if (map == null && Main.currentProgressMonitor != null) {
-            Main.currentProgressMonitor.showForegroundDialog();
+        if (map == null && PleaseWaitProgressMonitor.getCurrent() != null) {
+            PleaseWaitProgressMonitor.getCurrent().showForegroundDialog();
         }
     }
 
+    @SuppressWarnings("deprecation")
     private MapFrame createNewMapFrame() {
         MapFrame mapFrame = new MapFrame(null);
         // Required by many components.
         Main.map = mapFrame;
+        MainApplication.map = mapFrame;
 
         mapFrame.fillPanel(this);
 
         //TODO: Move this to some better place
-        List<Layer> layers = Main.getLayerManager().getLayers();
+        List<Layer> layers = MainApplication.getLayerManager().getLayers();
         if (!layers.isEmpty()) {
             mapFrame.selectMapMode((MapMode) mapFrame.getDefaultButtonAction(), layers.get(0));
         }

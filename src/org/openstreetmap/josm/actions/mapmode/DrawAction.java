@@ -53,7 +53,9 @@ import org.openstreetmap.josm.data.preferences.CachingProperty;
 import org.openstreetmap.josm.data.preferences.ColorProperty;
 import org.openstreetmap.josm.data.preferences.DoubleProperty;
 import org.openstreetmap.josm.data.preferences.StrokeProperty;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MainMenu;
+import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.MapViewState.MapViewPoint;
 import org.openstreetmap.josm.gui.NavigatableComponent;
@@ -62,7 +64,7 @@ import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.MapViewPaintable;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.util.KeyPressReleaseListener;
-import org.openstreetmap.josm.gui.util.ModifierListener;
+import org.openstreetmap.josm.gui.util.ModifierExListener;
 import org.openstreetmap.josm.tools.Geometry;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Pair;
@@ -72,7 +74,7 @@ import org.openstreetmap.josm.tools.Utils;
 /**
  * Mapmode to add nodes, create and extend ways.
  */
-public class DrawAction extends MapMode implements MapViewPaintable, DataSelectionListener, KeyPressReleaseListener, ModifierListener {
+public class DrawAction extends MapMode implements MapViewPaintable, DataSelectionListener, KeyPressReleaseListener, ModifierExListener {
 
     /**
      * If this property is set, the draw action moves the viewport when adding new points.
@@ -183,14 +185,14 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
     }
 
     private JCheckBoxMenuItem addMenuItem() {
-        int n = Main.main.menu.editMenu.getItemCount();
+        int n = MainApplication.getMenu().editMenu.getItemCount();
         for (int i = n-1; i > 0; i--) {
-            JMenuItem item = Main.main.menu.editMenu.getItem(i);
+            JMenuItem item = MainApplication.getMenu().editMenu.getItem(i);
             if (item != null && item.getAction() != null && item.getAction() instanceof SnapChangeAction) {
-                Main.main.menu.editMenu.remove(i);
+                MainApplication.getMenu().editMenu.remove(i);
             }
         }
-        return MainMenu.addWithCheckbox(Main.main.menu.editMenu, snapChangeAction, MainMenu.WINDOW_MENU_GROUP.VOLATILE);
+        return MainMenu.addWithCheckbox(MainApplication.getMenu().editMenu, snapChangeAction, MainMenu.WINDOW_MENU_GROUP.VOLATILE);
     }
 
     /**
@@ -269,46 +271,48 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
         snapHelper.init();
         snapCheckboxMenuItem.getAction().setEnabled(true);
 
-        Main.map.statusLine.getAnglePanel().addMouseListener(snapHelper.anglePopupListener);
-        Main.registerActionShortcut(backspaceAction, backspaceShortcut);
+        MapFrame map = MainApplication.getMap();
+        map.statusLine.getAnglePanel().addMouseListener(snapHelper.anglePopupListener);
+        MainApplication.registerActionShortcut(backspaceAction, backspaceShortcut);
 
-        Main.map.mapView.addMouseListener(this);
-        Main.map.mapView.addMouseMotionListener(this);
-        Main.map.mapView.addTemporaryLayer(this);
+        map.mapView.addMouseListener(this);
+        map.mapView.addMouseMotionListener(this);
+        map.mapView.addTemporaryLayer(this);
         SelectionEventManager.getInstance().addSelectionListenerForEdt(this);
 
-        Main.map.keyDetector.addKeyListener(this);
-        Main.map.keyDetector.addModifierListener(this);
+        map.keyDetector.addKeyListener(this);
+        map.keyDetector.addModifierExListener(this);
         ignoreNextKeyRelease = true;
     }
 
     @Override
     public void exitMode() {
         super.exitMode();
-        Main.map.mapView.removeMouseListener(this);
-        Main.map.mapView.removeMouseMotionListener(this);
-        Main.map.mapView.removeTemporaryLayer(this);
+        MapFrame map = MainApplication.getMap();
+        map.mapView.removeMouseListener(this);
+        map.mapView.removeMouseMotionListener(this);
+        map.mapView.removeTemporaryLayer(this);
         SelectionEventManager.getInstance().removeSelectionListener(this);
-        Main.unregisterActionShortcut(backspaceAction, backspaceShortcut);
+        MainApplication.unregisterActionShortcut(backspaceAction, backspaceShortcut);
         snapHelper.unsetFixedMode();
         snapCheckboxMenuItem.getAction().setEnabled(false);
 
-        Main.map.statusLine.getAnglePanel().removeMouseListener(snapHelper.anglePopupListener);
-        Main.map.statusLine.activateAnglePanel(false);
+        map.statusLine.getAnglePanel().removeMouseListener(snapHelper.anglePopupListener);
+        map.statusLine.activateAnglePanel(false);
 
         removeHighlighting();
-        Main.map.keyDetector.removeKeyListener(this);
-        Main.map.keyDetector.removeModifierListener(this);
+        map.keyDetector.removeKeyListener(this);
+        map.keyDetector.removeModifierExListener(this);
     }
 
     /**
      * redraw to (possibly) get rid of helper line if selection changes.
      */
     @Override
-    public void modifiersChanged(int modifiers) {
-        if (!Main.isDisplayingMapView() || !Main.map.mapView.isActiveLayerDrawable())
+    public void modifiersExChanged(int modifiers) {
+        if (!MainApplication.isDisplayingMapView() || !MainApplication.getMap().mapView.isActiveLayerDrawable())
             return;
-        updateKeyModifiers(modifiers);
+        updateKeyModifiersEx(modifiers);
         computeHelperLine();
         addHighlighting();
     }
@@ -340,7 +344,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
      */
     @Override
     public void selectionChanged(SelectionChangeEvent event) {
-        if (!Main.map.mapView.isActiveLayerDrawable())
+        if (!MainApplication.getMap().mapView.isActiveLayerDrawable())
             return;
         computeHelperLine();
         addHighlighting();
@@ -359,7 +363,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
     private void finishDrawing() {
         lastUsedNode = null;
         wayIsFinished = true;
-        Main.map.selectSelectTool(true);
+        MainApplication.getMap().selectSelectTool(true);
         snapHelper.noSnapNow();
 
         // Redraw to remove the helper line stub
@@ -391,11 +395,12 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
         }
         if (e.getButton() != MouseEvent.BUTTON1)
             return;
-        if (!Main.map.mapView.isActiveLayerDrawable())
+        MapView mapView = MainApplication.getMap().mapView;
+        if (!mapView.isActiveLayerDrawable())
             return;
         // request focus in order to enable the expected keyboard shortcuts
         //
-        Main.map.mapView.requestFocus();
+        mapView.requestFocus();
 
         if (e.getClickCount() > 1 && mousePos != null && mousePos.equals(oldMousePos)) {
             // A double click equals "user clicked last node again, finish way"
@@ -416,7 +421,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
         Collection<OsmPrimitive> selection = new ArrayList<>(ds.getSelected());
 
         boolean newNode = false;
-        Node n = Main.map.mapView.getNearestNode(mousePos, OsmPrimitive::isSelectable);
+        Node n = mapView.getNearestNode(mousePos, OsmPrimitive::isSelectable);
         if (ctrl) {
             Iterator<Way> it = ds.getSelectedWays().iterator();
             if (it.hasNext()) {
@@ -452,13 +457,13 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
                 // project found node to snapping line
                 newEN = snapHelper.getSnapPoint(foundPoint);
                 // do not add new node if there is some node within snapping distance
-                double tolerance = Main.map.mapView.getDist100Pixel() * toleranceMultiplier;
+                double tolerance = mapView.getDist100Pixel() * toleranceMultiplier;
                 if (foundPoint.distance(newEN) > tolerance) {
                     n = new Node(newEN); // point != projected, so we create new node
                     newNode = true;
                 }
             } else { // n==null, no node found in clicked area
-                EastNorth mouseEN = Main.map.mapView.getEastNorth(e.getX(), e.getY());
+                EastNorth mouseEN = mapView.getEastNorth(e.getX(), e.getY());
                 newEN = snapHelper.isSnapOn() ? snapHelper.getSnapPoint(mouseEN) : mouseEN;
                 n = new Node(newEN); //create node at clicked point
                 newNode = true;
@@ -481,12 +486,12 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
                         );
                 return;
             }
-            cmds.add(new AddCommand(n));
+            cmds.add(new AddCommand(ds, n));
 
             if (!ctrl) {
                 // Insert the node into all the nearby way segments
-                List<WaySegment> wss = Main.map.mapView.getNearestWaySegments(
-                        Main.map.mapView.getPoint(n), OsmPrimitive::isSelectable);
+                List<WaySegment> wss = mapView.getNearestWaySegments(
+                        mapView.getPoint(n), OsmPrimitive::isSelectable);
                 if (snapHelper.isActive()) {
                     tryToMoveNodeOnIntersection(wss, n);
                 }
@@ -570,7 +575,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
                 if (way == null) {
                     way = new Way();
                     way.addNode(n0);
-                    cmds.add(new AddCommand(way));
+                    cmds.add(new AddCommand(ds, way));
                     wayToSelect = way;
                 } else {
                     int i;
@@ -611,7 +616,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
 
         Command c = new SequenceCommand(title, cmds);
 
-        Main.main.undoRedo.add(c);
+        MainApplication.undoRedo.add(c);
         if (!wayIsFinished) {
             lastUsedNode = n;
         }
@@ -621,7 +626,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
         // "viewport following" mode for tracing long features
         // from aerial imagery or GPS tracks.
         if (VIEWPORT_FOLLOWING.get()) {
-            Main.map.mapView.smoothScrollTo(n.getEastNorth());
+            mapView.smoothScrollTo(n.getEastNorth());
         }
         computeHelperLine();
         removeHighlighting();
@@ -766,7 +771,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
 
     @Override
     public void mouseMoved(MouseEvent e) {
-        if (!Main.map.mapView.isActiveLayerDrawable())
+        if (!MainApplication.getMap().mapView.isActiveLayerDrawable())
             return;
 
         // we copy ctrl/alt/shift from the event just in case our global
@@ -786,7 +791,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
      */
     private void tryToSetBaseSegmentForAngleSnap() {
         if (mousePos != null) {
-            WaySegment seg = Main.map.mapView.getNearestWaySegment(mousePos, OsmPrimitive::isSelectable);
+            WaySegment seg = MainApplication.getMap().mapView.getNearestWaySegment(mousePos, OsmPrimitive::isSelectable);
             if (seg != null) {
                 snapHelper.setBaseSegment(seg);
             }
@@ -808,7 +813,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
 
         Collection<OsmPrimitive> selection = getLayerManager().getEditDataSet().getSelected();
 
-        MapView mv = Main.map.mapView;
+        MapView mv = MainApplication.getMap().mapView;
         Node currentMouseNode = null;
         mouseOnExistingNode = null;
         mouseOnExistingWays = new HashSet<>();
@@ -863,10 +868,11 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
     }
 
     static void showStatusInfo(double angle, double hdg, double distance, boolean activeFlag) {
-        Main.map.statusLine.setAngle(angle);
-        Main.map.statusLine.activateAnglePanel(activeFlag);
-        Main.map.statusLine.setHeading(hdg);
-        Main.map.statusLine.setDist(distance);
+        MapFrame map = MainApplication.getMap();
+        map.statusLine.setAngle(angle);
+        map.statusLine.activateAnglePanel(activeFlag);
+        map.statusLine.setHeading(hdg);
+        map.statusLine.setDist(distance);
     }
 
     /**
@@ -944,7 +950,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
      */
     @Override
     public void mouseExited(MouseEvent e) {
-        OsmDataLayer editLayer = Main.getLayerManager().getEditLayer();
+        OsmDataLayer editLayer = MainApplication.getLayerManager().getEditLayer();
         if (editLayer == null)
             return;
         mousePos = e.getPoint();
@@ -1059,7 +1065,8 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
         // only adjust to intersection if within snapToIntersectionThreshold pixel of mouse click; otherwise
         // fall through to default action.
         // (for semi-parallel lines, intersection might be miles away!)
-        if (Main.map.mapView.getPoint2D(n).distance(Main.map.mapView.getPoint2D(intersection)) < SNAP_TO_INTERSECTION_THRESHOLD.get()) {
+        MapFrame map = MainApplication.getMap();
+        if (map.mapView.getPoint2D(n).distance(map.mapView.getPoint2D(intersection)) < SNAP_TO_INTERSECTION_THRESHOLD.get()) {
             n.setEastNorth(intersection);
             return;
         }
@@ -1112,21 +1119,22 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
      */
     private void addHighlighting() {
         newHighlights = new HashSet<>();
+        MapView mapView = MainApplication.getMap().mapView;
 
         // if ctrl key is held ("no join"), don't highlight anything
         if (ctrl) {
-            Main.map.mapView.setNewCursor(cursor, this);
+            mapView.setNewCursor(cursor, this);
             redrawIfRequired();
             return;
         }
 
         // This happens when nothing is selected, but we still want to highlight the "target node"
         if (mouseOnExistingNode == null && mousePos != null && getLayerManager().getEditDataSet().selectionEmpty()) {
-            mouseOnExistingNode = Main.map.mapView.getNearestNode(mousePos, OsmPrimitive::isSelectable);
+            mouseOnExistingNode = mapView.getNearestNode(mousePos, OsmPrimitive::isSelectable);
         }
 
         if (mouseOnExistingNode != null) {
-            Main.map.mapView.setNewCursor(cursorJoinNode, this);
+            mapView.setNewCursor(cursorJoinNode, this);
             newHighlights.add(mouseOnExistingNode);
             redrawIfRequired();
             return;
@@ -1134,12 +1142,12 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
 
         // Insert the node into all the nearby way segments
         if (mouseOnExistingWays.isEmpty()) {
-            Main.map.mapView.setNewCursor(cursor, this);
+            mapView.setNewCursor(cursor, this);
             redrawIfRequired();
             return;
         }
 
-        Main.map.mapView.setNewCursor(cursorJoinWay, this);
+        mapView.setNewCursor(cursorJoinWay, this);
         newHighlights.addAll(mouseOnExistingWays);
         redrawIfRequired();
     }
@@ -1156,11 +1164,12 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
     @Override
     public void paint(Graphics2D g, MapView mv, Bounds box) {
         // sanity checks
-        if (Main.map.mapView == null || mousePos == null
+        MapView mapView = MainApplication.getMap().mapView;
+        if (mapView == null || mousePos == null
                 // don't draw line if we don't know where from or where to
                 || currentMouseEastNorth == null || getCurrentBaseNode() == null
                 // don't draw line if mouse is outside window
-                || !Main.map.mapView.getState().getForView(mousePos.getX(), mousePos.getY()).isInView())
+                || !mapView.getState().getForView(mousePos.getX(), mousePos.getY()).isInView())
             return;
 
         Graphics2D g2 = g;
@@ -1324,8 +1333,8 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            Main.main.undoRedo.undo();
-            Command lastCmd = Main.main.undoRedo.getLastCommand();
+            MainApplication.undoRedo.undo();
+            Command lastCmd = MainApplication.undoRedo.getLastCommand();
             if (lastCmd == null) return;
             Node n = null;
             for (OsmPrimitive p: lastCmd.getParticipatingPrimitives()) {
@@ -1367,7 +1376,8 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
 
         @Override
         protected void updateEnabledState() {
-            setEnabled(Main.map != null && Main.map.mapMode instanceof DrawAction);
+            MapFrame map = MainApplication.getMap();
+            setEnabled(map != null && map.mapMode instanceof DrawAction);
         }
     }
 }

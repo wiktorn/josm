@@ -32,11 +32,14 @@ import javax.swing.filechooser.FileFilter;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
+import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.PleaseWaitRunnable;
+import org.openstreetmap.josm.gui.io.importexport.AllFormatsImporter;
+import org.openstreetmap.josm.gui.io.importexport.FileImporter;
 import org.openstreetmap.josm.gui.widgets.AbstractFileChooser;
-import org.openstreetmap.josm.io.AllFormatsImporter;
-import org.openstreetmap.josm.io.FileImporter;
 import org.openstreetmap.josm.io.OsmTransferException;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.MultiMap;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.Utils;
@@ -72,7 +75,7 @@ public class OpenFileAction extends DiskAccessAction {
         File[] files = fc.getSelectedFiles();
         OpenFileTask task = new OpenFileTask(Arrays.asList(files), fc.getFileFilter());
         task.setRecordHistory(true);
-        Main.worker.submit(task);
+        MainApplication.worker.submit(task);
     }
 
     @Override
@@ -101,7 +104,7 @@ public class OpenFileAction extends DiskAccessAction {
     public static Future<?> openFiles(List<File> fileList, boolean recordHistory) {
         OpenFileTask task = new OpenFileTask(fileList, null);
         task.setRecordHistory(recordHistory);
-        return Main.worker.submit(task);
+        return MainApplication.worker.submit(task);
     }
 
     /**
@@ -176,8 +179,9 @@ public class OpenFileAction extends DiskAccessAction {
 
         @Override
         protected void finish() {
-            if (Main.map != null) {
-                Main.map.repaint();
+            MapFrame map = MainApplication.getMap();
+            if (map != null) {
+                map.repaint();
             }
         }
 
@@ -315,11 +319,11 @@ public class OpenFileAction extends DiskAccessAction {
                             Matcher m = Pattern.compile(".*(https?://.*)").matcher(line);
                             if (m.matches()) {
                                 String url = m.group(1);
-                                Main.main.menu.openLocation.openUrl(false, url);
+                                MainApplication.getMenu().openLocation.openUrl(false, url);
                             }
                         }
                     } catch (IOException | PatternSyntaxException | IllegalStateException | IndexOutOfBoundsException e) {
-                        Main.error(e);
+                        Logging.error(e);
                     }
                 }
             }
@@ -366,7 +370,7 @@ public class OpenFileAction extends DiskAccessAction {
                             failedAll.add(f.getCanonicalPath());
                         }
                     } catch (IOException e) {
-                        Main.warn(e);
+                        Logging.warn(e);
                     }
                 }
             }

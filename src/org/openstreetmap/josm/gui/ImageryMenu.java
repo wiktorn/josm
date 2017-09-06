@@ -24,7 +24,6 @@ import javax.swing.JPopupMenu;
 import javax.swing.event.MenuEvent;
 import javax.swing.event.MenuListener;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.AddImageryLayerAction;
 import org.openstreetmap.josm.actions.JosmAction;
 import org.openstreetmap.josm.actions.MapRectifierWMSmenuAction;
@@ -52,12 +51,12 @@ public class ImageryMenu extends JMenu implements LayerChangeListener {
         AdjustImageryOffsetAction() {
             super(tr("Imagery offset"), "mapmode/adjustimg", tr("Adjust imagery offset"), null, false, false);
             putValue("toolbar", "imagery-offset");
-            Main.toolbar.register(this);
+            MainApplication.getToolbar().register(this);
         }
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            Collection<ImageryLayer> layers = Main.getLayerManager().getLayersOfType(ImageryLayer.class);
+            Collection<ImageryLayer> layers = MainApplication.getLayerManager().getLayersOfType(ImageryLayer.class);
             if (layers.isEmpty()) {
                 setEnabled(false);
                 return;
@@ -111,7 +110,7 @@ public class ImageryMenu extends JMenu implements LayerChangeListener {
         /* I18N: mnemonic: I */
         super(trc("menu", "Imagery"));
         setupMenuScroller();
-        Main.getLayerManager().addLayerChangeListener(this);
+        MainApplication.getLayerManager().addLayerChangeListener(this);
         // build dynamically
         addMenuListener(new MenuListener() {
             @Override
@@ -159,8 +158,8 @@ public class ImageryMenu extends JMenu implements LayerChangeListener {
 
         // list all imagery entries where the current map location
         // is within the imagery bounds
-        if (Main.isDisplayingMapView()) {
-            MapView mv = Main.map.mapView;
+        if (MainApplication.isDisplayingMapView()) {
+            MapView mv = MainApplication.getMap().mapView;
             LatLon pos = mv.getProjection().eastNorth2latlon(mv.getCenter());
             final List<ImageryInfo> inViewLayers = new ArrayList<>();
 
@@ -195,9 +194,9 @@ public class ImageryMenu extends JMenu implements LayerChangeListener {
         }
 
         addDynamicSeparator();
-        JMenu subMenu = Main.main.menu.imagerySubMenu;
+        JMenu subMenu = MainApplication.getMenu().imagerySubMenu;
         int heightUnrolled = 30*(getItemCount()+subMenu.getItemCount());
-        if (heightUnrolled < Main.main.panel.getHeight()) {
+        if (heightUnrolled < MainApplication.getMainPanel().getHeight()) {
             // add all items of submenu if they will fit on screen
             int n = subMenu.getItemCount();
             for (int i = 0; i < n; i++) {
@@ -210,7 +209,7 @@ public class ImageryMenu extends JMenu implements LayerChangeListener {
     }
 
     private JMenuItem getNewOffsetMenu() {
-        Collection<ImageryLayer> layers = Main.getLayerManager().getLayersOfType(ImageryLayer.class);
+        Collection<ImageryLayer> layers = MainApplication.getLayerManager().getLayersOfType(ImageryLayer.class);
         if (layers.isEmpty()) {
             offsetAction.setEnabled(false);
             return singleOffset;
@@ -270,7 +269,7 @@ public class ImageryMenu extends JMenu implements LayerChangeListener {
     private void removeDynamicItems() {
         for (Object item : dynamicItems) {
             if (item instanceof JMenuItem) {
-                Optional.ofNullable(((JMenuItem) item).getAction()).ifPresent(Main.toolbar::unregister);
+                Optional.ofNullable(((JMenuItem) item).getAction()).ifPresent(MainApplication.getToolbar()::unregister);
                 remove((JMenuItem) item);
             } else if (item instanceof MenuComponent) {
                 remove((MenuComponent) item);

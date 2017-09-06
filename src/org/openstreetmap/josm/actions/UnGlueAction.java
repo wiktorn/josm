@@ -31,17 +31,19 @@ import org.openstreetmap.josm.command.ChangeCommand;
 import org.openstreetmap.josm.command.ChangeNodesCommand;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.SequenceCommand;
+import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.Way;
-import org.openstreetmap.josm.gui.DefaultNameFormatter;
 import org.openstreetmap.josm.gui.ExtendedDialog;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.Notification;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.UserCancelException;
 import org.openstreetmap.josm.tools.Utils;
@@ -80,7 +82,7 @@ public class UnGlueAction extends JosmAction {
         try {
             unglue(e);
         } catch (UserCancelException ignore) {
-            Main.trace(ignore);
+            Logging.trace(ignore);
         } finally {
             cleanup();
         }
@@ -293,27 +295,27 @@ public class UnGlueAction extends JosmAction {
         try {
             dialog = PropertiesMembershipDialog.showIfNecessary(Collections.singleton(selectedNode), true);
         } catch (UserCancelException ex) {
-            Main.trace(ex);
+            Logging.trace(ex);
             return;
         }
 
         final Node n = new Node(selectedNode, true);
 
         List<Command> cmds = new LinkedList<>();
-        cmds.add(new AddCommand(n));
+        cmds.add(new AddCommand(selectedNode.getDataSet(), n));
         if (dialog != null) {
             dialog.update(selectedNode, Collections.singletonList(n), cmds);
         }
 
         // If this wasn't called from menu, place it where the cursor is/was
+        MapView mv = MainApplication.getMap().mapView;
         if (e.getSource() instanceof JPanel) {
-            MapView mv = Main.map.mapView;
             n.setCoor(mv.getLatLon(mv.lastMEvent.getX(), mv.lastMEvent.getY()));
         }
 
-        Main.main.undoRedo.add(new SequenceCommand(tr("Unglued Node"), cmds));
+        MainApplication.undoRedo.add(new SequenceCommand(tr("Unglued Node"), cmds));
         getLayerManager().getEditDataSet().setSelected(n);
-        Main.map.mapView.repaint();
+        mv.repaint();
     }
 
     /**
@@ -437,7 +439,7 @@ public class UnGlueAction extends JosmAction {
         // clone the node for the way
         Node newNode = new Node(originalNode, true /* clear OSM ID */);
         newNodes.add(newNode);
-        cmds.add(new AddCommand(newNode));
+        cmds.add(new AddCommand(originalNode.getDataSet(), newNode));
 
         List<Node> nn = new ArrayList<>();
         for (Node pushNode : w.getNodes()) {
@@ -506,7 +508,7 @@ public class UnGlueAction extends JosmAction {
         try {
             dialog = PropertiesMembershipDialog.showIfNecessary(Collections.singleton(selectedNode), false);
         } catch (UserCancelException e) {
-            Main.trace(e);
+            Logging.trace(e);
             return;
         }
 
@@ -550,7 +552,7 @@ public class UnGlueAction extends JosmAction {
      * @param newNodes New created nodes by this set of command
      */
     private void execCommands(List<Command> cmds, List<Node> newNodes) {
-        Main.main.undoRedo.add(new SequenceCommand(/* for correct i18n of plural forms - see #9110 */
+        MainApplication.undoRedo.add(new SequenceCommand(/* for correct i18n of plural forms - see #9110 */
                 trn("Dupe into {0} node", "Dupe into {0} nodes", newNodes.size() + 1L, newNodes.size() + 1L), cmds));
         // select one of the new nodes
         getLayerManager().getEditDataSet().setSelected(newNodes.get(0));
@@ -580,8 +582,7 @@ public class UnGlueAction extends JosmAction {
             if (n == selectedNode) {
                 if (seen) {
                     Node newNode = new Node(n, true /* clear OSM ID */);
-                    newNodes.add(newNode);
-                    cmds.add(new AddCommand(newNode));
+                    cmds.add(new AddCommand(selectedNode.getDataSet(), newNode));
                     newNodes.add(newNode);
                     addNodes.add(newNode);
                 } else {
@@ -606,7 +607,7 @@ public class UnGlueAction extends JosmAction {
             execCommands(cmds, addNodes);
             return true;
         } catch (UserCancelException ignore) {
-            Main.trace(ignore);
+            Logging.trace(ignore);
         }
         return false;
     }
@@ -622,7 +623,7 @@ public class UnGlueAction extends JosmAction {
         try {
             dialog = PropertiesMembershipDialog.showIfNecessary(selectedNodes, false);
         } catch (UserCancelException e) {
-            Main.trace(e);
+            Logging.trace(e);
             return;
         }
 
@@ -639,7 +640,7 @@ public class UnGlueAction extends JosmAction {
         cmds.add(new ChangeCommand(selectedWay, tmpWay)); // only one changeCommand for a way, else garbage will happen
         notifyWayPartOfRelation(Collections.singleton(selectedWay));
 
-        Main.main.undoRedo.add(new SequenceCommand(
+        MainApplication.undoRedo.add(new SequenceCommand(
                 trn("Dupe {0} node into {1} nodes", "Dupe {0} nodes into {1} nodes",
                         selectedNodes.size(), selectedNodes.size(), selectedNodes.size()+allNewNodes.size()), cmds));
         getLayerManager().getEditDataSet().setSelected(allNewNodes);
@@ -661,7 +662,7 @@ public class UnGlueAction extends JosmAction {
             primitives.addAll(selectedNodes);
         if (selectedNode != null)
             primitives.add(selectedNode);
-        final boolean ok = Command.checkAndConfirmOutlyingOperation("unglue",
+        final boolean ok = checkAndConfirmOutlyingOperation("unglue",
                 tr("Unglue confirmation"),
                 tr("You are about to unglue nodes outside of the area you have downloaded."
                         + "<br>"

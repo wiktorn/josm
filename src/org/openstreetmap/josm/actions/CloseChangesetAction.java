@@ -18,6 +18,7 @@ import org.openstreetmap.josm.data.osm.Changeset;
 import org.openstreetmap.josm.data.osm.ChangesetCache;
 import org.openstreetmap.josm.data.osm.UserInfo;
 import org.openstreetmap.josm.gui.ExceptionDialogUtil;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.PleaseWaitRunnable;
 import org.openstreetmap.josm.gui.io.CloseChangesetDialog;
 import org.openstreetmap.josm.gui.io.CloseChangesetTask;
@@ -29,6 +30,12 @@ import org.openstreetmap.josm.io.OsmTransferException;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.xml.sax.SAXException;
 
+/**
+ * User action to close open changesets.
+ *
+ * The list of open changesets will be downloaded from the server and presented
+ * to the user.
+ */
 public class CloseChangesetAction extends JosmAction {
 
     /**
@@ -50,7 +57,7 @@ public class CloseChangesetAction extends JosmAction {
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        Main.worker.submit(new DownloadOpenChangesetsTask());
+        MainApplication.worker.submit(new DownloadOpenChangesetsTask());
     }
 
     protected void onPostDownloadOpenChangesets() {
@@ -73,7 +80,7 @@ public class CloseChangesetAction extends JosmAction {
 
         Collection<Changeset> changesetsToClose = dialog.getSelectedChangesets();
         CloseChangesetTask closeChangesetTask = new CloseChangesetTask(changesetsToClose);
-        Main.worker.submit(closeChangesetTask);
+        MainApplication.worker.submit(closeChangesetTask);
     }
 
     private final class DownloadOpenChangesetsTask extends PleaseWaitRunnable {

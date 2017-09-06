@@ -23,15 +23,16 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.data.coor.CoordinateFormat;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
+import org.openstreetmap.josm.data.coor.conversion.CoordinateFormatManager;
 import org.openstreetmap.josm.gui.ExtendedDialog;
+import org.openstreetmap.josm.gui.util.WindowGeometry;
 import org.openstreetmap.josm.gui.widgets.HtmlPanel;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
 import org.openstreetmap.josm.tools.GBC;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
-import org.openstreetmap.josm.tools.WindowGeometry;
 
 /**
  * A dialog that lets the user add a node at the coordinates he enters.
@@ -189,8 +190,8 @@ public class LatLonDialog extends ExtendedDialog {
      */
     public void setCoordinates(LatLon ll) {
         LatLon llc = Optional.ofNullable(ll).orElse(LatLon.ZERO);
-        tfLatLon.setText(llc.latToString(CoordinateFormat.getDefaultFormat()) + ' ' +
-                         llc.lonToString(CoordinateFormat.getDefaultFormat()));
+        tfLatLon.setText(CoordinateFormatManager.getDefaultFormat().latToString(llc) + ' ' +
+                         CoordinateFormatManager.getDefaultFormat().lonToString(llc));
         EastNorth en = Main.getProjection().latlon2eastNorth(llc);
         tfEastNorth.setText(Double.toString(en.east()) + ' ' + Double.toString(en.north()));
         // Both latLonCoordinates and eastNorthCoordinates may have been reset to null if ll is out of the world
@@ -248,7 +249,7 @@ public class LatLonDialog extends ExtendedDialog {
                 latLon = null;
             }
         } catch (IllegalArgumentException e) {
-            Main.trace(e);
+            Logging.trace(e);
             latLon = null;
         }
         if (latLon == null) {
@@ -267,7 +268,7 @@ public class LatLonDialog extends ExtendedDialog {
         try {
             en = parseEastNorth(tfEastNorth.getText());
         } catch (IllegalArgumentException e) {
-            Main.trace(e);
+            Logging.trace(e);
             en = null;
         }
         if (en == null) {

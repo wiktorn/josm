@@ -12,7 +12,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
@@ -61,7 +60,7 @@ public final class Territories {
     public static synchronized boolean isIso3166Code(String code, LatLon ll) {
         GeoPropertyIndex<Boolean> gpi = iso3166Cache.get(code);
         if (gpi == null) {
-            Main.warn(tr("Unknown territory id: {0}", code));
+            Logging.warn(tr("Unknown territory id: {0}", code));
             return false;
         }
         return gpi.get(ll);

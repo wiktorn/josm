@@ -6,19 +6,22 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.Color;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.preferences.ColorProperty;
+import org.openstreetmap.josm.tools.Logging;
 
 /** The error severity */
 public enum Severity {
     // CHECKSTYLE.OFF: SingleSpaceSeparator
     /** Error messages */
-    ERROR(tr("Errors"), /* ICON(data/) */"error",       new ColorProperty(marktr("validation error"), Color.RED).get()),
+    ERROR(1, tr("Errors"), /* ICON(data/) */"error",       new ColorProperty(marktr("validation error"), Color.RED).get()),
     /** Warning messages */
-    WARNING(tr("Warnings"), /* ICON(data/) */"warning", new ColorProperty(marktr("validation warning"), Color.YELLOW).get()),
+    WARNING(2, tr("Warnings"), /* ICON(data/) */"warning", new ColorProperty(marktr("validation warning"), Color.YELLOW).get()),
     /** Other messages */
-    OTHER(tr("Other"), /* ICON(data/) */"other",        new ColorProperty(marktr("validation other"), Color.CYAN).get());
+    OTHER(3, tr("Other"), /* ICON(data/) */"other",        new ColorProperty(marktr("validation other"), Color.CYAN).get());
     // CHECKSTYLE.ON: SingleSpaceSeparator
+
+    /** Numeric ordering of the severities, 1 being major, 3 being minor */
+    private final int level;
 
     /** Description of the severity code */
     private final String message;
@@ -32,11 +35,13 @@ public enum Severity {
     /**
      * Constructor
      *
+     * @param level Numeric ordering, 1 being major, 3 being minor
      * @param message Description
      * @param icon Associated icon
      * @param color The color of this severity
      */
-    Severity(String message, String icon, Color color) {
+    Severity(int level, String message, String icon, Color color) {
+        this.level = level;
         this.message = message;
         this.icon = icon;
         this.color = color;
@@ -47,9 +52,7 @@ public enum Severity {
      */
     public static void getColors() {
         for (Severity c : values()) {
-            if (Main.isDebugEnabled()) {
-                Main.debug(c.toString());
-            }
+            Logging.debug("{0}", c);
         }
     }
 
@@ -72,5 +75,14 @@ public enum Severity {
      */
     public Color getColor() {
         return color;
+    }
+
+    /**
+     * Gets the severity level, 1 being major, 3 being minor
+     * @return The severity level
+     * @since 12667
+     */
+    public int getLevel() {
+        return level;
     }
 }

@@ -54,6 +54,7 @@ import org.openstreetmap.josm.gui.layer.MapViewPaintable.PaintableInvalidationLi
 import org.openstreetmap.josm.io.CachedFile;
 import org.openstreetmap.josm.tools.ColorScale;
 import org.openstreetmap.josm.tools.JosmRuntimeException;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -279,7 +280,7 @@ public class GpxDrawHelper implements SoMChangeListener, MapViewPaintable.LayerP
             int i = Main.pref.getInteger("draw.rawgps.colors", specName(layerName), 0);
             return ColorMode.fromIndex(i);
         } catch (IndexOutOfBoundsException e) {
-            Main.warn(e);
+            Logging.warn(e);
         }
         return ColorMode.NONE;
     }
@@ -471,10 +472,10 @@ public class GpxDrawHelper implements SoMChangeListener, MapViewPaintable.LayerP
         g.setComposite(oldComposite);
 
         // show some debug info
-        if (Main.isDebugEnabled() && !visibleSegments.isEmpty()) {
+        if (Logging.isDebugEnabled() && !visibleSegments.isEmpty()) {
             final long timeDiff = System.currentTimeMillis() - timeStart;
 
-            Main.debug("gpxdraw::draw takes " +
+            Logging.debug("gpxdraw::draw takes " +
                          Utils.getDurationString(timeDiff) +
                          "(" +
                          "segments= " + visibleSegments.size() +
@@ -649,7 +650,7 @@ public class GpxDrawHelper implements SoMChangeListener, MapViewPaintable.LayerP
                     old = null;
                     continue;
                 }
-                Point screen = mv.getPoint(trkPnt.getEastNorth());
+                Point screen = mv.getPoint(trkPnt);
                 // skip points that are on the same screenposition
                 if (trkPnt.drawLine && old != null && ((old.x != screen.x) || (old.y != screen.y))) {
                     g.setColor(trkPnt.customColoring);
@@ -679,7 +680,7 @@ public class GpxDrawHelper implements SoMChangeListener, MapViewPaintable.LayerP
                     continue;
                 }
                 if (trkPnt.drawLine) {
-                    Point screen = mv.getPoint(trkPnt.getEastNorth());
+                    Point screen = mv.getPoint(trkPnt);
                     // skip points that are on the same screenposition
                     if (old != null
                             && (oldA == null || screen.x < oldA.x - delta || screen.x > oldA.x + delta
@@ -709,7 +710,7 @@ public class GpxDrawHelper implements SoMChangeListener, MapViewPaintable.LayerP
                     continue;
                 }
                 if (trkPnt.drawLine) {
-                    Point screen = mv.getPoint(trkPnt.getEastNorth());
+                    Point screen = mv.getPoint(trkPnt);
                     // skip points that are on the same screenposition
                     if (old != null
                             && (oldA == null || screen.x < oldA.x - delta || screen.x > oldA.x + delta
@@ -744,7 +745,7 @@ public class GpxDrawHelper implements SoMChangeListener, MapViewPaintable.LayerP
                 if (Double.isNaN(c.lat()) || Double.isNaN(c.lon())) {
                     continue;
                 }
-                Point screen = mv.getPoint(trkPnt.getEastNorth());
+                Point screen = mv.getPoint(trkPnt);
 
                 if (hdopCircle && trkPnt.get(GpxConstants.PT_HDOP) != null) {
                     // hdop value
@@ -785,7 +786,7 @@ public class GpxDrawHelper implements SoMChangeListener, MapViewPaintable.LayerP
                     continue;
                 }
                 if (!trkPnt.drawLine) {
-                    Point screen = mv.getPoint(trkPnt.getEastNorth());
+                    Point screen = mv.getPoint(trkPnt);
                     g.drawRect(screen.x, screen.y, 0, 0);
                 }
             } // end for trkpnt
@@ -801,7 +802,7 @@ public class GpxDrawHelper implements SoMChangeListener, MapViewPaintable.LayerP
                 if (Double.isNaN(c.lat()) || Double.isNaN(c.lon())) {
                     continue;
                 }
-                Point screen = mv.getPoint(trkPnt.getEastNorth());
+                Point screen = mv.getPoint(trkPnt);
                 g.setColor(trkPnt.customColoring);
                 g.drawRect(screen.x, screen.y, 0, 0);
             } // end for trkpnt
@@ -851,7 +852,7 @@ public class GpxDrawHelper implements SoMChangeListener, MapViewPaintable.LayerP
         for (WayPoint trkPnt : visibleSegments) {
 
             // transform coordinates
-            final Point paintPnt = mv.getPoint(trkPnt.getEastNorth());
+            final Point paintPnt = mv.getPoint(trkPnt);
 
             // skip single points
             if (lastPaintPnt != null && trkPnt.drawLine && !lastPaintPnt.equals(paintPnt)) {
@@ -1110,7 +1111,7 @@ public class GpxDrawHelper implements SoMChangeListener, MapViewPaintable.LayerP
         for (WayPoint trkPnt : listSegm) {
 
             // get transformed coordinates
-            final Point paintPnt = mv.getPoint(trkPnt.getEastNorth());
+            final Point paintPnt = mv.getPoint(trkPnt);
 
             // end of line segment or end of list reached
             if (!trkPnt.drawLine || (lastPnt == trkPnt)) {
@@ -1360,7 +1361,7 @@ public class GpxDrawHelper implements SoMChangeListener, MapViewPaintable.LayerP
         for (WayPoint trkPnt : listSegm) {
 
             // get transformed coordinates
-            final Point paintPnt = mv.getPoint(trkPnt.getEastNorth());
+            final Point paintPnt = mv.getPoint(trkPnt);
 
             // end of line segment or end of list reached
             if (trkPnt.drawLine && null != lastPnt) {

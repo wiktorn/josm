@@ -29,8 +29,10 @@ import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.gui.ConditionalOptionPaneUtil;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.Notification;
 import org.openstreetmap.josm.tools.JosmRuntimeException;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -114,12 +116,12 @@ public final class OrthogonalizeAction extends JosmAction {
                     }
                 }
                 if (!commands.isEmpty()) {
-                    Main.main.undoRedo.add(new SequenceCommand(tr("Orthogonalize / Undo"), commands));
+                    MainApplication.undoRedo.add(new SequenceCommand(tr("Orthogonalize / Undo"), commands));
                 } else {
                     throw new InvalidUserInputException("Commands are empty");
                 }
             } catch (InvalidUserInputException ex) {
-                Main.debug(ex);
+                Logging.debug(ex);
                 new Notification(
                         tr("Orthogonalize Shape / Undo<br>"+
                         "Please select nodes that were moved by the previous Orthogonalize Shape action!"))
@@ -163,9 +165,9 @@ public final class OrthogonalizeAction extends JosmAction {
 
         try {
             final SequenceCommand command = orthogonalize(sel);
-            Main.main.undoRedo.add(new SequenceCommand(tr("Orthogonalize"), command));
+            MainApplication.undoRedo.add(new SequenceCommand(tr("Orthogonalize"), command));
         } catch (InvalidUserInputException ex) {
-            Main.debug(ex);
+            Logging.debug(ex);
             String msg;
             if ("usage".equals(ex.getMessage())) {
                 msg = "<h2>" + tr("Usage") + "</h2>" + USAGE;
@@ -193,7 +195,9 @@ public final class OrthogonalizeAction extends JosmAction {
             if (p instanceof Node) {
                 nodeList.add((Node) p);
             } else if (p instanceof Way) {
-                wayDataList.add(new WayData(((Way) p).getNodes()));
+                if (!p.isIncomplete()) {
+                    wayDataList.add(new WayData(((Way) p).getNodes()));
+                }
             } else {
                 throw new InvalidUserInputException(tr("Selection must consist only of ways and nodes."));
             }

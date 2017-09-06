@@ -14,6 +14,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 import org.openstreetmap.josm.JOSMFixture;
+import org.openstreetmap.josm.data.preferences.sources.ExtendedSourceEntry;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles.IconReference;
 import org.openstreetmap.josm.gui.mappaint.StyleKeys;
@@ -22,7 +23,6 @@ import org.openstreetmap.josm.gui.mappaint.mapcss.Instruction;
 import org.openstreetmap.josm.gui.mappaint.mapcss.Instruction.AssignmentInstruction;
 import org.openstreetmap.josm.gui.mappaint.mapcss.MapCSSRule;
 import org.openstreetmap.josm.gui.mappaint.mapcss.MapCSSStyleSource;
-import org.openstreetmap.josm.gui.preferences.SourceEditor.ExtendedSourceEntry;
 import org.openstreetmap.josm.tools.ImageProvider;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -56,8 +56,8 @@ public class MapPaintPreferenceTestIT {
         ImageProvider.clearCache();
         Collection<ExtendedSourceEntry> sources = new MapPaintPreference.MapPaintSourceEditor()
                 .loadAndGetAvailableSources();
-        // Drop everything from yopaseopor, too many errors
-        sources.removeIf(x -> x.url.contains("yopaseopor/"));
+        // Drop everything from yopaseopor and www.freietonne.de, too many errors
+        sources.removeIf(x -> x.url.contains("yopaseopor/") || x.url.contains("www.freietonne.de"));
         assertFalse(sources.isEmpty());
         Map<String, Collection<Throwable>> allErrors = new HashMap<>();
         Map<String, Collection<String>> allWarnings = new HashMap<>();
@@ -93,8 +93,7 @@ public class MapPaintPreferenceTestIT {
                     if (!warnings.isEmpty()) {
                         allWarnings.put(source.url, warnings);
                     }
-                } else if (!source.url.contains("www.freietonne.de")) {
-                    // ignore frequent network errors with www.freietonne.de causing too much Jenkins failures
+                } else {
                     allWarnings.put(source.url, Collections.singleton("MapPaintStyles.addStyle() returned null"));
                 }
             }

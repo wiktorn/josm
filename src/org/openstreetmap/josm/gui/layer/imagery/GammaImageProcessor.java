@@ -5,16 +5,20 @@ import java.awt.Transparency;
 import java.awt.image.BufferedImage;
 import java.awt.image.LookupOp;
 import java.awt.image.ShortLookupTable;
+import java.util.Collections;
+import java.util.Map;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.gui.layer.ImageProcessor;
+import org.openstreetmap.josm.io.session.SessionAwareReadApply;
+import org.openstreetmap.josm.tools.Logging;
+import org.openstreetmap.josm.tools.Utils;
 
 /**
  * An image processor which adjusts the gamma value of an image.
  * @since 10547
  */
-public class GammaImageProcessor implements ImageProcessor {
-    private double gamma = 1;
+public class GammaImageProcessor implements ImageProcessor, SessionAwareReadApply {
+    private double gamma = 1.0;
     final short[] gammaChange = new short[256];
     private final LookupOp op3 = new LookupOp(
             new ShortLookupTable(0, new short[][]{gammaChange, gammaChange, gammaChange}), null);
@@ -42,7 +46,7 @@ public class GammaImageProcessor implements ImageProcessor {
 
     @Override
     public BufferedImage process(BufferedImage image) {
-        if (gamma == 1) {
+        if (gamma == 1.0) {
             return image;
         }
         try {
@@ -53,12 +57,32 @@ public class GammaImageProcessor implements ImageProcessor {
                 return op4.filter(image, null);
             }
         } catch (IllegalArgumentException ignore) {
-            Main.trace(ignore);
+            Logging.trace(ignore);
         }
         final int type = image.getTransparency() == Transparency.OPAQUE ? BufferedImage.TYPE_INT_RGB : BufferedImage.TYPE_INT_ARGB;
         final BufferedImage to = new BufferedImage(image.getWidth(), image.getHeight(), type);
         to.getGraphics().drawImage(image, 0, 0, null);
         return process(to);
+    }
+
+    @Override
+    public void applyFromPropertiesMap(Map<String, String> properties) {
+        String cStr = properties.get("gamma");
+        if (cStr != null) {
+            try {
+                setGamma(Double.parseDouble(cStr));
+            } catch (NumberFormatException e) {
+                Logging.trace(e);
+            }
+        }
+    }
+
+    @Override
+    public Map<String, String> toPropertiesMap() {
+        if (Utils.equalsEpsilon(gamma, 1.0))
+            return Collections.emptyMap();
+        else
+            return Collections.singletonMap("gamma", Double.toString(gamma));
     }
 
     @Override

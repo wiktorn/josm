@@ -5,7 +5,6 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.Cursor;
 import java.awt.event.ActionEvent;
-import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.util.Collection;
@@ -21,12 +20,15 @@ import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.WaySegment;
+import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapFrame;
+import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.dialogs.relation.RelationDialogManager;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.MainLayerManager;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.util.HighlightHelper;
-import org.openstreetmap.josm.gui.util.ModifierListener;
+import org.openstreetmap.josm.gui.util.ModifierExListener;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Shortcut;
@@ -45,7 +47,7 @@ import org.openstreetmap.josm.tools.Shortcut;
  *
  * @author imi
  */
-public class DeleteAction extends MapMode implements ModifierListener {
+public class DeleteAction extends MapMode implements ModifierExListener {
     // Cache previous mouse event (needed when only the modifier keys are pressed but the mouse isn't moved)
     private MouseEvent oldEvent;
 
@@ -56,7 +58,7 @@ public class DeleteAction extends MapMode implements ModifierListener {
      */
     private transient WaySegment oldHighlightedWaySegment;
 
-    private static final HighlightHelper highlightHelper = new HighlightHelper();
+    private static final HighlightHelper HIGHLIGHT_HELPER = new HighlightHelper();
     private boolean drawTargetHighlight;
 
     enum DeleteMode {
@@ -110,18 +112,20 @@ public class DeleteAction extends MapMode implements ModifierListener {
 
         drawTargetHighlight = Main.pref.getBoolean("draw.target-highlight", true);
 
-        Main.map.mapView.addMouseListener(this);
-        Main.map.mapView.addMouseMotionListener(this);
+        MapFrame map = MainApplication.getMap();
+        map.mapView.addMouseListener(this);
+        map.mapView.addMouseMotionListener(this);
         // This is required to update the cursors when ctrl/shift/alt is pressed
-        Main.map.keyDetector.addModifierListener(this);
+        map.keyDetector.addModifierExListener(this);
     }
 
     @Override
     public void exitMode() {
         super.exitMode();
-        Main.map.mapView.removeMouseListener(this);
-        Main.map.mapView.removeMouseMotionListener(this);
-        Main.map.keyDetector.removeModifierListener(this);
+        MapFrame map = MainApplication.getMap();
+        map.mapView.removeMouseListener(this);
+        map.mapView.removeMouseMotionListener(this);
+        map.keyDetector.removeModifierExListener(this);
         removeHighlighting();
     }
 
@@ -135,25 +139,24 @@ public class DeleteAction extends MapMode implements ModifierListener {
      * Invoked when the action occurs.
      * @param e Action event
      */
-    public static void doActionPerformed(ActionEvent e) {
-        MainLayerManager lm = Main.getLayerManager();
+    public void doActionPerformed(ActionEvent e) {
+        MainLayerManager lm = MainApplication.getLayerManager();
         OsmDataLayer editLayer = lm.getEditLayer();
         if (editLayer == null) {
             return;
         }
 
-        boolean ctrl = (e.getModifiers() & ActionEvent.CTRL_MASK) != 0;
-        boolean alt = (e.getModifiers() & (ActionEvent.ALT_MASK | InputEvent.ALT_GRAPH_MASK)) != 0;
+        updateKeyModifiers(e);
 
         Command c;
         if (ctrl) {
-            c = DeleteCommand.deleteWithReferences(editLayer, lm.getEditDataSet().getSelected());
+            c = DeleteCommand.deleteWithReferences(lm.getEditDataSet().getSelected());
         } else {
-            c = DeleteCommand.delete(editLayer, lm.getEditDataSet().getSelected(), !alt /* also delete nodes in way */);
+            c = DeleteCommand.delete(lm.getEditDataSet().getSelected(), !alt /* also delete nodes in way */);
         }
         // if c is null, an error occurred or the user aborted. Don't do anything in that case.
         if (c != null) {
-            Main.main.undoRedo.add(c);
+            MainApplication.undoRedo.add(c);
             //FIXME: This should not be required, DeleteCommand should update the selection, otherwise undo/redo won't work.
             lm.getEditDataSet().setSelected();
         }
@@ -178,7 +181,7 @@ public class DeleteAction extends MapMode implements ModifierListener {
      * removes any highlighting that may have been set beforehand.
      */
     private void removeHighlighting() {
-        highlightHelper.clear();
+        HIGHLIGHT_HELPER.clear();
         DataSet ds = getLayerManager().getEditDataSet();
         if (ds != null) {
             ds.clearHighlightedWaySegments();
@@ -189,7 +192,7 @@ public class DeleteAction extends MapMode implements ModifierListener {
      * handles everything related to highlighting primitives and way
      * segments for the given pointer position (via MouseEvent) and modifiers.
      * @param e current mouse event
-     * @param modifiers mouse modifiers, not necessarly taken from the given mouse event
+     * @param modifiers extended mouse modifiers, not necessarly taken from the given mouse event
      */
     private void addHighlighting(MouseEvent e, int modifiers) {
         if (!drawTargetHighlight)
@@ -233,7 +236,7 @@ public class DeleteAction extends MapMode implements ModifierListener {
             }
             oldHighlightedWaySegment = newHighlightedWaySegment;
         }
-        needsRepaint |= highlightHelper.highlightOnly(newHighlights);
+        needsRepaint |= HIGHLIGHT_HELPER.highlightOnly(newHighlights);
         if (needsRepaint && editLayer != null) {
             editLayer.invalidate();
         }
@@ -243,16 +246,17 @@ public class DeleteAction extends MapMode implements ModifierListener {
      * This function handles all work related to updating the cursor and highlights
      *
      * @param e current mouse event
-     * @param modifiers mouse modifiers, not necessarly taken from the given mouse event
+     * @param modifiers extended mouse modifiers, not necessarly taken from the given mouse event
      */
     private void updateCursor(MouseEvent e, int modifiers) {
-        if (!Main.isDisplayingMapView())
+        if (!MainApplication.isDisplayingMapView())
             return;
-        if (!Main.map.mapView.isActiveLayerVisible() || e == null)
+        MapFrame map = MainApplication.getMap();
+        if (!map.mapView.isActiveLayerVisible() || e == null)
             return;
 
         DeleteParameters parameters = getDeleteParameters(e, modifiers);
-        Main.map.mapView.setNewCursor(parameters.mode.cursor(), this);
+        map.mapView.setNewCursor(parameters.mode.cursor(), this);
     }
 
     /**
@@ -279,7 +283,7 @@ public class DeleteAction extends MapMode implements ModifierListener {
      * @param e mouse event
      */
     private void giveUserFeedback(MouseEvent e) {
-        giveUserFeedback(e, e.getModifiers());
+        giveUserFeedback(e, e.getModifiersEx());
     }
 
     /**
@@ -289,16 +293,17 @@ public class DeleteAction extends MapMode implements ModifierListener {
     public void mouseReleased(MouseEvent e) {
         if (e.getButton() != MouseEvent.BUTTON1)
             return;
-        if (!Main.map.mapView.isActiveLayerVisible())
+        MapFrame map = MainApplication.getMap();
+        if (!map.mapView.isActiveLayerVisible())
             return;
 
         // request focus in order to enable the expected keyboard shortcuts
         //
-        Main.map.mapView.requestFocus();
+        map.mapView.requestFocus();
 
-        Command c = buildDeleteCommands(e, e.getModifiers(), false);
+        Command c = buildDeleteCommands(e, e.getModifiersEx(), false);
         if (c != null) {
-            Main.main.undoRedo.add(c);
+            MainApplication.undoRedo.add(c);
         }
 
         getLayerManager().getEditDataSet().setSelected();
@@ -319,7 +324,7 @@ public class DeleteAction extends MapMode implements ModifierListener {
 
     @Override
     protected void updateEnabledState() {
-        setEnabled(Main.isDisplayingMapView() && Main.map.mapView.isActiveLayerDrawable());
+        setEnabled(MainApplication.isDisplayingMapView() && MainApplication.getMap().mapView.isActiveLayerDrawable());
     }
 
     /**
@@ -346,10 +351,10 @@ public class DeleteAction extends MapMode implements ModifierListener {
         CheckParameterUtil.ensureParameterNotNull(layer, "layer");
         CheckParameterUtil.ensureParameterNotNull(toDelete, "toDelete");
 
-        final Command cmd = DeleteCommand.delete(layer, toDelete);
+        final Command cmd = DeleteCommand.delete(toDelete);
         if (cmd != null) {
             // cmd can be null if the user cancels dialogs DialogCommand displays
-            Main.main.undoRedo.add(cmd);
+            MainApplication.undoRedo.add(cmd);
             for (Relation relation : toDelete) {
                 if (layer.data.getSelectedRelations().contains(relation)) {
                     layer.data.toggleSelected(relation);
@@ -360,13 +365,14 @@ public class DeleteAction extends MapMode implements ModifierListener {
     }
 
     private DeleteParameters getDeleteParameters(MouseEvent e, int modifiers) {
-        updateKeyModifiers(modifiers);
+        updateKeyModifiersEx(modifiers);
 
         DeleteParameters result = new DeleteParameters();
 
-        result.nearestNode = Main.map.mapView.getNearestNode(e.getPoint(), OsmPrimitive::isSelectable);
+        MapView mapView = MainApplication.getMap().mapView;
+        result.nearestNode = mapView.getNearestNode(e.getPoint(), OsmPrimitive::isSelectable);
         if (result.nearestNode == null) {
-            result.nearestSegment = Main.map.mapView.getNearestWaySegment(e.getPoint(), OsmPrimitive::isSelectable);
+            result.nearestSegment = mapView.getNearestWaySegment(e.getPoint(), OsmPrimitive::isSelectable);
             if (result.nearestSegment != null) {
                 if (shift) {
                     result.mode = DeleteMode.segment;
@@ -397,20 +403,19 @@ public class DeleteAction extends MapMode implements ModifierListener {
      */
     private Command buildDeleteCommands(MouseEvent e, int modifiers, boolean silent) {
         DeleteParameters parameters = getDeleteParameters(e, modifiers);
-        OsmDataLayer editLayer = getLayerManager().getEditLayer();
         switch (parameters.mode) {
         case node:
-            return DeleteCommand.delete(editLayer, Collections.singleton(parameters.nearestNode), false, silent);
+            return DeleteCommand.delete(Collections.singleton(parameters.nearestNode), false, silent);
         case node_with_references:
-            return DeleteCommand.deleteWithReferences(editLayer, Collections.singleton(parameters.nearestNode), silent);
+            return DeleteCommand.deleteWithReferences(Collections.singleton(parameters.nearestNode), silent);
         case segment:
-            return DeleteCommand.deleteWaySegment(editLayer, parameters.nearestSegment);
+            return DeleteCommand.deleteWaySegment(parameters.nearestSegment);
         case way:
-            return DeleteCommand.delete(editLayer, Collections.singleton(parameters.nearestSegment.way), false, silent);
+            return DeleteCommand.delete(Collections.singleton(parameters.nearestSegment.way), false, silent);
         case way_with_nodes:
-            return DeleteCommand.delete(editLayer, Collections.singleton(parameters.nearestSegment.way), true, silent);
+            return DeleteCommand.delete(Collections.singleton(parameters.nearestSegment.way), true, silent);
         case way_with_references:
-            return DeleteCommand.deleteWithReferences(editLayer, Collections.singleton(parameters.nearestSegment.way), true);
+            return DeleteCommand.deleteWithReferences(Collections.singleton(parameters.nearestSegment.way), true);
         default:
             return null;
         }
@@ -420,7 +425,7 @@ public class DeleteAction extends MapMode implements ModifierListener {
      * This is required to update the cursors when ctrl/shift/alt is pressed
      */
     @Override
-    public void modifiersChanged(int modifiers) {
+    public void modifiersExChanged(int modifiers) {
         if (oldEvent == null)
             return;
         // We don't have a mouse event, so we pass the old mouse event but the new modifiers.

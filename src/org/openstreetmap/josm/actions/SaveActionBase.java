@@ -16,10 +16,11 @@ import javax.swing.filechooser.FileFilter;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.gui.ExtendedDialog;
+import org.openstreetmap.josm.gui.io.importexport.FileExporter;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.widgets.AbstractFileChooser;
-import org.openstreetmap.josm.io.FileExporter;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Shortcut;
 
 /**
@@ -51,7 +52,7 @@ public abstract class SaveActionBase extends DiskAccessAction {
      * @return {@code true} if the save operation succeeds
      */
     public boolean doSave() {
-        Layer layer = Main.getLayerManager().getActiveLayer();
+        Layer layer = getLayerManager().getActiveLayer();
         if (layer != null && layer.isSavable()) {
             return doSave(layer);
         }
@@ -116,7 +117,7 @@ public abstract class SaveActionBase extends DiskAccessAction {
             }
             Main.parent.repaint();
         } catch (IOException e) {
-            Main.error(e);
+            Logging.error(e);
             return false;
         }
         addToFileOpenHistory(file);
@@ -131,7 +132,7 @@ public abstract class SaveActionBase extends DiskAccessAction {
      */
     @Override
     protected void updateEnabledState() {
-        Layer activeLayer = Main.getLayerManager().getActiveLayer();
+        Layer activeLayer = getLayerManager().getActiveLayer();
         setEnabled(activeLayer != null && activeLayer.isSavable());
     }
 
@@ -223,7 +224,7 @@ public abstract class SaveActionBase extends DiskAccessAction {
         try {
             filepath = file.getCanonicalPath();
         } catch (IOException ign) {
-            Main.warn(ign);
+            Logging.warn(ign);
             return;
         }
 

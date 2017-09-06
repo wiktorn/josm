@@ -5,11 +5,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
-import org.openstreetmap.josm.JOSMFixture;
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.command.CommandTest.CommandTestData;
 import org.openstreetmap.josm.data.conflict.Conflict;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.DataSet;
@@ -18,7 +17,9 @@ import org.openstreetmap.josm.data.osm.User;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.gui.conflict.pair.MergeDecisionType;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
+import org.openstreetmap.josm.testutils.JOSMTestRules;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import nl.jqno.equalsverifier.Warning;
 
@@ -27,28 +28,25 @@ import nl.jqno.equalsverifier.Warning;
  */
 public class CoordinateConflictResolveCommandTest {
 
-    private static OsmDataLayer layer;
+    private CommandTestData testData;
 
     /**
      * Setup test.
      */
-    @BeforeClass
-    public static void setUpBeforeClass() {
-        JOSMFixture.createUnitTestFixture().init(true);
-        layer = new OsmDataLayer(new DataSet(), null, null);
-        Main.getLayerManager().addLayer(layer);
-    }
+    @Rule
+    @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
+    public JOSMTestRules test = new JOSMTestRules().platform();
 
     /**
-     * Cleanup test resources.
+     * Setup test.
      */
-    @AfterClass
-    public static void tearDownAfterClass() {
-        Main.getLayerManager().removeLayer(layer);
+    @Before
+    public void setUp() {
+        testData = new CommandTestData();
     }
 
-    private static Conflict<Node> createConflict() {
-        return new Conflict<>(new Node(LatLon.ZERO), new Node(new LatLon(50, 50)));
+    private Conflict<Node> createConflict() {
+        return new Conflict<>(testData.existingNode, testData.existingNode2);
     }
 
     /**

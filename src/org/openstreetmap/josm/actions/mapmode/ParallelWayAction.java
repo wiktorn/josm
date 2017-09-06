@@ -24,7 +24,6 @@ import java.util.stream.Stream;
 
 import javax.swing.JOptionPane;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.SystemOfMeasurement;
 import org.openstreetmap.josm.data.coor.EastNorth;
@@ -39,6 +38,7 @@ import org.openstreetmap.josm.data.preferences.ColorProperty;
 import org.openstreetmap.josm.data.preferences.DoubleProperty;
 import org.openstreetmap.josm.data.preferences.IntegerProperty;
 import org.openstreetmap.josm.data.preferences.StrokeProperty;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.Notification;
@@ -46,14 +46,20 @@ import org.openstreetmap.josm.gui.draw.MapViewPath;
 import org.openstreetmap.josm.gui.layer.AbstractMapViewPaintable;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
-import org.openstreetmap.josm.gui.util.ModifierListener;
+import org.openstreetmap.josm.gui.util.ModifierExListener;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.Geometry;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Shortcut;
 
-//// TODO: (list below)
-/* == Functionality ==
+/**
+ * MapMode for making parallel ways.
+ *
+ * All calculations are done in projected coordinates.
+ *
+ * TODO:
+ * == Functionality ==
  *
  * 1. Use selected nodes as split points for the selected ways.
  *
@@ -80,16 +86,10 @@ import org.openstreetmap.josm.tools.Shortcut;
  *
  * Current code doesn't not take into account that ways might been highlighted
  * by other than us. Don't think that situation should ever happen though.
- */
-
-/**
- * MapMode for making parallel ways.
- *
- * All calculations are done in projected coordinates.
  *
  * @author Ole Jørgen Brønner (olejorgenb)
  */
-public class ParallelWayAction extends MapMode implements ModifierListener {
+public class ParallelWayAction extends MapMode implements ModifierExListener {
 
     private static final CachingProperty<BasicStroke> HELPER_LINE_STROKE = new StrokeProperty(prefKey("stroke.hepler-line"), "1").cached();
     private static final CachingProperty<BasicStroke> REF_LINE_STROKE = new StrokeProperty(prefKey("stroke.ref-line"), "2 2 3").cached();
@@ -171,8 +171,8 @@ public class ParallelWayAction extends MapMode implements ModifierListener {
         mv.addMouseMotionListener(this);
         mv.addTemporaryLayer(temporaryLayer);
 
-        //// Needed to update the mouse cursor if modifiers are changed when the mouse is motionless
-        Main.map.keyDetector.addModifierListener(this);
+        // Needed to update the mouse cursor if modifiers are changed when the mouse is motionless
+        MainApplication.getMap().keyDetector.addModifierExListener(this);
         sourceWays = new LinkedHashSet<>(getLayerManager().getEditDataSet().getSelectedWays());
         for (Way w : sourceWays) {
             w.setHighlighted(true);
@@ -185,9 +185,10 @@ public class ParallelWayAction extends MapMode implements ModifierListener {
         mv.removeMouseListener(this);
         mv.removeMouseMotionListener(this);
         mv.removeTemporaryLayer(temporaryLayer);
-        Main.map.statusLine.setDist(-1);
-        Main.map.statusLine.repaint();
-        Main.map.keyDetector.removeModifierListener(this);
+        MapFrame map = MainApplication.getMap();
+        map.statusLine.setDist(-1);
+        map.statusLine.repaint();
+        map.keyDetector.removeModifierExListener(this);
         removeWayHighlighting(sourceWays);
         pWays = null;
         sourceWays = null;
@@ -215,8 +216,8 @@ public class ParallelWayAction extends MapMode implements ModifierListener {
     }
 
     @Override
-    public void modifiersChanged(int modifiers) {
-        if (Main.map == null || mv == null || !mv.isActiveLayerDrawable())
+    public void modifiersExChanged(int modifiers) {
+        if (MainApplication.getMap() == null || mv == null || !mv.isActiveLayerDrawable())
             return;
 
         // Should only get InputEvents due to the mask in enterMode
@@ -228,7 +229,7 @@ public class ParallelWayAction extends MapMode implements ModifierListener {
 
     private boolean updateModifiersState(int modifiers) {
         boolean oldAlt = alt, oldShift = shift, oldCtrl = ctrl;
-        updateKeyModifiers(modifiers);
+        updateKeyModifiersEx(modifiers);
         return oldAlt != alt || oldShift != shift || oldCtrl != ctrl;
     }
 
@@ -274,7 +275,7 @@ public class ParallelWayAction extends MapMode implements ModifierListener {
     @Override
     public void mousePressed(MouseEvent e) {
         requestFocusInMapView();
-        updateModifiersState(e.getModifiers());
+        updateModifiersState(e.getModifiersEx());
         // Other buttons are off limit, but we still get events.
         if (e.getButton() != MouseEvent.BUTTON1)
             return;
@@ -299,7 +300,7 @@ public class ParallelWayAction extends MapMode implements ModifierListener {
 
     @Override
     public void mouseReleased(MouseEvent e) {
-        updateModifiersState(e.getModifiers());
+        updateModifiersState(e.getModifiersEx());
         // Other buttons are off limit, but we still get events.
         if (e.getButton() != MouseEvent.BUTTON1)
             return;
@@ -354,7 +355,7 @@ public class ParallelWayAction extends MapMode implements ModifierListener {
         if (!mouseIsDown)
             return;
 
-        boolean modifiersChanged = updateModifiersState(e.getModifiers());
+        boolean modifiersChanged = updateModifiersState(e.getModifiersEx());
         updateFlagsChangeableAlways();
 
         if (modifiersChanged) {
@@ -430,8 +431,9 @@ public class ParallelWayAction extends MapMode implements ModifierListener {
         }
         pWays.changeOffset(d);
 
-        Main.map.statusLine.setDist(Math.abs(snappedRealD));
-        Main.map.statusLine.repaint();
+        MapFrame map = MainApplication.getMap();
+        map.statusLine.setDist(Math.abs(snappedRealD));
+        map.statusLine.repaint();
         temporaryLayer.invalidate();
     }
 
@@ -522,7 +524,7 @@ public class ParallelWayAction extends MapMode implements ModifierListener {
             getLayerManager().getEditDataSet().setSelected(pWays.getWays());
             return true;
         } catch (IllegalArgumentException e) {
-            Main.debug(e);
+            Logging.debug(e);
             new Notification(tr("ParallelWayAction\n" +
                     "The ways selected must form a simple branchless path"))
                     .setIcon(JOptionPane.INFORMATION_MESSAGE)
@@ -584,7 +586,7 @@ public class ParallelWayAction extends MapMode implements ModifierListener {
                 if (mod.isPresent()) {
                     ret.put(mod.get(), Character.isUpperCase(c));
                 } else {
-                    Main.debug("Ignoring unknown modifier {0}", c);
+                    Logging.debug("Ignoring unknown modifier {0}", c);
                 }
             }
             return Collections.unmodifiableMap(ret);

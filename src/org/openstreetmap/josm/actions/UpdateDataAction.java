@@ -15,10 +15,16 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.downloadtasks.DownloadTaskList;
 import org.openstreetmap.josm.data.DataSource;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
-import org.openstreetmap.josm.gui.progress.PleaseWaitProgressMonitor;
+import org.openstreetmap.josm.gui.progress.swing.PleaseWaitProgressMonitor;
 import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.tools.Shortcut;
 
+/**
+ * This action synchronizes the dataset with the current state on the server.
+ *
+ * It does so by re-downloading all areas and thereby merging all compatible
+ * changes from the current server version.
+ */
 public class UpdateDataAction extends JosmAction {
 
     /**

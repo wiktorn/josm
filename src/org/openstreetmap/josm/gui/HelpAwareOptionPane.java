@@ -23,14 +23,14 @@ import javax.swing.JOptionPane;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.gui.help.HelpBrowser;
 import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.util.GuiHelper;
+import org.openstreetmap.josm.gui.util.WindowGeometry;
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.InputMapUtils;
-import org.openstreetmap.josm.tools.WindowGeometry;
+import org.openstreetmap.josm.tools.Logging;
 
 /**
  * Utility methods that display an option dialog with an additional help button that links to the JOSM help
@@ -252,13 +252,13 @@ public final class HelpAwareOptionPane {
         // Log message. Useful for bug reports and unit tests
         switch (messageType) {
             case JOptionPane.ERROR_MESSAGE:
-                Main.error(title + " - " + msg);
+                Logging.error(title + " - " + msg);
                 break;
             case JOptionPane.WARNING_MESSAGE:
-                Main.warn(title + " - " + msg);
+                Logging.warn(title + " - " + msg);
                 break;
             default:
-                Main.info(title + " - " + msg);
+                Logging.info(title + " - " + msg);
         }
 
         if (!GraphicsEnvironment.isHeadless()) {

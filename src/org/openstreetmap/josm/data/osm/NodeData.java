@@ -74,7 +74,11 @@ public class NodeData extends PrimitiveData implements INode {
         }
     }
 
+    /**
+     * @deprecated use {@link #getEastNorth(org.openstreetmap.josm.data.projection.Projecting)}
+     */
     @Override
+    @Deprecated
     public EastNorth getEastNorth() {
         // No internal caching of projected coordinates needed. In contrast to getEastNorth()
         // on Node, this method is rarely used. Caching would be overkill.

@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ExecutorService;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.imagery.ImageryInfo.ImageryPreferenceEntry;
@@ -23,6 +24,7 @@ import org.openstreetmap.josm.io.CachedFile;
 import org.openstreetmap.josm.io.OfflineAccessException;
 import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.io.imagery.ImageryReader;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 import org.xml.sax.SAXException;
 
@@ -31,6 +33,7 @@ import org.xml.sax.SAXException;
  */
 public class ImageryLayerInfo {
 
+    /** Unique instance */
     public static final ImageryLayerInfo instance = new ImageryLayerInfo();
     /** List of all usable layers */
     private final List<ImageryInfo> layers = new ArrayList<>();
@@ -59,10 +62,17 @@ public class ImageryLayerInfo {
     private ImageryLayerInfo() {
     }
 
+    /**
+     * Constructs a new {@code ImageryLayerInfo} from an existing one.
+     * @param info info to copy
+     */
     public ImageryLayerInfo(ImageryLayerInfo info) {
         layers.addAll(info.layers);
     }
 
+    /**
+     * Clear the lists of layers.
+     */
     public void clear() {
         layers.clear();
         layerIds.clear();
@@ -81,32 +91,33 @@ public class ImageryLayerInfo {
                     ImageryInfo i = new ImageryInfo(prefEntry);
                     add(i);
                 } catch (IllegalArgumentException e) {
-                    Main.warn("Unable to load imagery preference entry:"+e);
+                    Logging.warn("Unable to load imagery preference entry:"+e);
                 }
             }
             Collections.sort(layers);
         }
-        loadDefaults(false, true, fastFail);
+        loadDefaults(false, null, fastFail);
     }
 
     /**
      * Loads the available imagery entries.
      *
      * The data is downloaded from the JOSM website (or loaded from cache).
-     * Entries marked as "default" are added to the user selection, if not
-     * already present.
+     * Entries marked as "default" are added to the user selection, if not already present.
      *
      * @param clearCache if true, clear the cache and start a fresh download.
-     * @param quiet whether not the loading should be performed using a {@link PleaseWaitRunnable} in the background
+     * @param worker executor service which will perform the loading.
+     * If null, it should be performed using a {@link PleaseWaitRunnable} in the background
      * @param fastFail whether opening HTTP connections should fail fast, see {@link ImageryReader#setFastFail(boolean)}
+     * @since 12634
      */
-    public void loadDefaults(boolean clearCache, boolean quiet, boolean fastFail) {
+    public void loadDefaults(boolean clearCache, ExecutorService worker, boolean fastFail) {
         final DefaultEntryLoader loader = new DefaultEntryLoader(clearCache, fastFail);
-        if (quiet) {
+        if (worker == null) {
             loader.realRun();
             loader.finish();
         } else {
-            Main.worker.execute(new DefaultEntryLoader(clearCache, fastFail));
+            worker.execute(loader);
         }
     }
 
@@ -149,7 +160,7 @@ public class ImageryLayerInfo {
             try {
                 OnlineResource.JOSM_WEBSITE.checkOfflineAccess(source, Main.getJOSMWebsite());
             } catch (OfflineAccessException e) {
-                Main.warn(e, false);
+                Logging.log(Logging.LEVEL_WARN, e);
                 online = false;
             }
             if (clearCache && online) {
@@ -162,10 +173,10 @@ public class ImageryLayerInfo {
                 newLayers.addAll(result);
             } catch (IOException ex) {
                 loadError = true;
-                Main.error(ex, false);
+                Logging.log(Logging.LEVEL_ERROR, ex);
             } catch (SAXException ex) {
                 loadError = true;
-                Main.error(ex);
+                Logging.error(ex);
             }
         }
 
@@ -204,7 +215,7 @@ public class ImageryLayerInfo {
             if (i.getId() != null) {
                 if (idMap.containsKey(i.getId())) {
                     notUnique.add(i.getId());
-                    Main.error("Id ''{0}'' is not unique - used by ''{1}'' and ''{2}''!",
+                    Logging.error("Id ''{0}'' is not unique - used by ''{1}'' and ''{2}''!",
                             i.getId(), i.getName(), idMap.get(i.getId()).getName());
                     continue;
                 }
@@ -255,7 +266,7 @@ public class ImageryLayerInfo {
                             }
                         }
                     } else {
-                        Main.error("Default imagery ''{0}'' has no id. Skipping.", def.getName());
+                        Logging.error("Default imagery ''{0}'' has no id. Skipping.", def.getName());
                     }
                 }
                 if (!isKnownDefault && !isInUserList) {
@@ -278,7 +289,7 @@ public class ImageryLayerInfo {
             ImageryInfo matchingDefault = defaultLayerIds.get(info.getId());
             if (matchingDefault != null && !matchingDefault.equalsPref(info)) {
                 layers.set(i, matchingDefault);
-                Main.info(tr("Update imagery ''{0}''", info.getName()));
+                Logging.info(tr("Update imagery ''{0}''", info.getName()));
                 changed = true;
             }
         }
@@ -299,7 +310,7 @@ public class ImageryLayerInfo {
             if (!defaultLayerIds.containsKey(info.getKey())) {
                 remove(info.getValue());
                 drop.add(info.getKey());
-                Main.info(tr("Drop old imagery ''{0}''", info.getValue().getName()));
+                Logging.info(tr("Drop old imagery ''{0}''", info.getValue().getName()));
             }
         }
 
@@ -325,14 +336,25 @@ public class ImageryLayerInfo {
         return Objects.equals(a, b) || (a != null && b != null && !a.isEmpty() && !b.isEmpty() && (a.contains(b) || b.contains(a)));
     }
 
+    /**
+     * Add a new imagery entry.
+     * @param info imagery entry to add
+     */
     public void add(ImageryInfo info) {
         layers.add(info);
     }
 
+    /**
+     * Remove an imagery entry.
+     * @param info imagery entry to remove
+     */
     public void remove(ImageryInfo info) {
         layers.remove(info);
     }
 
+    /**
+     * Save the list of imagery entries to preferences.
+     */
     public void save() {
         List<ImageryPreferenceEntry> entries = new ArrayList<>();
         for (ImageryInfo info : layers) {

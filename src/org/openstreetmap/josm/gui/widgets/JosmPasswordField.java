@@ -12,7 +12,9 @@ import javax.swing.TransferHandler;
 import javax.swing.text.Document;
 import javax.swing.text.JTextComponent;
 
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapFrame;
+import org.openstreetmap.josm.tools.Logging;
 
 /**
  * A subclass of {@link JPasswordField} to implement a workaround to
@@ -97,15 +99,17 @@ public class JosmPasswordField extends JPasswordField implements FocusListener {
 
     @Override
     public void focusGained(FocusEvent e) {
-        if (Main.map != null) {
-            Main.map.keyDetector.setEnabled(false);
+        MapFrame map = MainApplication.getMap();
+        if (map != null) {
+            map.keyDetector.setEnabled(false);
         }
     }
 
     @Override
     public void focusLost(FocusEvent e) {
-        if (Main.map != null) {
-            Main.map.keyDetector.setEnabled(true);
+        MapFrame map = MainApplication.getMap();
+        if (map != null) {
+            map.keyDetector.setEnabled(true);
         }
     }
 
@@ -125,9 +129,9 @@ public class JosmPasswordField extends JPasswordField implements FocusListener {
                     try {
                         pasteAction.actionPerformed(e);
                     } catch (NullPointerException npe) { // NOPMD
-                        Main.error(npe, "NullPointerException occured because of JDK bug 6322854. "
+                        Logging.log(Logging.LEVEL_ERROR, "NullPointerException occured because of JDK bug 6322854. "
                                 +"Copy/Paste operation has not been performed. Please complain to Oracle: "+
-                                "https://bugs.openjdk.java.net/browse/JDK-6322854");
+                                "https://bugs.openjdk.java.net/browse/JDK-6322854", npe);
                     }
                 }
 

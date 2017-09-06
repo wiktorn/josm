@@ -9,7 +9,9 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.data.conflict.Conflict;
 import org.openstreetmap.josm.data.conflict.ConflictCollection;
+import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
+import org.openstreetmap.josm.tools.Logging;
 
 /**
  * This is the common base class for {@link Command}s which manipulate {@link Conflict}s in
@@ -21,23 +23,33 @@ import org.openstreetmap.josm.gui.layer.OsmDataLayer;
  */
 public abstract class ConflictResolveCommand extends Command {
     /** the list of resolved conflicts */
-    private final ConflictCollection resolvedConflicts;
+    private final ConflictCollection resolvedConflicts = new ConflictCollection();
 
     /**
      * Constructs a new {@code ConflictResolveCommand} in the context of the current edit layer, if any.
+     * @deprecated to be removed end of 2017. Use {@link #ConflictResolveCommand(DataSet)} instead
      */
+    @Deprecated
     public ConflictResolveCommand() {
-        super();
-        resolvedConflicts = new ConflictCollection();
+        this(Main.main.getEditDataSet());
     }
 
     /**
      * Constructs a new {@code ConflictResolveCommand} in the context of a given data layer.
      * @param layer the data layer. Must not be null.
+     * @deprecated to be removed end of 2017. Use {@link #ConflictResolveCommand(DataSet)} instead
      */
+    @Deprecated
     public ConflictResolveCommand(OsmDataLayer layer) {
         super(layer);
-        resolvedConflicts = new ConflictCollection();
+    }
+
+    /**
+     * Constructs a new {@code ConflictResolveCommand} in the context of a given data set.
+     * @param ds the data set. Must not be null.
+     */
+    public ConflictResolveCommand(DataSet ds) {
+        super(ds);
     }
 
     /**
@@ -53,14 +65,14 @@ public abstract class ConflictResolveCommand extends Command {
 
     /**
      * reconstitutes all remembered conflicts. Add the remembered conflicts to the
-     * set of conflicts of the {@link OsmDataLayer} this command was applied to.
+     * set of conflicts of the {@link DataSet} this command was applied to.
      *
      */
     protected void reconstituteConflicts() {
-        OsmDataLayer editLayer = getLayer();
+        DataSet ds = getAffectedDataSet();
         for (Conflict<?> c : resolvedConflicts) {
-            if (!editLayer.getConflicts().hasConflictForMy(c.getMy())) {
-                editLayer.getConflicts().add(c);
+            if (!ds.getConflicts().hasConflictForMy(c.getMy())) {
+                ds.getConflicts().add(c);
             }
         }
     }
@@ -69,16 +81,17 @@ public abstract class ConflictResolveCommand extends Command {
     public void undoCommand() {
         super.undoCommand();
 
-        if (Main.isDisplayingMapView()) {
-            if (!Main.getLayerManager().containsLayer(getLayer())) {
-                Main.warn(tr("Cannot undo command ''{0}'' because layer ''{1}'' is not present any more",
+        DataSet ds = getAffectedDataSet();
+        if (Main.main != null) {
+            if (!Main.main.containsDataSet(ds)) {
+                Logging.warn(tr("Cannot undo command ''{0}'' because layer ''{1}'' is not present any more",
                         this.toString(),
-                        getLayer().toString()
+                        ds.getName()
                 ));
                 return;
             }
 
-            Main.getLayerManager().setActiveLayer(getLayer());
+            Main.main.setEditDataSet(ds);
         }
         reconstituteConflicts();
     }

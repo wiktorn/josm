@@ -34,7 +34,6 @@ import org.openstreetmap.josm.data.osm.visitor.paint.relations.Multipolygon;
 import org.openstreetmap.josm.data.osm.visitor.paint.relations.MultipolygonCache;
 import org.openstreetmap.josm.data.projection.Projection;
 import org.openstreetmap.josm.data.projection.Projections;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 
 /**
  * Some tools for geometry related tasks.
@@ -100,7 +99,6 @@ public final class Geometry {
             changedWays[pos] = false;
         }
 
-        OsmDataLayer layer = Main.getLayerManager().getEditLayer();
         DataSet dataset = ways.get(0).getDataSet();
 
         //iterate over all way pairs and introduce the intersections
@@ -207,7 +205,7 @@ public final class Geometry {
                                 intersectionNodes.add(intNode);
 
                                 if (intNode == newNode) {
-                                    cmds.add(layer != null ? new AddCommand(layer, intNode) : new AddCommand(dataset, intNode));
+                                    cmds.add(new AddCommand(dataset, intNode));
                                 }
                             }
                         } else if (test && !intersectionNodes.isEmpty())
@@ -227,7 +225,7 @@ public final class Geometry {
             Way newWay = new Way(way);
             newWay.setNodes(newNodes[pos]);
 
-            cmds.add(new ChangeCommand(way, newWay));
+            cmds.add(new ChangeCommand(dataset, way, newWay));
         }
 
         return intersectionNodes;
@@ -289,10 +287,10 @@ public final class Geometry {
      */
     public static EastNorth getSegmentSegmentIntersection(EastNorth p1, EastNorth p2, EastNorth p3, EastNorth p4) {
 
-        CheckParameterUtil.ensureValidCoordinates(p1, "p1");
-        CheckParameterUtil.ensureValidCoordinates(p2, "p2");
-        CheckParameterUtil.ensureValidCoordinates(p3, "p3");
-        CheckParameterUtil.ensureValidCoordinates(p4, "p4");
+        CheckParameterUtil.ensure(p1, "p1", EastNorth::isValid);
+        CheckParameterUtil.ensure(p2, "p2", EastNorth::isValid);
+        CheckParameterUtil.ensure(p3, "p3", EastNorth::isValid);
+        CheckParameterUtil.ensure(p4, "p4", EastNorth::isValid);
 
         double x1 = p1.getX();
         double y1 = p1.getY();
@@ -354,10 +352,10 @@ public final class Geometry {
      */
     public static EastNorth getLineLineIntersection(EastNorth p1, EastNorth p2, EastNorth p3, EastNorth p4) {
 
-        CheckParameterUtil.ensureValidCoordinates(p1, "p1");
-        CheckParameterUtil.ensureValidCoordinates(p2, "p2");
-        CheckParameterUtil.ensureValidCoordinates(p3, "p3");
-        CheckParameterUtil.ensureValidCoordinates(p4, "p4");
+        CheckParameterUtil.ensure(p1, "p1", EastNorth::isValid);
+        CheckParameterUtil.ensure(p2, "p2", EastNorth::isValid);
+        CheckParameterUtil.ensure(p3, "p3", EastNorth::isValid);
+        CheckParameterUtil.ensure(p4, "p4", EastNorth::isValid);
 
         // Basically, the formula from wikipedia is used:
         //  https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection
@@ -397,10 +395,10 @@ public final class Geometry {
      */
     public static boolean segmentsParallel(EastNorth p1, EastNorth p2, EastNorth p3, EastNorth p4) {
 
-        CheckParameterUtil.ensureValidCoordinates(p1, "p1");
-        CheckParameterUtil.ensureValidCoordinates(p2, "p2");
-        CheckParameterUtil.ensureValidCoordinates(p3, "p3");
-        CheckParameterUtil.ensureValidCoordinates(p4, "p4");
+        CheckParameterUtil.ensure(p1, "p1", EastNorth::isValid);
+        CheckParameterUtil.ensure(p2, "p2", EastNorth::isValid);
+        CheckParameterUtil.ensure(p3, "p3", EastNorth::isValid);
+        CheckParameterUtil.ensure(p4, "p4", EastNorth::isValid);
 
         // Convert line from (point, point) form to ax+by=c
         double a1 = p2.getY() - p1.getY();
@@ -483,9 +481,9 @@ public final class Geometry {
      */
     public static boolean angleIsClockwise(EastNorth commonNode, EastNorth firstNode, EastNorth secondNode) {
 
-        CheckParameterUtil.ensureValidCoordinates(commonNode, "commonNode");
-        CheckParameterUtil.ensureValidCoordinates(firstNode, "firstNode");
-        CheckParameterUtil.ensureValidCoordinates(secondNode, "secondNode");
+        CheckParameterUtil.ensure(commonNode, "commonNode", EastNorth::isValid);
+        CheckParameterUtil.ensure(firstNode, "firstNode", EastNorth::isValid);
+        CheckParameterUtil.ensure(secondNode, "secondNode", EastNorth::isValid);
 
         double dy1 = firstNode.getY() - commonNode.getY();
         double dy2 = secondNode.getY() - commonNode.getY();
@@ -552,9 +550,7 @@ public final class Geometry {
      * @return Area for the multipolygon (LatLon coordinates)
      */
     public static Area getAreaLatLon(Relation multipolygon) {
-        final Multipolygon mp = Main.map == null || Main.map.mapView == null
-                ? new Multipolygon(multipolygon)
-                : MultipolygonCache.getInstance().get(multipolygon);
+        final Multipolygon mp = MultipolygonCache.getInstance().get(multipolygon);
         Path2D path = new Path2D.Double();
         path.setWindingRule(Path2D.WIND_EVEN_ODD);
         for (Multipolygon.PolyData pd : mp.getCombinedPolygons()) {
@@ -692,9 +688,7 @@ public final class Geometry {
      */
     public static double multipolygonArea(Relation multipolygon) {
         double area = 0.0;
-        final Multipolygon mp = Main.map == null || Main.map.mapView == null
-                ? new Multipolygon(multipolygon)
-                : MultipolygonCache.getInstance().get(multipolygon);
+        final Multipolygon mp = MultipolygonCache.getInstance().get(multipolygon);
         for (Multipolygon.PolyData pd : mp.getCombinedPolygons()) {
             area += pd.getAreaAndPerimeter(Projections.getProjectionByCode("EPSG:54008")).getArea();
         }
@@ -766,8 +760,8 @@ public final class Geometry {
      */
     public static double getSegmentAngle(EastNorth p1, EastNorth p2) {
 
-        CheckParameterUtil.ensureValidCoordinates(p1, "p1");
-        CheckParameterUtil.ensureValidCoordinates(p2, "p2");
+        CheckParameterUtil.ensure(p1, "p1", EastNorth::isValid);
+        CheckParameterUtil.ensure(p2, "p2", EastNorth::isValid);
 
         return Math.atan2(p2.north() - p1.north(), p2.east() - p1.east());
     }
@@ -782,9 +776,9 @@ public final class Geometry {
      */
     public static double getCornerAngle(EastNorth p1, EastNorth p2, EastNorth p3) {
 
-        CheckParameterUtil.ensureValidCoordinates(p1, "p1");
-        CheckParameterUtil.ensureValidCoordinates(p2, "p2");
-        CheckParameterUtil.ensureValidCoordinates(p3, "p3");
+        CheckParameterUtil.ensure(p1, "p1", EastNorth::isValid);
+        CheckParameterUtil.ensure(p2, "p2", EastNorth::isValid);
+        CheckParameterUtil.ensure(p3, "p3", EastNorth::isValid);
 
         Double result = getSegmentAngle(p2, p1) - getSegmentAngle(p2, p3);
         if (result <= -Math.PI) {
@@ -931,8 +925,8 @@ public final class Geometry {
         try {
             outerInner = MultipolygonBuilder.joinWays(multiPolygon);
         } catch (MultipolygonBuilder.JoinedPolygonCreationException ex) {
-            Main.trace(ex);
-            Main.debug("Invalid multipolygon " + multiPolygon);
+            Logging.trace(ex);
+            Logging.debug("Invalid multipolygon " + multiPolygon);
             return false;
         }
         // Test if object is inside an outer member

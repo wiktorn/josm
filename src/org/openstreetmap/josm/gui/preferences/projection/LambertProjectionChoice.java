@@ -10,9 +10,9 @@ import java.util.Collections;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Logging;
 
 /**
  * ProjectionChoice for 4 zone Lambert (1920, EPSG:27561-27564).
@@ -21,7 +21,7 @@ import org.openstreetmap.josm.tools.ImageProvider;
  */
 public class LambertProjectionChoice extends ListProjectionChoice {
 
-    private static final String[] lambert4zones = {
+    private static final String[] LAMBERT_4_ZONES = {
         tr("{0} ({1} to {2} degrees)", 1, "51.30", "48.15"),
         tr("{0} ({1} to {2} degrees)", 2, "48.15", "45.45"),
         tr("{0} ({1} to {2} degrees)", 3, "45.45", "42.76"),
@@ -32,7 +32,7 @@ public class LambertProjectionChoice extends ListProjectionChoice {
      * Constructs a new {@code LambertProjectionChoice}.
      */
     public LambertProjectionChoice() {
-        super(tr("Lambert 4 Zones (France)"), /* NO-ICON */ "core:lambert", lambert4zones, tr("Lambert CC Zone"));
+        super(tr("Lambert 4 Zones (France)"), /* NO-ICON */ "core:lambert", LAMBERT_4_ZONES, tr("Lambert CC Zone"));
     }
 
     private static class LambertCBPanel extends CBPanel {
@@ -76,7 +76,7 @@ public class LambertProjectionChoice extends ListProjectionChoice {
                 if (zoneval >= 1 && zoneval <= 4)
                     return Collections.singleton(zonestring);
             } catch (NumberFormatException e) {
-                Main.warn(e);
+                Logging.warn(e);
             }
         }
         return null;
@@ -92,7 +92,7 @@ public class LambertProjectionChoice extends ListProjectionChoice {
         try {
             return Integer.parseInt(zone) - 1;
         } catch (NumberFormatException e) {
-            Main.warn(e);
+            Logging.warn(e);
         }
         return defaultIndex;
     }

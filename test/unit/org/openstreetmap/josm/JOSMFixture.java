@@ -5,7 +5,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.awt.BorderLayout;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
@@ -14,13 +13,12 @@ import java.text.MessageFormat;
 import java.util.Locale;
 import java.util.TimeZone;
 
-import javax.swing.JPanel;
-
+import org.openstreetmap.josm.actions.DeleteAction;
+import org.openstreetmap.josm.command.DeleteCommand;
 import org.openstreetmap.josm.data.projection.Projections;
 import org.openstreetmap.josm.gui.MainApplication;
-import org.openstreetmap.josm.gui.MainPanel;
+import org.openstreetmap.josm.gui.MainApplicationTest;
 import org.openstreetmap.josm.gui.layer.LayerManagerTest.TestLayer;
-import org.openstreetmap.josm.gui.preferences.ToolbarPreferences;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.io.CertificateAmendment;
 import org.openstreetmap.josm.io.OsmApi;
@@ -128,6 +126,9 @@ public class JOSMFixture {
             fail(MessageFormat.format("configured server url ''{0}'' seems to be a productive url, aborting.", url));
         }
 
+        // Setup callbacks
+        DeleteCommand.setDeletionCallback(DeleteAction.defaultDeletionCallback);
+
         if (createGui) {
             GuiHelper.runInEDTAndWaitWithException(new Runnable() {
                 @Override
@@ -143,48 +144,62 @@ public class JOSMFixture {
             || url.startsWith("https://www.openstreetmap.org") || url.startsWith("https://api.openstreetmap.org");
     }
 
+    @SuppressWarnings("deprecation")
     private void setupGUI() {
         JOSMTestRules.cleanLayerEnvironment();
-        assertTrue(Main.getLayerManager().getLayers().isEmpty());
-        assertNull(Main.getLayerManager().getEditLayer());
-        assertNull(Main.getLayerManager().getActiveLayer());
+        assertTrue(MainApplication.getLayerManager().getLayers().isEmpty());
+        assertNull(MainApplication.getLayerManager().getEditLayer());
+        assertNull(MainApplication.getLayerManager().getActiveLayer());
 
         initContentPane();
-        initMainPanel();
+        initMainPanel(false);
         initToolbar();
         if (Main.main == null) {
             new MainApplication().initialize();
         } else {
+            if (Main.main.panel == null) {
+                initMainPanel(false);
+                Main.main.panel = MainApplication.getMainPanel();
+            }
             Main.main.panel.reAddListeners();
         }
         // Add a test layer to the layer manager to get the MapFrame
-        Main.getLayerManager().addLayer(new TestLayer());
+        MainApplication.getLayerManager().addLayer(new TestLayer());
     }
 
     /**
-     * Make sure {@code Main.contentPanePrivate} is initialized.
+     * Make sure {@code MainApplication.contentPanePrivate} is initialized.
      */
     public static void initContentPane() {
-        if (Main.contentPanePrivate == null) {
-            Main.contentPanePrivate = new JPanel(new BorderLayout());
-        }
+        MainApplicationTest.initContentPane();
     }
 
     /**
-     * Make sure {@code Main.mainPanel} is initialized.
+     * Make sure {@code MainApplication.mainPanel} is initialized.
      */
     public static void initMainPanel() {
-        if (Main.mainPanel == null) {
-            Main.mainPanel = new MainPanel(Main.getLayerManager());
-        }
+        initMainPanel(false);
     }
 
     /**
-     * Make sure {@code Main.toolbar} is initialized.
+     * Make sure {@code MainApplication.mainPanel} is initialized.
+     * @param reAddListeners {@code true} to re-add listeners
+     */
+    public static void initMainPanel(boolean reAddListeners) {
+        MainApplicationTest.initMainPanel(reAddListeners);
+    }
+
+    /**
+     * Make sure {@code MainApplication.toolbar} is initialized.
      */
     public static void initToolbar() {
-        if (Main.toolbar == null) {
-            Main.toolbar = new ToolbarPreferences();
-        }
+        MainApplicationTest.initToolbar();
+    }
+
+    /**
+     * Make sure {@code MainApplication.menu} is initialized.
+     */
+    public static void initMainMenu() {
+        MainApplicationTest.initMainMenu();
     }
 }

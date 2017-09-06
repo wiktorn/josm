@@ -19,12 +19,13 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.APIDataSet;
 import org.openstreetmap.josm.data.osm.Changeset;
 import org.openstreetmap.josm.data.osm.DataSet;
+import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.osm.visitor.Visitor;
-import org.openstreetmap.josm.gui.DefaultNameFormatter;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.PleaseWaitRunnable;
 import org.openstreetmap.josm.gui.io.UploadSelectionDialog;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
@@ -159,7 +160,7 @@ public class UploadSelectionAction extends JosmAction {
             // runs the check for deleted parents and then invokes
             // processPostParentChecker()
             //
-            Main.worker.submit(new DeletedParentsChecker(layer, toUpload));
+            MainApplication.worker.submit(new DeletedParentsChecker(layer, toUpload));
         } else {
             processPostParentChecker(layer, toUpload);
         }

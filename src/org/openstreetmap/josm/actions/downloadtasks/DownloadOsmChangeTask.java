@@ -13,7 +13,6 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
@@ -31,12 +30,14 @@ import org.openstreetmap.josm.data.osm.history.HistoryNode;
 import org.openstreetmap.josm.data.osm.history.HistoryOsmPrimitive;
 import org.openstreetmap.josm.data.osm.history.HistoryRelation;
 import org.openstreetmap.josm.data.osm.history.HistoryWay;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.history.HistoryLoadTask;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
 import org.openstreetmap.josm.io.OsmApi;
 import org.openstreetmap.josm.io.OsmServerLocationReader;
 import org.openstreetmap.josm.io.OsmServerReader;
 import org.openstreetmap.josm.io.OsmTransferException;
+import org.openstreetmap.josm.tools.Logging;
 
 /**
  * Task allowing to download OsmChange data (http://wiki.openstreetmap.org/wiki/OsmChange).
@@ -74,7 +75,7 @@ public class DownloadOsmChangeTask extends DownloadOsmTask {
         downloadTask = new DownloadTask(newLayer, new OsmServerLocationReader(url), progressMonitor);
         // Extract .osc filename from URL to set the new layer name
         extractOsmFilename("https?://.*/(.*\\.osc)", url);
-        return Main.worker.submit(downloadTask);
+        return MainApplication.worker.submit(downloadTask);
     }
 
     /**
@@ -120,7 +121,7 @@ public class DownloadOsmChangeTask extends DownloadOsmTask {
                 }
                 if (isCanceled()) return;
                 // Let's load all required history
-                Main.worker.submit(new HistoryLoaderAndListener(toLoad));
+                MainApplication.worker.submit(new HistoryLoaderAndListener(toLoad));
             } catch (RejectedExecutionException e) {
                 rememberException(e);
                 setFailed(true);
@@ -184,7 +185,7 @@ public class DownloadOsmChangeTask extends DownloadOsmTask {
                             // Forget this primitive
                             it.remove();
                         } catch (AssertionError e) {
-                            Main.error(e, "Cannot load "+p+':');
+                            Logging.log(Logging.LEVEL_ERROR, "Cannot load "+p+':', e);
                         }
                     }
                 }
@@ -193,11 +194,11 @@ public class DownloadOsmChangeTask extends DownloadOsmTask {
             if (toLoadNext.isEmpty()) {
                 // No more primitive to update. Processing is finished
                 // Be sure all updated primitives are correctly drawn
-                Main.map.repaint();
+                MainApplication.getMap().repaint();
             } else {
                 // Some primitives still need to be loaded
                 // Let's load all required history
-                Main.worker.submit(new HistoryLoaderAndListener(toLoadNext));
+                MainApplication.worker.submit(new HistoryLoaderAndListener(toLoadNext));
             }
         }
 
