@@ -7,6 +7,7 @@ import static org.openstreetmap.josm.tools.I18n.trn;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.GraphicsEnvironment;
+import java.awt.GridBagLayout;
 import java.awt.event.KeyEvent;
 import java.io.File;
 import java.io.IOException;
@@ -32,6 +33,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
@@ -47,7 +49,9 @@ import javax.net.ssl.SSLSocketFactory;
 import javax.swing.Action;
 import javax.swing.InputMap;
 import javax.swing.JComponent;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
+import javax.swing.JPanel;
 import javax.swing.KeyStroke;
 import javax.swing.LookAndFeel;
 import javax.swing.RepaintManager;
@@ -57,6 +61,7 @@ import javax.swing.UnsupportedLookAndFeelException;
 
 import org.jdesktop.swinghelper.debug.CheckThreadViolationRepaintManager;
 import org.openstreetmap.gui.jmapviewer.FeatureAdapter;
+import org.openstreetmap.josm.CLIModule;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.DeleteAction;
 import org.openstreetmap.josm.actions.JosmAction;
@@ -79,10 +84,16 @@ import org.openstreetmap.josm.data.cache.JCSCacheManager;
 import org.openstreetmap.josm.data.oauth.OAuthAccessTokenHolder;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
+import org.openstreetmap.josm.data.osm.UserInfo;
 import org.openstreetmap.josm.data.osm.search.SearchMode;
+import org.openstreetmap.josm.data.projection.ProjectionCLI;
+import org.openstreetmap.josm.data.projection.datum.NTV2GridShiftFileSource;
+import org.openstreetmap.josm.data.projection.datum.NTV2GridShiftFileWrapper;
+import org.openstreetmap.josm.data.projection.datum.NTV2Proj4DirGridShiftFileSource;
 import org.openstreetmap.josm.data.validation.OsmValidator;
 import org.openstreetmap.josm.gui.ProgramArguments.Option;
 import org.openstreetmap.josm.gui.SplashScreen.SplashProgressMonitor;
+import org.openstreetmap.josm.gui.bugreport.BugReportDialog;
 import org.openstreetmap.josm.gui.download.DownloadDialog;
 import org.openstreetmap.josm.gui.io.CustomConfigurator.XMLCommandProcessor;
 import org.openstreetmap.josm.gui.io.SaveLayersDialog;
@@ -106,6 +117,8 @@ import org.openstreetmap.josm.gui.tagging.presets.TaggingPresets;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.util.RedirectInputMap;
 import org.openstreetmap.josm.gui.util.WindowGeometry;
+import org.openstreetmap.josm.gui.widgets.UrlLabel;
+import org.openstreetmap.josm.io.CachedFile;
 import org.openstreetmap.josm.io.CertificateAmendment;
 import org.openstreetmap.josm.io.DefaultProxySelector;
 import org.openstreetmap.josm.io.MessageNotifier;
@@ -121,6 +134,7 @@ import org.openstreetmap.josm.io.remotecontrol.RemoteControl;
 import org.openstreetmap.josm.plugins.PluginHandler;
 import org.openstreetmap.josm.plugins.PluginInformation;
 import org.openstreetmap.josm.tools.FontsManager;
+import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.HttpClient;
 import org.openstreetmap.josm.tools.I18n;
 import org.openstreetmap.josm.tools.ImageProvider;
@@ -136,6 +150,8 @@ import org.openstreetmap.josm.tools.Territories;
 import org.openstreetmap.josm.tools.Utils;
 import org.openstreetmap.josm.tools.bugreport.BugReport;
 import org.openstreetmap.josm.tools.bugreport.BugReportExceptionHandler;
+import org.openstreetmap.josm.tools.bugreport.BugReportQueue;
+import org.openstreetmap.josm.tools.bugreport.BugReportSender;
 import org.xml.sax.SAXException;
 
 /**
@@ -149,7 +165,7 @@ public class MainApplication extends Main {
     /**
      * Command-line arguments used to run the application.
      */
-    private static final List<String> COMMAND_LINE_ARGS = new ArrayList<>();
+    private static List<String> commandLineArgs;
 
     /**
      * The main menu bar at top of screen.
@@ -219,6 +235,34 @@ public class MainApplication extends Main {
         }
     };
 
+    private static final List<CLIModule> cliModules = new ArrayList<>();
+
+    /**
+     * Default JOSM command line interface.
+     * <p>
+     * Runs JOSM and performs some action, depending on the options and positional
+     * arguments.
+     */
+    public static final CLIModule JOSM_CLI_MODULE = new CLIModule() {
+        @Override
+        public String getActionKeyword() {
+            return "runjosm";
+        }
+
+        @Override
+        public void processArguments(String[] argArray) {
+            ProgramArguments args = null;
+            // construct argument table
+            try {
+                args = new ProgramArguments(argArray);
+            } catch (IllegalArgumentException e) {
+                System.err.println(e.getMessage());
+                System.exit(1);
+            }
+            mainJOSM(args);
+        }
+    };
+
     /**
      * Listener that sets the enabled state of undo/redo menu entries.
      */
@@ -226,6 +270,36 @@ public class MainApplication extends Main {
             menu.undo.setEnabled(queueSize > 0);
             menu.redo.setEnabled(redoSize > 0);
         };
+
+    /**
+     * Source of NTV2 shift files: Download from JOSM website.
+     * @since 12777
+     */
+    public static final NTV2GridShiftFileSource JOSM_WEBSITE_NTV2_SOURCE = gridFileName -> {
+        String location = Main.getJOSMWebsite() + "/proj/" + gridFileName;
+        // Try to load grid file
+        CachedFile cf = new CachedFile(location);
+        try {
+            return cf.getInputStream();
+        } catch (IOException ex) {
+            Logging.warn(ex);
+            return null;
+        }
+    };
+
+    static {
+        registerCLIModue(JOSM_CLI_MODULE);
+        registerCLIModue(ProjectionCLI.INSTANCE);
+    }
+
+    /**
+     * Register a command line interface module.
+     * @param module the module
+     * @since 12792
+     */
+    public static void registerCLIModue(CLIModule module) {
+        cliModules.add(module);
+    }
 
     /**
      * Constructs a new {@code MainApplication} without a window.
@@ -458,7 +532,7 @@ public class MainApplication extends Main {
      * @since 11650
      */
     public static List<String> getCommandLineArgs() {
-        return Collections.unmodifiableList(COMMAND_LINE_ARGS);
+        return Collections.unmodifiableList(commandLineArgs);
     }
 
     /**
@@ -736,15 +810,31 @@ public class MainApplication extends Main {
     @SuppressWarnings("deprecation")
     public static void main(final String[] argArray) {
         I18n.init();
+        commandLineArgs = Arrays.asList(Arrays.copyOf(argArray, argArray.length));
 
-        ProgramArguments args = null;
-        // construct argument table
-        try {
-            args = new ProgramArguments(argArray);
-        } catch (IllegalArgumentException e) {
-            System.err.println(e.getMessage());
-            System.exit(1);
-            return;
+        if (argArray.length > 0) {
+            String moduleStr = argArray[0];
+            for (CLIModule module : cliModules) {
+                if (Objects.equals(moduleStr, module.getActionKeyword())) {
+                   String[] argArrayCdr = Arrays.copyOfRange(argArray, 1, argArray.length);
+                   module.processArguments(argArrayCdr);
+                   return;
+                }
+            }
+        }
+        // no module specified, use default (josm)
+        JOSM_CLI_MODULE.processArguments(argArray);
+    }
+
+    /**
+     * Main method to run the JOSM GUI.
+     * @param args program arguments
+     */
+    public static void mainJOSM(ProgramArguments args) {
+
+        if (!GraphicsEnvironment.isHeadless()) {
+            BugReportQueue.getInstance().setBugReportHandler(BugReportDialog::showFor);
+            BugReportSender.setBugReportSendingHandler(BugReportDialog.bugReportSendingHandler);
         }
 
         Level logLevel = args.getLogLevel();
@@ -786,8 +876,6 @@ public class MainApplication extends Main {
             showHelp();
             return;
         }
-
-        COMMAND_LINE_ARGS.addAll(Arrays.asList(argArray));
 
         boolean skipLoadingPlugins = args.hasOption(Option.SKIP_PLUGINS);
         if (skipLoadingPlugins) {
@@ -889,6 +977,7 @@ public class MainApplication extends Main {
         toolbar = new ToolbarPreferences();
         Main.toolbar = toolbar;
         ProjectionPreference.setProjection();
+        setupNadGridSources();
         GuiHelper.translateJavaInternalMessages();
         preConstructorInit();
 
@@ -944,6 +1033,19 @@ public class MainApplication extends Main {
         }
     }
 
+    /**
+     * Setup the sources for NTV2 grid shift files for projection support.
+     * @since 12795
+     */
+    public static void setupNadGridSources() {
+        NTV2GridShiftFileWrapper.registerNTV2GridShiftFileSource(
+                NTV2GridShiftFileWrapper.NTV2_SOURCE_PRIORITY_LOCAL,
+                NTV2Proj4DirGridShiftFileSource.getInstance());
+        NTV2GridShiftFileWrapper.registerNTV2GridShiftFileSource(
+                NTV2GridShiftFileWrapper.NTV2_SOURCE_PRIORITY_DOWNLOAD,
+                JOSM_WEBSITE_NTV2_SOURCE);
+    }
+
     static void applyWorkarounds() {
         // Workaround for JDK-8180379: crash on Windows 10 1703 with Windows L&F and java < 8u141 / 9+172
         // To remove during Java 9 migration
@@ -967,6 +1069,7 @@ public class MainApplication extends Main {
     }
 
     static void setupCallbacks() {
+        MessageNotifier.setNotifierCallback(MainApplication::notifyNewMessages);
         DeleteCommand.setDeletionCallback(DeleteAction.defaultDeletionCallback);
     }
 
@@ -1305,5 +1408,21 @@ public class MainApplication extends Main {
         public void handlePreferences() {
             MainApplication.getMenu().preferences.actionPerformed(null);
         }
+    }
+
+    static void notifyNewMessages(UserInfo userInfo) {
+        GuiHelper.runInEDT(() -> {
+            JPanel panel = new JPanel(new GridBagLayout());
+            panel.add(new JLabel(trn("You have {0} unread message.", "You have {0} unread messages.",
+                    userInfo.getUnreadMessages(), userInfo.getUnreadMessages())),
+                    GBC.eol());
+            panel.add(new UrlLabel(Main.getBaseUserUrl() + '/' + userInfo.getDisplayName() + "/inbox",
+                    tr("Click here to see your inbox.")), GBC.eol());
+            panel.setOpaque(false);
+            new Notification().setContent(panel)
+                .setIcon(JOptionPane.INFORMATION_MESSAGE)
+                .setDuration(Notification.TIME_LONG)
+                .show();
+        });
     }
 }

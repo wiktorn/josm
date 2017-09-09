@@ -16,7 +16,6 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -53,9 +52,9 @@ import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.JosmRuntimeException;
 import org.openstreetmap.josm.tools.Logging;
+import org.openstreetmap.josm.tools.Platform;
 import org.openstreetmap.josm.tools.PlatformHook;
 import org.openstreetmap.josm.tools.PlatformHookOsx;
-import org.openstreetmap.josm.tools.PlatformHookUnixoid;
 import org.openstreetmap.josm.tools.PlatformHookWindows;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.Utils;
@@ -771,22 +770,7 @@ public abstract class Main {
      * @since 1849
      */
     public static void determinePlatformHook() {
-        String os = System.getProperty("os.name");
-        if (os == null) {
-            Logging.warn("Your operating system has no name, so I'm guessing its some kind of *nix.");
-            platform = new PlatformHookUnixoid();
-        } else if (os.toLowerCase(Locale.ENGLISH).startsWith("windows")) {
-            platform = new PlatformHookWindows();
-        } else if ("Linux".equals(os) || "Solaris".equals(os) ||
-                "SunOS".equals(os) || "AIX".equals(os) ||
-                "FreeBSD".equals(os) || "NetBSD".equals(os) || "OpenBSD".equals(os)) {
-            platform = new PlatformHookUnixoid();
-        } else if (os.toLowerCase(Locale.ENGLISH).startsWith("mac os x")) {
-            platform = new PlatformHookOsx();
-        } else {
-            Logging.warn("I don't know your operating system '"+os+"', so I'm guessing its some kind of *nix.");
-            platform = new PlatformHookUnixoid();
-        }
+        platform = Platform.determinePlatform().accept(PlatformHook.CONSTRUCT_FROM_PLATFORM);
     }
 
     /* ----------------------------------------------------------------------------------------- */

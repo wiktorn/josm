@@ -11,6 +11,7 @@ import java.io.StringWriter;
 
 import org.junit.Rule;
 import org.junit.Test;
+import org.openstreetmap.josm.actions.ShowStatusReportAction;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -25,16 +26,16 @@ public class BugReportTest {
      */
     @Rule
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    public JOSMTestRules test = new JOSMTestRules().preferences();
+    public JOSMTestRules test = new JOSMTestRules().preferences().platform();
 
     /**
-     * Test {@link BugReport#getReportText()}
+     * Test {@link BugReport#getReportText}
      */
     @Test
     public void testReportText() {
         ReportedException e = interceptInChildMethod(new IOException("test-exception-message"));
         e.put("test-key", "test-value");
-        String text = new BugReport(e).getReportText();
+        String text = new BugReport(e).getReportText(ShowStatusReportAction.getReportHeader());
 
         assertTrue(text.contains("test-exception-message"));
         assertTrue(text.contains("interceptInChildMethod"));
