@@ -11,6 +11,7 @@ import java.awt.Graphics2D;
 import java.awt.GraphicsEnvironment;
 import java.awt.Image;
 import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Toolkit;
 import java.awt.Transparency;
@@ -29,20 +30,22 @@ import java.io.StringReader;
 import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
@@ -70,7 +73,7 @@ import org.openstreetmap.josm.gui.mappaint.styleelement.StyleElement;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPreset;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPresets;
 import org.openstreetmap.josm.io.CachedFile;
-import org.openstreetmap.josm.plugins.PluginHandler;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -121,15 +124,15 @@ public class ImageProvider {
      */
     public enum ImageSizes {
         /** SMALL_ICON value of an Action */
-        SMALLICON(Main.pref.getInteger("iconsize.smallicon", 16)),
+        SMALLICON(Config.getPref().getInt("iconsize.smallicon", 16)),
         /** LARGE_ICON_KEY value of an Action */
-        LARGEICON(Main.pref.getInteger("iconsize.largeicon", 24)),
+        LARGEICON(Config.getPref().getInt("iconsize.largeicon", 24)),
         /** map icon */
-        MAP(Main.pref.getInteger("iconsize.map", 16)),
+        MAP(Config.getPref().getInt("iconsize.map", 16)),
         /** map icon maximum size */
-        MAPMAX(Main.pref.getInteger("iconsize.mapmax", 48)),
+        MAPMAX(Config.getPref().getInt("iconsize.mapmax", 48)),
         /** cursor icon size */
-        CURSOR(Main.pref.getInteger("iconsize.cursor", 32)),
+        CURSOR(Config.getPref().getInt("iconsize.cursor", 32)),
         /** cursor overlay icon size */
         CURSOROVERLAY(CURSOR),
         /** menu icon size */
@@ -141,7 +144,7 @@ public class ImageProvider {
         /** Layer list icon size
          * @since 8323
          */
-        LAYER(Main.pref.getInteger("iconsize.layer", 16)),
+        LAYER(Config.getPref().getInt("iconsize.layer", 16)),
         /** Toolbar button icon size
          * @since 9253
          */
@@ -149,16 +152,16 @@ public class ImageProvider {
         /** Side button maximum height
          * @since 9253
          */
-        SIDEBUTTON(Main.pref.getInteger("iconsize.sidebutton", 20)),
+        SIDEBUTTON(Config.getPref().getInt("iconsize.sidebutton", 20)),
         /** Settings tab icon size
          * @since 9253
          */
-        SETTINGS_TAB(Main.pref.getInteger("iconsize.settingstab", 48)),
+        SETTINGS_TAB(Config.getPref().getInt("iconsize.settingstab", 48)),
         /**
          * The default image size
          * @since 9705
          */
-        DEFAULT(Main.pref.getInteger("iconsize.default", 24)),
+        DEFAULT(Config.getPref().getInt("iconsize.default", 24)),
         /**
          * Splash dialog logo size
          * @since 10358
@@ -168,7 +171,12 @@ public class ImageProvider {
          * About dialog logo size
          * @since 10358
          */
-        ABOUT_LOGO(256, 258);
+        ABOUT_LOGO(256, 258),
+        /**
+         * Status line logo size
+         * @since 13369
+         */
+        STATUSLINE(18, 18);
 
         private final int virtualWidth;
         private final int virtualHeight;
@@ -246,6 +254,10 @@ public class ImageProvider {
      */
     public static final String PROP_TRANSPARENCY_COLOR = "josm.transparency.color";
 
+    /** set of class loaders to take images from */
+    protected static final Set<ClassLoader> classLoaders = new HashSet<>(Arrays.asList(
+            ClassLoader.getSystemClassLoader(), ImageProvider.class.getClassLoader()));
+
     /** directories in which images are searched */
     protected Collection<String> dirs;
     /** caching identifier */
@@ -270,8 +282,6 @@ public class ImageProvider {
     protected boolean optional;
     /** <code>true</code> if warnings should be suppressed */
     protected boolean suppressWarnings;
-    /** list of class loaders to take images from */
-    protected Collection<ClassLoader> additionalClassLoaders;
     /** ordered list of overlay images */
     protected List<ImageOverlay> overlayInfo;
     /** <code>true</code> if icon must be grayed out */
@@ -332,7 +342,6 @@ public class ImageProvider {
         this.virtualMaxHeight = image.virtualMaxHeight;
         this.optional = image.optional;
         this.suppressWarnings = image.suppressWarnings;
-        this.additionalClassLoaders = image.additionalClassLoaders;
         this.overlayInfo = image.overlayInfo;
         this.isDisabled = image.isDisabled;
         this.multiResolution = image.multiResolution;
@@ -576,13 +585,23 @@ public class ImageProvider {
     }
 
     /**
-     * Add a collection of additional class loaders to search image for.
-     * @param additionalClassLoaders class loaders to add to the internal list
-     * @return the current object, for convenience
+     * Add an additional class loader to search image for.
+     * @param additionalClassLoader class loader to add to the internal set
+     * @return {@code true} if the set changed as a result of the call
+     * @since 12870
      */
-    public ImageProvider setAdditionalClassLoaders(Collection<ClassLoader> additionalClassLoaders) {
-        this.additionalClassLoaders = additionalClassLoaders;
-        return this;
+    public static boolean addAdditionalClassLoader(ClassLoader additionalClassLoader) {
+        return classLoaders.add(additionalClassLoader);
+    }
+
+    /**
+     * Add a collection of additional class loaders to search image for.
+     * @param additionalClassLoaders class loaders to add to the internal set
+     * @return {@code true} if the set changed as a result of the call
+     * @since 12870
+     */
+    public static boolean addAdditionalClassLoaders(Collection<ClassLoader> additionalClassLoaders) {
+        return classLoaders.addAll(additionalClassLoaders);
     }
 
     /**
@@ -603,20 +622,26 @@ public class ImageProvider {
      * A <code>java.awt.image.MultiResolutionImage</code> is a Java 9 {@link Image}
      * implementation, which adds support for HiDPI displays. The effect will be
      * that in HiDPI mode, when GUI elements are scaled by a factor 1.5, 2.0, etc.,
-     * the images are not just up-scaled, but a higher resolution version of the
-     * image is rendered instead.
+     * the images are not just up-scaled, but a higher resolution version of the image is rendered instead.
      * <p>
-     * Use {@link HiDPISupport#getBaseImage(java.awt.Image)} to extract the original
-     * image from a multi-resolution image.
+     * Use {@link HiDPISupport#getBaseImage(java.awt.Image)} to extract the original image from a multi-resolution image.
      * <p>
-     * See {@link HiDPISupport#processMRImage} for how to process the image without
-     * removing the multi-resolution magic.
+     * See {@link HiDPISupport#processMRImage} for how to process the image without removing the multi-resolution magic.
      * @param multiResolution true, if multi-resolution image is requested
      * @return the current object, for convenience
      */
     public ImageProvider setMultiResolution(boolean multiResolution) {
         this.multiResolution = multiResolution;
         return this;
+    }
+
+    /**
+     * Determines if this icon is located on a remote location (http, https, wiki).
+     * @return {@code true} if this icon is located on a remote location (http, https, wiki)
+     * @since 13250
+     */
+    public boolean isRemote() {
+        return name.startsWith(HTTP_PROTOCOL) || name.startsWith(HTTPS_PROTOCOL) || name.startsWith(WIKI_PROTOCOL);
     }
 
     /**
@@ -639,14 +664,15 @@ public class ImageProvider {
      * Load the image in a background thread.
      *
      * This method returns immediately and runs the image request asynchronously.
+     * @param action the action that will deal with the image
      *
      * @return the future of the requested image
-     * @since 10714
+     * @since 13252
      */
-    public CompletableFuture<ImageIcon> getAsync() {
-        return name.startsWith(HTTP_PROTOCOL) || name.startsWith(WIKI_PROTOCOL)
-                ? CompletableFuture.supplyAsync(this::get, IMAGE_FETCHER)
-                : CompletableFuture.completedFuture(get());
+    public CompletableFuture<Void> getAsync(Consumer<? super ImageIcon> action) {
+        return isRemote()
+                ? CompletableFuture.supplyAsync(this::get, IMAGE_FETCHER).thenAcceptAsync(action)
+                : CompletableFuture.completedFuture(get()).thenAccept(action);
     }
 
     /**
@@ -656,7 +682,7 @@ public class ImageProvider {
      * @since 7693
      */
     public ImageResource getResource() {
-        ImageResource ir = getIfAvailableImpl(additionalClassLoaders);
+        ImageResource ir = getIfAvailableImpl();
         if (ir == null) {
             if (!optional) {
                 String ext = name.indexOf('.') != -1 ? "" : ".???";
@@ -683,14 +709,15 @@ public class ImageProvider {
      * Load the image in a background thread.
      *
      * This method returns immediately and runs the image request asynchronously.
+     * @param action the action that will deal with the image
      *
      * @return the future of the requested image
-     * @since 10714
+     * @since 13252
      */
-    public CompletableFuture<ImageResource> getResourceAsync() {
-        return name.startsWith(HTTP_PROTOCOL) || name.startsWith(WIKI_PROTOCOL)
-                ? CompletableFuture.supplyAsync(this::getResource, IMAGE_FETCHER)
-                : CompletableFuture.completedFuture(getResource());
+    public CompletableFuture<Void> getResourceAsync(Consumer<? super ImageResource> action) {
+        return isRemote()
+                ? CompletableFuture.supplyAsync(this::getResource, IMAGE_FETCHER).thenAcceptAsync(action)
+                : CompletableFuture.completedFuture(getResource()).thenAccept(action);
     }
 
     /**
@@ -801,14 +828,12 @@ public class ImageProvider {
     /**
      * Internal implementation of the image request.
      *
-     * @param additionalClassLoaders the list of class loaders to use
      * @return the requested image or null if the request failed
      */
-    private ImageResource getIfAvailableImpl(Collection<ClassLoader> additionalClassLoaders) {
+    private ImageResource getIfAvailableImpl() {
         synchronized (cache) {
             // This method is called from different thread and modifying HashMap concurrently can result
             // for example in loops in map entries (ie freeze when such entry is retrieved)
-            // Yes, it did happen to me :-)
             if (name == null)
                 return null;
 
@@ -898,9 +923,8 @@ public class ImageProvider {
                         // getImageUrl() does a ton of "stat()" calls and gets expensive
                         // and redundant when you have a whole ton of objects. So,
                         // index the cache by the name of the icon we're looking for
-                        // and don't bother to create a URL unless we're actually
-                        // creating the image.
-                        URL path = getImageUrl(fullName, dirs, additionalClassLoaders);
+                        // and don't bother to create a URL unless we're actually creating the image.
+                        URL path = getImageUrl(fullName);
                         if (path == null) {
                             continue;
                         }
@@ -925,7 +949,8 @@ public class ImageProvider {
      * @return the requested image or null if the request failed
      */
     private static ImageResource getIfAvailableHttp(String url, ImageType type) {
-        try (CachedFile cf = new CachedFile(url).setDestDir(new File(Main.pref.getCacheDirectory(), "images").getPath());
+        try (CachedFile cf = new CachedFile(url).setDestDir(
+                new File(Config.getDirs().getCacheDirectory(true), "images").getPath());
              InputStream is = cf.getInputStream()) {
             switch (type) {
             case SVG:
@@ -964,15 +989,15 @@ public class ImageProvider {
             String base64 = m.group(2);
             String data = m.group(3);
             byte[] bytes;
-            if (";base64".equals(base64)) {
-                bytes = Base64.getDecoder().decode(data);
-            } else {
-                try {
+            try {
+                if (";base64".equals(base64)) {
+                    bytes = Base64.getDecoder().decode(data);
+                } else {
                     bytes = Utils.decodeUrl(data).getBytes(StandardCharsets.UTF_8);
-                } catch (IllegalArgumentException ex) {
-                    Logging.log(Logging.LEVEL_WARN, "Unable to decode URL data part: "+ex.getMessage() + " (" + data + ')', ex);
-                    return null;
                 }
+            } catch (IllegalArgumentException ex) {
+                Logging.log(Logging.LEVEL_WARN, "Unable to decode URL data part: "+ex.getMessage() + " (" + data + ')', ex);
+                return null;
             }
             String mediatype = m.group(1);
             if ("image/svg+xml".equals(mediatype)) {
@@ -1012,12 +1037,12 @@ public class ImageProvider {
      * @return the requested image or null if the request failed
      */
     private static ImageResource getIfAvailableWiki(String name, ImageType type) {
-        final Collection<String> defaultBaseUrls = Arrays.asList(
+        final List<String> defaultBaseUrls = Arrays.asList(
                 "https://wiki.openstreetmap.org/w/images/",
                 "https://upload.wikimedia.org/wikipedia/commons/",
                 "https://wiki.openstreetmap.org/wiki/File:"
                 );
-        final Collection<String> baseUrls = Main.pref.getCollection("image-provider.wiki.urls", defaultBaseUrls);
+        final Collection<String> baseUrls = Config.getPref().getList("image-provider.wiki.urls", defaultBaseUrls);
 
         final String fn = name.substring(name.lastIndexOf('/') + 1);
 
@@ -1131,13 +1156,9 @@ public class ImageProvider {
         }
     }
 
-    private static URL getImageUrl(String path, String name, Collection<ClassLoader> additionalClassLoaders) {
+    private URL getImageUrl(String path, String name) {
         if (path != null && path.startsWith("resource://")) {
             String p = path.substring("resource://".length());
-            Collection<ClassLoader> classLoaders = new ArrayList<>(PluginHandler.getResourceClassLoaders());
-            if (additionalClassLoaders != null) {
-                classLoaders.addAll(additionalClassLoaders);
-            }
             for (ClassLoader source : classLoaders) {
                 URL res;
                 if ((res = source.getResource(p + name)) != null)
@@ -1151,14 +1172,14 @@ public class ImageProvider {
         return null;
     }
 
-    private static URL getImageUrl(String imageName, Collection<String> dirs, Collection<ClassLoader> additionalClassLoaders) {
+    private URL getImageUrl(String imageName) {
         URL u;
 
         // Try passed directories first
         if (dirs != null) {
             for (String name : dirs) {
                 try {
-                    u = getImageUrl(name, imageName, additionalClassLoaders);
+                    u = getImageUrl(name, imageName);
                     if (u != null)
                         return u;
                 } catch (SecurityException e) {
@@ -1170,10 +1191,10 @@ public class ImageProvider {
             }
         }
         // Try user-data directory
-        if (Main.pref != null) {
-            String dir = new File(Main.pref.getUserDataDirectory(), "images").getAbsolutePath();
+        if (Config.getDirs() != null) {
+            String dir = new File(Config.getDirs().getUserDataDirectory(false), "images").getAbsolutePath();
             try {
-                u = getImageUrl(dir, imageName, additionalClassLoaders);
+                u = getImageUrl(dir, imageName);
                 if (u != null)
                     return u;
             } catch (SecurityException e) {
@@ -1184,41 +1205,28 @@ public class ImageProvider {
         }
 
         // Absolute path?
-        u = getImageUrl(null, imageName, additionalClassLoaders);
+        u = getImageUrl(null, imageName);
         if (u != null)
             return u;
 
         // Try plugins and josm classloader
-        u = getImageUrl("resource://images/", imageName, additionalClassLoaders);
+        u = getImageUrl("resource://images/", imageName);
         if (u != null)
             return u;
 
         // Try all other resource directories
         if (Main.pref != null) {
             for (String location : Main.pref.getAllPossiblePreferenceDirs()) {
-                u = getImageUrl(location + "images", imageName, additionalClassLoaders);
+                u = getImageUrl(location + "images", imageName);
                 if (u != null)
                     return u;
-                u = getImageUrl(location, imageName, additionalClassLoaders);
+                u = getImageUrl(location, imageName);
                 if (u != null)
                     return u;
             }
         }
 
         return null;
-    }
-
-    /** Quit parsing, when a certain condition is met */
-    private static class SAXReturnException extends SAXException {
-        private final String result;
-
-        SAXReturnException(String result) {
-            this.result = result;
-        }
-
-        public String getResult() {
-            return result;
-        }
     }
 
     /**
@@ -1244,7 +1252,8 @@ public class ImageProvider {
 
             parser.setEntityResolver((publicId, systemId) -> new InputSource(new ByteArrayInputStream(new byte[0])));
 
-            try (CachedFile cf = new CachedFile(base + fn).setDestDir(new File(Main.pref.getUserDataDirectory(), "images").getPath());
+            try (CachedFile cf = new CachedFile(base + fn).setDestDir(
+                        new File(Config.getDirs().getUserDataDirectory(true), "images").getPath());
                  InputStream is = cf.getInputStream()) {
                 parser.parse(new InputSource(is));
             }
@@ -1315,15 +1324,10 @@ public class ImageProvider {
 
         // convert rotatedAngle to an integer value from 0 to 360
         Long angleLong = Math.round(rotatedAngle % 360);
-        Long originalAngle = rotatedAngle != 0 && angleLong == 0 ? 360L : angleLong;
+        Long originalAngle = rotatedAngle != 0 && angleLong == 0 ? Long.valueOf(360L) : angleLong;
 
         synchronized (ROTATE_CACHE) {
-            Map<Long, Image> cacheByAngle = ROTATE_CACHE.get(img);
-            if (cacheByAngle == null) {
-                cacheByAngle = new HashMap<>();
-                ROTATE_CACHE.put(img, cacheByAngle);
-            }
-
+            Map<Long, Image> cacheByAngle = ROTATE_CACHE.computeIfAbsent(img, k -> new HashMap<>());
             Image rotatedImg = cacheByAngle.get(originalAngle);
 
             if (rotatedImg == null) {
@@ -1386,6 +1390,54 @@ public class ImageProvider {
      */
     public static Image createBoundedImage(Image img, int maxSize) {
         return new ImageResource(img).getImageIconBounded(new Dimension(maxSize, maxSize)).getImage();
+    }
+
+    /**
+     * Returns a scaled instance of the provided {@code BufferedImage}.
+     * This method will use a multi-step scaling technique that provides higher quality than the usual
+     * one-step technique (only useful in downscaling cases, where {@code targetWidth} or {@code targetHeight} is
+     * smaller than the original dimensions, and generally only when the {@code BILINEAR} hint is specified).
+     *
+     * From https://community.oracle.com/docs/DOC-983611: "The Perils of Image.getScaledInstance()"
+     *
+     * @param img the original image to be scaled
+     * @param targetWidth the desired width of the scaled instance, in pixels
+     * @param targetHeight the desired height of the scaled instance, in pixels
+     * @param hint one of the rendering hints that corresponds to
+     * {@code RenderingHints.KEY_INTERPOLATION} (e.g.
+     * {@code RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR},
+     * {@code RenderingHints.VALUE_INTERPOLATION_BILINEAR},
+     * {@code RenderingHints.VALUE_INTERPOLATION_BICUBIC})
+     * @return a scaled version of the original {@code BufferedImage}
+     * @since 13038
+     */
+    public static BufferedImage createScaledImage(BufferedImage img, int targetWidth, int targetHeight, Object hint) {
+        int type = (img.getTransparency() == Transparency.OPAQUE) ? BufferedImage.TYPE_INT_RGB : BufferedImage.TYPE_INT_ARGB;
+        // start with original size, then scale down in multiple passes with drawImage() until the target size is reached
+        BufferedImage ret = img;
+        int w = img.getWidth(null);
+        int h = img.getHeight(null);
+        do {
+            if (w > targetWidth) {
+                w /= 2;
+            }
+            if (w < targetWidth) {
+                w = targetWidth;
+            }
+            if (h > targetHeight) {
+                h /= 2;
+            }
+            if (h < targetHeight) {
+                h = targetHeight;
+            }
+            BufferedImage tmp = new BufferedImage(w, h, type);
+            Graphics2D g2 = tmp.createGraphics();
+            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, hint);
+            g2.drawImage(ret, 0, 0, w, h, null);
+            g2.dispose();
+            ret = tmp;
+        } while (w != targetWidth || h != targetHeight);
+        return ret;
     }
 
     /**
@@ -1564,8 +1616,7 @@ public class ImageProvider {
      * provide an alpha channel but defines a {@code TransparentColor} metadata node, that the resulting image
      * has a transparency set to {@code TRANSLUCENT} and uses the correct transparent color.
      *
-     * @return a <code>BufferedImage</code> containing the decoded
-     * contents of the input, or <code>null</code>.
+     * @return a <code>BufferedImage</code> containing the decoded contents of the input, or <code>null</code>.
      *
      * @throws IllegalArgumentException if <code>input</code> is <code>null</code>.
      * @throws IOException if an error occurs during reading.
@@ -1619,8 +1670,7 @@ public class ImageProvider {
      * provide an alpha channel but defines a {@code TransparentColor} metadata node, that the resulting image
      * has a transparency set to {@code TRANSLUCENT} and uses the correct transparent color.
      *
-     * @return a <code>BufferedImage</code> containing the decoded
-     * contents of the input, or <code>null</code>.
+     * @return a <code>BufferedImage</code> containing the decoded contents of the input, or <code>null</code>.
      *
      * @throws IllegalArgumentException if <code>input</code> is <code>null</code>.
      * @throws IOException if an error occurs during reading.
@@ -1663,8 +1713,7 @@ public class ImageProvider {
      * provide an alpha channel but defines a {@code TransparentColor} metadata node, that the resulting image
      * has a transparency set to {@code TRANSLUCENT} and uses the correct transparent color.
      *
-     * @return a <code>BufferedImage</code> containing the decoded
-     * contents of the input, or <code>null</code>.
+     * @return a <code>BufferedImage</code> containing the decoded contents of the input, or <code>null</code>.
      *
      * @throws IllegalArgumentException if <code>input</code> is <code>null</code>.
      * @throws IOException if an error occurs during reading.
@@ -1673,23 +1722,16 @@ public class ImageProvider {
     public static BufferedImage read(URL input, boolean readMetadata, boolean enforceTransparency) throws IOException {
         CheckParameterUtil.ensureParameterNotNull(input, "input");
 
-        InputStream istream = null;
-        try {
-            istream = input.openStream();
-        } catch (IOException e) {
-            throw new IIOException("Can't get input stream from URL!", e);
-        }
-        ImageInputStream stream = ImageIO.createImageInputStream(istream);
-        BufferedImage bi;
-        try {
-            bi = read(stream, readMetadata, enforceTransparency);
+        try (InputStream istream = Utils.openStream(input)) {
+            ImageInputStream stream = ImageIO.createImageInputStream(istream);
+            BufferedImage bi = read(stream, readMetadata, enforceTransparency);
             if (bi == null) {
                 stream.close();
             }
-        } finally {
-            istream.close();
+            return bi;
+        } catch (IOException e) {
+            throw new IIOException("Can't get input stream from URL!", e);
         }
-        return bi;
     }
 
     /**
@@ -1904,5 +1946,43 @@ public class ImageProvider {
         } else {
             IMAGE_FETCHER.shutdown();
         }
+    }
+
+    /**
+     * Converts an {@link Image} to a {@link BufferedImage} instance.
+     * @param image image to convert
+     * @return a {@code BufferedImage} instance for the given {@code Image}.
+     * @since 13038
+     */
+    public static BufferedImage toBufferedImage(Image image) {
+        if (image instanceof BufferedImage) {
+            return (BufferedImage) image;
+        } else {
+            BufferedImage buffImage = new BufferedImage(image.getWidth(null), image.getHeight(null), BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g2 = buffImage.createGraphics();
+            g2.drawImage(image, 0, 0, null);
+            g2.dispose();
+            return buffImage;
+        }
+    }
+
+    /**
+     * Converts an {@link Rectangle} area of {@link Image} to a {@link BufferedImage} instance.
+     * @param image image to convert
+     * @param cropArea rectangle to crop image with
+     * @return a {@code BufferedImage} instance for the cropped area of {@code Image}.
+     * @since 13127
+     */
+    public static BufferedImage toBufferedImage(Image image, Rectangle cropArea) {
+        BufferedImage buffImage = null;
+        Rectangle r = new Rectangle(image.getWidth(null), image.getHeight(null));
+        if (r.intersection(cropArea).equals(cropArea)) {
+            buffImage = new BufferedImage(cropArea.width, cropArea.height, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g2 = buffImage.createGraphics();
+            g2.drawImage(image, 0, 0, cropArea.width, cropArea.height,
+                cropArea.x, cropArea.y, cropArea.x + cropArea.width, cropArea.y + cropArea.height, null);
+            g2.dispose();
+        }
+        return buffImage;
     }
 }

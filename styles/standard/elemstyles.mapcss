@@ -35,6 +35,12 @@ setting::shrink_nodes {
   default: true;
 }
 
+setting::hide_tagged_waynodes {
+  type: boolean;
+  label: tr("Hide tagged waynodes at low zoom");
+  default: true;
+}
+
 setting::highway_labels {
   type: boolean;
   label: tr("Display street labels (at high zoom)");
@@ -296,7 +302,7 @@ way["addr:interpolation"=alphabetic] {
     color: address#1C86EE;
     dashes: 2,2;
 }
-area[building][!building?!] {
+area[building][!building?!][building!=y][building!=1] {
     fill-color: building#cb9999;
 }
 area[building=roof],
@@ -321,7 +327,7 @@ node[building=transformer_tower] {
     set icon_z17;
 }
 node[entrance=yes],
-node[entrance=home]
+node[entrance=home],
 node[entrance=staircase] {
     icon-image: "presets/misc/entrance_yes.svg";
     set icon_z17;
@@ -380,8 +386,11 @@ way[barrier=kerb] {
     width: 2;
     color: barrier#F0F050;
 }
-way[barrier=retaining_wall],
 way[barrier=kerb] {
+    repeat-image: "presets/barrier/kerb_pattern.svg";
+    repeat-image-align: top;
+}
+way[barrier=retaining_wall] {
     repeat-image: "presets/misc/cliff_pattern.svg";
     repeat-image-align: top;
 }
@@ -457,7 +466,10 @@ node[barrier=jersey_barrier] {
     icon-image: "presets/barrier/jersey_barrier.svg";
     set icon_z17;
 }
-node[barrier=kissing_gate][!is_prop_set(icon-image)],
+node[barrier=kissing_gate] {
+    icon-image: "presets/barrier/kissing_gate.svg";
+    set icon_z17;
+}
 node[barrier=bump_gate][!is_prop_set(icon-image)],
 node[barrier=bus_trap][!is_prop_set(icon-image)],
 node[barrier=hampshire_gate][!is_prop_set(icon-image)] {
@@ -477,46 +489,57 @@ way[motorroad=yes]::core_motorroad {
 }
 way[highway=motorway] {
     width: 3;
+    z-index: 0.13; /* #15483 */
     color: motorway#809bc0;
 }
 way[highway=motorway_link] {
     width: 3;
+    z-index: 0.12;
     color: motorway#809bc0;
 }
 way[highway=trunk] {
     width: 3;
+    z-index: 0.11;
     color: trunk#7fc97f;
 }
 way[highway=trunk_link] {
     width: 3;
+    z-index: 0.10;
     color: trunk#7fc97f;
 }
 way[highway=primary] {
     width: 3;
+    z-index: 0.09;
     color: primary#fb805f;
 }
 way[highway=primary_link] {
     width: 3;
+    z-index: 0.08;
     color: primary#fb805f;
 }
 way[highway=secondary] {
     width: 3;
+    z-index: 0.07;
     color: secondary#fdbf6f;
 }
 way[highway=secondary_link] {
     width: 3;
+    z-index: 0.06;
     color: secondary#fdbf6f;
 }
 way[highway=tertiary] {
     width: 2;
+    z-index: 0.05;
     color: tertiary#f7f496;
 }
 way[highway=tertiary_link] {
     width: 2;
+    z-index: 0.04;
     color: tertiary#f7f496;
 }
 way[highway=unclassified] {
     width: 2;
+    z-index: 0.03;
     color: street#c0c0c0;
 }
 way[highway=escape] {
@@ -539,10 +562,12 @@ way[highway=track] {
 }
 way[highway=residential] {
     width: 2;
+    z-index: 0.02;
     color: street#c0c0c0;
 }
 way[highway=living_street] {
     width: 2;
+    z-index: 0.01;
     dashes: 9,9;
     dashes-background-color: livingdashed#00ff00;
     color: street#c0c0c0;
@@ -1023,13 +1048,13 @@ way[prop("trackLeft","core_cycleway")]::core_cycleway2 {
     modifier: true;
 }
     /* render opposite */
-way[cycleway=opposite]::core_cycleway {
-    object-z-index: 1;
+way[cycleway=opposite][oneway][oneway!=no]::core_cycleway {
+    z-index: 1;
     width: +0;
     color: bicycle#b100ff;
     dashes: 4,10;
 }
-node[cycleway=lane], node[cycleway=opposite_lane],
+node[cycleway=lane ], node[cycleway=opposite_lane ],
 node[cycleway=track], node[cycleway=opposite_track],
 node[cycleway=opposite] {
     icon-image: "presets/misc/deprecated.svg";
@@ -1144,6 +1169,10 @@ node[power=tower] {
 }
 node[power=pole] {
     icon-image: "presets/power/pole.svg";
+    set icon_z17;
+}
+node[power=pole][switch] {
+    icon-image: "presets/power/pole_switch.svg";
     set icon_z17;
 }
 node[power=pole][transformer=distribution] {
@@ -1297,6 +1326,7 @@ area[man_made=beacon],
 area[man_made=bridge],
 area[bridge:support],
 area[man_made=chimney],
+area[man_made=kiln],
 area[man_made=gasometer],
 area[man_made=silo],
 area[man_made=storage_tank],
@@ -1320,6 +1350,10 @@ node[bridge:support] {
 }
 node[man_made=chimney] {
     icon-image: "presets/landmark/chimney.svg";
+    set icon_z17;
+}
+node[man_made=kiln] {
+    icon-image: "presets/misc/kiln.svg";
     set icon_z17;
 }
 node[man_made=flagpole] {
@@ -1621,6 +1655,7 @@ node[office=government] {
 /* leisure tags */
 /****************/
 
+area[leisure=bandstand],
 area[leisure=sports_centre],
 area[leisure=fitness_centre],
 area[leisure=stadium],
@@ -1628,6 +1663,10 @@ area[leisure=horse_riding],
 area[leisure=beach_resort],
 area[leisure=water_park] {
     fill-color: leisure#c7f1a3;
+}
+node[leisure=bandstand] {
+    icon-image: "presets/leisure/bandstand.svg";
+    set icon_z17;
 }
 node[leisure=sports_centre] {
     icon-image: "presets/sport/sports_centre.svg";
@@ -2870,10 +2909,6 @@ node[amenity=marketplace] {
     icon-image: "presets/shop/marketplace.svg";
     set icon_z17;
 }
-node[amenity=wlan] {
-    icon-image: "presets/misc/wlan.svg";
-    set icon_z17;
-}
 node[amenity=vending_machine] {
     icon-image: "presets/transport/ticket-machine.svg";
     set icon_z17;
@@ -3153,6 +3188,7 @@ node[tourism=information][information=board] {
 area[historic=castle],
 area[historic=monument],
 area[historic=memorial],
+area[historic=tomb],
 area[historic=archaeological_site],
 area[historic=ruins],
 area[historic=battlefield],
@@ -3202,6 +3238,17 @@ node[historic=boundary_stone] {
     icon-image: "presets/landmark/boundary_stone.svg";
     set icon_z17;
 }
+area[cemetery=grave] {
+    fill-color: grave#663300;
+}
+node[cemetery=grave] {
+    icon-image: "presets/misc/grave.svg";
+    set icon_z17;
+}
+node[historic=tomb] {
+    icon-image: "presets/misc/tomb.svg";
+    set icon_z17;
+}
 
 /****************/
 /* landuse tags */
@@ -3244,6 +3291,9 @@ area[landuse=allotments] {
 area[landuse=greenhouse_horticulture],
 area[landuse=plant_nursery] {
     fill-color: green#b1e0c2;
+}
+area[landuse=salt_pond] {
+    fill-color: salt_pond#eeeeee;
 }
 area[landuse=aquaculture] {
     fill-color: aquaculture#189dff;
@@ -3710,6 +3760,10 @@ node[public_transport=stop_position][train=yes] {
     icon-image: "presets/transport/train.svg";
     set icon_z17;
 }
+node[public_transport=stop_position][light_rail=yes] {
+    icon-image: "presets/transport/railway/light_rail.svg";
+    set icon_z17;
+}
 node[public_transport=stop_position][tram=yes] {
     icon-image: "presets/transport/railway/tram.svg";
     set icon_z17;
@@ -4151,8 +4205,8 @@ way[natural=coastline] {
     width: 2;
     color: water#0000ff;
     right-casing-color: water#0000ff;
-    right-casing-width: 5;
-    right-casing-opacity: 0.30;
+    right-casing-width: 8;
+    right-casing-opacity: 0.35;
 }
 area[natural=mud] {
     fill-color: mud#cba762;
@@ -4391,6 +4445,7 @@ node[mountain_pass?] {
 
 way[boundary=protected_area]::core_boundary,
 way[boundary=administrative]::core_boundary,
+relation[boundary=administrative] > way::core_boundary,
 way[boundary=postal_code]::core_boundary,
 way[boundary=political]::core_boundary,
 way[boundary=maritime]::core_boundary,
@@ -4401,55 +4456,30 @@ way[boundary=national_park]::core_boundary {
     color: boundary#FF6600;
     dashes: 9,9;
 }
-way[admin_level=9]::core_boundary,
-relation[admin_level=9] > way::core_boundary,
-way[admin_level=10]::core_boundary,
-relation[admin_level=10] > way::core_boundary {
-    z-index: 2;
-    modifier: false;
-    width: 1;
-    color: boundary#FF6600;
-    dashes: 9,9;
-}
-way[admin_level=7]::core_boundary,
-relation[admin_level=7] > way::core_boundary,
-way[admin_level=8]::core_boundary,
-relation[admin_level=8] > way::core_boundary {
-    z-index: 2;
-    modifier: false;
+/* admin_level >=9 use the default width of 1 defined above */
+way[boundary=administrative][admin_level=7]::core_boundary,
+relation[boundary=administrative][admin_level=7] > way::core_boundary,
+way[boundary=administrative][admin_level=8]::core_boundary,
+relation[boundary=administrative][admin_level=8] > way::core_boundary {
     width: 2;
-    color: boundary#FF6600;
-    dashes: 9,9;
 }
-way[admin_level=5]::core_boundary,
-relation[admin_level=5] > way::core_boundary,
-way[admin_level=6]::core_boundary,
-relation[admin_level=6] > way::core_boundary {
-    z-index: 2;
-    modifier: false;
+way[boundary=administrative][admin_level=5]::core_boundary,
+relation[boundary=administrative][admin_level=5] > way::core_boundary,
+way[boundary=administrative][admin_level=6]::core_boundary,
+relation[boundary=administrative][admin_level=6] > way::core_boundary {
     width: 3;
-    color: boundary#FF6600;
-    dashes: 9,9;
 }
-way[admin_level=3]::core_boundary,
-relation[admin_level=3] > way::core_boundary,
-way[admin_level=4]::core_boundary,
-relation[admin_level=4] > way::core_boundary {
-    z-index: 2;
-    modifier: false;
+way[boundary=administrative][admin_level=3]::core_boundary,
+relation[boundary=administrative][admin_level=3] > way::core_boundary,
+way[boundary=administrative][admin_level=4]::core_boundary,
+relation[boundary=administrative][admin_level=4] > way::core_boundary {
     width: 4;
-    color: boundary#FF6600;
-    dashes: 9,9;
 }
-way[admin_level=1]::core_boundary,
-relation[admin_level=1] > way::core_boundary,
-way[admin_level=2]::core_boundary,
-relation[admin_level=2] > way::core_boundary {
-    z-index: 2;
-    modifier: false;
+way[boundary=administrative][admin_level=1]::core_boundary,
+relation[boundary=administrative][admin_level=1] > way::core_boundary,
+way[boundary=administrative][admin_level=2]::core_boundary,
+relation[boundary=administrative][admin_level=2] > way::core_boundary {
     width: 5;
-    color: boundary#FF6600;
-    dashes: 9,9;
 }
 node[boundary=national],
 node[boundary=administrative],
@@ -4546,8 +4576,8 @@ area[setting("place_fill_colour")][place=isolated_dwelling],
 area[setting("place_fill_colour")][place=neighbourhood],
 area[setting("place_fill_colour")][place=suburb],
 area[setting("place_fill_colour")][place=locality],
-area[setting("place_fill_colour")][place=island],
-area[setting("place_fill_colour")][place=islet] {
+area[place=island],
+area[place=islet] {
     fill-color: place#8de3cb;
     set place;
 }
@@ -4560,6 +4590,7 @@ node[place=city],
 node[place=town],
 node[place=suburb],
 node[place=village],
+node[place=quarter],
 node[place=neighbourhood],
 node[place=hamlet],
 node[place=isolated_dwelling],
@@ -4599,6 +4630,10 @@ node[place=village] {
     icon-image: "presets/place/village.svg";
     z-index: 2.5;
 }
+node[place=quarter] {
+    icon-image: "presets/place/quarter.svg";
+    z-index: 2.5;
+}
 node[place=neighbourhood] {
     icon-image: "presets/place/neighbourhood.svg";
     z-index: 2.4;
@@ -4619,7 +4654,7 @@ node|z15-[place=locality],
 node|z-14[place=locality][!setting("hide_icons")] {
     icon-image: "presets/place/locality.svg";
     font-weight: bold;
-    text-color:black;
+    text-color: black;
     text-halo-color: white;
     text-halo-radius: 1;
 }
@@ -4628,6 +4663,14 @@ node[place=island] {
 }
 node[place=islet] {
     icon-image: "presets/place/islet.svg";
+}
+
+area[place=square] {
+    fill-color: place#8de3cb;
+}
+node[place=square] {
+    icon-image: "presets/place/square.svg";
+    set icon_z17;
 }
 
 /***************************/
@@ -4659,7 +4702,8 @@ node|z-15[note][FIXME][!setting("hide_icons")]::core_note_fixme {
 
 /*
 Summary of different zoom levels:
-  (any zoom)    place=* (except locality) and a few natural icons with their text is shown
+  (any zoom)    place=* (except locality and square) and a few natural icons with their text is shown
+  |z-14         tagged way nodes are hidden completely
   |z-15         untagged way nodes are hidden completely
   |z15          place=locality icon
   |z16-         fixme=* and note=* symbols; place=locality text
@@ -4667,7 +4711,8 @@ Summary of different zoom levels:
                 street name along highway=* ways
   |z18-         text for normal POI icons is shown
   
- * text size and node size is adapted according to zoom level (see style source below), place labels (except locality) don't get smaller
+ * text size and node size is adapted according to zoom level (see style source below), place labels (except locality and square) don't get smaller
+ * all these zoom features are modifiable via style settings
  * maxspeed icons should not be distinguishable from POIs with "icon-image" property
 
 */
@@ -4689,6 +4734,9 @@ node:connection {
 node:tagged {
     symbol-stroke-color: none;
     symbol-fill-color: node_tagged#00ffff;
+}
+way > node|z-14[setting("shrink_nodes")][setting("hide_tagged_waynodes")]:tagged { /* todo: check which is faster: `way > node {...}` or `node!:unconnected {...}`, also at other occurrences in this file */
+    symbol-shape: none;
 }
 
 way > node|z16[setting("shrink_nodes")]!:tagged { symbol-size: 1; }

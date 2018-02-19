@@ -51,6 +51,10 @@ public final class Logging {
     private static final RememberWarningHandler WARNINGS = new RememberWarningHandler();
 
     static {
+        // We need to be sure java.locale.providers system property is initialized by JOSM, not by JRE
+        // The call to ConsoleHandler constructor makes the JRE access this property by side effect
+        I18n.setupJavaLocaleProviders();
+
         LOGGER.setLevel(Level.ALL);
         LOGGER.setUseParentHandlers(false);
 
@@ -79,6 +83,8 @@ public final class Logging {
         stdout.setLevel(Level.ALL);
 
         LOGGER.addHandler(WARNINGS);
+        // Set log level to info, otherwise the first ListenerList created will be for debugging purposes and create memory leaks
+        Logging.setLogLevel(Logging.LEVEL_INFO);
     }
 
     private Logging() {
@@ -279,7 +285,7 @@ public final class Logging {
      * @see #logWithStackTrace(Level, Throwable)
      */
     public static void logWithStackTrace(Level level, Throwable t, String pattern, Object... args) {
-        logPrivate(level, () -> getErrorLogWithStack(MessageFormat.format(pattern,  args), t));
+        logPrivate(level, () -> getErrorLogWithStack(MessageFormat.format(pattern, args), t));
     }
 
     private static void logPrivate(Level level, String pattern, Object... args) {

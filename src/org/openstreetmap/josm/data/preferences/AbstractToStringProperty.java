@@ -1,7 +1,7 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.data.preferences;
 
-import org.openstreetmap.josm.data.Preferences.PreferenceChangedListener;
+import org.openstreetmap.josm.spi.preferences.PreferenceChangedListener;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.bugreport.BugReport;
@@ -145,11 +145,4 @@ public abstract class AbstractToStringProperty<T> extends AbstractProperty<T> {
         return new ChildProperty<>(this, key);
     }
 
-    /**
-     * Creates a new {@link CachingProperty} instance for this property.
-     * @return The new caching property instance.
-     */
-    public CachingProperty<T> cached() {
-        return new CachingProperty<>(this);
-    }
 }

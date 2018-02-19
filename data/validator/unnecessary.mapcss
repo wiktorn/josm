@@ -1,5 +1,5 @@
 *[access][highway=proposed],
-*[motor_vehicle?][vehicle!=no][access!=no][bicycle_road!=yes][highway =~ /motorway|trunk|primary|secondary|tertiary|unclassified|residential|service|living_street/],
+*[motor_vehicle?][vehicle!=no][access!=no][bicycle_road!=yes][highway =~ /^(motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified|residential|service|living_street)$/],
 *[bridge=no],
 *[building=no],
 *[elevation="0"],
@@ -16,7 +16,7 @@
 area:closed[amenity ][area?][!highway],
 area:closed[building][area?],
 area:closed[landuse ][area?][!highway],
-area:closed[leisure ][area?][!highway],
+area:closed[leisure ][area?][!highway][leisure!=track][leisure!=slipway],
 area:closed[natural ][area?],
 area:closed[shop    ][area?] {
   throwWarning: tr("{0} is unnecessary for {1}", "{2.key}", "{1.key}");
@@ -24,7 +24,9 @@ area:closed[shop    ][area?] {
   fixRemove: "{2.key}";
 }
 
-/* #14256 */
+/* #14256, #15664 */
+area:closed[highway=rest_area][area?],
+area:closed[highway=services][area?],
 area:closed[aeroway=aerodrome][area?],
 area:closed[aeroway=helipad][area?] {
   throwWarning: tr("{0} is unnecessary for {1}", "{2.key}", "{1.tag}");
@@ -43,4 +45,22 @@ area:closed[aeroway=helipad][area?] {
 /* see ticket #7639 -- Warn when a node has the same tags as its parent way. */
 way >:sameTags node:tagged {
   throwWarning: tr("Nodes duplicating parent way tags");
+}
+
+/* #15477 */
+*[payment:cash][payment:coins][payment:notes] {
+  throwWarning: tr("{0} together with {1} and {2}. Remove {0}.", "{0.key}", "{1.key}", "{2.key}");
+  group: tr("unnecessary tag");
+  fixRemove: "payment:cash";
+}
+
+/* see #10346, #15667 */
+way[waterway][oneway?] {
+  throwWarning: tr("{0} is unnecessary for {1}", "{1.key}", "{0.key}");
+  group: tr("unnecessary tag");
+  fixRemove: "{1.key}";
+}
+way[waterway][oneway=-1] {
+  throwWarning: tr("{0} is unnecessary for {1}. The flow direction is defined by the way direction.", "{1.key}", "{0.key}");
+  group: tr("unnecessary tag");
 }

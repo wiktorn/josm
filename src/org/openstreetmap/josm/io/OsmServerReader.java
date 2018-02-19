@@ -5,6 +5,7 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.Authenticator.RequestorType;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -125,7 +126,7 @@ public abstract class OsmServerReader extends OsmConnection {
      * @param progressMonitor progress monitoring and abort handler
      * @param reason The reason to show on console. Can be {@code null} if no reason is given
      * @param uncompressAccordingToContentDisposition Whether to inspect the HTTP header {@code Content-Disposition}
-     *                                                for {@code filename} and uncompress a gzip/bzip2 stream.
+     *                                                for {@code filename} and uncompress a gzip/bzip2/xz/zip stream.
      * @return An reader reading the input stream (servers answer) or <code>null</code>.
      * @throws OsmTransferException if data transfer errors occur
      */
@@ -141,7 +142,7 @@ public abstract class OsmServerReader extends OsmConnection {
      * @param progressMonitor progress monitoring and abort handler
      * @param reason The reason to show on console. Can be {@code null} if no reason is given
      * @param uncompressAccordingToContentDisposition Whether to inspect the HTTP header {@code Content-Disposition}
-     *                                                for {@code filename} and uncompress a gzip/bzip2 stream.
+     *                                                for {@code filename} and uncompress a gzip/bzip2/xz/zip stream.
      * @param httpMethod HTTP method ("GET", "POST" or "PUT")
      * @param requestBody HTTP request body (for "POST" and "PUT" methods only). Must be null for "GET" method.
      * @return An reader reading the input stream (servers answer) or <code>null</code>.
@@ -162,9 +163,10 @@ public abstract class OsmServerReader extends OsmConnection {
                 throw new OsmTransferException(e);
             }
 
-            if ("file".equals(url.getProtocol())) {
+            String protocol = url.getProtocol();
+            if ("file".equals(protocol) || "jar".equals(protocol)) {
                 try {
-                    return url.openStream();
+                    return Utils.openStream(url);
                 } catch (IOException e) {
                     throw new OsmTransferException(e);
                 }
@@ -194,8 +196,10 @@ public abstract class OsmServerReader extends OsmConnection {
                 throw ote;
             }
             try {
-                if (response.getResponseCode() == HttpURLConnection.HTTP_UNAUTHORIZED)
+                if (response.getResponseCode() == HttpURLConnection.HTTP_UNAUTHORIZED) {
+                    CredentialsManager.getInstance().purgeCredentialsCache(RequestorType.SERVER);
                     throw new OsmApiException(HttpURLConnection.HTTP_UNAUTHORIZED, null, null);
+                }
 
                 if (response.getResponseCode() == HttpURLConnection.HTTP_PROXY_AUTH)
                     throw new OsmTransferCanceledException("Proxy Authentication Required");
@@ -244,12 +248,36 @@ public abstract class OsmServerReader extends OsmConnection {
     public abstract DataSet parseOsm(ProgressMonitor progressMonitor) throws OsmTransferException;
 
     /**
-     * Download OSM Change files from somewhere
+     * Download compressed OSM files from somewhere
+     * @param progressMonitor The progress monitor
+     * @param compression compression to use
+     * @return The corresponding dataset
+     * @throws OsmTransferException if any error occurs
+     * @since 13352
+     */
+    public DataSet parseOsm(ProgressMonitor progressMonitor, Compression compression) throws OsmTransferException {
+        return null;
+    }
+
+    /**
+     * Download OSM Change uncompressed files from somewhere
      * @param progressMonitor The progress monitor
      * @return The corresponding dataset
      * @throws OsmTransferException if any error occurs
      */
-    public DataSet parseOsmChange(final ProgressMonitor progressMonitor) throws OsmTransferException {
+    public DataSet parseOsmChange(ProgressMonitor progressMonitor) throws OsmTransferException {
+        return null;
+    }
+
+    /**
+     * Download OSM Change compressed files from somewhere
+     * @param progressMonitor The progress monitor
+     * @param compression compression to use
+     * @return The corresponding dataset
+     * @throws OsmTransferException if any error occurs
+     * @since 13352
+     */
+    public DataSet parseOsmChange(ProgressMonitor progressMonitor, Compression compression) throws OsmTransferException {
         return null;
     }
 
@@ -258,9 +286,11 @@ public abstract class OsmServerReader extends OsmConnection {
      * @param progressMonitor The progress monitor
      * @return The corresponding dataset
      * @throws OsmTransferException if any error occurs
+     * @deprecated use {@link #parseOsmChange(ProgressMonitor, Compression)} instead
      */
-    public DataSet parseOsmChangeBzip2(final ProgressMonitor progressMonitor) throws OsmTransferException {
-        return null;
+    @Deprecated
+    public DataSet parseOsmChangeBzip2(ProgressMonitor progressMonitor) throws OsmTransferException {
+        return parseOsmChange(progressMonitor, Compression.BZIP2);
     }
 
     /**
@@ -268,9 +298,11 @@ public abstract class OsmServerReader extends OsmConnection {
      * @param progressMonitor The progress monitor
      * @return The corresponding dataset
      * @throws OsmTransferException if any error occurs
+     * @deprecated use {@link #parseOsmChange(ProgressMonitor, Compression)} instead
      */
-    public DataSet parseOsmChangeGzip(final ProgressMonitor progressMonitor) throws OsmTransferException {
-        return null;
+    @Deprecated
+    public DataSet parseOsmChangeGzip(ProgressMonitor progressMonitor) throws OsmTransferException {
+        return parseOsmChange(progressMonitor, Compression.GZIP);
     }
 
     /**
@@ -279,7 +311,19 @@ public abstract class OsmServerReader extends OsmConnection {
      * @return The corresponding GPX tracks
      * @throws OsmTransferException if any error occurs
      */
-    public GpxData parseRawGps(final ProgressMonitor progressMonitor) throws OsmTransferException {
+    public GpxData parseRawGps(ProgressMonitor progressMonitor) throws OsmTransferException {
+        return null;
+    }
+
+    /**
+     * Retrieve compressed GPX files from somewhere.
+     * @param progressMonitor The progress monitor
+     * @param compression compression to use
+     * @return The corresponding GPX tracks
+     * @throws OsmTransferException if any error occurs
+     * @since 13352
+     */
+    public GpxData parseRawGps(ProgressMonitor progressMonitor, Compression compression) throws OsmTransferException {
         return null;
     }
 
@@ -288,10 +332,12 @@ public abstract class OsmServerReader extends OsmConnection {
      * @param progressMonitor The progress monitor
      * @return The corresponding GPX tracks
      * @throws OsmTransferException if any error occurs
+     * @deprecated use {@link #parseRawGps(ProgressMonitor, Compression)} instead
      * @since 6244
      */
-    public GpxData parseRawGpsBzip2(final ProgressMonitor progressMonitor) throws OsmTransferException {
-        return null;
+    @Deprecated
+    public GpxData parseRawGpsBzip2(ProgressMonitor progressMonitor) throws OsmTransferException {
+        return parseRawGps(progressMonitor, Compression.BZIP2);
     }
 
     /**
@@ -299,9 +345,11 @@ public abstract class OsmServerReader extends OsmConnection {
      * @param progressMonitor The progress monitor
      * @return The corresponding dataset
      * @throws OsmTransferException if any error occurs
+     * @deprecated use {@link #parseOsm(ProgressMonitor, Compression)} instead
      */
-    public DataSet parseOsmBzip2(final ProgressMonitor progressMonitor) throws OsmTransferException {
-        return null;
+    @Deprecated
+    public DataSet parseOsmBzip2(ProgressMonitor progressMonitor) throws OsmTransferException {
+        return parseOsm(progressMonitor, Compression.BZIP2);
     }
 
     /**
@@ -309,9 +357,11 @@ public abstract class OsmServerReader extends OsmConnection {
      * @param progressMonitor The progress monitor
      * @return The corresponding dataset
      * @throws OsmTransferException if any error occurs
+     * @deprecated use {@link #parseOsm(ProgressMonitor, Compression)} instead
      */
-    public DataSet parseOsmGzip(final ProgressMonitor progressMonitor) throws OsmTransferException {
-        return null;
+    @Deprecated
+    public DataSet parseOsmGzip(ProgressMonitor progressMonitor) throws OsmTransferException {
+        return parseOsm(progressMonitor, Compression.GZIP);
     }
 
     /**
@@ -319,10 +369,12 @@ public abstract class OsmServerReader extends OsmConnection {
      * @param progressMonitor The progress monitor
      * @return The corresponding dataset
      * @throws OsmTransferException if any error occurs
+     * @deprecated use {@link #parseOsm(ProgressMonitor, Compression)} instead
      * @since 6882
      */
+    @Deprecated
     public DataSet parseOsmZip(final ProgressMonitor progressMonitor) throws OsmTransferException {
-        return null;
+        return parseOsm(progressMonitor, Compression.ZIP);
     }
 
     /**
@@ -381,13 +433,27 @@ public abstract class OsmServerReader extends OsmConnection {
     }
 
     /**
+     * Download notes from a URL that contains a compressed notes dump file
+     * @param progressMonitor progress monitor
+     * @param compression compression to use
+     * @return A list of notes parsed from the URL
+     * @throws OsmTransferException if any error occurs during dialog with OSM API
+     * @since 13352
+     */
+    public List<Note> parseRawNotes(ProgressMonitor progressMonitor, Compression compression) throws OsmTransferException {
+        return null;
+    }
+
+    /**
      * Download notes from a URL that contains a bzip2 compressed notes dump file
      * @param progressMonitor progress monitor
      * @return A list of notes parsed from the URL
      * @throws OsmTransferException if any error occurs during dialog with OSM API
+     * @deprecated Use {@link #parseRawNotes(ProgressMonitor, Compression)} instead
      */
+    @Deprecated
     public List<Note> parseRawNotesBzip2(final ProgressMonitor progressMonitor) throws OsmTransferException {
-        return null;
+        return parseRawNotes(progressMonitor, Compression.BZIP2);
     }
 
     /**

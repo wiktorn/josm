@@ -7,7 +7,7 @@ import static org.junit.Assert.assertNotNull;
 
 import org.junit.Rule;
 import org.junit.Test;
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.TestUtils;
 import org.openstreetmap.josm.io.OsmApi;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
 import org.openstreetmap.josm.tools.Logging;
@@ -46,18 +46,11 @@ public class OAuthParametersTest {
     }
 
     /**
-     * Unit test of method {@link OAuthParameters#createFromPreferences}.
-     */
-    @Test
-    public void testCreateFromPreferences() {
-        assertNotNull(OAuthParameters.createFromPreferences(Main.pref));
-    }
-
-    /**
      * Unit test of methods {@link OAuthParameters#equals} and {@link OAuthParameters#hashCode}.
      */
     @Test
     public void testEqualsContract() {
+        TestUtils.assumeWorkingEqualsVerifier();
         EqualsVerifier.forClass(OAuthParameters.class).usingGetClass().verify();
     }
 }

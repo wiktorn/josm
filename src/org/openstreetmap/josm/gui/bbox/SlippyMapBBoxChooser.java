@@ -6,8 +6,11 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.geom.Area;
+import java.awt.geom.Path2D;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -18,8 +21,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import javax.swing.ButtonModel;
 import javax.swing.JOptionPane;
+import javax.swing.JToggleButton;
 import javax.swing.SpringLayout;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 
 import org.openstreetmap.gui.jmapviewer.Coordinate;
 import org.openstreetmap.gui.jmapviewer.JMapViewer;
@@ -40,15 +47,20 @@ import org.openstreetmap.josm.data.imagery.ImageryLayerInfo;
 import org.openstreetmap.josm.data.imagery.TMSCachedTileLoader;
 import org.openstreetmap.josm.data.imagery.TileLoaderFactory;
 import org.openstreetmap.josm.data.osm.BBox;
+import org.openstreetmap.josm.data.osm.DataSet;
+import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.data.preferences.StringProperty;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.AbstractCachedTileSourceLayer;
+import org.openstreetmap.josm.gui.layer.MainLayerManager;
 import org.openstreetmap.josm.gui.layer.TMSLayer;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.Logging;
 
 /**
  * This panel displays a map and lets the user chose a {@link BBox}.
  */
-public class SlippyMapBBoxChooser extends JMapViewer implements BBoxChooser {
+public class SlippyMapBBoxChooser extends JMapViewer implements BBoxChooser, ChangeListener, MainLayerManager.ActiveLayerChangeListener {
 
     /**
      * A list of tile sources that can be used for displaying the map.
@@ -113,6 +125,7 @@ public class SlippyMapBBoxChooser extends JMapViewer implements BBoxChooser {
     }
 
     private static final StringProperty PROP_MAPSTYLE = new StringProperty("slippy_map_chooser.mapstyle", "Mapnik");
+    private static final BooleanProperty PROP_SHOWDLAREA = new BooleanProperty("slippy_map_chooser.show_downloaded_area", true);
     /**
      * The property name used for the resize button.
      * @see #addPropertyChangeListener(java.beans.PropertyChangeListener)
@@ -123,6 +136,7 @@ public class SlippyMapBBoxChooser extends JMapViewer implements BBoxChooser {
     private final transient OsmTileLoader uncachedLoader;
 
     private final SizeButton iSizeButton;
+    private final ButtonModel showDownloadAreaButtonModel;
     private final SourceButton iSourceButton;
     private transient Bounds bbox;
 
@@ -150,7 +164,7 @@ public class SlippyMapBBoxChooser extends JMapViewer implements BBoxChooser {
 
         uncachedLoader = new OsmTileLoader(this);
         uncachedLoader.headers.putAll(headers);
-        setZoomContolsVisible(Main.pref.getBoolean("slippy_map_chooser.zoomcontrols", false));
+        setZoomControlsVisible(Config.getPref().getBoolean("slippy_map_chooser.zoomcontrols", false));
         setMapMarkerVisible(false);
         setMinimumSize(new Dimension(350, 350 / 2));
         // We need to set an initial size - this prevents a wrong zoom selection
@@ -159,16 +173,19 @@ public class SlippyMapBBoxChooser extends JMapViewer implements BBoxChooser {
         if (cachedLoader == null) {
             setFileCacheEnabled(false);
         } else {
-            setFileCacheEnabled(Main.pref.getBoolean("slippy_map_chooser.file_cache", true));
+            setFileCacheEnabled(Config.getPref().getBoolean("slippy_map_chooser.file_cache", true));
         }
-        setMaxTilesInMemory(Main.pref.getInteger("slippy_map_chooser.max_tiles", 1000));
+        setMaxTilesInMemory(Config.getPref().getInt("slippy_map_chooser.max_tiles", 1000));
 
         List<TileSource> tileSources = getAllTileSources();
 
-        iSourceButton = new SourceButton(this, tileSources);
+        this.showDownloadAreaButtonModel = new JToggleButton.ToggleButtonModel();
+        this.showDownloadAreaButtonModel.setSelected(PROP_SHOWDLAREA.get());
+        this.showDownloadAreaButtonModel.addChangeListener(this);
+        iSourceButton = new SourceButton(this, tileSources, this.showDownloadAreaButtonModel);
         add(iSourceButton);
-        springLayout.putConstraint(SpringLayout.EAST, iSourceButton, 0, SpringLayout.EAST, this);
-        springLayout.putConstraint(SpringLayout.NORTH, iSourceButton, 30, SpringLayout.NORTH, this);
+        springLayout.putConstraint(SpringLayout.EAST, iSourceButton, -2, SpringLayout.EAST, this);
+        springLayout.putConstraint(SpringLayout.NORTH, iSourceButton, 2, SpringLayout.NORTH, this);
 
         iSizeButton = new SizeButton(this);
         add(iSizeButton);
@@ -187,6 +204,8 @@ public class SlippyMapBBoxChooser extends JMapViewer implements BBoxChooser {
             setTileSource(tileSources.get(0));
             iSourceButton.setCurrentMap(tileSources.get(0));
         }
+
+        MainApplication.getLayerManager().addActiveLayerChangeListener(this);
 
         new SlippyMapControler(this, this);
     }
@@ -213,8 +232,38 @@ public class SlippyMapBBoxChooser extends JMapViewer implements BBoxChooser {
      * Draw the map.
      */
     @Override
-    public void paint(Graphics g) {
-        super.paint(g);
+    public void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        Graphics2D g2d = (Graphics2D) g;
+
+        // draw shaded area for non-downloaded region of current data set, but only if there *is* a current data set,
+        // and it has defined bounds. Routine is analogous to that in OsmDataLayer's paint routine (but just different
+        // enough to make sharing code impractical)
+        final DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
+        if (ds != null && this.showDownloadAreaButtonModel.isSelected() && !ds.getDataSources().isEmpty()) {
+            // initialize area with current viewport
+            Rectangle b = this.getBounds();
+            // ensure we comfortably cover full area
+            b.grow(100, 100);
+            Path2D p = new Path2D.Float();
+
+            // combine successively downloaded areas after converting to screen-space
+            for (Bounds bounds : ds.getDataSourceBounds()) {
+                if (bounds.isCollapsed()) {
+                    continue;
+                }
+                Rectangle r = new Rectangle(this.getMapPosition(bounds.getMinLat(), bounds.getMinLon(), false));
+                r.add(this.getMapPosition(bounds.getMaxLat(), bounds.getMaxLon(), false));
+                p.append(r, false);
+            }
+            // subtract combined areas
+            Area a = new Area(b);
+            a.subtract(new Area(p));
+
+            // paint remainder
+            g2d.setPaint(new Color(0, 0, 0, 32));
+            g2d.fill(a);
+        }
 
         // draw selection rectangle
         if (iSelectionRectStart != null && iSelectionRectEnd != null) {
@@ -227,6 +276,18 @@ public class SlippyMapBBoxChooser extends JMapViewer implements BBoxChooser {
             g.setColor(Color.BLACK);
             g.drawRect(box.x, box.y, box.width, box.height);
         }
+    }
+
+    @Override
+    public void activeOrEditLayerChanged(MainLayerManager.ActiveLayerChangeEvent e) {
+        this.repaint();
+    }
+
+    @Override
+    public void stateChanged(ChangeEvent e) {
+        // fired for the stateChanged event of this.showDownloadAreaButtonModel
+        PROP_SHOWDLAREA.put(this.showDownloadAreaButtonModel.isSelected());
+        this.repaint();
     }
 
     /**
@@ -297,6 +358,9 @@ public class SlippyMapBBoxChooser extends JMapViewer implements BBoxChooser {
         this.tileController.setTileCache(new MemoryTileCache());
         this.setTileSource(tileSource);
         PROP_MAPSTYLE.put(tileSource.getName()); // TODO Is name really unique?
+        if (this.iSourceButton.getCurrentSource() != tileSource) { // prevent infinite recursion
+            this.iSourceButton.setCurrentMap(tileSource);
+        }
     }
 
     @Override

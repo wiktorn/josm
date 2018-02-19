@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -14,6 +15,7 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
@@ -28,6 +30,9 @@ import org.openstreetmap.josm.data.osm.event.PrimitivesRemovedEvent;
 import org.openstreetmap.josm.data.osm.event.RelationMembersChangedEvent;
 import org.openstreetmap.josm.data.osm.event.TagsChangedEvent;
 import org.openstreetmap.josm.data.osm.event.WayNodesChangedEvent;
+import org.openstreetmap.josm.data.tagging.ac.AutoCompletionItem;
+import org.openstreetmap.josm.data.tagging.ac.AutoCompletionPriority;
+import org.openstreetmap.josm.data.tagging.ac.AutoCompletionSet;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerAddEvent;
 import org.openstreetmap.josm.gui.layer.LayerManager.LayerChangeListener;
@@ -45,11 +50,10 @@ import org.openstreetmap.josm.tools.Utils;
  * AutoCompletionManager holds a cache of keys with a list of
  * possible auto completion values for each key.
  *
- * Each DataSet is assigned one AutoCompletionManager instance such that
+ * Each DataSet can be assigned one AutoCompletionManager instance such that
  * <ol>
  *   <li>any key used in a tag in the data set is part of the key list in the cache</li>
- *   <li>any value used in a tag for a specific key is part of the autocompletion list of
- *     this key</li>
+ *   <li>any value used in a tag for a specific key is part of the autocompletion list of this key</li>
  * </ol>
  *
  * Building up auto completion lists should not
@@ -140,9 +144,10 @@ public class AutoCompletionManager implements DataSetListener {
     /**
      * Constructs a new {@code AutoCompletionManager}.
      * @param ds data set
+     * @throws NullPointerException if ds is null
      */
     public AutoCompletionManager(DataSet ds) {
-        this.ds = ds;
+        this.ds = Objects.requireNonNull(ds);
         this.dirty = true;
     }
 
@@ -240,7 +245,7 @@ public class AutoCompletionManager implements DataSetListener {
 
     /**
      * replies the auto completion values allowed for a specific key. Replies
-     * an empty list if key is null or if key is not in {@link #getKeys()}.
+     * an empty list if key is null or if key is not in {@link #getTagKeys()}.
      *
      * @param key OSM key
      * @return the list of auto completion values
@@ -270,14 +275,13 @@ public class AutoCompletionManager implements DataSetListener {
     }
 
     /**
-     * Populates the {@link AutoCompletionList} with the currently cached
-     * member roles.
+     * Populates the {@link AutoCompletionList} with the currently cached member roles.
      *
      * @param list the list to populate
      */
     public void populateWithMemberRoles(AutoCompletionList list) {
-        list.add(TaggingPresets.getPresetRoles(), AutoCompletionItemPriority.IS_IN_STANDARD);
-        list.add(getRoleCache(), AutoCompletionItemPriority.IS_IN_DATASET);
+        list.add(TaggingPresets.getPresetRoles(), AutoCompletionPriority.IS_IN_STANDARD);
+        list.add(getRoleCache(), AutoCompletionPriority.IS_IN_DATASET);
     }
 
     /**
@@ -296,10 +300,10 @@ public class AutoCompletionManager implements DataSetListener {
         if (r != null && presets != null && !presets.isEmpty()) {
             for (TaggingPreset tp : presets) {
                 if (tp.roles != null) {
-                    list.add(Utils.transform(tp.roles.roles, (Function<Role, String>) x -> x.key), AutoCompletionItemPriority.IS_IN_STANDARD);
+                    list.add(Utils.transform(tp.roles.roles, (Function<Role, String>) x -> x.key), AutoCompletionPriority.IS_IN_STANDARD);
                 }
             }
-            list.add(r.getMemberRoles(), AutoCompletionItemPriority.IS_IN_DATASET);
+            list.add(r.getMemberRoles(), AutoCompletionPriority.IS_IN_DATASET);
         } else {
             populateWithMemberRoles(list);
         }
@@ -311,15 +315,14 @@ public class AutoCompletionManager implements DataSetListener {
      * @param list the list to populate
      */
     public void populateWithKeys(AutoCompletionList list) {
-        list.add(TaggingPresets.getPresetKeys(), AutoCompletionItemPriority.IS_IN_STANDARD);
-        list.add(new AutoCompletionListItem("source", AutoCompletionItemPriority.IS_IN_STANDARD));
-        list.add(getDataKeys(), AutoCompletionItemPriority.IS_IN_DATASET);
+        list.add(TaggingPresets.getPresetKeys(), AutoCompletionPriority.IS_IN_STANDARD);
+        list.add(new AutoCompletionItem("source", AutoCompletionPriority.IS_IN_STANDARD));
+        list.add(getDataKeys(), AutoCompletionPriority.IS_IN_DATASET);
         list.addUserInput(getUserInputKeys());
     }
 
     /**
-     * Populates the an {@link AutoCompletionList} with the currently cached
-     * values for a tag
+     * Populates the an {@link AutoCompletionList} with the currently cached values for a tag
      *
      * @param list the list to populate
      * @param key the tag key
@@ -329,54 +332,94 @@ public class AutoCompletionManager implements DataSetListener {
     }
 
     /**
-     * Populates the an {@link AutoCompletionList} with the currently cached
-     * values for some given tags
+     * Populates the {@link AutoCompletionList} with the currently cached values for some given tags
      *
      * @param list the list to populate
      * @param keys the tag keys
      */
     public void populateWithTagValues(AutoCompletionList list, List<String> keys) {
         for (String key : keys) {
-            list.add(TaggingPresets.getPresetValues(key), AutoCompletionItemPriority.IS_IN_STANDARD);
-            list.add(getDataValues(key), AutoCompletionItemPriority.IS_IN_DATASET);
+            list.add(TaggingPresets.getPresetValues(key), AutoCompletionPriority.IS_IN_STANDARD);
+            list.add(getDataValues(key), AutoCompletionPriority.IS_IN_DATASET);
             list.addUserInput(getUserInputValues(key));
         }
     }
 
+    private static List<AutoCompletionItem> setToList(AutoCompletionSet set, Comparator<AutoCompletionItem> comparator) {
+        List<AutoCompletionItem> list = set.stream().collect(Collectors.toList());
+        list.sort(comparator);
+        return list;
+    }
+
     /**
      * Returns the currently cached tag keys.
-     * @return a list of tag keys
+     * @return a set of tag keys
+     * @since 12859
      */
-    public List<AutoCompletionListItem> getKeys() {
+    public AutoCompletionSet getTagKeys() {
         AutoCompletionList list = new AutoCompletionList();
         populateWithKeys(list);
-        return list.getList();
+        return list.getSet();
+    }
+
+    /**
+     * Returns the currently cached tag keys.
+     * @param comparator the custom comparator used to sort the list
+     * @return a list of tag keys
+     * @since 12859
+     */
+    public List<AutoCompletionItem> getTagKeys(Comparator<AutoCompletionItem> comparator) {
+        return setToList(getTagKeys(), comparator);
     }
 
     /**
      * Returns the currently cached tag values for a given tag key.
      * @param key the tag key
-     * @return a list of tag values
+     * @return a set of tag values
+     * @since 12859
      */
-    public List<AutoCompletionListItem> getValues(String key) {
-        return getValues(Arrays.asList(key));
+    public AutoCompletionSet getTagValues(String key) {
+        return getTagValues(Arrays.asList(key));
+    }
+
+    /**
+     * Returns the currently cached tag values for a given tag key.
+     * @param key the tag key
+     * @param comparator the custom comparator used to sort the list
+     * @return a list of tag values
+     * @since 12859
+     */
+    public List<AutoCompletionItem> getTagValues(String key, Comparator<AutoCompletionItem> comparator) {
+        return setToList(getTagValues(key), comparator);
     }
 
     /**
      * Returns the currently cached tag values for a given list of tag keys.
      * @param keys the tag keys
-     * @return a list of tag values
+     * @return a set of tag values
+     * @since 12859
      */
-    public List<AutoCompletionListItem> getValues(List<String> keys) {
+    public AutoCompletionSet getTagValues(List<String> keys) {
         AutoCompletionList list = new AutoCompletionList();
         populateWithTagValues(list, keys);
-        return list.getList();
+        return list.getSet();
     }
 
-    /*********************************************************
+    /**
+     * Returns the currently cached tag values for a given list of tag keys.
+     * @param keys the tag keys
+     * @param comparator the custom comparator used to sort the list
+     * @return a set of tag values
+     * @since 12859
+     */
+    public List<AutoCompletionItem> getTagValues(List<String> keys, Comparator<AutoCompletionItem> comparator) {
+        return setToList(getTagValues(keys), comparator);
+    }
+
+    /*
      * Implementation of the DataSetListener interface
      *
-     **/
+     */
 
     @Override
     public void primitivesAdded(PrimitivesAddedEvent event) {
@@ -431,15 +474,15 @@ public class AutoCompletionManager implements DataSetListener {
         dirty = true;
     }
 
-    private static void registerListeners(AutoCompletionManager autoCompletionManager) {
-        autoCompletionManager.ds.addDataSetListener(autoCompletionManager);
+    private AutoCompletionManager registerListeners() {
+        ds.addDataSetListener(this);
         MainApplication.getLayerManager().addLayerChangeListener(new LayerChangeListener() {
             @Override
             public void layerRemoving(LayerRemoveEvent e) {
                 if (e.getRemovedLayer() instanceof OsmDataLayer
-                        && ((OsmDataLayer) e.getRemovedLayer()).data == autoCompletionManager.ds) {
-                    INSTANCES.remove(autoCompletionManager.ds);
-                    autoCompletionManager.ds.removeDataSetListener(autoCompletionManager);
+                        && ((OsmDataLayer) e.getRemovedLayer()).data == ds) {
+                    INSTANCES.remove(ds);
+                    ds.removeDataSetListener(AutoCompletionManager.this);
                     MainApplication.getLayerManager().removeLayerChangeListener(this);
                 }
             }
@@ -454,6 +497,7 @@ public class AutoCompletionManager implements DataSetListener {
                 // Do nothing
             }
         });
+        return this;
     }
 
     /**
@@ -463,12 +507,6 @@ public class AutoCompletionManager implements DataSetListener {
      * @since 12758
      */
     public static AutoCompletionManager of(DataSet dataSet) {
-        AutoCompletionManager result = INSTANCES.get(dataSet);
-        if (result == null) {
-            result = new AutoCompletionManager(dataSet);
-            INSTANCES.put(dataSet, result);
-            registerListeners(result);
-        }
-        return result;
+        return INSTANCES.computeIfAbsent(dataSet, ds -> new AutoCompletionManager(ds).registerListeners());
     }
 }

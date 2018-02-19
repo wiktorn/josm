@@ -14,6 +14,7 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.osm.OsmPrimitiveType;
 import org.openstreetmap.josm.gui.dialogs.OsmIdSelectionDialog;
 import org.openstreetmap.josm.io.OnlineResource;
+import org.openstreetmap.josm.spi.preferences.Config;
 
 /**
  * Dialog prompt to user to let him choose OSM primitives to download by specifying their type and IDs
@@ -24,7 +25,7 @@ public class DownloadObjectDialog extends OsmIdSelectionDialog {
     // CHECKSTYLE.OFF: SingleSpaceSeparator
     protected final JCheckBox referrers = new JCheckBox(tr("Download referrers (parent relations)"));
     protected final JCheckBox fullRel   = new JCheckBox(tr("Download relation members"));
-    protected final JCheckBox newLayer  = new JCheckBox(tr("Separate Layer"));
+    protected final JCheckBox newLayer  = new JCheckBox(tr("Download as new layer"));
     // CHECKSTYLE.ON: SingleSpaceSeparator
 
     /**
@@ -58,14 +59,14 @@ public class DownloadObjectDialog extends OsmIdSelectionDialog {
     @Override
     protected Collection<Component> getComponentsBeforeHelp() {
         newLayer.setToolTipText(tr("Select if the data should be downloaded into a new layer"));
-        newLayer.setSelected(Main.pref.getBoolean("download.newlayer"));
+        newLayer.setSelected(Config.getPref().getBoolean("download.newlayer"));
 
         referrers.setToolTipText(tr("Select if the referrers of the object should be downloaded as well, i.e.,"
                 + "parent relations and for nodes, additionally, parent ways"));
-        referrers.setSelected(Main.pref.getBoolean("downloadprimitive.referrers", true));
+        referrers.setSelected(Config.getPref().getBoolean("downloadprimitive.referrers", true));
 
         fullRel.setToolTipText(tr("Select if the members of a relation should be downloaded as well"));
-        fullRel.setSelected(Main.pref.getBoolean("downloadprimitive.full", true));
+        fullRel.setSelected(Config.getPref().getBoolean("downloadprimitive.full", true));
 
         cbType.addItemListener(e -> referrers.setText(cbType.getType() == OsmPrimitiveType.NODE
                 ? tr("Download referrers (parent relations and ways)")
@@ -102,9 +103,9 @@ public class DownloadObjectDialog extends OsmIdSelectionDialog {
     public void windowClosed(WindowEvent e) {
         super.windowClosed(e);
         if (e != null && e.getComponent() == this && getValue() == 1) {
-            Main.pref.put("downloadprimitive.referrers", referrers.isSelected());
-            Main.pref.put("downloadprimitive.full", fullRel.isSelected());
-            Main.pref.put("download.newlayer", newLayer.isSelected());
+            Config.getPref().putBoolean("downloadprimitive.referrers", referrers.isSelected());
+            Config.getPref().putBoolean("downloadprimitive.full", fullRel.isSelected());
+            Config.getPref().putBoolean("download.newlayer", newLayer.isSelected());
         }
     }
 }

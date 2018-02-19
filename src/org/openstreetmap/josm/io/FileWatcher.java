@@ -4,26 +4,23 @@ package org.openstreetmap.josm.io;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchEvent.Kind;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
-import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Executors;
+import java.util.Objects;
+import java.util.function.Consumer;
 
 import org.openstreetmap.josm.data.preferences.sources.SourceEntry;
-import org.openstreetmap.josm.data.validation.OsmValidator;
-import org.openstreetmap.josm.data.validation.tests.MapCSSTagChecker;
-import org.openstreetmap.josm.gui.mappaint.StyleSource;
-import org.openstreetmap.josm.gui.mappaint.loader.MapPaintStyleLoader;
-import org.openstreetmap.josm.gui.mappaint.mapcss.parsergen.ParseException;
+import org.openstreetmap.josm.data.preferences.sources.SourceType;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.Logging;
-import org.openstreetmap.josm.tools.Utils;
 
 /**
  * Background thread that monitors certain files and perform relevant actions when they change.
@@ -34,8 +31,8 @@ public class FileWatcher {
     private WatchService watcher;
     private Thread thread;
 
-    private final Map<Path, StyleSource> styleMap = new HashMap<>();
-    private final Map<Path, SourceEntry> ruleMap = new HashMap<>();
+    private static final Map<SourceType, Consumer<SourceEntry>> loaderMap = new EnumMap<>(SourceType.class);
+    private final Map<Path, SourceEntry> sourceMap = new HashMap<>();
 
     /**
      * Constructs a new {@code FileWatcher}.
@@ -59,46 +56,42 @@ public class FileWatcher {
     }
 
     /**
-     * Registers a map paint style for local file changes, allowing dynamic reloading.
-     * @param style The style to watch
-     * @throws IllegalArgumentException if {@code style} is null or if it does not provide a local file
-     * @throws IllegalStateException if the watcher service failed to start
-     * @throws IOException if an I/O error occurs
-     */
-    public void registerStyleSource(StyleSource style) throws IOException {
-        register(style, styleMap);
-    }
-
-    /**
-     * Registers a validator rule for local file changes, allowing dynamic reloading.
-     * @param rule The rule to watch
+     * Registers a source for local file changes, allowing dynamic reloading.
+     * @param src The source to watch
      * @throws IllegalArgumentException if {@code rule} is null or if it does not provide a local file
      * @throws IllegalStateException if the watcher service failed to start
      * @throws IOException if an I/O error occurs
-     * @since 7276
+     * @since 12825
      */
-    public void registerValidatorRule(SourceEntry rule) throws IOException {
-        register(rule, ruleMap);
-    }
-
-    private <T extends SourceEntry> void register(T obj, Map<Path, T> map) throws IOException {
-        CheckParameterUtil.ensureParameterNotNull(obj, "obj");
+    public void registerSource(SourceEntry src) throws IOException {
+        CheckParameterUtil.ensureParameterNotNull(src, "src");
         if (watcher == null) {
             throw new IllegalStateException("File watcher is not available");
         }
         // Get local file, as this method is only called for local style sources
-        File file = new File(obj.url);
+        File file = new File(src.url);
         // Get parent directory as WatchService allows only to monitor directories, not single files
         File dir = file.getParentFile();
         if (dir == null) {
-            throw new IllegalArgumentException("Resource "+obj+" does not have a parent directory");
+            throw new IllegalArgumentException("Resource "+src+" does not have a parent directory");
         }
         synchronized (this) {
             // Register directory. Can be called several times for a same directory without problem
             // (it returns the same key so it should not send events several times)
             dir.toPath().register(watcher, StandardWatchEventKinds.ENTRY_MODIFY, StandardWatchEventKinds.ENTRY_CREATE);
-            map.put(file.toPath(), obj);
+            sourceMap.put(file.toPath(), src);
         }
+    }
+
+    /**
+     * Registers a source loader, allowing dynamic reloading when an entry changes.
+     * @param type the source type for which the loader operates
+     * @param loader the loader in charge of reloading any source of given type when it changes
+     * @return the previous loader registered for this source type, if any
+     * @since 12825
+     */
+    public static Consumer<SourceEntry> registerLoader(SourceType type, Consumer<SourceEntry> loader) {
+        return loaderMap.put(Objects.requireNonNull(type, "type"), Objects.requireNonNull(loader, "loader"));
     }
 
     /**
@@ -135,22 +128,25 @@ public class FileWatcher {
                 // Only way to get full path (http://stackoverflow.com/a/7802029/2257172)
                 Path fullPath = ((Path) key.watchable()).resolve(filename);
 
+                try {
+                    // Some filesystems fire two events when a file is modified. Skip first event (file is empty)
+                    if (Files.size(fullPath) == 0) {
+                        continue;
+                    }
+                } catch (IOException ex) {
+                    Logging.trace(ex);
+                    continue;
+                }
+
                 synchronized (this) {
-                    StyleSource style = styleMap.get(fullPath);
-                    SourceEntry rule = ruleMap.get(fullPath);
-                    if (style != null) {
-                        Logging.info("Map style "+style.getDisplayString()+" has been modified. Reloading style...");
-                        Executors.newSingleThreadExecutor(Utils.newThreadFactory("mapstyle-reload-%d", Thread.NORM_PRIORITY)).submit(
-                                new MapPaintStyleLoader(Collections.singleton(style)));
-                    } else if (rule != null) {
-                        Logging.info("Validator rule "+rule.getDisplayString()+" has been modified. Reloading rule...");
-                        MapCSSTagChecker tagChecker = OsmValidator.getTest(MapCSSTagChecker.class);
-                        if (tagChecker != null) {
-                            try {
-                                tagChecker.addMapCSS(rule.url);
-                            } catch (IOException | ParseException e) {
-                                Logging.warn(e);
-                            }
+                    SourceEntry source = sourceMap.get(fullPath);
+                    if (source != null) {
+                        Consumer<SourceEntry> loader = loaderMap.get(source.type);
+                        if (loader != null) {
+                            Logging.info("Source "+source.getDisplayString()+" has been modified. Reloading it...");
+                            loader.accept(source);
+                        } else {
+                            Logging.warn("Received {0} event for unregistered source type: {1}", kind.name(), source.type);
                         }
                     } else if (Logging.isDebugEnabled()) {
                         Logging.debug("Received {0} event for unregistered file: {1}", kind.name(), fullPath);

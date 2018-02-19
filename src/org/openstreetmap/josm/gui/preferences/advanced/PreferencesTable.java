@@ -28,12 +28,12 @@ import javax.swing.UIManager;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 
-import org.openstreetmap.josm.data.preferences.ColorProperty;
-import org.openstreetmap.josm.data.preferences.ListListSetting;
-import org.openstreetmap.josm.data.preferences.ListSetting;
-import org.openstreetmap.josm.data.preferences.MapListSetting;
-import org.openstreetmap.josm.data.preferences.Setting;
-import org.openstreetmap.josm.data.preferences.StringSetting;
+import org.openstreetmap.josm.data.preferences.NamedColorProperty;
+import org.openstreetmap.josm.spi.preferences.ListListSetting;
+import org.openstreetmap.josm.spi.preferences.ListSetting;
+import org.openstreetmap.josm.spi.preferences.MapListSetting;
+import org.openstreetmap.josm.spi.preferences.Setting;
+import org.openstreetmap.josm.spi.preferences.StringSetting;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
@@ -335,10 +335,10 @@ public class PreferencesTable extends JTable {
 
     static final class SettingCellRenderer extends DefaultTableCellRenderer {
         private final Color backgroundColor = UIManager.getColor("Table.background");
-        private final Color changedColor = new ColorProperty(
+        private final Color changedColor = new NamedColorProperty(
                          marktr("Advanced Background: Changed"),
                          new Color(200, 255, 200)).get();
-        private final Color nonDefaultColor = new ColorProperty(
+        private final Color nonDefaultColor = new NamedColorProperty(
                             marktr("Advanced Background: NonDefault"),
                             new Color(255, 255, 200)).get();
 

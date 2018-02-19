@@ -44,7 +44,7 @@ import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.osm.WaySegment;
-import org.openstreetmap.josm.data.preferences.ColorProperty;
+import org.openstreetmap.josm.data.preferences.NamedColorProperty;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MainMenu;
 import org.openstreetmap.josm.gui.MapFrame;
@@ -53,10 +53,10 @@ import org.openstreetmap.josm.gui.draw.MapViewPath;
 import org.openstreetmap.josm.gui.draw.SymbolShape;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.MapViewPaintable;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.util.KeyPressReleaseListener;
 import org.openstreetmap.josm.gui.util.ModifierExListener;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.Geometry;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Logging;
@@ -290,7 +290,7 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
 
     @Override
     public boolean layerIsSupported(Layer l) {
-        return l instanceof OsmDataLayer;
+        return isEditableDataLayer(l);
     }
 
     @Override
@@ -306,21 +306,21 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
 
     @Override
     protected void readPreferences() {
-        initialMoveDelay = Main.pref.getInteger("edit.initial-move-delay", 200);
-        initialMoveThreshold = Main.pref.getInteger("extrude.initial-move-threshold", 1);
-        mainColor = new ColorProperty(marktr("Extrude: main line"), Color.RED).get();
-        helperColor = new ColorProperty(marktr("Extrude: helper line"), Color.ORANGE).get();
-        helperStrokeDash = GuiHelper.getCustomizedStroke(Main.pref.get("extrude.stroke.helper-line", "1 4"));
+        initialMoveDelay = Config.getPref().getInt("edit.initial-move-delay", 200);
+        initialMoveThreshold = Config.getPref().getInt("extrude.initial-move-threshold", 1);
+        mainColor = new NamedColorProperty(marktr("Extrude: main line"), Color.RED).get();
+        helperColor = new NamedColorProperty(marktr("Extrude: helper line"), Color.ORANGE).get();
+        helperStrokeDash = GuiHelper.getCustomizedStroke(Config.getPref().get("extrude.stroke.helper-line", "1 4"));
         helperStrokeRA = new BasicStroke(1);
-        symbolSize = Main.pref.getDouble("extrude.angle-symbol-radius", 8);
-        nodeDragWithoutCtrl = Main.pref.getBoolean("extrude.drag-nodes-without-ctrl", false);
-        oldLineStroke = GuiHelper.getCustomizedStroke(Main.pref.get("extrude.ctrl.stroke.old-line", "1"));
-        mainStroke = GuiHelper.getCustomizedStroke(Main.pref.get("extrude.stroke.main", "3"));
+        symbolSize = Config.getPref().getDouble("extrude.angle-symbol-radius", 8);
+        nodeDragWithoutCtrl = Config.getPref().getBoolean("extrude.drag-nodes-without-ctrl", false);
+        oldLineStroke = GuiHelper.getCustomizedStroke(Config.getPref().get("extrude.ctrl.stroke.old-line", "1"));
+        mainStroke = GuiHelper.getCustomizedStroke(Config.getPref().get("extrude.stroke.main", "3"));
 
-        ignoreSharedNodes = Main.pref.getBoolean("extrude.ignore-shared-nodes", true);
+        ignoreSharedNodes = Config.getPref().getBoolean("extrude.ignore-shared-nodes", true);
         dualAlignCheckboxMenuItem.getAction().setEnabled(true);
-        useRepeatedShortcut = Main.pref.getBoolean("extrude.dualalign.toggleOnRepeatedX", true);
-        keepSegmentDirection = Main.pref.getBoolean("extrude.dualalign.keep-segment-direction", true);
+        useRepeatedShortcut = Config.getPref().getBoolean("extrude.dualalign.toggleOnRepeatedX", true);
+        keepSegmentDirection = Config.getPref().getBoolean("extrude.dualalign.keep-segment-direction", true);
     }
 
     @Override
@@ -1093,10 +1093,8 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
                         g2.setColor(helperColor);
                         g2.setStroke(helperStrokeDash);
                         // Draw a guideline along the normal.
-                        Line2D normline;
                         Point2D centerpoint = mv.getPoint2D(p1.interpolate(p2, .5));
-                        normline = createSemiInfiniteLine(centerpoint, normalUnitVector, g2);
-                        g2.draw(normline);
+                        g2.draw(createSemiInfiniteLine(centerpoint, normalUnitVector, g2));
                         // Draw right angle marker on initial position, only when moving at right angle
                         if (activeMoveDirection.perpendicular) {
                             // EastNorth units per pixel
@@ -1189,7 +1187,7 @@ public class ExtrudeAction extends MapMode implements MapViewPaintable, KeyPress
      * @return created line
      */
     private static Line2D createSemiInfiniteLine(Point2D start, Point2D unitvector, Graphics2D g) {
-        Rectangle bounds = g.getDeviceConfiguration().getBounds();
+        Rectangle bounds = g.getClipBounds();
         try {
             AffineTransform invtrans = g.getTransform().createInverse();
             Point2D widthpoint = invtrans.deltaTransform(new Point2D.Double(bounds.width, 0), null);

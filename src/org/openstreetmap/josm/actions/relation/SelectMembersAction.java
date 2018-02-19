@@ -28,7 +28,7 @@ public class SelectMembersAction extends AbstractRelationAction {
     public SelectMembersAction(boolean add) {
         putValue(SHORT_DESCRIPTION, add ? tr("Add the members of all selected relations to current selection")
                 : tr("Select the members of all selected relations"));
-        putValue(SMALL_ICON, ImageProvider.get("selectall"));
+        new ImageProvider("selectall").getResource().attachImageIcon(this, true);
         putValue(NAME, add ? tr("Select members (add)") : tr("Select members"));
         this.add = add;
     }
@@ -42,9 +42,9 @@ public class SelectMembersAction extends AbstractRelationAction {
             members.addAll(r.getMemberPrimitivesList());
         }
         if (add) {
-            MainApplication.getLayerManager().getEditLayer().data.addSelected(members);
+            MainApplication.getLayerManager().getActiveDataSet().addSelected(members);
         } else {
-            MainApplication.getLayerManager().getEditLayer().data.setSelected(members);
+            MainApplication.getLayerManager().getActiveDataSet().setSelected(members);
         }
     }
 }

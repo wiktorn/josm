@@ -69,23 +69,22 @@ public class ScrollViewport extends JPanel {
         }
 
         @Override
-        public void mouseExited(MouseEvent arg0) {
+        public void mouseExited(MouseEvent e) {
+            mouseReleased(e);
+        }
+
+        @Override
+        public void mouseReleased(MouseEvent e) {
             ScrollViewport.this.scrollDirection = NO_SCROLL;
             timer.stop();
         }
 
         @Override
-        public void mouseReleased(MouseEvent arg0) {
-            ScrollViewport.this.scrollDirection = NO_SCROLL;
-            timer.stop();
-        }
-
-        @Override public void mousePressed(MouseEvent arg0) {
+        public void mousePressed(MouseEvent e) {
             ScrollViewport.this.scrollDirection = direction;
             scroll();
             timer.restart();
         }
-
     }
 
     private final JViewport vp = new JViewport();
@@ -128,22 +127,22 @@ public class ScrollViewport extends JPanel {
 
         // UP
         if ((direction & UP_DIRECTION) != 0) {
-            addScrollButton(UP_DIRECTION, "svpUp", BorderLayout.NORTH);
+            addScrollButton(UP_DIRECTION, /* ICON */ "svpUp", BorderLayout.NORTH);
         }
 
         // DOWN
         if ((direction & DOWN_DIRECTION) != 0) {
-            addScrollButton(DOWN_DIRECTION, "svpDown", BorderLayout.SOUTH);
+            addScrollButton(DOWN_DIRECTION, /* ICON */ "svpDown", BorderLayout.SOUTH);
         }
 
         // LEFT
         if ((direction & LEFT_DIRECTION) != 0) {
-            addScrollButton(LEFT_DIRECTION, "svpLeft", BorderLayout.WEST);
+            addScrollButton(LEFT_DIRECTION, /* ICON */ "svpLeft", BorderLayout.WEST);
         }
 
         // RIGHT
         if ((direction & RIGHT_DIRECTION) != 0) {
-            addScrollButton(RIGHT_DIRECTION, "svpRight", BorderLayout.EAST);
+            addScrollButton(RIGHT_DIRECTION, /* ICON */ "svpRight", BorderLayout.EAST);
         }
 
         add(vp, BorderLayout.CENTER);

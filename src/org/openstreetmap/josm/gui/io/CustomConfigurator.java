@@ -3,15 +3,15 @@ package org.openstreetmap.josm.gui.io;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
 
-import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.CharArrayReader;
 import java.io.CharArrayWriter;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -25,7 +25,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
@@ -44,11 +43,12 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Preferences;
 import org.openstreetmap.josm.data.PreferencesUtils;
 import org.openstreetmap.josm.data.Version;
-import org.openstreetmap.josm.data.preferences.Setting;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.plugins.PluginDownloadTask;
 import org.openstreetmap.josm.plugins.PluginInformation;
 import org.openstreetmap.josm.plugins.ReadLocalPluginInformationTask;
+import org.openstreetmap.josm.spi.preferences.Config;
+import org.openstreetmap.josm.spi.preferences.Setting;
 import org.openstreetmap.josm.tools.LanguageInfo;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
@@ -65,53 +65,8 @@ import org.xml.sax.SAXException;
  */
 public final class CustomConfigurator {
 
-    private static StringBuilder summary = new StringBuilder();
-
     private CustomConfigurator() {
         // Hide default constructor for utils classes
-    }
-
-    /**
-     * Log a formatted message.
-     * @param fmt format
-     * @param vars arguments
-     * @see String#format
-     */
-    public static void log(String fmt, Object... vars) {
-        summary.append(String.format(fmt, vars));
-    }
-
-    /**
-     * Log a message.
-     * @param s message to log
-     */
-    public static void log(String s) {
-        summary.append(s).append('\n');
-    }
-
-    /**
-     * Log an exception.
-     * @param e exception to log
-     * @param s message prefix
-     * @since 10469
-     */
-    public static void log(Exception e, String s) {
-        summary.append(s).append(' ').append(Logging.getErrorMessage(e)).append('\n');
-    }
-
-    /**
-     * Returns the log.
-     * @return the log
-     */
-    public static String getLog() {
-        return summary.toString();
-    }
-
-    /**
-     * Resets the log.
-     */
-    public static void resetLog() {
-        summary = new StringBuilder();
     }
 
     /**
@@ -184,8 +139,8 @@ public final class CustomConfigurator {
         DownloadFileTask downloadFileTask = new DownloadFileTask(Main.parent, address, fOut, mkdir, unzip);
 
         MainApplication.worker.submit(downloadFileTask);
-        log("Info: downloading file from %s to %s in background ", parentDir, fOut.getAbsolutePath());
-        if (unzip) log("and unpacking it"); else log("");
+        PreferencesUtils.log("Info: downloading file from %s to %s in background ", parentDir, fOut.getAbsolutePath());
+        if (unzip) PreferencesUtils.log("and unpacking it"); else PreferencesUtils.log("");
 
     }
 
@@ -314,10 +269,10 @@ public final class CustomConfigurator {
     public static void deleteFile(String path, String base) {
         String dir = getDirectoryByAbbr(base);
         if (dir == null) {
-            log("Error: Can not find base, use base=cache, base=prefs or base=plugins attribute.");
+            PreferencesUtils.log("Error: Can not find base, use base=cache, base=prefs or base=plugins attribute.");
             return;
         }
-        log("Delete file: %s\n", path);
+        PreferencesUtils.log("Delete file: %s\n", path);
         if (path.contains("..") || path.startsWith("/") || path.contains(":")) {
             return; // some basic protection
         }
@@ -337,7 +292,7 @@ public final class CustomConfigurator {
             }
         }
         if (!Utils.deleteFile(f)) {
-            log("Warning: Can not delete file "+f.getPath());
+            PreferencesUtils.log("Warning: Can not delete file "+f.getPath());
         }
     }
 
@@ -355,13 +310,13 @@ public final class CustomConfigurator {
         deleteList.remove("");
 
         if (!installList.isEmpty()) {
-            log("Plugins install: "+installList);
+            PreferencesUtils.log("Plugins install: "+installList);
         }
         if (!removeList.isEmpty()) {
-            log("Plugins turn off: "+removeList);
+            PreferencesUtils.log("Plugins turn off: "+removeList);
         }
         if (!deleteList.isEmpty()) {
-            log("Plugins delete: "+deleteList);
+            PreferencesUtils.log("Plugins delete: "+deleteList);
         }
 
         final ReadLocalPluginInformationTask task = new ReadLocalPluginInformationTask();
@@ -391,7 +346,7 @@ public final class CustomConfigurator {
                                 new PluginDownloadTask(Main.parent, toInstallPlugins, tr("Installing plugins"));
                         MainApplication.worker.submit(pluginDownloadTask);
                     }
-                    Collection<String> pls = new ArrayList<>(Main.pref.getCollection("plugins"));
+                    List<String> pls = new ArrayList<>(Config.getPref().getList("plugins"));
                     for (PluginInformation pi2: toInstallPlugins) {
                         if (!pls.contains(pi2.name)) {
                             pls.add(pi2.name);
@@ -404,7 +359,7 @@ public final class CustomConfigurator {
                         pls.remove(pi4.name);
                         new File(Main.pref.getPluginsDirectory(), pi4.name+".jar").deleteOnExit();
                     }
-                    Main.pref.putCollection("plugins", pls);
+                    Config.getPref().putList("plugins", pls);
                 });
             }
         };
@@ -415,9 +370,9 @@ public final class CustomConfigurator {
     private static String getDirectoryByAbbr(String base) {
         String dir;
         if ("prefs".equals(base) || base.isEmpty()) {
-            dir = Main.pref.getPreferencesDirectory().getAbsolutePath();
+            dir = Config.getDirs().getPreferencesDirectory(false).getAbsolutePath();
         } else if ("cache".equals(base)) {
-            dir = Main.pref.getCacheDirectory().getAbsolutePath();
+            dir = Config.getDirs().getCacheDirectory(false).getAbsolutePath();
         } else if ("plugins".equals(base)) {
             dir = Main.pref.getPluginsDirectory().getAbsolutePath();
         } else {
@@ -436,15 +391,15 @@ public final class CustomConfigurator {
         private ScriptEngine engine;
 
         public void openAndReadXML(File file) {
-            log("-- Reading custom preferences from " + file.getAbsolutePath() + " --");
+            PreferencesUtils.log("-- Reading custom preferences from " + file.getAbsolutePath() + " --");
             try {
                 String fileDir = file.getParentFile().getAbsolutePath();
                 if (fileDir != null) engine.eval("scriptDir='"+normalizeDirName(fileDir) +"';");
-                try (InputStream is = new BufferedInputStream(new FileInputStream(file))) {
+                try (InputStream is = Files.newInputStream(file.toPath())) {
                     openAndReadXML(is);
                 }
-            } catch (ScriptException | IOException | SecurityException ex) {
-                log(ex, "Error reading custom preferences:");
+            } catch (ScriptException | IOException | SecurityException | InvalidPathException ex) {
+                PreferencesUtils.log(ex, "Error reading custom preferences:");
             }
         }
 
@@ -455,19 +410,22 @@ public final class CustomConfigurator {
                     processXML(document);
                 }
             } catch (SAXException | IOException | ParserConfigurationException ex) {
-                log(ex, "Error reading custom preferences:");
+                PreferencesUtils.log(ex, "Error reading custom preferences:");
             }
-            log("-- Reading complete --");
+            PreferencesUtils.log("-- Reading complete --");
         }
 
         public XMLCommandProcessor(Preferences mainPrefs) {
             try {
                 this.mainPrefs = mainPrefs;
-                resetLog();
-                engine = new ScriptEngineManager().getEngineByName("JavaScript");
+                PreferencesUtils.resetLog();
+                engine = Utils.getJavaScriptEngine();
+                if (engine == null) {
+                    throw new ScriptException("Failed to retrieve JavaScript engine");
+                }
                 engine.eval("API={}; API.pref={}; API.fragments={};");
 
-                engine.eval("homeDir='"+normalizeDirName(Main.pref.getPreferencesDirectory().getAbsolutePath()) +"';");
+                engine.eval("homeDir='"+normalizeDirName(Config.getDirs().getPreferencesDirectory(false).getAbsolutePath()) +"';");
                 engine.eval("josmVersion="+Version.getInstance().getVersion()+';');
                 String className = CustomConfigurator.class.getName();
                 engine.eval("API.messageBox="+className+".messageBox");
@@ -481,7 +439,7 @@ public final class CustomConfigurator {
                 engine.eval("API.pluginUninstall = function(names) { "+className+".pluginOperation('',names,'');}");
                 engine.eval("API.pluginDelete = function(names) { "+className+".pluginOperation('','',names);}");
             } catch (ScriptException ex) {
-                log("Error: initializing script engine: "+ex.getMessage());
+                PreferencesUtils.log("Error: initializing script engine: "+ex.getMessage());
                 Logging.error(ex);
             }
         }
@@ -539,7 +497,7 @@ public final class CustomConfigurator {
                     processScriptElement(elem);
                     break;
                 default:
-                    log("Error: Unknown element " + elementName);
+                    PreferencesUtils.log("Error: Unknown element " + elementName);
                 }
             }
         }
@@ -566,16 +524,16 @@ public final class CustomConfigurator {
                     PreferencesUtils.loadPrefsToJS(engine, tmpPref, fragmentVar, false);
                     // we store this fragment as API.fragments['id']
                 } catch (ScriptException ex) {
-                    log(ex, "Error: can not load preferences fragment:");
+                    PreferencesUtils.log(ex, "Error: can not load preferences fragment:");
                 }
             }
 
             if ("replace".equals(oper)) {
-                log("Preferences replace: %d keys: %s\n",
+                PreferencesUtils.log("Preferences replace: %d keys: %s\n",
                    tmpPref.getAllSettings().size(), tmpPref.getAllSettings().keySet().toString());
                 PreferencesUtils.replacePreferences(tmpPref, mainPrefs);
             } else if ("append".equals(oper)) {
-                log("Preferences append: %d keys: %s\n",
+                PreferencesUtils.log("Preferences append: %d keys: %s\n",
                    tmpPref.getAllSettings().size(), tmpPref.getAllSettings().keySet().toString());
                 PreferencesUtils.appendPreferences(tmpPref, mainPrefs);
             } else if ("delete-values".equals(oper)) {
@@ -593,7 +551,7 @@ public final class CustomConfigurator {
             String base = evalVars(item.getAttribute("base"));
             String dir = getDirectoryByAbbr(base);
             if (dir == null) {
-                log("Error: Can not find directory to place file, use base=cache, base=prefs or base=plugins attribute.");
+                PreferencesUtils.log("Error: Can not find directory to place file, use base=cache, base=prefs or base=plugins attribute.");
                 return;
             }
 
@@ -604,7 +562,7 @@ public final class CustomConfigurator {
 
             String address = evalVars(item.getAttribute("url"));
             if (address.isEmpty() || path.isEmpty()) {
-                log("Error: Please specify url=\"where to get file\" and path=\"where to place it\"");
+                PreferencesUtils.log("Error: Please specify url=\"where to get file\" and path=\"where to place it\"");
                 return;
             }
 
@@ -651,7 +609,7 @@ public final class CustomConfigurator {
             try {
                 engine.eval(name+"='"+value+"';");
             } catch (ScriptException ex) {
-                log(ex, String.format("Error: Can not assign variable: %s=%s :", name, value));
+                PreferencesUtils.log(ex, String.format("Error: Can not assign variable: %s=%s :", name, value));
             }
         }
 
@@ -662,7 +620,7 @@ public final class CustomConfigurator {
                 processXmlFragment(elem);
                 v = true;
             } else {
-                log("Error: Illegal test expression in if: %s=%s\n", elem.getAttribute("test"), realValue);
+                PreferencesUtils.log("Error: Illegal test expression in if: %s=%s\n", elem.getAttribute("test"), realValue);
             }
 
             lastV = v;
@@ -678,10 +636,10 @@ public final class CustomConfigurator {
             String taskName = elem.getAttribute("name");
             Element task = tasksMap.get(taskName);
             if (task != null) {
-                log("EXECUTING TASK "+taskName);
+                PreferencesUtils.log("EXECUTING TASK "+taskName);
                 processXmlFragment(task); // process task recursively
             } else {
-                log("Error: Can not execute task "+taskName);
+                PreferencesUtils.log("Error: Can not execute task "+taskName);
                 return true;
             }
             return false;
@@ -689,14 +647,14 @@ public final class CustomConfigurator {
 
         private void processScriptElement(Element elem) {
             String js = elem.getChildNodes().item(0).getTextContent();
-            log("Processing script...");
+            PreferencesUtils.log("Processing script...");
             try {
                 PreferencesUtils.modifyPreferencesByScript(engine, mainPrefs, js);
             } catch (ScriptException ex) {
                 messageBox("e", ex.getMessage());
-                log(ex, "JS error:");
+                PreferencesUtils.log(ex, "JS error:");
             }
-            log("Script finished");
+            PreferencesUtils.log("Script finished");
         }
 
         /**
@@ -712,7 +670,7 @@ public final class CustomConfigurator {
                     String result = engine.eval(mr.group(1)).toString();
                     mr.appendReplacement(sb, result);
                 } catch (ScriptException ex) {
-                    log(ex, String.format("Error: Can not evaluate expression %s :", mr.group(1)));
+                    PreferencesUtils.log(ex, String.format("Error: Can not evaluate expression %s :", mr.group(1)));
                 }
             }
             mr.appendTail(sb);
@@ -733,7 +691,7 @@ public final class CustomConfigurator {
                 CharArrayReader reader = new CharArrayReader(fragmentWithReplacedVars.toCharArray());
                 tmpPref.fromXML(reader);
             } catch (TransformerException | XMLStreamException | IOException ex) {
-                log(ex, "Error: can not read XML fragment:");
+                PreferencesUtils.log(ex, "Error: can not read XML fragment:");
             }
 
             return tmpPref;

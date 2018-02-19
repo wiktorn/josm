@@ -5,6 +5,7 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.GridBagLayout;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 import javax.swing.JButton;
 import javax.swing.JPanel;
@@ -14,10 +15,10 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Version;
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel;
 import org.openstreetmap.josm.gui.widgets.UrlLabel;
+import org.openstreetmap.josm.io.CachedFile;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Logging;
-import org.openstreetmap.josm.tools.WikiReader;
 
 /**
  * This is a panel that displays the current JOSM version and the ability to update JOSM.
@@ -35,7 +36,7 @@ public class JosmUpdatePanel extends JPanel {
         super(new GridBagLayout());
         josmVersion = Version.getInstance().getVersion();
 
-        add(new JMultilineLabel(tr("Your current version of JOSM is {0}", josmVersion)), GBC.eol().fill(GBC.HORIZONTAL));
+        add(new JMultilineLabel(tr("Your current version of JOSM is {0}", Integer.toString(josmVersion))), GBC.eol().fill(GBC.HORIZONTAL));
         testedVersionField = new JMultilineLabel(tr("JOSM is searching for updates..."));
         add(testedVersionField, GBC.eol().fill(GBC.HORIZONTAL));
 
@@ -59,11 +60,12 @@ public class JosmUpdatePanel extends JPanel {
     }
 
     private static int getTestedVersion() {
-        try {
-            String testedString = new WikiReader().read(Main.getJOSMWebsite() + "/wiki/TestedVersion?format=txt");
+        try (CachedFile testedVersion = new CachedFile(Main.getJOSMWebsite() + "/tested")) {
+            testedVersion.setMaxAge(60L * 15); // 15 Minutes
+            String testedString = new String(testedVersion.getByteContent(), StandardCharsets.ISO_8859_1);
             return Integer.parseInt(testedString.trim());
         } catch (NumberFormatException | IOException e) {
-            Logging.log(Logging.LEVEL_WARN, "Unable to detect latest version of JOSM:", e);
+            Logging.log(Logging.LEVEL_WARN, "Unable to detect current tested version of JOSM:", e);
             return -1;
         }
     }
@@ -82,7 +84,7 @@ public class JosmUpdatePanel extends JPanel {
 
     private void displayOutOfDate(int testedVersion) {
         testedVersionField
-                .setText(tr("JOSM is out of date. The current version is {0}. Try updating JOSM.", testedVersion));
+                .setText(tr("JOSM is out of date. The current version is {0}. Try updating JOSM.", Integer.toString(testedVersion)));
         showUpdateButton();
     }
 

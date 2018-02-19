@@ -30,11 +30,11 @@ import javax.swing.JPanel;
 import javax.swing.ListCellRenderer;
 import javax.swing.ListModel;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Tag;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetReader;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetSelector;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.AlphanumComparator;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.Logging;
@@ -343,7 +343,7 @@ public abstract class ComboMultiSelect extends KeyedItem {
         if (item.length() > 0) {
             result.add(item.toString());
         }
-        return result.toArray(new String[result.size()]);
+        return result.toArray(new String[0]);
     }
 
     protected abstract Object getSelectedItem();
@@ -492,7 +492,7 @@ public abstract class ComboMultiSelect extends KeyedItem {
             entries.add(e);
         }
 
-        if (values_sort && Main.pref.getBoolean("taggingpreset.sortvalues", true)) {
+        if (values_sort && Config.getPref().getBoolean("taggingpreset.sortvalues", true)) {
             Collections.sort(entries);
         }
 

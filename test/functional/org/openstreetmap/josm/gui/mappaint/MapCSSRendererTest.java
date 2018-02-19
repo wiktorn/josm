@@ -4,10 +4,9 @@ package org.openstreetmap.josm.gui.mappaint;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import java.awt.Graphics2D;
+import java.awt.Color;
 import java.awt.GraphicsEnvironment;
 import java.awt.Point;
-import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
@@ -17,6 +16,7 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -30,14 +30,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
+import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.TestUtils;
 import org.openstreetmap.josm.data.Bounds;
+import org.openstreetmap.josm.data.ProjectionBounds;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.visitor.paint.StyledMapRenderer;
-import org.openstreetmap.josm.data.preferences.sources.SourceEntry;
-import org.openstreetmap.josm.gui.NavigatableComponent;
-import org.openstreetmap.josm.gui.mappaint.mapcss.MapCSSStyleSource;
 import org.openstreetmap.josm.io.IllegalDataException;
 import org.openstreetmap.josm.io.OsmReader;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
@@ -68,6 +67,9 @@ public class MapCSSRendererTest {
 
     private TestConfig testConfig;
 
+    // development flag - set to true in order to update all reference images
+    private static final boolean UPDATE_ALL = false;
+
     /**
      * The different configurations of this test.
      *
@@ -80,7 +82,8 @@ public class MapCSSRendererTest {
                 new TestConfig("node-shapes", AREA_DEFAULT),
 
                 /** Text for nodes */
-                new TestConfig("node-text", AREA_DEFAULT).usesFont("DejaVu Sans"),
+                new TestConfig("node-text", AREA_DEFAULT).usesFont("DejaVu Sans")
+                        .setThresholdPixels(100).setThresholdTotalColorDiff(100),
 
                 /** Tests that StyledMapRenderer#drawWay respects width */
                 new TestConfig("way-width", AREA_DEFAULT),
@@ -101,7 +104,7 @@ public class MapCSSRendererTest {
                 new TestConfig("area-fill-image", AREA_DEFAULT),
 
                 /** Tests area label drawing/placement */
-                new TestConfig("area-text", AREA_DEFAULT),
+                new TestConfig("area-text", AREA_DEFAULT).setThresholdPixels(50).setThresholdTotalColorDiff(50),
 
                 /** Tests area icon drawing/placement */
                 new TestConfig("area-icon", AREA_DEFAULT),
@@ -115,7 +118,26 @@ public class MapCSSRendererTest {
                 new TestConfig("way-repeat-image-clamp", AREA_DEFAULT),
 
                 /** Tests text along a way */
-                new TestConfig("way-text", AREA_DEFAULT)
+                new TestConfig("way-text", AREA_DEFAULT).setThresholdPixels(20).setThresholdTotalColorDiff(40),
+
+                /** Another test for node shapes */
+                new TestConfig("node-shapes2").setImageWidth(600),
+                /** Tests default values for node shapes */
+                new TestConfig("node-shapes-default"),
+                /** Tests node shapes with both fill and stroke combined */
+                new TestConfig("node-shapes-combined"),
+                /** Another test for dashed ways */
+                new TestConfig("way-dashes2"),
+                /** Tests node text placement */
+                new TestConfig("node-text2").setThresholdPixels(30).setThresholdTotalColorDiff(50),
+                /** Tests relation link selector */
+                new TestConfig("relation-linkselector"),
+                /** Tests parent selector on relation */
+                new TestConfig("relation-parentselector"),
+
+                /** Tests evaluation of expressions */
+                new TestConfig("eval").setImageWidth(600).setThresholdPixels(100).setThresholdTotalColorDiff(100)
+
                 ).map(e -> new Object[] {e, e.testDirectory})
                 .collect(Collectors.toList());
     }
@@ -156,68 +178,34 @@ public class MapCSSRendererTest {
 
         // load the data
         DataSet dataSet = testConfig.getOsmDataSet();
-
-        // load the style
-        MapCSSStyleSource.STYLE_SOURCE_LOCK.writeLock().lock();
-        try {
-            MapPaintStyles.getStyles().clear();
-
-            MapCSSStyleSource source = new MapCSSStyleSource(testConfig.getStyleSourceEntry());
-            source.loadStyleSource();
-            if (!source.getErrors().isEmpty()) {
-                fail("Failed to load style file. Errors: " + source.getErrors());
-            }
-            MapPaintStyles.getStyles().setStyleSources(Arrays.asList(source));
-            MapPaintStyles.fireMapPaintSylesUpdated();
-            MapPaintStyles.getStyles().clearCached();
-
-        } finally {
-            MapCSSStyleSource.STYLE_SOURCE_LOCK.writeLock().unlock();
-        }
-
-        // create the renderer
-        BufferedImage image = new BufferedImage(IMAGE_SIZE, IMAGE_SIZE, BufferedImage.TYPE_INT_ARGB);
-        NavigatableComponent nc = new NavigatableComponent() {
-            {
-                setBounds(0, 0, IMAGE_SIZE, IMAGE_SIZE);
-                updateLocationState();
-            }
-
-            @Override
-            protected boolean isVisibleOnScreen() {
-                return true;
-            }
-
-            @Override
-            public Point getLocationOnScreen() {
-                return new Point(0, 0);
-            }
-        };
-        nc.zoomTo(testConfig.testArea);
         dataSet.allPrimitives().stream().forEach(this::loadPrimitiveStyle);
         dataSet.setSelected(dataSet.allPrimitives().stream().filter(n -> n.isKeyTrue("selected")).collect(Collectors.toList()));
 
-        Graphics2D g = image.createGraphics();
-        // Force all render hints to be defaults - do not use platform values
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
-        g.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
-        g.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_DISABLE);
-        g.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
-        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_NORMALIZE);
-        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-        new StyledMapRenderer(g, nc, false).render(dataSet, false, testConfig.testArea);
+        ProjectionBounds pb = new ProjectionBounds();
+        pb.extend(Main.getProjection().latlon2eastNorth(testConfig.getTestArea().getMin()));
+        pb.extend(Main.getProjection().latlon2eastNorth(testConfig.getTestArea().getMax()));
+        double scale = (pb.maxEast - pb.minEast) / testConfig.imageWidth;
+
+        RenderingHelper.StyleData sd = new RenderingHelper.StyleData();
+        sd.styleUrl = testConfig.getStyleSourceUrl();
+        RenderingHelper rh = new RenderingHelper(dataSet, testConfig.getTestArea(), scale, Collections.singleton(sd));
+        rh.setFillBackground(false);
+        BufferedImage image = rh.render();
+
+        if (UPDATE_ALL) {
+            ImageIO.write(image, "png", new File(testConfig.getTestDirectory() + "/reference.png"));
+            return;
+        }
 
         BufferedImage reference = testConfig.getReference();
 
         // now compute differences:
-        assertEquals(IMAGE_SIZE, reference.getWidth());
-        assertEquals(IMAGE_SIZE, reference.getHeight());
+        assertEquals(image.getWidth(), reference.getWidth());
+        assertEquals(image.getHeight(), reference.getHeight());
 
         StringBuilder differences = new StringBuilder();
         ArrayList<Point> differencePoints = new ArrayList<>();
+        int colorDiffSum = 0;
 
         for (int y = 0; y < reference.getHeight(); y++) {
             for (int x = 0; x < reference.getWidth(); x++) {
@@ -225,6 +213,7 @@ public class MapCSSRendererTest {
                 int result = image.getRGB(x, y);
                 if (!colorsAreSame(expected, result)) {
                     differencePoints.add(new Point(x, y));
+                    int colorDiff = colorDiff(new Color(expected, true), new Color(result, true));
                     if (differences.length() < 500) {
                         differences.append("\nDifference at ")
                         .append(x)
@@ -233,25 +222,34 @@ public class MapCSSRendererTest {
                         .append(": Expected ")
                         .append(Integer.toHexString(expected))
                         .append(" but got ")
-                        .append(Integer.toHexString(result));
+                        .append(Integer.toHexString(result))
+                        .append(" (color diff is ")
+                        .append(colorDiff)
+                        .append(")");
                     }
+                    colorDiffSum += colorDiff;
                 }
             }
         }
 
-        if (differencePoints.size() > 0) {
+        if (differencePoints.size() > testConfig.thresholdPixels || colorDiffSum > testConfig.thresholdTotalColorDiff) {
             // You can use this to debug:
             ImageIO.write(image, "png", new File(testConfig.getTestDirectory() + "/test-output.png"));
 
             // Add a nice image that highlights the differences:
-            BufferedImage diffImage = new BufferedImage(IMAGE_SIZE, IMAGE_SIZE, BufferedImage.TYPE_INT_ARGB);
+            BufferedImage diffImage = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_ARGB);
             for (Point p : differencePoints) {
                 diffImage.setRGB(p.x, p.y, 0xffff0000);
             }
             ImageIO.write(diffImage, "png", new File(testConfig.getTestDirectory() + "/test-differences.png"));
 
-            fail(MessageFormat.format("Images for test {0} differ at {1} points: {2}",
-                    testConfig.testDirectory, differencePoints.size(), differences.toString()));
+            if (differencePoints.size() > testConfig.thresholdPixels) {
+                fail(MessageFormat.format("Images for test {0} differ at {1} points, threshold is {2}: {3}",
+                        testConfig.testDirectory, differencePoints.size(), testConfig.thresholdPixels, differences.toString()));
+            } else {
+                fail(MessageFormat.format("Images for test {0} differ too much in color, value is {1}, permitted threshold is {2}: {3}",
+                        testConfig.testDirectory, colorDiffSum, testConfig.thresholdTotalColorDiff, differences.toString()));
+            }
         }
     }
 
@@ -260,6 +258,11 @@ public class MapCSSRendererTest {
         if (n.isKeyTrue("disabled")) {
             n.setDisabledState(false);
         }
+    }
+
+    private int colorDiff(Color c1, Color c2) {
+        return Math.abs(c1.getAlpha() - c2.getAlpha()) + Math.abs(c1.getRed() - c2.getRed())
+                + Math.abs(c1.getGreen() - c2.getGreen()) + Math.abs(c1.getBlue() - c2.getBlue());
     }
 
     /**
@@ -279,12 +282,49 @@ public class MapCSSRendererTest {
 
     private static class TestConfig {
         private final String testDirectory;
-        private final Bounds testArea;
+        private Bounds testArea;
         private final ArrayList<String> fonts = new ArrayList<>();
+        private DataSet ds;
+        private int imageWidth = IMAGE_SIZE;
+        private int thresholdPixels;
+        private int thresholdTotalColorDiff;
 
         TestConfig(String testDirectory, Bounds testArea) {
             this.testDirectory = testDirectory;
             this.testArea = testArea;
+        }
+
+        TestConfig(String testDirectory) {
+            this.testDirectory = testDirectory;
+        }
+
+        public TestConfig setImageWidth(int imageWidth) {
+            this.imageWidth = imageWidth;
+            return this;
+        }
+
+        /**
+         * Set the number of pixels that can differ.
+         *
+         * Needed due to somewhat platform dependent font rendering.
+         * @param thresholdPixels the number of pixels that can differ
+         * @return this object, for convenience
+         */
+        public TestConfig setThresholdPixels(int thresholdPixels) {
+            this.thresholdPixels = thresholdPixels;
+            return this;
+        }
+
+        /**
+         * Set the threshold for total color difference.
+         * Every difference in any color component (and alpha) will be added up and must not exceed this threshold.
+         * Needed due to somewhat platform dependent font rendering.
+         * @param thresholdTotalColorDiff he threshold for total color difference
+         * @return this object, for convenience
+         */
+        public TestConfig setThresholdTotalColorDiff(int thresholdTotalColorDiff) {
+            this.thresholdTotalColorDiff = thresholdTotalColorDiff;
+            return this;
         }
 
         public TestConfig usesFont(String string) {
@@ -300,14 +340,22 @@ public class MapCSSRendererTest {
             return TestUtils.getTestDataRoot() + TEST_DATA_BASE + testDirectory;
         }
 
-        public SourceEntry getStyleSourceEntry() {
-            return new SourceEntry(getTestDirectory() + "/style.mapcss",
-                    "test style", "a test style", true // active
-            );
+        public String getStyleSourceUrl() {
+            return getTestDirectory() + "/style.mapcss";
         }
 
         public DataSet getOsmDataSet() throws FileNotFoundException, IllegalDataException {
-            return OsmReader.parseDataSet(new FileInputStream(getTestDirectory() + "/data.osm"), null);
+            if (ds == null) {
+                ds = OsmReader.parseDataSet(new FileInputStream(getTestDirectory() + "/data.osm"), null);
+            }
+            return ds;
+        }
+
+        public Bounds getTestArea() throws FileNotFoundException, IllegalDataException {
+            if (testArea == null) {
+                testArea = getOsmDataSet().getDataSourceBounds().get(0);
+            }
+            return testArea;
         }
 
         @Override

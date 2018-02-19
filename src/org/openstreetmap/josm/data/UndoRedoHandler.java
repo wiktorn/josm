@@ -1,15 +1,13 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.data;
 
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.Optional;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.data.osm.DataSet;
-import org.openstreetmap.josm.data.osm.OsmPrimitive;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 
 /**
@@ -73,7 +71,7 @@ public class UndoRedoHandler {
         // Limit the number of commands in the undo list.
         // Currently you have to undo the commands one by one. If
         // this changes, a higher default value may be reasonable.
-        if (commands.size() > Main.pref.getInteger("undo.max", 1000)) {
+        if (commands.size() > Config.getPref().getInt("undo.max", 1000)) {
             commands.removeFirst();
         }
         redoCommands.clear();
@@ -91,18 +89,8 @@ public class UndoRedoHandler {
      * @param c The command to execute. Must not be {@code null}.
      */
     public synchronized void add(final Command c) {
-        DataSet ds = Optional.ofNullable(c.getAffectedDataSet()).orElseGet(() -> Main.main.getEditDataSet());
-        Collection<? extends OsmPrimitive> oldSelection = null;
-        if (ds != null) {
-            oldSelection = ds.getSelected();
-        }
         addNoRedraw(c);
         afterAdd();
-
-        // the command may have changed the selection so tell the listeners about the current situation
-        if (ds != null) {
-            fireIfSelectionChanged(ds, oldSelection);
-        }
     }
 
     /**
@@ -120,9 +108,7 @@ public class UndoRedoHandler {
         if (commands.isEmpty())
             return;
         DataSet ds = Main.main.getEditDataSet();
-        Collection<? extends OsmPrimitive> oldSelection = null;
         if (ds != null) {
-            oldSelection = ds.getSelected();
             ds.beginUpdate();
         }
         try {
@@ -140,9 +126,6 @@ public class UndoRedoHandler {
             }
         }
         fireCommandsChanged();
-        if (ds != null) {
-            fireIfSelectionChanged(ds, oldSelection);
-        }
     }
 
     /**
@@ -159,8 +142,6 @@ public class UndoRedoHandler {
     public void redo(int num) {
         if (redoCommands.isEmpty())
             return;
-        DataSet ds = Main.main.getEditDataSet();
-        Collection<? extends OsmPrimitive> oldSelection = ds.getSelected();
         for (int i = 0; i < num; ++i) {
             final Command c = redoCommands.removeFirst();
             c.executeCommand();
@@ -170,14 +151,6 @@ public class UndoRedoHandler {
             }
         }
         fireCommandsChanged();
-        fireIfSelectionChanged(ds, oldSelection);
-    }
-
-    private static void fireIfSelectionChanged(DataSet ds, Collection<? extends OsmPrimitive> oldSelection) {
-        Collection<? extends OsmPrimitive> newSelection = ds.getSelected();
-        if (!oldSelection.equals(newSelection)) {
-            ds.fireSelectionChanged();
-        }
     }
 
     /**

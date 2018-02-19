@@ -2,9 +2,10 @@
 package org.openstreetmap.josm.data.cache;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.Properties;
 import java.util.logging.Handler;
@@ -26,9 +27,9 @@ import org.apache.commons.jcs.engine.behavior.ICompositeCacheAttributes.DiskUsag
 import org.apache.commons.jcs.engine.control.CompositeCache;
 import org.apache.commons.jcs.engine.control.CompositeCacheManager;
 import org.apache.commons.jcs.utils.serialization.StandardSerializer;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.data.preferences.IntegerProperty;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -41,7 +42,7 @@ import org.openstreetmap.josm.tools.Utils;
  */
 public final class JCSCacheManager {
     private static volatile CompositeCacheManager cacheManager;
-    private static long maxObjectTTL = -1;
+    private static final long maxObjectTTL = -1;
     private static final String PREFERENCE_PREFIX = "jcs.cache";
     public static final BooleanProperty USE_BLOCK_CACHE = new BooleanProperty(PREFERENCE_PREFIX + ".use_block_cache", true);
 
@@ -54,29 +55,12 @@ public final class JCSCacheManager {
      */
     public static final IntegerProperty DEFAULT_MAX_OBJECTS_IN_MEMORY = new IntegerProperty(PREFERENCE_PREFIX + ".max_objects_in_memory", 1000);
 
-    private JCSCacheManager() {
-        // Hide implicit public constructor for utility classes
-    }
+    private static final Logger jcsLog;
 
-    @SuppressWarnings("resource")
-    private static void initialize() throws IOException {
-        File cacheDir = new File(Main.pref.getCacheDirectory(), "jcs");
-
-        if (!cacheDir.exists() && !cacheDir.mkdirs())
-            throw new IOException("Cannot access cache directory");
-
-        File cacheDirLockPath = new File(cacheDir, ".lock");
-        if (!cacheDirLockPath.exists() && !cacheDirLockPath.createNewFile()) {
-            Logging.warn("Cannot create cache dir lock file");
-        }
-        cacheDirLock = new FileOutputStream(cacheDirLockPath).getChannel().tryLock();
-
-        if (cacheDirLock == null)
-            Logging.warn("Cannot lock cache directory. Will not use disk cache");
-
+    static {
         // raising logging level gives ~500x performance gain
         // http://westsworld.dk/blog/2008/01/jcs-and-performance/
-        final Logger jcsLog = Logger.getLogger("org.apache.commons.jcs");
+        jcsLog = Logger.getLogger("org.apache.commons.jcs");
         jcsLog.setLevel(Level.INFO);
         jcsLog.setUseParentHandlers(false);
         // we need a separate handler from Main's, as we downgrade LEVEL.INFO to DEBUG level
@@ -109,6 +93,27 @@ public final class JCSCacheManager {
                 // nothing to be done on close
             }
         });
+    }
+
+    private JCSCacheManager() {
+        // Hide implicit public constructor for utility classes
+    }
+
+    @SuppressWarnings("resource")
+    private static void initialize() throws IOException {
+        File cacheDir = new File(Config.getDirs().getCacheDirectory(true), "jcs");
+
+        if (!cacheDir.exists() && !cacheDir.mkdirs())
+            throw new IOException("Cannot access cache directory");
+
+        File cacheDirLockPath = new File(cacheDir, ".lock");
+        if (!cacheDirLockPath.exists() && !cacheDirLockPath.createNewFile()) {
+            Logging.warn("Cannot create cache dir lock file");
+        }
+        cacheDirLock = FileChannel.open(cacheDirLockPath.toPath(), StandardOpenOption.WRITE).tryLock();
+
+        if (cacheDirLock == null)
+            Logging.warn("Cannot lock cache directory. Will not use disk cache");
 
         // this could be moved to external file
         Properties props = new Properties();

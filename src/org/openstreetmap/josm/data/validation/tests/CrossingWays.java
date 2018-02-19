@@ -12,6 +12,7 @@ import java.util.Objects;
 
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
+import org.openstreetmap.josm.data.osm.OsmUtils;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.osm.WaySegment;
@@ -29,7 +30,6 @@ import org.openstreetmap.josm.tools.Logging;
  * @author frsantos
  */
 public abstract class CrossingWays extends Test {
-    protected static final int CROSSING_WAYS = 601;
 
     static final String HIGHWAY = "highway";
     static final String RAILWAY = "railway";
@@ -40,16 +40,20 @@ public abstract class CrossingWays extends Test {
     /** The already detected ways in error */
     private final Map<List<Way>, List<WaySegment>> seenWays = new HashMap<>(50);
 
+    private final int code;
+
     /**
      * General crossing ways test.
      */
     public static class Ways extends CrossingWays {
 
+        protected static final int CROSSING_WAYS = 601;
+
         /**
          * Constructs a new crossing {@code Ways} test.
          */
         public Ways() {
-            super(tr("Crossing ways"));
+            super(tr("Crossing ways"), CROSSING_WAYS);
         }
 
         @Override
@@ -67,7 +71,7 @@ public abstract class CrossingWays extends Test {
         boolean ignoreWaySegmentCombination(Way w1, Way w2) {
             if (w1 == w2)
                 return false;
-            if (!Objects.equals(getLayer(w1), getLayer(w2))) {
+            if (!Objects.equals(OsmUtils.getLayer(w1), OsmUtils.getLayer(w2))) {
                 return true;
             }
             if (w1.hasKey(HIGHWAY) && w2.hasKey(HIGHWAY) && !Objects.equals(w1.get("level"), w2.get("level"))) {
@@ -106,11 +110,13 @@ public abstract class CrossingWays extends Test {
      */
     public static class Boundaries extends CrossingWays {
 
+        protected static final int CROSSING_BOUNDARIES = 602;
+
         /**
          * Constructs a new crossing {@code Boundaries} test.
          */
         public Boundaries() {
-            super(tr("Crossing boundaries"));
+            super(tr("Crossing boundaries"), CROSSING_BOUNDARIES);
         }
 
         @Override
@@ -142,11 +148,13 @@ public abstract class CrossingWays extends Test {
      */
     public static class Barrier extends CrossingWays {
 
+        protected static final int CROSSING_BARRIERS = 603;
+
         /**
          * Constructs a new crossing {@code Barrier} test.
          */
         public Barrier() {
-            super(tr("Crossing barriers"));
+            super(tr("Crossing barriers"), CROSSING_BARRIERS);
         }
 
         @Override
@@ -156,7 +164,7 @@ public abstract class CrossingWays extends Test {
 
         @Override
         boolean ignoreWaySegmentCombination(Way w1, Way w2) {
-            return !Objects.equals(getLayer(w1), getLayer(w2));
+            return !Objects.equals(OsmUtils.getLayer(w1), OsmUtils.getLayer(w2));
         }
 
         @Override
@@ -169,6 +177,9 @@ public abstract class CrossingWays extends Test {
      * Self crossing ways test (for all the rest)
      */
     public static class SelfCrossing extends CrossingWays {
+
+        protected static final int CROSSING_SELF = 604;
+
         CrossingWays.Ways normalTest = new Ways();
         CrossingWays.Barrier barrierTest = new Barrier();
         CrossingWays.Boundaries boundariesTest = new Boundaries();
@@ -177,7 +188,7 @@ public abstract class CrossingWays extends Test {
          * Constructs a new SelfIntersection test.
          */
         public SelfCrossing() {
-            super(tr("Self crossing"));
+            super(tr("Self crossing"), CROSSING_SELF);
         }
 
         @Override
@@ -200,11 +211,13 @@ public abstract class CrossingWays extends Test {
     /**
      * Constructs a new {@code CrossingWays} test.
      * @param title The test title
-     * @since 6691
+     * @param code The test code
+     * @since 12958
      */
-    public CrossingWays(String title) {
+    public CrossingWays(String title, int code) {
         super(title, tr("This test checks if two roads, railways, waterways or buildings crosses in the same layer, " +
                 "but are not connected by a node."));
+        this.code = code;
     }
 
     @Override
@@ -219,14 +232,6 @@ public abstract class CrossingWays extends Test {
         super.endTest();
         cellSegments.clear();
         seenWays.clear();
-    }
-
-    static String getLayer(OsmPrimitive w) {
-        String layer1 = w.get("layer");
-        if ("0".equals(layer1)) {
-            layer1 = null; // 0 is default value for layer.
-        }
-        return layer1;
     }
 
     static boolean isCoastline(OsmPrimitive w) {
@@ -289,7 +294,7 @@ public abstract class CrossingWays extends Test {
                         highlight.add(es2);
 
                         final String message = createMessage(es1.way, es2.way);
-                        errors.add(TestError.builder(this, Severity.WARNING, CROSSING_WAYS)
+                        errors.add(TestError.builder(this, Severity.WARNING, code)
                                 .message(message)
                                 .primitives(prims)
                                 .highlightWaySegments(highlight)
@@ -314,15 +319,9 @@ public abstract class CrossingWays extends Test {
      * @return A list with all the cells the segment crosses
      */
     public static List<List<WaySegment>> getSegments(Map<Point2D, List<WaySegment>> cellSegments, EastNorth n1, EastNorth n2) {
-
         List<List<WaySegment>> cells = new ArrayList<>();
         for (Point2D cell : ValUtil.getSegmentCells(n1, n2, OsmValidator.getGridDetail())) {
-            List<WaySegment> segments = cellSegments.get(cell);
-            if (segments == null) {
-                segments = new ArrayList<>();
-                cellSegments.put(cell, segments);
-            }
-            cells.add(segments);
+            cells.add(cellSegments.computeIfAbsent(cell, k -> new ArrayList<>()));
         }
         return cells;
     }

@@ -56,7 +56,8 @@ public class Highways extends Test {
     // CHECKSTYLE.ON: SingleSpaceSeparator
 
     private static final Set<String> KNOWN_SOURCE_MAXSPEED_CONTEXTS = new HashSet<>(Arrays.asList(
-            "urban", "rural", "zone", "zone30", "zone:30", "nsl_single", "nsl_dual", "motorway", "trunk", "living_street", "bicycle_road"));
+            "urban", "rural", "zone", "zone20", "zone:20", "zone30", "zone:30",
+            "nsl_single", "nsl_dual", "motorway", "trunk", "living_street", "bicycle_road"));
 
     private static final Set<String> ISO_COUNTRIES = new HashSet<>(Arrays.asList(Locale.getISOCountries()));
 
@@ -94,7 +95,8 @@ public class Highways extends Test {
     @Override
     public void visit(Way w) {
         if (w.isUsable()) {
-            if (w.isClosed() && w.hasTag(HIGHWAY, CLASSIFIED_HIGHWAYS) && w.hasTag("junction", "roundabout")) {
+            if (w.isClosed() && w.hasTag(HIGHWAY, CLASSIFIED_HIGHWAYS) && w.hasTag("junction", "roundabout")
+                    && IN_DOWNLOADED_AREA_STRICT.test(w)) {
                 // TODO: find out how to handle splitted roundabouts (see #12841)
                 testWrongRoundabout(w);
             }
@@ -234,7 +236,7 @@ public class Highways extends Test {
                 }
                 if ((leftByPedestrians || leftByCyclists) && leftByCars) {
                     errors.add(TestError.builder(this, Severity.OTHER, MISSING_PEDESTRIAN_CROSSING)
-                            .message(tr("Missing pedestrian crossing information"))
+                            .message(tr("Missing pedestrian crossing information. Add the tag crossing=*."))
                             .primitives(n)
                             .build());
                     return;

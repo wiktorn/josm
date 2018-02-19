@@ -25,11 +25,11 @@ import org.openstreetmap.gui.jmapviewer.interfaces.ICoordinate;
 import org.openstreetmap.gui.jmapviewer.tilesources.AbstractTileSource;
 import org.openstreetmap.gui.jmapviewer.tilesources.OsmTileSource.Mapnik;
 import org.openstreetmap.gui.jmapviewer.tilesources.TileSourceInfo;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Bounds;
-import org.openstreetmap.josm.data.Preferences.pref;
+import org.openstreetmap.josm.data.StructUtils.StructEntry;
 import org.openstreetmap.josm.io.Capabilities;
 import org.openstreetmap.josm.io.OsmApi;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.LanguageInfo;
@@ -213,38 +213,38 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
      * Auxiliary class to save an {@link ImageryInfo} object in the preferences.
      */
     public static class ImageryPreferenceEntry {
-        @pref String name;
-        @pref String d;
-        @pref String id;
-        @pref String type;
-        @pref String url;
-        @pref double pixel_per_eastnorth;
-        @pref String eula;
-        @pref String attribution_text;
-        @pref String attribution_url;
-        @pref String permission_reference_url;
-        @pref String logo_image;
-        @pref String logo_url;
-        @pref String terms_of_use_text;
-        @pref String terms_of_use_url;
-        @pref String country_code = "";
-        @pref String date;
-        @pref int max_zoom;
-        @pref int min_zoom;
-        @pref String cookies;
-        @pref String bounds;
-        @pref String shapes;
-        @pref String projections;
-        @pref String icon;
-        @pref String description;
-        @pref MultiMap<String, String> noTileHeaders;
-        @pref MultiMap<String, String> noTileChecksums;
-        @pref int tileSize = -1;
-        @pref Map<String, String> metadataHeaders;
-        @pref boolean valid_georeference;
-        @pref boolean bestMarked;
+        @StructEntry String name;
+        @StructEntry String d;
+        @StructEntry String id;
+        @StructEntry String type;
+        @StructEntry String url;
+        @StructEntry double pixel_per_eastnorth;
+        @StructEntry String eula;
+        @StructEntry String attribution_text;
+        @StructEntry String attribution_url;
+        @StructEntry String permission_reference_url;
+        @StructEntry String logo_image;
+        @StructEntry String logo_url;
+        @StructEntry String terms_of_use_text;
+        @StructEntry String terms_of_use_url;
+        @StructEntry String country_code = "";
+        @StructEntry String date;
+        @StructEntry int max_zoom;
+        @StructEntry int min_zoom;
+        @StructEntry String cookies;
+        @StructEntry String bounds;
+        @StructEntry String shapes;
+        @StructEntry String projections;
+        @StructEntry String icon;
+        @StructEntry String description;
+        @StructEntry MultiMap<String, String> noTileHeaders;
+        @StructEntry MultiMap<String, String> noTileChecksums;
+        @StructEntry int tileSize = -1;
+        @StructEntry Map<String, String> metadataHeaders;
+        @StructEntry boolean valid_georeference;
+        @StructEntry boolean bestMarked;
         // TODO: disabled until change of layers is implemented
-        // @pref String default_layers;
+        // @StructEntry String default_layers;
 
         /**
          * Constructs a new empty WMS {@code ImageryPreferenceEntry}.
@@ -459,11 +459,18 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
      */
     public ImageryInfo(ImageryInfo i) {
         super(i.name, i.url, i.id);
+        this.noTileHeaders = i.noTileHeaders;
+        this.noTileChecksums = i.noTileChecksums;
+        this.minZoom = i.minZoom;
+        this.maxZoom = i.maxZoom;
+        this.cookies = i.cookies;
+        this.tileSize = i.tileSize;
+        this.metadataHeaders = i.metadataHeaders;
+        this.modTileFeatures = i.modTileFeatures;
+
         this.origName = i.origName;
         this.langName = i.langName;
-        this.bestMarked = i.bestMarked;
         this.defaultEntry = i.defaultEntry;
-        this.cookies = i.cookies;
         this.eulaAcceptanceRequired = null;
         this.imageryType = i.imageryType;
         this.pixelPerDegree = i.pixelPerDegree;
@@ -471,20 +478,20 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
         this.defaultMinZoom = i.defaultMinZoom;
         this.bounds = i.bounds;
         this.serverProjections = i.serverProjections;
+        this.description = i.description;
+        this.langDescription = i.langDescription;
         this.attributionText = i.attributionText;
-        this.attributionLinkURL = i.attributionLinkURL;
         this.permissionReferenceURL = i.permissionReferenceURL;
+        this.attributionLinkURL = i.attributionLinkURL;
         this.attributionImage = i.attributionImage;
         this.attributionImageURL = i.attributionImageURL;
         this.termsOfUseText = i.termsOfUseText;
         this.termsOfUseURL = i.termsOfUseURL;
         this.countryCode = i.countryCode;
         this.date = i.date;
+        this.bestMarked = i.bestMarked;
+        // do not copy field {@code mirrors}
         this.icon = i.icon;
-        this.description = i.description;
-        this.noTileHeaders = i.noTileHeaders;
-        this.noTileChecksums = i.noTileChecksums;
-        this.metadataHeaders = i.metadataHeaders;
         this.isGeoreferenceValid = i.isGeoreferenceValid;
         this.defaultLayers = i.defaultLayers;
     }
@@ -513,6 +520,7 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
                 Objects.equals(this.name, other.name) &&
                 Objects.equals(this.id, other.id) &&
                 Objects.equals(this.url, other.url) &&
+                Objects.equals(this.modTileFeatures, other.modTileFeatures) &&
                 Objects.equals(this.bestMarked, other.bestMarked) &&
                 Objects.equals(this.isGeoreferenceValid, other.isGeoreferenceValid) &&
                 Objects.equals(this.cookies, other.cookies) &&
@@ -816,9 +824,9 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
      */
     public void clearId() {
         if (this.id != null) {
-            Collection<String> newAddedIds = new TreeSet<>(Main.pref.getCollection("imagery.layers.addedIds"));
+            Collection<String> newAddedIds = new TreeSet<>(Config.getPref().getList("imagery.layers.addedIds"));
             newAddedIds.add(this.id);
-            Main.pref.putCollection("imagery.layers.addedIds", newAddedIds);
+            Config.getPref().putList("imagery.layers.addedIds", new ArrayList<>(newAddedIds));
         }
         setId(null);
     }

@@ -4,8 +4,8 @@ package org.openstreetmap.josm.data.oauth;
 import java.util.Objects;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.data.Preferences;
 import org.openstreetmap.josm.io.OsmApi;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -78,36 +78,32 @@ public class OAuthParameters {
     /**
      * Replies a set of parameters as defined in the preferences.
      *
-     * @param pref the preferences
+     * @param apiUrl the API URL. Must not be null.
      * @return the parameters
      */
-    public static OAuthParameters createFromPreferences(Preferences pref) {
-        OAuthParameters parameters = createDefault(pref.get("osm-server.url"));
+    public static OAuthParameters createFromApiUrl(String apiUrl) {
+        OAuthParameters parameters = createDefault(apiUrl);
         return new OAuthParameters(
-                pref.get("oauth.settings.consumer-key", parameters.getConsumerKey()),
-                pref.get("oauth.settings.consumer-secret", parameters.getConsumerSecret()),
-                pref.get("oauth.settings.request-token-url", parameters.getRequestTokenUrl()),
-                pref.get("oauth.settings.access-token-url", parameters.getAccessTokenUrl()),
-                pref.get("oauth.settings.authorise-url", parameters.getAuthoriseUrl()),
-                pref.get("oauth.settings.osm-login-url", parameters.getOsmLoginUrl()),
-                pref.get("oauth.settings.osm-logout-url", parameters.getOsmLogoutUrl()));
+                Config.getPref().get("oauth.settings.consumer-key", parameters.getConsumerKey()),
+                Config.getPref().get("oauth.settings.consumer-secret", parameters.getConsumerSecret()),
+                Config.getPref().get("oauth.settings.request-token-url", parameters.getRequestTokenUrl()),
+                Config.getPref().get("oauth.settings.access-token-url", parameters.getAccessTokenUrl()),
+                Config.getPref().get("oauth.settings.authorise-url", parameters.getAuthoriseUrl()),
+                Config.getPref().get("oauth.settings.osm-login-url", parameters.getOsmLoginUrl()),
+                Config.getPref().get("oauth.settings.osm-logout-url", parameters.getOsmLogoutUrl()));
     }
 
     /**
-     * Remembers the current values in the preferences <code>pref</code>.
-     *
-     * @param pref the preferences. Must not be null.
-     * @throws IllegalArgumentException if pref is null.
+     * Remembers the current values in the preferences.
      */
-    public void rememberPreferences(Preferences pref) {
-        CheckParameterUtil.ensureParameterNotNull(pref, "pref");
-        pref.put("oauth.settings.consumer-key", getConsumerKey());
-        pref.put("oauth.settings.consumer-secret", getConsumerSecret());
-        pref.put("oauth.settings.request-token-url", getRequestTokenUrl());
-        pref.put("oauth.settings.access-token-url", getAccessTokenUrl());
-        pref.put("oauth.settings.authorise-url", getAuthoriseUrl());
-        pref.put("oauth.settings.osm-login-url", getOsmLoginUrl());
-        pref.put("oauth.settings.osm-logout-url", getOsmLogoutUrl());
+    public void rememberPreferences() {
+        Config.getPref().put("oauth.settings.consumer-key", getConsumerKey());
+        Config.getPref().put("oauth.settings.consumer-secret", getConsumerSecret());
+        Config.getPref().put("oauth.settings.request-token-url", getRequestTokenUrl());
+        Config.getPref().put("oauth.settings.access-token-url", getAccessTokenUrl());
+        Config.getPref().put("oauth.settings.authorise-url", getAuthoriseUrl());
+        Config.getPref().put("oauth.settings.osm-login-url", getOsmLoginUrl());
+        Config.getPref().put("oauth.settings.osm-logout-url", getOsmLogoutUrl());
     }
 
     private final String consumerKey;
@@ -128,7 +124,7 @@ public class OAuthParameters {
      * @param osmLoginUrl the OSM login URL (for automatic mode)
      * @param osmLogoutUrl the OSM logout URL (for automatic mode)
      * @see #createDefault
-     * @see #createFromPreferences
+     * @see #createFromApiUrl
      * @since 9220
      */
     public OAuthParameters(String consumerKey, String consumerSecret,

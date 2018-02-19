@@ -17,10 +17,11 @@ import java.util.Collection;
 import javax.imageio.ImageIO;
 
 import org.apache.commons.jcs.access.behavior.ICacheAccess;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.cache.BufferedImageCacheEntry;
 import org.openstreetmap.josm.data.cache.JCSCacheManager;
 import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.layer.geoimage.ImageDisplay.VisRect;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.ExifReader;
 import org.openstreetmap.josm.tools.Logging;
 
@@ -37,7 +38,7 @@ public class ThumbsLoader implements Runnable {
     private final GeoImageLayer layer;
     private MediaTracker tracker;
     private ICacheAccess<String, BufferedImageCacheEntry> cache;
-    private final boolean cacheOff = Main.pref.getBoolean("geoimage.noThumbnailCache", false);
+    private final boolean cacheOff = Config.getPref().getBoolean("geoimage.noThumbnailCache", false);
 
     private ThumbsLoader(Collection<ImageEntry> data, GeoImageLayer layer) {
         this.data = data;
@@ -68,7 +69,7 @@ public class ThumbsLoader implements Runnable {
         if (!cacheOff) {
             try {
                 cache = JCSCacheManager.getCache("geoimage-thumbnails", 0, 120,
-                        Main.pref.getCacheDirectory().getPath() + File.separator + "geoimage-thumbnails");
+                        Config.getDirs().getCacheDirectory(true).getPath() + File.separator + "geoimage-thumbnails");
             } catch (IOException e) {
                 Logging.warn("Failed to initialize cache for geoimage-thumbnails");
                 Logging.warn(e);
@@ -140,7 +141,7 @@ public class ThumbsLoader implements Runnable {
         }
 
         Rectangle targetSize = ImageDisplay.calculateDrawImageRectangle(
-                new Rectangle(0, 0, ww, hh),
+                new VisRect(0, 0, ww, hh),
                 new Rectangle(0, 0, maxSize, maxSize));
         BufferedImage scaledBI = new BufferedImage(targetSize.width, targetSize.height, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = scaledBI.createGraphics();

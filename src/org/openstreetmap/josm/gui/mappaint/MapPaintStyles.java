@@ -26,6 +26,7 @@ import org.openstreetmap.josm.gui.mappaint.styleelement.MapImage;
 import org.openstreetmap.josm.gui.mappaint.styleelement.NodeElement;
 import org.openstreetmap.josm.gui.mappaint.styleelement.StyleElement;
 import org.openstreetmap.josm.io.CachedFile;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.ListenerList;
 import org.openstreetmap.josm.tools.Logging;
@@ -43,6 +44,22 @@ public final class MapPaintStyles {
     private static final Collection<String> DEPRECATED_IMAGE_NAMES = Arrays.asList(
             "presets/misc/deprecated.svg",
             "misc/deprecated.png");
+
+    private static final ListenerList<MapPaintSylesUpdateListener> listeners = ListenerList.createUnchecked();
+
+    static {
+        listeners.addListener(new MapPaintSylesUpdateListener() {
+            @Override
+            public void mapPaintStylesUpdated() {
+                SwingUtilities.invokeLater(styles::clearCached);
+            }
+
+            @Override
+            public void mapPaintStyleEntryUpdated(int index) {
+                mapPaintStylesUpdated();
+            }
+        });
+    }
 
     private static ElemStyles styles = new ElemStyles();
 
@@ -255,7 +272,7 @@ public final class MapPaintStyles {
             dirs.add(sourceDir.getPath());
         }
 
-        Collection<String> prefIconDirs = Main.pref.getCollection("mappaint.icon.sources");
+        Collection<String> prefIconDirs = Config.getPref().getList("mappaint.icon.sources");
         for (String fileset : prefIconDirs) {
             String[] a;
             if (fileset.indexOf('=') >= 0) {
@@ -270,7 +287,7 @@ public final class MapPaintStyles {
             }
         }
 
-        if (Main.pref.getBoolean("mappaint.icon.enable-defaults", true)) {
+        if (Config.getPref().getBoolean("mappaint.icon.enable-defaults", true)) {
             /* don't prefix icon path, as it should be generic */
             dirs.add("resource://images/");
         }
@@ -287,7 +304,12 @@ public final class MapPaintStyles {
         Collection<? extends SourceEntry> sourceEntries = MapPaintPrefHelper.INSTANCE.get();
 
         for (SourceEntry entry : sourceEntries) {
-            styles.add(fromSourceEntry(entry));
+            try {
+                styles.add(fromSourceEntry(entry));
+            } catch (IllegalArgumentException e) {
+                Logging.error("Failed to load map paint style {0}", entry);
+                Logging.error(e);
+            }
         }
         for (StyleSource source : styles.getStyleSources()) {
             loadStyleForFirstTime(source);
@@ -298,9 +320,9 @@ public final class MapPaintStyles {
     private static void loadStyleForFirstTime(StyleSource source) {
         final long startTime = System.currentTimeMillis();
         source.loadStyleSource();
-        if (Main.pref.getBoolean("mappaint.auto_reload_local_styles", true) && source.isLocal()) {
+        if (Config.getPref().getBoolean("mappaint.auto_reload_local_styles", true) && source.isLocal()) {
             try {
-                Main.fileWatcher.registerStyleSource(source);
+                Main.fileWatcher.registerSource(source);
             } catch (IOException | IllegalStateException | IllegalArgumentException e) {
                 Logging.error(e);
             }
@@ -437,22 +459,6 @@ public final class MapPaintStyles {
          * @param index The index of the entry.
          */
         void mapPaintStyleEntryUpdated(int index);
-    }
-
-    private static final ListenerList<MapPaintSylesUpdateListener> listeners = ListenerList.createUnchecked();
-
-    static {
-        listeners.addListener(new MapPaintSylesUpdateListener() {
-            @Override
-            public void mapPaintStylesUpdated() {
-                SwingUtilities.invokeLater(styles::clearCached);
-            }
-
-            @Override
-            public void mapPaintStyleEntryUpdated(int index) {
-                mapPaintStylesUpdated();
-            }
-        });
     }
 
     /**

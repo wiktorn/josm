@@ -13,6 +13,7 @@ import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -25,7 +26,10 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.FileTime;
 import java.security.AccessController;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -44,6 +48,8 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinWorkerThread;
@@ -56,10 +62,10 @@ import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
-import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipFile;
-import java.util.zip.ZipInputStream;
 
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -67,9 +73,7 @@ import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
-import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
-import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.io.Compression;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.w3c.dom.Document;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
@@ -344,7 +348,7 @@ public final class Utils {
      * @return A copy of the original array, or {@code null} if {@code array} is null
      * @since 6222
      */
-    public static char[] copyArray(char ... array) {
+    public static char[] copyArray(char... array) {
         if (array != null) {
             return Arrays.copyOf(array, array.length);
         }
@@ -721,45 +725,6 @@ public final class Utils {
     }
 
     /**
-     * Returns a Bzip2 input stream wrapping given input stream.
-     * @param in The raw input stream
-     * @return a Bzip2 input stream wrapping given input stream, or {@code null} if {@code in} is {@code null}
-     * @throws IOException if the given input stream does not contain valid BZ2 header
-     * @since 7867
-     * @deprecated use {@link Compression#getBZip2InputStream(java.io.InputStream)}
-     */
-    @Deprecated
-    public static BZip2CompressorInputStream getBZip2InputStream(InputStream in) throws IOException {
-        return Compression.getBZip2InputStream(in);
-    }
-
-    /**
-     * Returns a Gzip input stream wrapping given input stream.
-     * @param in The raw input stream
-     * @return a Gzip input stream wrapping given input stream, or {@code null} if {@code in} is {@code null}
-     * @throws IOException if an I/O error has occurred
-     * @since 7119
-     * @deprecated use {@link Compression#getGZipInputStream(java.io.InputStream)}
-     */
-    @Deprecated
-    public static GZIPInputStream getGZipInputStream(InputStream in) throws IOException {
-        return Compression.getGZipInputStream(in);
-    }
-
-    /**
-     * Returns a Zip input stream wrapping given input stream.
-     * @param in The raw input stream
-     * @return a Zip input stream wrapping given input stream, or {@code null} if {@code in} is {@code null}
-     * @throws IOException if an I/O error has occurred
-     * @since 7119
-     * @deprecated use {@link Compression#getZipInputStream(java.io.InputStream)}
-     */
-    @Deprecated
-    public static ZipInputStream getZipInputStream(InputStream in) throws IOException {
-        return Compression.getZipInputStream(in);
-    }
-
-    /**
      * Determines if the given String would be empty if stripped.
      * This is an efficient alternative to {@code strip(s).isEmpty()} that avoids to create useless String object.
      * @param str The string to test
@@ -811,7 +776,7 @@ public final class Utils {
         return strip(str, stripChars(skipChars));
     }
 
-    private static String strip(final String str, final char ... skipChars) {
+    private static String strip(final String str, final char... skipChars) {
 
         int start = 0;
         int end = str.length();
@@ -833,7 +798,7 @@ public final class Utils {
         return str.substring(start, end);
     }
 
-    private static boolean isStrippedChar(char c, final char ... skipChars) {
+    private static boolean isStrippedChar(char c, final char... skipChars) {
         return Character.isWhitespace(c) || Character.isSpaceChar(c) || stripChar(skipChars, c);
     }
 
@@ -866,8 +831,10 @@ public final class Utils {
      * @param command the command with arguments
      * @return the output
      * @throws IOException when there was an error, e.g. command does not exist
+     * @throws ExecutionException when the return code is != 0. The output is can be retrieved in the exception message
+     * @throws InterruptedException if the current thread is {@linkplain Thread#interrupt() interrupted} by another thread while waiting
      */
-    public static String execOutput(List<String> command) throws IOException {
+    public static String execOutput(List<String> command) throws IOException, ExecutionException, InterruptedException {
         if (Logging.isDebugEnabled()) {
             Logging.debug(join(" ", command));
         }
@@ -883,7 +850,11 @@ public final class Utils {
                     all.append(line);
                 }
             }
-            return all != null ? all.toString() : null;
+            String msg = all != null ? all.toString() : null;
+            if (p.waitFor() != 0) {
+                throw new ExecutionException(msg, null);
+            }
+            return msg;
         }
     }
 
@@ -1231,6 +1202,16 @@ public final class Utils {
     }
 
     /**
+     * A ForkJoinWorkerThread that will always inherit caller permissions,
+     * unlike JDK's InnocuousForkJoinWorkerThread, used if a security manager exists.
+     */
+    static final class JosmForkJoinWorkerThread extends ForkJoinWorkerThread {
+        JosmForkJoinWorkerThread(ForkJoinPool pool) {
+            super(pool);
+        }
+    }
+
+    /**
      * Returns a {@link ForkJoinPool} with the parallelism given by the preference key.
      * @param pref The preference key to determine parallelism
      * @param nameFormat see {@link #newThreadFactory(String, int)}
@@ -1238,12 +1219,16 @@ public final class Utils {
      * @return a {@link ForkJoinPool}
      */
     public static ForkJoinPool newForkJoinPool(String pref, final String nameFormat, final int threadPriority) {
-        int noThreads = Main.pref.getInteger(pref, Runtime.getRuntime().availableProcessors());
+        int noThreads = Config.getPref().getInt(pref, Runtime.getRuntime().availableProcessors());
         return new ForkJoinPool(noThreads, new ForkJoinPool.ForkJoinWorkerThreadFactory() {
             final AtomicLong count = new AtomicLong(0);
             @Override
             public ForkJoinWorkerThread newThread(ForkJoinPool pool) {
-                final ForkJoinWorkerThread thread = ForkJoinPool.defaultForkJoinWorkerThreadFactory.newThread(pool);
+                // Do not use JDK default thread factory !
+                // If JOSM is started with Java Web Start, a security manager is installed and the factory
+                // creates threads without any permission, forbidding them to load a class instantiating
+                // another ForkJoinPool such as MultipolygonBuilder (see bug #15722)
+                final ForkJoinWorkerThread thread = new JosmForkJoinWorkerThread(pool);
                 thread.setName(String.format(Locale.ENGLISH, nameFormat, count.getAndIncrement()));
                 thread.setPriority(threadPriority);
                 return thread;
@@ -1495,7 +1480,7 @@ public final class Utils {
      * @see AccessibleObject#setAccessible
      * @since 10223
      */
-    public static void setObjectsAccessible(final AccessibleObject ... objects) {
+    public static void setObjectsAccessible(final AccessibleObject... objects) {
         if (objects != null && objects.length > 0) {
             AccessController.doPrivileged((PrivilegedAction<Object>) () -> {
                 for (AccessibleObject o : objects) {
@@ -1625,7 +1610,7 @@ public final class Utils {
         if (firstDotPos == lastDotPos) {
             return 0;
         }
-        return firstDotPos > - 1 ? Integer.parseInt(version.substring(firstDotPos + 1,
+        return firstDotPos > -1 ? Integer.parseInt(version.substring(firstDotPos + 1,
                 lastDotPos > -1 ? lastDotPos : version.length())) : 0;
     }
 
@@ -1679,7 +1664,9 @@ public final class Utils {
     public static String getJavaLatestVersion() {
         try {
             return HttpClient.create(
-                    new URL(Main.pref.get("java.baseline.version.url", "http://javadl-esd-secure.oracle.com/update/baseline.version")))
+                    new URL(Config.getPref().get(
+                            "java.baseline.version.url",
+                            "http://javadl-esd-secure.oracle.com/update/baseline.version")))
                     .connect().fetchContent().split("\n")[0];
         } catch (IOException e) {
             Logging.error(e);
@@ -1719,6 +1706,83 @@ public final class Utils {
     public static <T> void instanceOfThen(Object o, Class<T> klass, Consumer<? super T> consumer) {
         if (klass.isInstance(o)) {
             consumer.accept((T) o);
+        }
+    }
+
+    /**
+     * Helper method to replace the "<code>instanceof</code>-check and cast" pattern.
+     *
+     * @param <T> the type for the instanceof check and cast
+     * @param o the object to check and cast
+     * @param klass the class T
+     * @return {@link Optional} containing the result of the cast, if it is possible, an empty
+     * Optional otherwise
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> Optional<T> instanceOfAndCast(Object o, Class<T> klass) {
+        if (klass.isInstance(o))
+            return Optional.of((T) o);
+        return Optional.empty();
+    }
+
+    /**
+     * Returns JRE JavaScript Engine (Nashorn by default), if any.
+     * Catches and logs SecurityException and return null in case of error.
+     * @return JavaScript Engine, or null.
+     * @since 13301
+     */
+    public static ScriptEngine getJavaScriptEngine() {
+        try {
+            return new ScriptEngineManager(null).getEngineByName("JavaScript");
+        } catch (SecurityException e) {
+            Logging.error(e);
+            return null;
+        }
+    }
+
+    /**
+     * Convenient method to open an URL stream, using JOSM HTTP client if neeeded.
+     * @param url URL for reading from
+     * @return an input stream for reading from the URL
+     * @throws IOException if any I/O error occurs
+     * @since 13356
+     */
+    public static InputStream openStream(URL url) throws IOException {
+        switch (url.getProtocol()) {
+            case "http":
+            case "https":
+                return HttpClient.create(url).connect().getContent();
+            case "jar":
+                try {
+                    return url.openStream();
+                } catch (FileNotFoundException e) {
+                    // Workaround to https://bugs.openjdk.java.net/browse/JDK-4523159
+                    String urlPath = url.getPath();
+                    if (urlPath.startsWith("file:/") && urlPath.split("!").length > 2) {
+                        try {
+                            // Locate jar file
+                            int index = urlPath.lastIndexOf("!/");
+                            Path jarFile = Paths.get(urlPath.substring("file:/".length(), index));
+                            Path filename = jarFile.getFileName();
+                            FileTime jarTime = Files.readAttributes(jarFile, BasicFileAttributes.class).lastModifiedTime();
+                            // Copy it to temp directory (hopefully free of exclamation mark) if needed (missing or older jar)
+                            Path jarCopy = Paths.get(System.getProperty("java.io.tmpdir")).resolve(filename);
+                            if (!jarCopy.toFile().exists() ||
+                                    Files.readAttributes(jarCopy, BasicFileAttributes.class).lastModifiedTime().compareTo(jarTime) < 0) {
+                                Files.copy(jarFile, jarCopy, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
+                            }
+                            // Open the stream using the copy
+                            return new URL(url.getProtocol() + ':' + jarCopy.toUri().toURL().toExternalForm() + urlPath.substring(index))
+                                    .openStream();
+                        } catch (RuntimeException | IOException ex) {
+                            Logging.warn(ex);
+                        }
+                    }
+                    throw e;
+                }
+            case "file":
+            default:
+                return url.openStream();
         }
     }
 }

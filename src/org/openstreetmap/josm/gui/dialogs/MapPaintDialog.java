@@ -26,7 +26,6 @@ import java.util.Collection;
 import java.util.List;
 
 import javax.swing.AbstractAction;
-import javax.swing.DefaultButtonModel;
 import javax.swing.DefaultListSelectionModel;
 import javax.swing.ImageIcon;
 import javax.swing.JCheckBox;
@@ -38,6 +37,7 @@ import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
+import javax.swing.JToggleButton.ToggleButtonModel;
 import javax.swing.ListSelectionModel;
 import javax.swing.SingleSelectionModel;
 import javax.swing.SwingConstants;
@@ -63,6 +63,7 @@ import org.openstreetmap.josm.gui.SideButton;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles.MapPaintSylesUpdateListener;
 import org.openstreetmap.josm.gui.mappaint.StyleSetting;
+import org.openstreetmap.josm.gui.mappaint.StyleSettingGuiFactory;
 import org.openstreetmap.josm.gui.mappaint.StyleSource;
 import org.openstreetmap.josm.gui.mappaint.loader.MapPaintStyleLoader;
 import org.openstreetmap.josm.gui.mappaint.mapcss.MapCSSStyleSource;
@@ -124,7 +125,7 @@ public class MapPaintDialog extends ToggleDialog {
         wfLabel.setFont(wfLabel.getFont().deriveFont(Font.PLAIN));
         wfLabel.setLabelFor(cbWireframe);
 
-        cbWireframe.setModel(new DefaultButtonModel() {
+        cbWireframe.setModel(new ToggleButtonModel() {
             @Override
             public void setSelected(boolean b) {
                 super.setSelected(b);
@@ -699,7 +700,7 @@ public class MapPaintDialog extends ToggleDialog {
                 setMenu.setEnabled(false);
             } else {
                 for (StyleSetting s : style.settings) {
-                    s.addMenuEntry(setMenu);
+                    StyleSettingGuiFactory.getStyleSettingGui(s).addMenuEntry(setMenu);
                 }
             }
 

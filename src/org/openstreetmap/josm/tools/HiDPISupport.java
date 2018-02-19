@@ -27,11 +27,15 @@ import javax.swing.ImageIcon;
  *
  * @since 12722
  */
-public class HiDPISupport {
+public final class HiDPISupport {
 
     private static volatile Optional<Class<? extends Image>> baseMultiResolutionImageClass;
     private static volatile Optional<Constructor<? extends Image>> baseMultiResolutionImageConstructor;
     private static volatile Optional<Method> resolutionVariantsMethod;
+
+    private HiDPISupport() {
+        // Hide default constructor
+    }
 
     /**
      * Create a multi-resolution image from a base image and an {@link ImageResource}.
@@ -182,7 +186,7 @@ public class HiDPISupport {
      * for each resolution variant
      */
     public static Image processMRImages(List<Image> imgs, Function<List<Image>, Image> processor) {
-        CheckParameterUtil.ensureThat(imgs.size() >= 1, "at least on element expected");
+        CheckParameterUtil.ensureThat(!imgs.isEmpty(), "at least one element expected");
         if (!getBaseMultiResolutionImageClass().isPresent()) {
             return processor.apply(imgs);
         }
@@ -210,6 +214,7 @@ public class HiDPISupport {
                     } catch (ClassNotFoundException ex) {
                         // class is not present in Java 8
                         baseMultiResolutionImageClass = Optional.empty();
+                        Logging.trace(ex);
                     }
                 }
             }

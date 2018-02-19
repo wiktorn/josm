@@ -17,6 +17,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Optional;
+import java.util.Set;
 
 import javax.swing.JOptionPane;
 
@@ -50,6 +51,7 @@ import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.util.KeyPressReleaseListener;
 import org.openstreetmap.josm.gui.util.ModifierExListener;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Pair;
@@ -69,7 +71,7 @@ import org.openstreetmap.josm.tools.Utils;
  */
 public class SelectAction extends MapMode implements ModifierExListener, KeyPressReleaseListener, SelectionEnded {
 
-    private static final String NORMAL = "normal";
+    private static final String NORMAL = /* ICON(cursor/)*/ "normal";
 
     /**
      * Select action mode.
@@ -89,21 +91,21 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
     // contains all possible cases the cursor can be in the SelectAction
     enum SelectActionCursor {
 
-        rect(NORMAL, "selection"),
-        rect_add(NORMAL, "select_add"),
-        rect_rm(NORMAL, "select_remove"),
-        way(NORMAL, "select_way"),
-        way_add(NORMAL, "select_way_add"),
-        way_rm(NORMAL, "select_way_remove"),
-        node(NORMAL, "select_node"),
-        node_add(NORMAL, "select_node_add"),
-        node_rm(NORMAL, "select_node_remove"),
-        virtual_node(NORMAL, "addnode"),
-        scale("scale", null),
-        rotate("rotate", null),
-        merge("crosshair", null),
-        lasso(NORMAL, "rope"),
-        merge_to_node("crosshair", "joinnode"),
+        rect(NORMAL, /* ICON(cursor/modifier/)*/ "selection"),
+        rect_add(NORMAL, /* ICON(cursor/modifier/)*/ "select_add"),
+        rect_rm(NORMAL, /* ICON(cursor/modifier/)*/ "select_remove"),
+        way(NORMAL, /* ICON(cursor/modifier/)*/ "select_way"),
+        way_add(NORMAL, /* ICON(cursor/modifier/)*/ "select_way_add"),
+        way_rm(NORMAL, /* ICON(cursor/modifier/)*/ "select_way_remove"),
+        node(NORMAL, /* ICON(cursor/modifier/)*/ "select_node"),
+        node_add(NORMAL, /* ICON(cursor/modifier/)*/ "select_node_add"),
+        node_rm(NORMAL, /* ICON(cursor/modifier/)*/ "select_node_remove"),
+        virtual_node(NORMAL, /* ICON(cursor/modifier/)*/ "addnode"),
+        scale(/* ICON(cursor/)*/ "scale", null),
+        rotate(/* ICON(cursor/)*/ "rotate", null),
+        merge(/* ICON(cursor/)*/ "crosshair", null),
+        lasso(NORMAL, /* ICON(cursor/modifier/)*/ "rope"),
+        merge_to_node(/* ICON(cursor/)*/ "crosshair", /* ICON(cursor/modifier/)*/"joinnode"),
         move(Cursor.MOVE_CURSOR);
 
         private final Cursor c;
@@ -201,11 +203,11 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
         super.enterMode();
         mv.addMouseListener(this);
         mv.addMouseMotionListener(this);
-        mv.setVirtualNodesEnabled(Main.pref.getInteger("mappaint.node.virtual-size", 8) != 0);
-        drawTargetHighlight = Main.pref.getBoolean("draw.target-highlight", true);
-        initialMoveDelay = Main.pref.getInteger("edit.initial-move-delay", 200);
-        initialMoveThreshold = Main.pref.getInteger("edit.initial-move-threshold", 5);
-        repeatedKeySwitchLassoOption = Main.pref.getBoolean("mappaint.select.toggle-lasso-on-repeated-S", true);
+        mv.setVirtualNodesEnabled(Config.getPref().getInt("mappaint.node.virtual-size", 8) != 0);
+        drawTargetHighlight = Config.getPref().getBoolean("draw.target-highlight", true);
+        initialMoveDelay = Config.getPref().getInt("edit.initial-move-delay", 200);
+        initialMoveThreshold = Config.getPref().getInt("edit.initial-move-threshold", 5);
+        repeatedKeySwitchLassoOption = Config.getPref().getBoolean("mappaint.select.toggle-lasso-on-repeated-S", true);
         cycleManager.init();
         virtualManager.init();
         // This is required to update the cursors when ctrl/shift/alt is pressed
@@ -263,7 +265,7 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
 
         virtualManager.clear();
         if (mode == Mode.MOVE && !dragInProgress() && virtualManager.activateVirtualNodeNearPoint(e.getPoint())) {
-            DataSet ds = getLayerManager().getEditDataSet();
+            DataSet ds = getLayerManager().getActiveDataSet();
             if (ds != null && drawTargetHighlight) {
                 ds.setHighlightedVirtualNodes(virtualManager.virtualWays);
             }
@@ -275,7 +277,7 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
         mv.setNewCursor(getCursor(c), this);
 
         // return early if there can't be any highlights
-        if (!drawTargetHighlight || mode != Mode.MOVE || !c.isPresent())
+        if (!drawTargetHighlight || (mode != Mode.MOVE && mode != Mode.SELECT) || !c.isPresent())
             return repaintIfRequired(newHighlight);
 
         // CTRL toggles selection, but if while dragging CTRL means merge
@@ -351,7 +353,7 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
      */
     private boolean removeHighlighting() {
         boolean needsRepaint = false;
-        DataSet ds = getLayerManager().getEditDataSet();
+        DataSet ds = getLayerManager().getActiveDataSet();
         if (ds != null && !ds.getHighlightedVirtualNodes().isEmpty()) {
             needsRepaint = true;
             ds.clearHighlightedVirtualNodes();
@@ -580,7 +582,7 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
             selectionManager.unregister(mv);
 
             // Select Draw Tool if no selection has been made
-            if (!cancelDrawMode && getLayerManager().getEditDataSet().selectionEmpty()) {
+            if (!cancelDrawMode && getLayerManager().getActiveDataSet().selectionEmpty()) {
                 map.selectDrawTool(true);
                 updateStatusLine();
                 return;
@@ -659,12 +661,16 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
      * @param hasSelectionNearby {@code true} if some primitves are selectable nearby
      */
     private void determineMapMode(boolean hasSelectionNearby) {
-        if (shift && ctrl) {
-            mode = Mode.ROTATE;
-        } else if (alt && ctrl) {
-            mode = Mode.SCALE;
-        } else if (hasSelectionNearby || dragInProgress()) {
-            mode = Mode.MOVE;
+        if (getLayerManager().getEditDataSet() != null) {
+            if (shift && ctrl) {
+                mode = Mode.ROTATE;
+            } else if (alt && ctrl) {
+                mode = Mode.SCALE;
+            } else if (hasSelectionNearby || dragInProgress()) {
+                mode = Mode.MOVE;
+            } else {
+                mode = Mode.SELECT;
+            }
         } else {
             mode = Mode.SELECT;
         }
@@ -716,7 +722,9 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
                     LatLon ll = n.getCoor();
                     if (ll != null && ll.isOutSideWorld()) {
                         // Revert move
-                        ((MoveCommand) c).resetToCheckpoint();
+                        if (c instanceof MoveCommand) {
+                            ((MoveCommand) c).resetToCheckpoint();
+                        }
                         // TODO: We might use a simple notification in the lower left corner.
                         JOptionPane.showMessageDialog(
                                 Main.parent,
@@ -827,16 +835,19 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
                 MainApplication.undoRedo.undo();
             }
         }
-        int max = Main.pref.getInteger("warn.move.maxelements", 20), limit = max;
+        Set<Node> nodes = new HashSet<>();
+        int max = Config.getPref().getInt("warn.move.maxelements", 20);
         for (OsmPrimitive osm : getLayerManager().getEditDataSet().getSelected()) {
             if (osm instanceof Way) {
-                limit -= ((Way) osm).getNodes().size();
+                nodes.addAll(((Way) osm).getNodes());
+            } else if (osm instanceof Node) {
+                nodes.add((Node) osm);
             }
-            if (--limit < 0) {
+            if (nodes.size() > max) {
                 break;
             }
         }
-        if (limit < 0) {
+        if (nodes.size() > max) {
             final ExtendedDialog ed = new ConfirmMoveDialog();
             ed.setContent(
                     /* for correct i18n of plural forms - see #9110 */
@@ -948,7 +959,7 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
     }
 
     private void selectPrims(Collection<OsmPrimitive> prims, boolean released, boolean area) {
-        DataSet ds = getLayerManager().getEditDataSet();
+        DataSet ds = getLayerManager().getActiveDataSet();
 
         // not allowed together: do not change dataset selection, return early
         // Virtual Ways: if non-empty the cursor is above a virtual node. So don't highlight
@@ -1038,8 +1049,8 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
          * read preferences
          */
         private void init() {
-            waitForMouseUpParameter = Main.pref.getBoolean("mappaint.select.waits-for-mouse-up", false);
-            multipleMatchesParameter = Main.pref.getBoolean("selectaction.cycles.multiple.matches", false);
+            waitForMouseUpParameter = Config.getPref().getBoolean("mappaint.select.waits-for-mouse-up", false);
+            multipleMatchesParameter = Config.getPref().getBoolean("selectaction.cycles.multiple.matches", false);
         }
 
         /**
@@ -1112,7 +1123,7 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
             }
             // updateKeyModifiers() already called before!
 
-            DataSet ds = getLayerManager().getEditDataSet();
+            DataSet ds = getLayerManager().getActiveDataSet();
             OsmPrimitive first = cycleList.iterator().next(), foundInDS = null;
             OsmPrimitive nxt = first;
 
@@ -1174,10 +1185,10 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
         private int virtualSpace;
 
         private void init() {
-            nodeVirtualSize = Main.pref.getInteger("mappaint.node.virtual-size", 8);
-            int virtualSnapDistSq = Main.pref.getInteger("mappaint.node.virtual-snap-distance", 8);
+            nodeVirtualSize = Config.getPref().getInt("mappaint.node.virtual-size", 8);
+            int virtualSnapDistSq = Config.getPref().getInt("mappaint.node.virtual-snap-distance", 8);
             virtualSnapDistSq2 = virtualSnapDistSq*virtualSnapDistSq;
-            virtualSpace = Main.pref.getInteger("mappaint.node.virtual-space", 70);
+            virtualSpace = Config.getPref().getInt("mappaint.node.virtual-space", 70);
         }
 
         /**

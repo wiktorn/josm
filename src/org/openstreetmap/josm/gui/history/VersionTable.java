@@ -34,6 +34,7 @@ import org.openstreetmap.josm.data.osm.history.HistoryOsmPrimitive;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.PopupMenuLauncher;
 import org.openstreetmap.josm.io.XmlWriter;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.OpenBrowser;
 
@@ -153,7 +154,7 @@ public class VersionTable extends JTable implements ChangeListener {
             super(true);
             putValue(NAME, tr("Changeset info"));
             putValue(SHORT_DESCRIPTION, tr("Launch browser with information about the changeset"));
-            putValue(SMALL_ICON, ImageProvider.get("data/changeset"));
+            new ImageProvider("data/changeset").getResource().attachImageIcon(this, true);
         }
 
         @Override
@@ -190,7 +191,7 @@ public class VersionTable extends JTable implements ChangeListener {
             super(true);
             putValue(NAME, tr("User info"));
             putValue(SHORT_DESCRIPTION, tr("Launch browser with information about the user"));
-            putValue(SMALL_ICON, ImageProvider.get("data/user"));
+            new ImageProvider("data/user").getResource().attachImageIcon(this, true);
         }
 
         @Override
@@ -340,7 +341,7 @@ public class VersionTable extends JTable implements ChangeListener {
         TableCellRenderer tcr = tbl.getTableHeader().getDefaultRenderer();
         Object val = tbl.getColumnModel().getColumn(col).getHeaderValue();
         Component comp = tcr.getTableCellRendererComponent(tbl, val, false, false, -1, col);
-        maxwidth = Math.max(comp.getPreferredSize().width + Main.pref.getInteger("table.header-inset", 0), maxwidth);
+        maxwidth = Math.max(comp.getPreferredSize().width + Config.getPref().getInt("table.header-inset", 0), maxwidth);
 
         int spacing = tbl.getIntercellSpacing().width;
         tbl.getColumnModel().getColumn(col).setPreferredWidth(maxwidth + spacing);

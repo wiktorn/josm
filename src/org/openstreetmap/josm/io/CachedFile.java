@@ -7,7 +7,6 @@ import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -27,6 +26,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.HttpClient;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Pair;
@@ -216,7 +216,7 @@ public class CachedFile implements Closeable {
                 throw new IOException("No file found for: "+name);
             }
         }
-        return new FileInputStream(file);
+        return Files.newInputStream(file.toPath());
     }
 
     /**
@@ -275,7 +275,7 @@ public class CachedFile implements Closeable {
             if (name == null || name.startsWith("resource://")) {
                 return null;
             } else if (name.startsWith("josmdir://")) {
-                cacheFile = new File(Main.pref.getUserDataDirectory(), name.substring("josmdir://".length()));
+                cacheFile = new File(Config.getDirs().getUserDataDirectory(false), name.substring("josmdir://".length()));
             } else if (name.startsWith("josmplugindir://")) {
                 cacheFile = new File(Main.pref.getPluginsDirectory(), name.substring("josmplugindir://".length()));
             } else {
@@ -380,14 +380,14 @@ public class CachedFile implements Closeable {
             url = new URL(name);
             if (!"file".equals(url.getProtocol())) {
                 String prefKey = getPrefKey(url, destDir);
-                List<String> localPath = new ArrayList<>(Main.pref.getCollection(prefKey));
+                List<String> localPath = new ArrayList<>(Config.getPref().getList(prefKey));
                 if (localPath.size() == 2) {
                     File lfile = new File(localPath.get(1));
                     if (lfile.exists()) {
                         Utils.deleteFile(lfile);
                     }
                 }
-                Main.pref.putCollection(prefKey, null);
+                Config.getPref().putList(prefKey, null);
             }
         } catch (MalformedURLException e) {
             Logging.warn(e);
@@ -418,7 +418,7 @@ public class CachedFile implements Closeable {
         long maxAgeMillis = maxAge;
         Long ifModifiedSince = null;
         File localFile = null;
-        List<String> localPathEntry = new ArrayList<>(Main.pref.getCollection(prefKey));
+        List<String> localPathEntry = new ArrayList<>(Config.getPref().getList(prefKey));
         boolean offline = false;
         try {
             checkOfflineAccess(urlStr);
@@ -434,7 +434,7 @@ public class CachedFile implements Closeable {
                 if (maxAge == DEFAULT_MAXTIME
                         || maxAge <= 0 // arbitrary value <= 0 is deprecated
                 ) {
-                    maxAgeMillis = TimeUnit.SECONDS.toMillis(Main.pref.getLong("mirror.maxtime", TimeUnit.DAYS.toSeconds(7)));
+                    maxAgeMillis = TimeUnit.SECONDS.toMillis(Config.getPref().getLong("mirror.maxtime", TimeUnit.DAYS.toSeconds(7)));
                 }
                 age = System.currentTimeMillis() - Long.parseLong(localPathEntry.get(0));
                 if (offline || age < maxAgeMillis) {
@@ -446,7 +446,7 @@ public class CachedFile implements Closeable {
             }
         }
         if (destDir == null) {
-            destDir = Main.pref.getCacheDirectory().getPath();
+            destDir = Config.getDirs().getCacheDirectory(true).getPath();
         }
 
         File destDirFile = new File(destDir);
@@ -475,7 +475,7 @@ public class CachedFile implements Closeable {
                 Logging.debug("304 Not Modified ({0})", urlStr);
                 if (localFile == null)
                     throw new AssertionError();
-                Main.pref.putCollection(prefKey,
+                Config.getPref().putList(prefKey,
                         Arrays.asList(Long.toString(System.currentTimeMillis()), localPathEntry.get(1)));
                 return localFile;
             } else if (con.getResponseCode() == HttpURLConnection.HTTP_NOT_FOUND) {
@@ -487,7 +487,7 @@ public class CachedFile implements Closeable {
             activeConnection = null;
             localFile = new File(destDir, localPath);
             if (Main.platform.rename(destDirFile, localFile)) {
-                Main.pref.putCollection(prefKey,
+                Config.getPref().putList(prefKey,
                         Arrays.asList(Long.toString(System.currentTimeMillis()), localFile.toString()));
             } else {
                 Logging.warn(tr("Failed to rename file {0} to {1}.",

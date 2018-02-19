@@ -9,6 +9,8 @@ import java.awt.Component;
 import java.awt.Dialog;
 import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.HashSet;
@@ -65,6 +67,9 @@ public class ChildRelationBrowser extends JPanel {
     /** the osm data layer this browser is related to */
     private transient OsmDataLayer layer;
 
+    /** the editAction used in the bottom panel and for doubleClick */
+    private EditAction editAction;
+
     /**
      * Replies the {@link OsmDataLayer} this editor is related to
      *
@@ -84,6 +89,22 @@ public class ChildRelationBrowser extends JPanel {
         add(pane, BorderLayout.CENTER);
 
         add(buildButtonPanel(), BorderLayout.SOUTH);
+        childTree.setToggleClickCount(0);
+        childTree.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2
+                    && !e.isAltDown() && !e.isAltGraphDown() && !e.isControlDown() && !e.isMetaDown() && !e.isShiftDown()
+                    && childTree.getRowForLocation(e.getX(), e.getY()) == childTree.getMinSelectionRow()) {
+                    Relation r = (Relation) childTree.getLastSelectedPathComponent();
+                    if (r.isIncomplete()) {
+                        childTree.expandPath(childTree.getSelectionPath());
+                    } else {
+                        editAction.actionPerformed(new ActionEvent(e.getSource(), ActionEvent.ACTION_PERFORMED, null));
+                    }
+                }
+            }
+        });
     }
 
     /**
@@ -104,7 +125,7 @@ public class ChildRelationBrowser extends JPanel {
         pnl.add(new JButton(downloadSelectedAction));
 
         // ---
-        EditAction editAction = new EditAction();
+        editAction = new EditAction();
         childTree.addTreeSelectionListener(editAction);
         pnl.add(new JButton(editAction));
 
@@ -176,7 +197,7 @@ public class ChildRelationBrowser extends JPanel {
     class EditAction extends AbstractAction implements TreeSelectionListener {
         EditAction() {
             putValue(SHORT_DESCRIPTION, tr("Edit the relation the currently selected relation member refers to."));
-            putValue(SMALL_ICON, ImageProvider.get("dialogs", "edit"));
+            new ImageProvider("dialogs", "edit").getResource().attachImageIcon(this, true);
             putValue(NAME, tr("Edit"));
             refreshEnabled();
         }
@@ -221,7 +242,7 @@ public class ChildRelationBrowser extends JPanel {
     class DownloadAllChildRelationsAction extends AbstractAction {
         DownloadAllChildRelationsAction() {
             putValue(SHORT_DESCRIPTION, tr("Download all child relations (recursively)"));
-            putValue(SMALL_ICON, ImageProvider.get("download"));
+            new ImageProvider("download").getResource().attachImageIcon(this, true);
             putValue(NAME, tr("Download All Children"));
         }
 
@@ -244,8 +265,7 @@ public class ChildRelationBrowser extends JPanel {
         DownloadSelectedAction() {
             putValue(SHORT_DESCRIPTION, tr("Download selected relations"));
             // FIXME: replace with better icon
-            //
-            putValue(SMALL_ICON, ImageProvider.get("download"));
+            new ImageProvider("download").getResource().attachImageIcon(this, true);
             putValue(NAME, tr("Download Selected Children"));
             updateEnabledState();
         }

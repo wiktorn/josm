@@ -17,13 +17,13 @@ import javax.swing.ImageIcon;
 import javax.swing.JPanel;
 
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Tag;
-import org.openstreetmap.josm.gui.MainApplication;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.tagging.ac.AutoCompletingTextField;
 import org.openstreetmap.josm.gui.tagging.ac.AutoCompletionList;
 import org.openstreetmap.josm.gui.tagging.ac.AutoCompletionManager;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Logging;
 import org.xml.sax.SAXException;
@@ -43,12 +43,12 @@ public abstract class TaggingPresetItem {
 
     protected void initAutoCompletionField(AutoCompletingTextField field, List<String> keys) {
         if (Main.main == null) return;
-        OsmDataLayer layer = MainApplication.getLayerManager().getEditLayer();
-        if (layer == null) {
+        DataSet data = Main.main.getEditDataSet();
+        if (data == null) {
             return;
         }
         AutoCompletionList list = new AutoCompletionList();
-        AutoCompletionManager.of(layer.data).populateWithTagValues(list, keys);
+        AutoCompletionManager.of(data).populateWithTagValues(list, keys);
         field.setAutoCompletionList(list);
     }
 
@@ -127,7 +127,7 @@ public abstract class TaggingPresetItem {
     }
 
     protected static ImageIcon loadImageIcon(String iconName, File zipIcons, Integer maxSize) {
-        final Collection<String> s = Main.pref.getCollection("taggingpreset.icon.sources", null);
+        final Collection<String> s = Config.getPref().getList("taggingpreset.icon.sources", null);
         ImageProvider imgProv = new ImageProvider(iconName).setDirs(s).setId("presets").setArchive(zipIcons).setOptional(true);
         if (maxSize != null) {
             imgProv.setMaxSize(maxSize);

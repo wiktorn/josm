@@ -42,7 +42,6 @@ import java.util.function.Supplier;
 import javax.swing.AbstractButton;
 import javax.swing.FocusManager;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.osm.BBox;
@@ -65,6 +64,8 @@ import org.openstreetmap.josm.gui.MapViewState.MapViewPoint;
 import org.openstreetmap.josm.gui.NavigatableComponent;
 import org.openstreetmap.josm.gui.draw.MapViewPath;
 import org.openstreetmap.josm.gui.draw.MapViewPositionAndRotation;
+import org.openstreetmap.josm.gui.mappaint.ElemStyles;
+import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
 import org.openstreetmap.josm.gui.mappaint.styleelement.BoxTextElement;
 import org.openstreetmap.josm.gui.mappaint.styleelement.BoxTextElement.HorizontalTextAlignment;
 import org.openstreetmap.josm.gui.mappaint.styleelement.BoxTextElement.VerticalTextAlignment;
@@ -75,13 +76,14 @@ import org.openstreetmap.josm.gui.mappaint.styleelement.StyleElement;
 import org.openstreetmap.josm.gui.mappaint.styleelement.Symbol;
 import org.openstreetmap.josm.gui.mappaint.styleelement.TextLabel;
 import org.openstreetmap.josm.gui.mappaint.styleelement.placement.PositionForAreaStrategy;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.CompositeList;
 import org.openstreetmap.josm.tools.Geometry;
 import org.openstreetmap.josm.tools.Geometry.AreaAndPerimeter;
+import org.openstreetmap.josm.tools.HiDPISupport;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.JosmRuntimeException;
 import org.openstreetmap.josm.tools.Logging;
-import org.openstreetmap.josm.tools.HiDPISupport;
 import org.openstreetmap.josm.tools.Utils;
 import org.openstreetmap.josm.tools.bugreport.BugReport;
 
@@ -235,7 +237,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         Boolean cached = IS_GLYPH_VECTOR_DOUBLE_TRANSLATION_BUG.get(font);
         if (cached != null)
             return cached;
-        String overridePref = Main.pref.get("glyph-bug", "auto");
+        String overridePref = Config.getPref().get("glyph-bug", "auto");
         if ("auto".equals(overridePref)) {
             FontRenderContext frc = new FontRenderContext(null, false, false);
             GlyphVector gv = font.createGlyphVector(frc, "x");
@@ -260,6 +262,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
     private double scale;
 
     private MapPaintSettings paintSettings;
+    private ElemStyles styles;
 
     private Color highlightColorTransparent;
 
@@ -344,6 +347,15 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         super(g, nc, isInactiveMode);
         Component focusOwner = FocusManager.getCurrentManager().getFocusOwner();
         useWiderHighlight = !(focusOwner instanceof AbstractButton || focusOwner == nc);
+        this.styles = MapPaintStyles.getStyles();
+    }
+
+    /**
+     * Set the {@link ElemStyles} instance to use for this renderer.
+     * @param styles the {@code ElemStyles} instance to use
+     */
+    public void setStyles(ElemStyles styles) {
+        this.styles = styles;
     }
 
     private void displaySegments(MapViewPath path, Path2D orientationArrows, Path2D onewayArrows, Path2D onewayArrowsCasing,
@@ -415,6 +427,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
                     g.setStroke(new BasicStroke(2 * extent, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 4));
                     g.draw(area);
                     g.setClip(oldClip);
+                    g.setStroke(new BasicStroke());
                 }
             } else {
                 Image img = fillImage.getImage(disabled);
@@ -458,25 +471,6 @@ public class StyledMapRenderer extends AbstractMapRenderer {
      * @param extentThreshold if not null, determines if the partial filled should
      * be replaced by plain fill, when it covers a certain fraction of the total area
      * @param disabled If this should be drawn with a special disabled style.
-     * @param text Ignored. Use {@link #drawText} instead.
-     * @deprecated use {@link #drawArea(Relation r, Color color, MapImage fillImage, Float extent, Float extentThreshold, boolean disabled)}
-     */
-    @Deprecated
-    public void drawArea(Relation r, Color color, MapImage fillImage, Float extent, Float extentThreshold, boolean disabled, TextLabel text) {
-        drawArea(r, color, fillImage, extent, extentThreshold, disabled);
-    }
-
-    /**
-     * Draws a multipolygon area.
-     * @param r The multipolygon relation
-     * @param color The color to fill the area with.
-     * @param fillImage The image to fill the area with. Overrides color.
-     * @param extent if not null, area will be filled partially; specifies, how
-     * far to fill from the boundary towards the center of the area;
-     * if null, area will be filled completely
-     * @param extentThreshold if not null, determines if the partial filled should
-     * be replaced by plain fill, when it covers a certain fraction of the total area
-     * @param disabled If this should be drawn with a special disabled style.
      * @since 12285
      */
     public void drawArea(Relation r, Color color, MapImage fillImage, Float extent, Float extentThreshold, boolean disabled) {
@@ -502,25 +496,6 @@ public class StyledMapRenderer extends AbstractMapRenderer {
                         fillImage, extent, pfClip, disabled);
             }
         }
-    }
-
-    /**
-     * Draws an area defined by a way. They way does not need to be closed, but it should.
-     * @param w The way.
-     * @param color The color to fill the area with.
-     * @param fillImage The image to fill the area with. Overrides color.
-     * @param extent if not null, area will be filled partially; specifies, how
-     * far to fill from the boundary towards the center of the area;
-     * if null, area will be filled completely
-     * @param extentThreshold if not null, determines if the partial filled should
-     * be replaced by plain fill, when it covers a certain fraction of the total area
-     * @param disabled If this should be drawn with a special disabled style.
-     * @param text Ignored. Use {@link #drawText} instead.
-     * @deprecated use {@link #drawArea(Way w, Color color, MapImage fillImage, Float extent, Float extentThreshold, boolean disabled)}
-     */
-    @Deprecated
-    public void drawArea(Way w, Color color, MapImage fillImage, Float extent, Float extentThreshold, boolean disabled, TextLabel text) {
-        drawArea(w, color, fillImage, extent, extentThreshold, disabled);
     }
 
     /**
@@ -1359,7 +1334,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
     public void getColors() {
         super.getColors();
         this.highlightColorTransparent = new Color(highlightColor.getRed(), highlightColor.getGreen(), highlightColor.getBlue(), 100);
-        this.backgroundColor = PaintColors.getBackgroundColor();
+        this.backgroundColor = styles.getBackgroundColor();
     }
 
     @Override
@@ -1625,16 +1600,16 @@ public class StyledMapRenderer extends AbstractMapRenderer {
             // Reason: Make sure, ElemStyles.getStyleCacheWithRange is not called for the same primitive in parallel threads.
             // (Could be synchronized, but try to avoid this for performance reasons.)
             THREAD_POOL.invoke(new ComputeStyleListWorker(circum, nc, relations, allStyleElems,
-                    Math.max(20, relations.size() / THREAD_POOL.getParallelism() / 3)));
+                    Math.max(20, relations.size() / THREAD_POOL.getParallelism() / 3), styles));
             THREAD_POOL.invoke(new ComputeStyleListWorker(circum, nc, new CompositeList<>(nodes, ways), allStyleElems,
-                    Math.max(100, (nodes.size() + ways.size()) / THREAD_POOL.getParallelism() / 3)));
+                    Math.max(100, (nodes.size() + ways.size()) / THREAD_POOL.getParallelism() / 3), styles));
 
             if (!benchmark.renderSort()) {
                 return;
             }
 
             // We use parallel sort here. This is only available for arrays.
-            StyleRecord[] sorted = allStyleElems.toArray(new StyleRecord[allStyleElems.size()]);
+            StyleRecord[] sorted = allStyleElems.toArray(new StyleRecord[0]);
             Arrays.parallelSort(sorted, null);
 
             if (!benchmark.renderDraw(allStyleElems)) {
@@ -1661,7 +1636,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
     private void paintRecord(StyleRecord record) {
         try {
             record.paintPrimitive(paintSettings, this);
-        } catch (JosmRuntimeException | IllegalArgumentException | IllegalStateException e) {
+        } catch (JosmRuntimeException | IllegalArgumentException | IllegalStateException | NullPointerException e) {
             throw BugReport.intercept(e).put("record", record);
         }
     }

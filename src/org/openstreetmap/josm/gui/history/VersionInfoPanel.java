@@ -15,6 +15,7 @@ import java.util.Collections;
 import java.util.Date;
 
 import javax.swing.AbstractAction;
+import javax.swing.AbstractButton;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -22,6 +23,7 @@ import javax.swing.JPanel;
 import javax.swing.JTextArea;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import javax.swing.plaf.basic.BasicArrowButton;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.UserIdentityManager;
@@ -108,8 +110,20 @@ public class VersionInfoPanel extends JPanel implements ChangeListener {
         lblUser = new UrlLabel("", 2);
         pnlUserAndChangeset.add(lblUser, GBC.eol().insets(5, 0, 0, 0).weight(1, 0));
 
+        final JPanel changesetPanel = new JPanel(new BorderLayout());
         changesetButton.setMargin(new Insets(0, 0, 0, 2));
-        pnlUserAndChangeset.add(changesetButton, GBC.std().fill().weight(0, 0));
+        changesetPanel.add(changesetButton, BorderLayout.CENTER);
+        final BasicArrowButton arrowButton = new BasicArrowButton(BasicArrowButton.SOUTH);
+        arrowButton.addActionListener(action -> {
+            if (changesetDialogAction != null) { // fix #15444
+                final OpenChangesetPopupMenu popupMenu = new OpenChangesetPopupMenu(changesetDialogAction.id);
+                popupMenu.insert(changesetDialogAction, 0);
+                ((AbstractButton) popupMenu.getComponent(0)).setText(tr("Open Changeset Manager"));
+                popupMenu.show(arrowButton);
+            }
+        });
+        changesetPanel.add(arrowButton, BorderLayout.EAST);
+        pnlUserAndChangeset.add(changesetPanel, GBC.std().fill().weight(0, 0));
 
         lblChangeset = new UrlLabel("", 2);
         pnlUserAndChangeset.add(lblChangeset, GBC.std().insets(5, 0, 0, 0).weight(1, 0));
@@ -292,7 +306,9 @@ public class VersionInfoPanel extends JPanel implements ChangeListener {
         private Integer id;
 
         OpenChangesetDialogAction(Class<? extends JComponent> componentToSelect) {
-            super(tr("Changeset"), new ImageProvider("dialogs/changeset", "changesetmanager").resetMaxSize(new Dimension(16, 16)).get());
+            super(tr("Changeset"));
+            new ImageProvider("dialogs/changeset", "changesetmanager").resetMaxSize(new Dimension(16, 16))
+                .getResource().attachImageIcon(this, true);
             putValue(SHORT_DESCRIPTION, tr("Opens the Changeset Manager window for the selected changesets"));
             this.componentToSelect = componentToSelect;
         }

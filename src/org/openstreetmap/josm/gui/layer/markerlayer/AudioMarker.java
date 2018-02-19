@@ -29,7 +29,7 @@ public class AudioMarker extends ButtonMarker {
     public boolean timeFromAudio; // as opposed to from the GPX track
 
     public AudioMarker(LatLon ll, TemplateEngineDataProvider dataProvider, URL audioUrl, MarkerLayer parentLayer, double time, double offset) {
-        super(ll, dataProvider, "speech", parentLayer, time, offset);
+        super(ll, dataProvider, /* ICON(markers/) */ "speech", parentLayer, time, offset);
         this.audioUrl = audioUrl;
         this.syncOffset = 0.0;
         this.timeFromAudio = false;
@@ -40,8 +40,19 @@ public class AudioMarker extends ButtonMarker {
         play();
     }
 
+    /**
+     * Returns the marker played the most recently, if any.
+     * @return the marker played the most recently, or {@code null}
+     */
     public static AudioMarker recentlyPlayedMarker() {
         return recentlyPlayedMarker;
+    }
+
+    /**
+     * Forgets the marker played the most recently, if any.
+     */
+    static void resetRecentlyPlayedMarker() {
+        recentlyPlayedMarker = null;
     }
 
     public URL url() {

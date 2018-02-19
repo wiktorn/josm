@@ -92,6 +92,7 @@ import org.openstreetmap.josm.gui.widgets.JosmTextField;
 import org.openstreetmap.josm.io.CachedFile;
 import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.io.OsmTransferException;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageOverlay;
 import org.openstreetmap.josm.tools.ImageProvider;
@@ -422,10 +423,10 @@ public abstract class SourceEditor extends JPanel {
             List<String> iconPaths = iconPathsModel.getIconPaths();
 
             if (!iconPaths.isEmpty()) {
-                if (Main.pref.putCollection(iconPref, iconPaths)) {
+                if (Config.getPref().putList(iconPref, iconPaths)) {
                     changed = true;
                 }
-            } else if (Main.pref.putCollection(iconPref, null)) {
+            } else if (Config.getPref().putList(iconPref, null)) {
                 changed = true;
             }
         }
@@ -740,7 +741,7 @@ public abstract class SourceEditor extends JPanel {
         public void addExtendedSourceEntries(List<ExtendedSourceEntry> sources) {
             if (sources == null) return;
             for (ExtendedSourceEntry info: sources) {
-                data.add(new SourceEntry(info.url, info.name, info.getDisplayName(), true));
+                data.add(new SourceEntry(info.type, info.url, info.name, info.getDisplayName(), true));
             }
             fireTableDataChanged();
             selectionModel.setValueIsAdjusting(true);
@@ -968,7 +969,7 @@ public abstract class SourceEditor extends JPanel {
                 if (canEnable) {
                     active = editEntryDialog.active();
                 }
-                final SourceEntry entry = new SourceEntry(
+                final SourceEntry entry = new SourceEntry(sourceType,
                         editEntryDialog.getURL(),
                         null, editEntryDialog.getTitle(), active);
                 entry.title = getTitleForSourceEntry(entry);
@@ -1052,7 +1053,7 @@ public abstract class SourceEditor extends JPanel {
 
         MoveUpDownAction(boolean isDown) {
             increment = isDown ? 1 : -1;
-            putValue(SMALL_ICON, isDown ? ImageProvider.get("dialogs", "down") : ImageProvider.get("dialogs", "up"));
+            new ImageProvider("dialogs", isDown ? "down" : "up").getResource().attachImageIcon(this, true);
             putValue(SHORT_DESCRIPTION, isDown ? tr("Move the selected entry one row down.") : tr("Move the selected entry one row up."));
             updateEnabledState();
         }
@@ -1508,7 +1509,7 @@ public abstract class SourceEditor extends JPanel {
                         last = null;
                         Matcher m = Pattern.compile("^(.+);(.+)$").matcher(line);
                         if (m.matches()) {
-                            last = new ExtendedSourceEntry(m.group(1), m.group(2));
+                            last = new ExtendedSourceEntry(sourceType, m.group(1), m.group(2));
                             sources.add(last);
                         } else {
                             Logging.error(tr(getStr(I18nString.ILLEGAL_FORMAT_OF_ENTRY), url, line));

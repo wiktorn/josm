@@ -35,6 +35,7 @@ import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.OsmPrimitivRenderer;
 import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Shortcut;
@@ -98,7 +99,7 @@ public class PurgeAction extends JosmAction {
                 return;
 
             clearUndoRedo = cbClearUndoRedo.isSelected();
-            Main.pref.put("purge.clear_undo_redo", clearUndoRedo);
+            Config.getPref().putBoolean("purge.clear_undo_redo", clearUndoRedo);
         }
 
         MainApplication.undoRedo.add(cmd);
@@ -147,7 +148,7 @@ public class PurgeAction extends JosmAction {
                     return type;
                 return Long.compare(o1.getUniqueId(), o2.getUniqueId());
             });
-            JList<OsmPrimitive> list = new JList<>(toPurgeAdditionally.toArray(new OsmPrimitive[toPurgeAdditionally.size()]));
+            JList<OsmPrimitive> list = new JList<>(toPurgeAdditionally.toArray(new OsmPrimitive[0]));
             /* force selection to be active for all entries */
             list.setCellRenderer(new SelectionForcedOsmPrimitivRenderer());
             JScrollPane scroll = new JScrollPane(list);
@@ -158,7 +159,7 @@ public class PurgeAction extends JosmAction {
             JButton addToSelection = new JButton(new AbstractAction() {
                 {
                     putValue(SHORT_DESCRIPTION, tr("Add to selection"));
-                    putValue(SMALL_ICON, ImageProvider.get("dialogs", "select"));
+                    new ImageProvider("dialogs", "select").getResource().attachImageIcon(this, true);
                 }
 
                 @Override
@@ -179,7 +180,7 @@ public class PurgeAction extends JosmAction {
         }
 
         cbClearUndoRedo = new JCheckBox(tr("Clear Undo/Redo buffer"));
-        cbClearUndoRedo.setSelected(Main.pref.getBoolean("purge.clear_undo_redo", false));
+        cbClearUndoRedo.setSelected(Config.getPref().getBoolean("purge.clear_undo_redo", false));
 
         pnl.add(new JSeparator(), GBC.eol().fill(GBC.HORIZONTAL).insets(0, 5, 0, 5));
         pnl.add(cbClearUndoRedo, GBC.eol());
@@ -194,6 +195,6 @@ public class PurgeAction extends JosmAction {
 
     @Override
     protected void updateEnabledState(Collection<? extends OsmPrimitive> selection) {
-        setEnabled(selection != null && !selection.isEmpty());
+        updateEnabledStateOnModifiableSelection(selection);
     }
 }

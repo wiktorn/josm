@@ -15,11 +15,14 @@ import javax.swing.JOptionPane;
 import javax.swing.filechooser.FileFilter;
 
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.PreferencesUtils;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.io.importexport.FileExporter;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
+import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.AbstractFileChooser;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Shortcut;
 
@@ -102,8 +105,9 @@ public abstract class SaveActionBase extends DiskAccessAction {
                 }
             }
             if (!exported) {
-                JOptionPane.showMessageDialog(Main.parent, tr("No Exporter found! Nothing saved."), tr("Warning"),
-                        JOptionPane.WARNING_MESSAGE);
+                GuiHelper.runInEDTAndWait(() ->
+                    JOptionPane.showMessageDialog(Main.parent, tr("No Exporter found! Nothing saved."), tr("Warning"),
+                        JOptionPane.WARNING_MESSAGE));
                 return false;
             } else if (canceled) {
                 return false;
@@ -228,11 +232,11 @@ public abstract class SaveActionBase extends DiskAccessAction {
             return;
         }
 
-        int maxsize = Math.max(0, Main.pref.getInteger("file-open.history.max-size", 15));
-        Collection<String> oldHistory = Main.pref.getCollection("file-open.history");
+        int maxsize = Math.max(0, Config.getPref().getInt("file-open.history.max-size", 15));
+        Collection<String> oldHistory = Config.getPref().getList("file-open.history");
         List<String> history = new LinkedList<>(oldHistory);
         history.remove(filepath);
         history.add(0, filepath);
-        Main.pref.putCollectionBounded("file-open.history", maxsize, history);
+        PreferencesUtils.putListBounded(Config.getPref(), "file-open.history", maxsize, history);
     }
 }

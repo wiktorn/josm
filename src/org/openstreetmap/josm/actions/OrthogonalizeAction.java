@@ -25,6 +25,7 @@ import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.MoveCommand;
 import org.openstreetmap.josm.command.SequenceCommand;
 import org.openstreetmap.josm.data.coor.EastNorth;
+import org.openstreetmap.josm.data.coor.PolarCoor;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
@@ -137,7 +138,7 @@ public final class OrthogonalizeAction extends JosmAction {
 
         @Override
         protected void updateEnabledState(Collection<? extends OsmPrimitive> selection) {
-            setEnabled(selection != null && !selection.isEmpty());
+            updateEnabledStateOnModifiableSelection(selection);
         }
     }
 
@@ -436,14 +437,20 @@ public final class OrthogonalizeAction extends JosmAction {
      * Class contains everything we need to know about a single way.
      */
     private static class WayData {
-        public final List<Node> wayNodes;       // The assigned way
-        public final int nSeg;                  // Number of Segments of the Way
-        public final int nNode;                 // Number of Nodes of the Way
-        public final Direction[] segDirections; // Direction of the segments
+        /** The assigned way */
+        public final List<Node> wayNodes;
+        /** Number of Segments of the Way */
+        public final int nSeg;
+        /** Number of Nodes of the Way */
+        public final int nNode;
+        /** Direction of the segments */
+        public final Direction[] segDirections;
         // segment i goes from node i to node (i+1)
-        public EastNorth segSum;          // (Vector-)sum of all horizontal segments plus the sum of all vertical
+        /** (Vector-)sum of all horizontal segments plus the sum of all vertical */
+        public EastNorth segSum;
         // segments turned by 90 degrees
-        public double heading;            // heading of segSum == approximate heading of the way
+        /** heading of segSum == approximate heading of the way */
+        public double heading;
 
         WayData(List<Node> wayNodes) {
             this.wayNodes = wayNodes;
@@ -574,7 +581,7 @@ public final class OrthogonalizeAction extends JosmAction {
         }
 
         public static double polar(EastNorth en1, EastNorth en2) {
-            return Math.atan2(en2.north() - en1.north(), en2.east() - en1.east());
+            return PolarCoor.computeAngle(en2, en1);
         }
     }
 
@@ -638,6 +645,6 @@ public final class OrthogonalizeAction extends JosmAction {
 
     @Override
     protected void updateEnabledState(Collection<? extends OsmPrimitive> selection) {
-        setEnabled(selection != null && !selection.isEmpty());
+        updateEnabledStateOnModifiableSelection(selection);
     }
 }

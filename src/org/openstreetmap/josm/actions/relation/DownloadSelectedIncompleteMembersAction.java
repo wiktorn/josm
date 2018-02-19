@@ -30,7 +30,7 @@ public class DownloadSelectedIncompleteMembersAction extends AbstractRelationAct
      */
     public DownloadSelectedIncompleteMembersAction() {
         putValue(SHORT_DESCRIPTION, tr("Download incomplete members of selected relations"));
-        putValue(SMALL_ICON, ImageProvider.get("dialogs/relation", "downloadincompleteselected"));
+        new ImageProvider("dialogs/relation", "downloadincompleteselected").getResource().attachImageIcon(this, true);
         putValue(NAME, tr("Download incomplete members"));
     }
 
@@ -66,6 +66,7 @@ public class DownloadSelectedIncompleteMembersAction extends AbstractRelationAct
 
     @Override
     protected void updateEnabledState() {
-        setEnabled(!relations.isEmpty() && !incompleteMembers.isEmpty() && !Main.isOffline(OnlineResource.OSM_API));
+        setEnabled(!relations.isEmpty() && !incompleteMembers.isEmpty() && !Main.isOffline(OnlineResource.OSM_API)
+                && !relations.iterator().next().getDataSet().isReadOnly());
     }
 }

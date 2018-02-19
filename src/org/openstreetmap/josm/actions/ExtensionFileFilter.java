@@ -102,6 +102,7 @@ public class ExtensionFileFilter extends FileFilter implements java.io.FileFilte
                 org.openstreetmap.josm.gui.io.importexport.OsmExporter.class,
                 org.openstreetmap.josm.gui.io.importexport.OsmGzipExporter.class,
                 org.openstreetmap.josm.gui.io.importexport.OsmBzip2Exporter.class,
+                org.openstreetmap.josm.gui.io.importexport.OsmXzExporter.class,
                 org.openstreetmap.josm.gui.io.importexport.GeoJSONExporter.class,
                 org.openstreetmap.josm.gui.io.importexport.WMSLayerExporter.class,
                 org.openstreetmap.josm.gui.io.importexport.NoteExporter.class,
@@ -139,7 +140,17 @@ public class ExtensionFileFilter extends FileFilter implements java.io.FileFilte
         );
     }
 
-    public enum AddArchiveExtension { NONE, BASE, ALL }
+    /**
+     * Strategy to determine if extensions must be added to the description.
+     */
+    public enum AddArchiveExtension {
+        /** No extension is added */
+        NONE,
+        /** Only base extension is added */
+        BASE,
+        /** All extensions are added (base + archives) */
+        ALL
+    }
 
     /**
      * Adds a new file importer at the end of the global list. This importer will be evaluated after core ones.
@@ -399,7 +410,7 @@ public class ExtensionFileFilter extends FileFilter implements java.io.FileFilte
     public static ExtensionFileFilter newFilterWithArchiveExtensions(
             String extensions, String defaultExtension, String description, boolean addArchiveExtensionsToDescription) {
 
-        List<String> archiveExtensions = Arrays.asList("gz", "bz2");
+        List<String> archiveExtensions = Arrays.asList("gz", "bz", "bz2", "xz", "zip");
         return newFilterWithArchiveExtensions(
             extensions,
             defaultExtension,

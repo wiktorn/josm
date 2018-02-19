@@ -26,8 +26,7 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.JTextComponent;
 
-import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.data.preferences.CollectionProperty;
+import org.openstreetmap.josm.data.preferences.ListProperty;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.widgets.AbstractTextComponentValidator;
@@ -36,6 +35,7 @@ import org.openstreetmap.josm.gui.widgets.SelectAllOnFocusGainedDecorator;
 import org.openstreetmap.josm.io.OsmApi;
 import org.openstreetmap.josm.io.OsmApiInitializationException;
 import org.openstreetmap.josm.io.OsmTransferCanceledException;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
@@ -57,8 +57,8 @@ public class OsmApiUrlInputPanel extends JPanel {
     private JButton btnTest;
     /** indicates whether to use the default OSM URL or not */
     private JCheckBox cbUseDefaultServerUrl;
-    private final transient CollectionProperty SERVER_URL_HISTORY = new CollectionProperty("osm-server.url-history", Arrays.asList(
-            "http://api06.dev.openstreetmap.org/api", "http://master.apis.dev.openstreetmap.org/api"));
+    private final transient ListProperty SERVER_URL_HISTORY = new ListProperty("osm-server.url-history", Arrays.asList(
+            "https://api06.dev.openstreetmap.org/api", "https://master.apis.dev.openstreetmap.org/api"));
 
     private transient ApiUrlPropagator propagator;
 
@@ -144,9 +144,9 @@ public class OsmApiUrlInputPanel extends JPanel {
         String oldUrl = OsmApi.getOsmApi().getServerUrl();
         String hmiUrl = getStrippedApiUrl();
         if (cbUseDefaultServerUrl.isSelected() || OsmApi.DEFAULT_API_URL.equals(hmiUrl)) {
-            Main.pref.put("osm-server.url", null);
+            Config.getPref().put("osm-server.url", null);
         } else {
-            Main.pref.put("osm-server.url", hmiUrl);
+            Config.getPref().put("osm-server.url", hmiUrl);
             tfOsmServerUrl.addCurrentItemToHistory();
             SERVER_URL_HISTORY.put(tfOsmServerUrl.getHistory());
         }

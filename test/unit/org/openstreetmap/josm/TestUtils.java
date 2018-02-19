@@ -20,6 +20,7 @@ import java.util.Comparator;
 import java.util.Objects;
 import java.util.stream.Stream;
 
+import org.junit.Assume;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
@@ -170,6 +171,38 @@ public final class TestUtils {
     }
 
     /**
+     * Returns a private static field value.
+     * @param cls object class
+     * @param fieldName private field name
+     * @return private field value
+     * @throws ReflectiveOperationException if a reflection operation error occurs
+     */
+    public static Object getPrivateStaticField(Class<?> cls, String fieldName) throws ReflectiveOperationException {
+        Field f = cls.getDeclaredField(fieldName);
+        AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+            f.setAccessible(true);
+            return null;
+        });
+        return f.get(null);
+    }
+
+    /**
+     * Sets a private static field value.
+     * @param cls object class
+     * @param fieldName private field name
+     * @param value replacement value
+     * @throws ReflectiveOperationException if a reflection operation error occurs
+     */
+    public static void setPrivateStaticField(Class<?> cls, String fieldName, final Object value) throws ReflectiveOperationException {
+        Field f = cls.getDeclaredField(fieldName);
+        AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
+            f.setAccessible(true);
+            return null;
+        });
+        f.set(null, value);
+    }
+
+    /**
      * Returns an instance of {@link AbstractProgressMonitor} which keeps track of the monitor state,
      * but does not show the progress.
      * @return a progress monitor
@@ -223,6 +256,16 @@ public final class TestUtils {
      */
     public static Graphics2D newGraphics() {
         return new FakeGraphics();
+    }
+
+    /**
+     * Creates a new node with the given tags (see {@link OsmUtils#createPrimitive(java.lang.String)})
+     *
+     * @param tags  the tags to set
+     * @return a new node
+     */
+    public static Node newNode(String tags) {
+        return (Node) OsmUtils.createPrimitive("node " + tags);
     }
 
     /**
@@ -310,6 +353,19 @@ public final class TestUtils {
                     .findFirst().orElse(null);
         } else {
             return null;
+        }
+    }
+
+    /**
+     * Use to assume that EqualsVerifier is working with the current JVM.
+     */
+    public static void assumeWorkingEqualsVerifier() {
+        try {
+            // Workaround to https://github.com/jqno/equalsverifier/issues/177
+            // Inspired by https://issues.apache.org/jira/browse/SOLR-11606
+            nl.jqno.equalsverifier.internal.lib.bytebuddy.ClassFileVersion.ofThisVm();
+        } catch (IllegalArgumentException e) {
+            Assume.assumeNoException(e);
         }
     }
 }

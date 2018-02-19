@@ -39,7 +39,7 @@ public class DrawActionTest {
      */
     @Rule
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    public JOSMTestRules test = new JOSMTestRules().platform().main().projection();
+    public JOSMTestRules test = new JOSMTestRules().platform().main().projection().timeout(20000);
 
     /**
      * Non regression test case for bug #12011.
@@ -105,8 +105,10 @@ public class DrawActionTest {
 
     /**
      * Non regression test case for bug #14762.
+     * @deprecated test to remove
      */
     @Test
+    @Deprecated
     public void testTicket14762() {
         DrawAction action = new DrawAction();
         assertNull(action.getLayerManager().getEditDataSet());

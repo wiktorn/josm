@@ -10,20 +10,15 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Objects;
-import java.util.concurrent.FutureTask;
 
-import javax.swing.SwingUtilities;
-
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.oauth.OAuthAccessTokenHolder;
 import org.openstreetmap.josm.data.oauth.OAuthParameters;
-import org.openstreetmap.josm.gui.oauth.OAuthAuthorizationWizard;
 import org.openstreetmap.josm.io.auth.CredentialsAgentException;
 import org.openstreetmap.josm.io.auth.CredentialsAgentResponse;
 import org.openstreetmap.josm.io.auth.CredentialsManager;
 import org.openstreetmap.josm.tools.HttpClient;
+import org.openstreetmap.josm.tools.JosmRuntimeException;
 import org.openstreetmap.josm.tools.Logging;
-import org.openstreetmap.josm.tools.Utils;
 
 import oauth.signpost.OAuthConsumer;
 import oauth.signpost.exception.OAuthException;
@@ -35,9 +30,39 @@ import oauth.signpost.exception.OAuthException;
  * @author imi
  */
 public class OsmConnection {
+
+    private static final String BASIC_AUTH = "Basic ";
+
     protected boolean cancel;
     protected HttpClient activeConnection;
     protected OAuthParameters oauthParameters;
+
+    /**
+     * Retrieves OAuth access token.
+     * @since 12803
+     */
+    public interface OAuthAccessTokenFetcher {
+        /**
+         * Obtains an OAuth access token for the connection. Afterwards, the token is accessible via {@link OAuthAccessTokenHolder}.
+         * @param serverUrl the URL to OSM server
+         * @throws InterruptedException if we're interrupted while waiting for the event dispatching thread to finish OAuth authorization task
+         * @throws InvocationTargetException if an exception is thrown while running OAuth authorization task
+         */
+        void obtainAccessToken(URL serverUrl) throws InvocationTargetException, InterruptedException;
+    }
+
+    static volatile OAuthAccessTokenFetcher fetcher = u -> {
+        throw new JosmRuntimeException("OsmConnection.setOAuthAccessTokenFetcher() has not been called");
+    };
+
+    /**
+     * Sets the OAuth access token fetcher.
+     * @param tokenFetcher new OAuth access token fetcher. Cannot be null
+     * @since 12803
+     */
+    public static void setOAuthAccessTokenFetcher(OAuthAccessTokenFetcher tokenFetcher) {
+        fetcher = Objects.requireNonNull(tokenFetcher, "tokenFetcher");
+    }
 
     /**
      * Cancels the connection.
@@ -49,6 +74,30 @@ public class OsmConnection {
                 activeConnection.disconnect();
             }
         }
+    }
+
+    /**
+     * Retrieves login from basic authentication header, if set.
+     *
+     * @param con the connection
+     * @return login from basic authentication header, or {@code null}
+     * @throws OsmTransferException if something went wrong. Check for nested exceptions
+     * @since 12992
+     */
+    protected String retrieveBasicAuthorizationLogin(HttpClient con) throws OsmTransferException {
+        String auth = con.getRequestHeader("Authorization");
+        if (auth != null && auth.startsWith(BASIC_AUTH)) {
+            try {
+                String[] token = new String(Base64.getDecoder().decode(auth.substring(BASIC_AUTH.length())),
+                        StandardCharsets.UTF_8).split(":");
+                if (token.length == 2) {
+                    return token[0];
+                }
+            } catch (IllegalArgumentException e) {
+                Logging.error(e);
+            }
+        }
+        return null;
     }
 
     /**
@@ -75,7 +124,7 @@ public class OsmConnection {
                 String username = response.getUsername() == null ? "" : response.getUsername();
                 String password = response.getPassword() == null ? "" : String.valueOf(response.getPassword());
                 String token = username + ':' + password;
-                con.setHeader("Authorization", "Basic "+Base64.getEncoder().encodeToString(token.getBytes(StandardCharsets.UTF_8)));
+                con.setHeader("Authorization", BASIC_AUTH + Base64.getEncoder().encodeToString(token.getBytes(StandardCharsets.UTF_8)));
             }
         }
     }
@@ -90,7 +139,7 @@ public class OsmConnection {
      */
     protected void addOAuthAuthorizationHeader(HttpClient connection) throws OsmTransferException {
         if (oauthParameters == null) {
-            oauthParameters = OAuthParameters.createFromPreferences(Main.pref);
+            oauthParameters = OAuthParameters.createFromApiUrl(OsmApi.getOsmApi().getServerUrl());
         }
         OAuthConsumer consumer = oauthParameters.buildConsumer();
         OAuthAccessTokenHolder holder = OAuthAccessTokenHolder.getInstance();
@@ -109,9 +158,10 @@ public class OsmConnection {
     }
 
     /**
-     * Obtains an OAuth access token for the connection. Afterwards, the token is accessible via {@link OAuthAccessTokenHolder}.
+     * Obtains an OAuth access token for the connection.
+     * Afterwards, the token is accessible via {@link OAuthAccessTokenHolder} / {@link CredentialsManager}.
      * @param connection connection for which the access token should be obtained
-     * @throws MissingOAuthAccessTokenException if the process cannot be completec successfully
+     * @throws MissingOAuthAccessTokenException if the process cannot be completed successfully
      */
     protected void obtainAccessToken(final HttpClient connection) throws MissingOAuthAccessTokenException {
         try {
@@ -119,22 +169,9 @@ public class OsmConnection {
             if (!Objects.equals(apiUrl.getHost(), connection.getURL().getHost())) {
                 throw new MissingOAuthAccessTokenException();
             }
-            final Runnable authTask = new FutureTask<>(() -> {
-                // Concerning Utils.newDirectExecutor: Main worker cannot be used since this connection is already
-                // executed via main worker. The OAuth connections would block otherwise.
-                final OAuthAuthorizationWizard wizard = new OAuthAuthorizationWizard(
-                        Main.parent, apiUrl.toExternalForm(), Utils.newDirectExecutor());
-                wizard.showDialog();
-                OAuthAccessTokenHolder.getInstance().setSaveToPreferences(true);
-                OAuthAccessTokenHolder.getInstance().save(Main.pref, CredentialsManager.getInstance());
-                return wizard;
-            });
-            // exception handling differs from implementation at GuiHelper.runInEDTAndWait()
-            if (SwingUtilities.isEventDispatchThread()) {
-                authTask.run();
-            } else {
-                SwingUtilities.invokeAndWait(authTask);
-            }
+            fetcher.obtainAccessToken(apiUrl);
+            OAuthAccessTokenHolder.getInstance().setSaveToPreferences(true);
+            OAuthAccessTokenHolder.getInstance().save(CredentialsManager.getInstance());
         } catch (MalformedURLException | InterruptedException | InvocationTargetException e) {
             throw new MissingOAuthAccessTokenException(e);
         }

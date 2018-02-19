@@ -75,7 +75,7 @@ public class SaveLayersDialog extends JDialog implements TableModelListener {
         DELETE,
         /** exiting JOSM */
         EXIT,
-        /* restarting JOSM */
+        /** restarting JOSM */
         RESTART
     }
 
@@ -250,7 +250,7 @@ public class SaveLayersDialog extends JDialog implements TableModelListener {
             super(new GridBagLayout());
             build();
             lblMessage.setText(msg);
-            lstLayers.setListData(infos.toArray(new SaveLayerInfo[infos.size()]));
+            lstLayers.setListData(infos.toArray(new SaveLayerInfo[0]));
         }
 
         protected void build() {
@@ -363,7 +363,7 @@ public class SaveLayersDialog extends JDialog implements TableModelListener {
         CancelAction() {
             putValue(NAME, tr("Cancel"));
             putValue(SHORT_DESCRIPTION, tr("Close this dialog and resume editing in JOSM"));
-            putValue(SMALL_ICON, ImageProvider.get("cancel"));
+            new ImageProvider("cancel").getResource().attachImageIcon(this, true);
             InputMapUtils.addEscapeAction(getRootPane(), this);
         }
 
@@ -397,17 +397,17 @@ public class SaveLayersDialog extends JDialog implements TableModelListener {
                 case EXIT:
                     putValue(NAME, tr("Exit now!"));
                     putValue(SHORT_DESCRIPTION, tr("Exit JOSM without saving. Unsaved changes are lost."));
-                    putValue(SMALL_ICON, ImageProvider.get("exit"));
+                    new ImageProvider("exit").getResource().attachImageIcon(this, true);
                     break;
                 case RESTART:
                     putValue(NAME, tr("Restart now!"));
                     putValue(SHORT_DESCRIPTION, tr("Restart JOSM without saving. Unsaved changes are lost."));
-                    putValue(SMALL_ICON, ImageProvider.get("restart"));
+                    new ImageProvider("restart").getResource().attachImageIcon(this, true);
                     break;
                 case DELETE:
                     putValue(NAME, tr("Delete now!"));
                     putValue(SHORT_DESCRIPTION, tr("Delete layers without saving. Unsaved changes are lost."));
-                    putValue(SMALL_ICON, ImageProvider.get("dialogs", "delete"));
+                    new ImageProvider("dialogs", "delete").getResource().attachImageIcon(this, true);
                     break;
             }
 

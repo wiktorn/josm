@@ -19,6 +19,7 @@ import javax.swing.Action;
 
 import org.openstreetmap.josm.actions.SelectByInternalPointAction;
 import org.openstreetmap.josm.data.Bounds;
+import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
@@ -181,7 +182,7 @@ public class SelectionManager implements MouseListener, MouseMotionListener, Pro
      */
     @Override
     public void mousePressed(MouseEvent e) {
-        if (e.getButton() == MouseEvent.BUTTON1 && e.getClickCount() > 1 && MainApplication.getLayerManager().getEditDataSet() != null) {
+        if (e.getButton() == MouseEvent.BUTTON1 && e.getClickCount() > 1 && MainApplication.getLayerManager().getActiveDataSet() != null) {
             SelectByInternalPointAction.performSelection(MainApplication.getMap().mapView.getEastNorth(e.getX(), e.getY()),
                     (e.getModifiersEx() & MouseEvent.SHIFT_DOWN_MASK) != 0,
                     (e.getModifiersEx() & MouseEvent.CTRL_DOWN_MASK) != 0);
@@ -372,22 +373,23 @@ public class SelectionManager implements MouseListener, MouseMotionListener, Pro
             clicked = true;
         }
 
+        DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
         if (clicked) {
             Point center = new Point(selectionResult.xpoints[0], selectionResult.ypoints[0]);
             OsmPrimitive osm = nc.getNearestNodeOrWay(center, OsmPrimitive::isSelectable, false);
             if (osm != null) {
                 selection.add(osm);
             }
-        } else {
+        } else if (ds != null) {
             // nodes
-            for (Node n : MainApplication.getLayerManager().getEditDataSet().getNodes()) {
+            for (Node n : ds.getNodes()) {
                 if (n.isSelectable() && selectionResult.contains(nc.getPoint2D(n))) {
                     selection.add(n);
                 }
             }
 
             // ways
-            for (Way w : MainApplication.getLayerManager().getEditDataSet().getWays()) {
+            for (Way w : ds.getWays()) {
                 if (!w.isSelectable() || w.getNodesCount() == 0) {
                     continue;
                 }

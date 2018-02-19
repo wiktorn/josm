@@ -59,6 +59,7 @@ import org.openstreetmap.josm.gui.tagging.presets.items.Roles;
 import org.openstreetmap.josm.gui.tagging.presets.items.Roles.Role;
 import org.openstreetmap.josm.gui.tagging.presets.items.Space;
 import org.openstreetmap.josm.gui.util.GuiHelper;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Logging;
@@ -209,13 +210,13 @@ public class TaggingPreset extends AbstractAction implements ActiveLayerChangeLi
             return;
         }
         File arch = TaggingPresetReader.getZipIcons();
-        final Collection<String> s = Main.pref.getCollection("taggingpreset.icon.sources", null);
+        final Collection<String> s = Config.getPref().getList("taggingpreset.icon.sources", null);
         ImageProvider imgProv = new ImageProvider(iconName);
         imgProv.setDirs(s);
         imgProv.setId("presets");
         imgProv.setArchive(arch);
         imgProv.setOptional(true);
-        imgProv.getResourceAsync().thenAccept(result -> {
+        imgProv.getResourceAsync(result -> {
             if (result != null) {
                 GuiHelper.runInEDT(() -> result.attachImageIcon(this));
             } else {
@@ -482,7 +483,7 @@ public class TaggingPreset extends AbstractAction implements ActiveLayerChangeLi
             return DIALOG_ANSWER_CANCEL;
         } else if (p.getComponentCount() != 0 && (sel.isEmpty() || p.hasElements)) {
             String title = trn("Change {0} object", "Change {0} objects", sel.size(), sel.size());
-            if (sel.isEmpty()) {
+            if (!showNewRelation && sel.isEmpty()) {
                 if (originalSelectionEmpty) {
                     title = tr("Nothing selected!");
                 } else {
@@ -491,7 +492,7 @@ public class TaggingPreset extends AbstractAction implements ActiveLayerChangeLi
             }
 
             answer = new PresetDialog(p, title, preset_name_label ? null : (ImageIcon) getValue(Action.SMALL_ICON),
-                    sel.isEmpty(), showNewRelation).getValue();
+                    sel.isEmpty() || sel.iterator().next().getDataSet().isReadOnly(), showNewRelation).getValue();
         }
         if (!showNewRelation && answer == 2)
             return DIALOG_ANSWER_CANCEL;
@@ -615,7 +616,8 @@ public class TaggingPreset extends AbstractAction implements ActiveLayerChangeLi
          * Constructs a new {@code ToolbarButtonAction}.
          */
         public ToolbarButtonAction() {
-            super("", ImageProvider.get("dialogs", "pin"));
+            super("");
+            new ImageProvider("dialogs", "pin").getResource().attachImageIcon(this, true);
             putValue(SHORT_DESCRIPTION, tr("Add or remove toolbar button"));
             List<String> t = new LinkedList<>(ToolbarPreferences.getToolString());
             toolbarIndex = t.indexOf(getToolbarString());

@@ -2,6 +2,7 @@
 package org.openstreetmap.josm.gui;
 
 import java.awt.Container;
+import java.awt.GraphicsEnvironment;
 import java.awt.Point;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Area;
@@ -144,11 +145,26 @@ public final class MapViewState implements Serializable {
     }
 
     private static Point findTopLeftOnScreen(JComponent position) {
-        try {
-            return position.getLocationOnScreen();
-        } catch (JosmRuntimeException | IllegalArgumentException | IllegalStateException e) {
-            throw BugReport.intercept(e).put("position", position).put("parent", position::getParent);
+        if (GraphicsEnvironment.isHeadless()) {
+            // in our imaginary universe the window is always (10, 10) from the top left of the screen
+            Point topLeftInWindow = findTopLeftInWindow(position);
+            return new Point(topLeftInWindow.x + 10, topLeftInWindow.y + 10);
+        } else {
+            try {
+                return position.getLocationOnScreen();
+            } catch (JosmRuntimeException | IllegalArgumentException | IllegalStateException e) {
+                throw BugReport.intercept(e).put("position", position).put("parent", position::getParent);
+            }
         }
+    }
+
+    @Override
+    public String toString() {
+        return getClass().getName() + " [projecting=" + this.projecting
+            + " viewWidth=" + this.viewWidth
+            + " viewHeight=" + this.viewHeight
+            + " scale=" + this.scale
+            + " topLeft=" + this.topLeft + ']';
     }
 
     /**
@@ -301,8 +317,8 @@ public final class MapViewState implements Serializable {
      */
     public Area getArea(Bounds bounds) {
         Path2D area = new Path2D.Double();
-        bounds.visitEdge(getProjection(), latlon -> {
-            MapViewPoint point = getPointFor(latlon);
+        getProjection().visitOutline(bounds, en -> {
+            MapViewPoint point = getPointFor(en);
             if (area.getCurrentPoint() == null) {
                 area.moveTo(point.getInViewX(), point.getInViewY());
             } else {
@@ -377,7 +393,7 @@ public final class MapViewState implements Serializable {
 
     /**
      * Create the default {@link MapViewState} object for the given map view. The screen position won't be set so that this method can be used
-     * before the view was added to the hirarchy.
+     * before the view was added to the hierarchy.
      * @param width The view width
      * @param height The view height
      * @return The state
@@ -754,6 +770,10 @@ public final class MapViewState implements Serializable {
 
             return null;
         }
-    }
 
+        @Override
+        public String toString() {
+            return "MapViewRectangle [p1=" + p1 + ", p2=" + p2 + ']';
+        }
+    }
 }

@@ -8,6 +8,8 @@ import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import javax.swing.JOptionPane;
 
@@ -20,13 +22,16 @@ import org.openstreetmap.josm.actions.upload.UploadHook;
 import org.openstreetmap.josm.actions.upload.ValidateUploadHook;
 import org.openstreetmap.josm.data.APIDataSet;
 import org.openstreetmap.josm.data.conflict.ConflictCollection;
+import org.openstreetmap.josm.data.osm.Changeset;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.io.AsynchronousUploadPrimitivesTask;
 import org.openstreetmap.josm.gui.io.UploadDialog;
 import org.openstreetmap.josm.gui.io.UploadPrimitivesTask;
 import org.openstreetmap.josm.gui.layer.AbstractModifiableLayer;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.util.GuiHelper;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.Utils;
@@ -54,6 +59,8 @@ public class UploadAction extends JosmAction {
      */
     private static final List<UploadHook> UPLOAD_HOOKS = new LinkedList<>();
     private static final List<UploadHook> LATE_UPLOAD_HOOKS = new LinkedList<>();
+
+    private static final String IS_ASYNC_UPLOAD_ENABLED = "asynchronous.upload";
 
     static {
         /**
@@ -136,16 +143,18 @@ public class UploadAction extends JosmAction {
         putValue("help", ht("/Action/Upload"));
     }
 
-    /**
-     * Refreshes the enabled state
-     *
-     */
     @Override
     protected void updateEnabledState() {
         OsmDataLayer editLayer = getLayerManager().getEditLayer();
         setEnabled(editLayer != null && editLayer.isUploadable());
     }
 
+    /**
+     * Check whether the preconditions are met to upload data from a given layer, if applicable.
+     * @param layer layer to check
+     * @return {@code true} if the preconditions are met, or not applicable
+     * @see #checkPreUploadConditions(AbstractModifiableLayer, APIDataSet)
+     */
     public static boolean checkPreUploadConditions(AbstractModifiableLayer layer) {
         return checkPreUploadConditions(layer,
                 layer instanceof OsmDataLayer ? new APIDataSet(((OsmDataLayer) layer).data) : null);
@@ -245,14 +254,34 @@ public class UploadAction extends JosmAction {
                 return;
         }
 
-        MainApplication.worker.execute(
-                new UploadPrimitivesTask(
-                        UploadDialog.getUploadDialog().getUploadStrategySpecification(),
-                        layer,
-                        apiData,
-                        UploadDialog.getUploadDialog().getChangeset()
-                )
-        );
+        // Any hooks want to change the changeset tags?
+        Changeset cs = UploadDialog.getUploadDialog().getChangeset();
+        Map<String, String> changesetTags = cs.getKeys();
+        for (UploadHook hook : UPLOAD_HOOKS) {
+            hook.modifyChangesetTags(changesetTags);
+        }
+        for (UploadHook hook : LATE_UPLOAD_HOOKS) {
+            hook.modifyChangesetTags(changesetTags);
+        }
+
+        if (Config.getPref().getBoolean(IS_ASYNC_UPLOAD_ENABLED, true)) {
+            Optional<AsynchronousUploadPrimitivesTask> asyncUploadTask = AsynchronousUploadPrimitivesTask.createAsynchronousUploadTask(
+                    UploadDialog.getUploadDialog().getUploadStrategySpecification(),
+                    layer,
+                    apiData,
+                    cs);
+
+            if (asyncUploadTask.isPresent()) {
+                MainApplication.worker.execute(asyncUploadTask.get());
+            }
+        } else {
+            MainApplication.worker.execute(
+                    new UploadPrimitivesTask(
+                            UploadDialog.getUploadDialog().getUploadStrategySpecification(),
+                            layer,
+                            apiData,
+                            cs));
+        }
     }
 
     @Override

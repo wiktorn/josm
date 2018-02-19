@@ -62,7 +62,6 @@ public class CustomProjection extends AbstractProjection {
     protected String pref;
     protected String name;
     protected String code;
-    protected String cacheDir;
     protected Bounds bounds;
     private double metersPerUnitWMTS;
     private String axis = "enu"; // default axis orientation is East, North, Up
@@ -201,20 +200,6 @@ public class CustomProjection extends AbstractProjection {
      */
     public CustomProjection(String pref) {
         this(null, null, pref);
-    }
-
-    /**
-     * Constructs a new {@code CustomProjection} with given name, code and parameters.
-     *
-     * @param name describe projection in one or two words
-     * @param code unique code for this projection - may be null
-     * @param pref the string that defines the custom projection
-     * @param cacheDir cache directory name
-     * @deprecated unused - remove in 2017-09
-     */
-    @Deprecated
-    public CustomProjection(String name, String code, String pref, String cacheDir) {
-        this(name, code, pref);
     }
 
     /**
@@ -665,7 +650,7 @@ public class CustomProjection extends AbstractProjection {
             return LatLonParser.parseCoordinate(angleStr);
         } catch (IllegalArgumentException e) {
             throw new ProjectionConfigurationException(
-                    tr("Unable to parse value ''{1}'' of parameter ''{0}'' as coordinate value.", parameterName, angleStr));
+                    tr("Unable to parse value ''{1}'' of parameter ''{0}'' as coordinate value.", parameterName, angleStr), e);
         }
     }
 
@@ -689,20 +674,6 @@ public class CustomProjection extends AbstractProjection {
             return "proj:" + pref;
         } else {
             return "proj:ERROR";
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     * @deprecated unused - remove in 2017-09
-     */
-    @Override
-    @Deprecated
-    public String getCacheDirectoryName() {
-        if (cacheDir != null) {
-            return cacheDir;
-        } else {
-            return "proj-" + Utils.md5Hex(pref == null ? "" : pref).substring(0, 4);
         }
     }
 

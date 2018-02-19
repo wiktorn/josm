@@ -14,8 +14,6 @@ import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
 import java.util.Formatter;
 import java.util.Locale;
 
@@ -32,11 +30,12 @@ import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.layer.AbstractTileSourceLayer;
-import org.openstreetmap.josm.gui.layer.imagery.TileSourceDisplaySettings;
+import org.openstreetmap.josm.gui.util.WindowGeometry;
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.JosmDecimalFormatSymbolsProvider;
 import org.openstreetmap.josm.tools.Logging;
 
 /**
@@ -52,6 +51,7 @@ public class ImageryAdjustAction extends MapMode implements AWTEventListener {
     private EastNorth prevEastNorth;
     private transient AbstractTileSourceLayer<?> layer;
     private MapMode oldMapMode;
+    private boolean exitingMode;
 
     /**
      * Constructs a new {@code ImageryAdjustAction} for the given layer.
@@ -83,7 +83,7 @@ public class ImageryAdjustAction extends MapMode implements AWTEventListener {
                 Main.getProjection().toCode(),
                 layer.getInfo().getName(),
                 null,
-                curOff.east(), curOff.north(), center.lon(), center.lat());
+                curOff, center);
         layer.getDisplaySettings().setOffsetBookmark(tempOffset);
         addListeners();
         showOffsetDialog(new ImageryOffsetDialog());
@@ -112,6 +112,7 @@ public class ImageryAdjustAction extends MapMode implements AWTEventListener {
 
     @Override
     public void exitMode() {
+        exitingMode = true;
         super.exitMode();
         if (offsetDialog != null) {
             if (layer != null) {
@@ -121,6 +122,7 @@ public class ImageryAdjustAction extends MapMode implements AWTEventListener {
             // do not restore old mode here - this is called when the new mode is already known.
         }
         removeListeners();
+        exitingMode = false;
     }
 
     protected void removeListeners() {
@@ -152,6 +154,12 @@ public class ImageryAdjustAction extends MapMode implements AWTEventListener {
         case KeyEvent.VK_DOWN : dy = -1; break;
         case KeyEvent.VK_LEFT : dx = -1; break;
         case KeyEvent.VK_RIGHT : dx = +1; break;
+        case KeyEvent.VK_ESCAPE:
+            if (offsetDialog != null) {
+                offsetDialog.setVisible(false);
+                return;
+            }
+            break;
         default: // Do nothing
         }
         if (dx != 0 || dy != 0) {
@@ -224,7 +232,7 @@ public class ImageryAdjustAction extends MapMode implements AWTEventListener {
             super(Main.parent,
                     tr("Adjust imagery offset"),
                     new String[] {tr("OK"), tr("Cancel")},
-                    false);
+                    false, false); // Do not dispose on close, so HIDE_ON_CLOSE remains the default behaviour and setVisible is called
             setButtonIcons("ok", "cancel");
             contentInsets = new Insets(10, 15, 5, 15);
             JPanel pnl = new JPanel(new GridBagLayout());
@@ -241,7 +249,7 @@ public class ImageryAdjustAction extends MapMode implements AWTEventListener {
             tOffset.addFocusListener(this);
             setContent(pnl);
             setupDialog();
-            addWindowListener(new WindowEventHandler());
+            setRememberWindowGeometry(getClass().getName() + ".geometry", WindowGeometry.centerInWindow(Main.parent, getSize()));
         }
 
         private boolean areFieldsInFocus() {
@@ -260,11 +268,10 @@ public class ImageryAdjustAction extends MapMode implements AWTEventListener {
             int semicolon = ostr.indexOf(';');
             if (layer != null && semicolon >= 0 && semicolon + 1 < ostr.length()) {
                 try {
-                    // here we assume that Double.parseDouble() needs '.' as a decimal separator
-                    String easting = ostr.substring(0, semicolon).trim().replace(',', '.');
-                    String northing = ostr.substring(semicolon + 1).trim().replace(',', '.');
-                    double dx = Double.parseDouble(easting);
-                    double dy = Double.parseDouble(northing);
+                    String easting = ostr.substring(0, semicolon).trim();
+                    String northing = ostr.substring(semicolon + 1).trim();
+                    double dx = JosmDecimalFormatSymbolsProvider.parseDouble(easting);
+                    double dy = JosmDecimalFormatSymbolsProvider.parseDouble(northing);
                     tempOffset.setDisplacement(new EastNorth(dx, dy));
                     layer.getDisplaySettings().setOffsetBookmark(tempOffset);
                 } catch (NumberFormatException nfe) {
@@ -273,9 +280,7 @@ public class ImageryAdjustAction extends MapMode implements AWTEventListener {
                 }
             }
             updateOffsetIntl();
-            if (MainApplication.isDisplayingMapView()) {
-                MainApplication.getMap().repaint();
-            }
+            layer.invalidate();
         }
 
         private void updateOffset() {
@@ -290,10 +295,10 @@ public class ImageryAdjustAction extends MapMode implements AWTEventListener {
                 int precision = Main.getProjection().getDefaultZoomInPPD() >= 1.0 ? 2 : 7;
                 // US locale to force decimal separator to be '.'
                 try (Formatter us = new Formatter(Locale.US)) {
-                    TileSourceDisplaySettings ds = layer.getDisplaySettings();
+                    EastNorth displacement = layer.getDisplaySettings().getDisplacement();
                     tOffset.setText(us.format(new StringBuilder()
                         .append("%1.").append(precision).append("f; %1.").append(precision).append('f').toString(),
-                        ds.getDx(), ds.getDy()).toString());
+                        displacement.east(), displacement.north()).toString());
                 }
             }
         }
@@ -321,7 +326,6 @@ public class ImageryAdjustAction extends MapMode implements AWTEventListener {
                 return;
             }
             super.buttonAction(buttonIndex, evt);
-            restoreMapModeState();
         }
 
         @Override
@@ -329,6 +333,7 @@ public class ImageryAdjustAction extends MapMode implements AWTEventListener {
             super.setVisible(visible);
             if (visible)
                 return;
+            ignoreListener = true;
             offsetDialog = null;
             if (layer != null) {
                 if (getValue() != 1) {
@@ -338,6 +343,7 @@ public class ImageryAdjustAction extends MapMode implements AWTEventListener {
                 }
             }
             MainApplication.getMenu().imageryMenu.refreshOffsetMenu();
+            restoreMapModeState();
         }
 
         private void restoreMapModeState() {
@@ -347,16 +353,9 @@ public class ImageryAdjustAction extends MapMode implements AWTEventListener {
             if (oldMapMode != null) {
                 map.selectMapMode(oldMapMode);
                 oldMapMode = null;
-            } else {
-                map.selectSelectTool(false);
-            }
-        }
-
-        class WindowEventHandler extends WindowAdapter {
-            @Override
-            public void windowClosing(WindowEvent e) {
-                setVisible(false);
-                restoreMapModeState();
+            } else if (!exitingMode && !map.selectSelectTool(false)) {
+                exitMode();
+                map.mapMode = null;
             }
         }
     }

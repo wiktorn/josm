@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.DataSource;
@@ -189,7 +190,6 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
 
         /**
          * Constructs a new {@code AbstractInternalTask}.
-         *
          * @param newLayer if {@code true}, force download to a new layer
          * @param title message for the user
          * @param ignoreException If true, exception will be propagated to calling code. If false then
@@ -205,7 +205,6 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
 
         /**
          * Constructs a new {@code AbstractInternalTask}.
-         *
          * @param newLayer if {@code true}, force download to a new layer
          * @param title message for the user
          * @param progressMonitor progress monitor
@@ -226,12 +225,37 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
             return MainApplication.getLayerManager().getEditLayer();
         }
 
+        /**
+         * Returns the number of modifiable data layers
+         * @return number of modifiable data layers
+         * @deprecated Use {@link #getNumModifiableDataLayers}
+         */
+        @Deprecated
         protected int getNumDataLayers() {
-            return MainApplication.getLayerManager().getLayersOfType(OsmDataLayer.class).size();
+            return (int) getNumModifiableDataLayers();
         }
 
-        protected OsmDataLayer getFirstDataLayer() {
-            return Utils.find(MainApplication.getLayerManager().getLayers(), OsmDataLayer.class);
+        private static Stream<OsmDataLayer> getModifiableDataLayers() {
+            return MainApplication.getLayerManager().getLayersOfType(OsmDataLayer.class)
+                    .stream().filter(l -> !l.isReadOnly());
+        }
+
+        /**
+         * Returns the number of modifiable data layers
+         * @return number of modifiable data layers
+         * @since 13434
+         */
+        protected long getNumModifiableDataLayers() {
+            return getModifiableDataLayers().count();
+        }
+
+        /**
+         * Returns the first modifiable data layer
+         * @return the first modifiable data layer
+         * @since 13434
+         */
+        protected OsmDataLayer getFirstModifiableDataLayer() {
+            return getModifiableDataLayers().findFirst().orElse(null);
         }
 
         protected OsmDataLayer createNewLayer(String layerName) {
@@ -256,11 +280,10 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
         }
 
         protected OsmDataLayer addNewLayerIfRequired(String newLayerName) {
-            int numDataLayers = getNumDataLayers();
+            long numDataLayers = getNumModifiableDataLayers();
             if (newLayer || numDataLayers == 0 || (numDataLayers > 1 && getEditLayer() == null)) {
                 // the user explicitly wants a new layer, we don't have any layer at all
                 // or it is not clear which layer to merge to
-                //
                 final OsmDataLayer layer = createNewLayer(newLayerName);
                 MainApplication.getLayerManager().addLayer(layer, zoomAfterDownload);
                 return layer;
@@ -271,7 +294,7 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
         protected void loadData(String newLayerName, Bounds bounds) {
             OsmDataLayer layer = addNewLayerIfRequired(newLayerName);
             if (layer == null) {
-                layer = Optional.ofNullable(getEditLayer()).orElseGet(this::getFirstDataLayer);
+                layer = Optional.ofNullable(getEditLayer()).orElseGet(this::getFirstModifiableDataLayer);
                 Collection<OsmPrimitive> primitivesToUpdate = searchPrimitivesToUpdate(bounds, layer.data);
                 layer.mergeFrom(dataSet);
                 MapFrame map = MainApplication.getMap();

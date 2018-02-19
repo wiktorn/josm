@@ -5,33 +5,23 @@ import static org.openstreetmap.josm.tools.I18n.marktr;
 import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.Color;
-import java.awt.GraphicsEnvironment;
-import java.awt.Toolkit;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.Reader;
-import java.io.StringReader;
 import java.io.StringWriter;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -39,45 +29,29 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.json.Json;
-import javax.json.JsonArray;
-import javax.json.JsonArrayBuilder;
-import javax.json.JsonObject;
-import javax.json.JsonObjectBuilder;
-import javax.json.JsonReader;
-import javax.json.JsonString;
-import javax.json.JsonValue;
-import javax.json.JsonWriter;
 import javax.swing.JOptionPane;
 import javax.xml.stream.XMLStreamException;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.data.preferences.BooleanProperty;
-import org.openstreetmap.josm.data.preferences.ColorProperty;
-import org.openstreetmap.josm.data.preferences.DoubleProperty;
-import org.openstreetmap.josm.data.preferences.IntegerProperty;
-import org.openstreetmap.josm.data.preferences.ListListSetting;
-import org.openstreetmap.josm.data.preferences.ListSetting;
-import org.openstreetmap.josm.data.preferences.LongProperty;
-import org.openstreetmap.josm.data.preferences.MapListSetting;
+import org.openstreetmap.josm.data.preferences.ColorInfo;
+import org.openstreetmap.josm.data.preferences.NamedColorProperty;
 import org.openstreetmap.josm.data.preferences.PreferencesReader;
 import org.openstreetmap.josm.data.preferences.PreferencesWriter;
-import org.openstreetmap.josm.data.preferences.Setting;
-import org.openstreetmap.josm.data.preferences.StringSetting;
-import org.openstreetmap.josm.data.preferences.sources.ExtendedSourceEntry;
-import org.openstreetmap.josm.data.preferences.sources.ValidatorPrefHelper;
 import org.openstreetmap.josm.io.OfflineAccessException;
 import org.openstreetmap.josm.io.OnlineResource;
+import org.openstreetmap.josm.spi.preferences.AbstractPreferences;
+import org.openstreetmap.josm.spi.preferences.Config;
+import org.openstreetmap.josm.spi.preferences.IBaseDirectories;
+import org.openstreetmap.josm.spi.preferences.ListSetting;
+import org.openstreetmap.josm.spi.preferences.Setting;
+import org.openstreetmap.josm.spi.preferences.StringSetting;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.ColorHelper;
 import org.openstreetmap.josm.tools.I18n;
-import org.openstreetmap.josm.tools.JosmRuntimeException;
 import org.openstreetmap.josm.tools.ListenerList;
 import org.openstreetmap.josm.tools.Logging;
-import org.openstreetmap.josm.tools.MultiMap;
 import org.openstreetmap.josm.tools.Utils;
 import org.xml.sax.SAXException;
 
@@ -103,34 +77,20 @@ import org.xml.sax.SAXException;
  * @author imi
  * @since 74
  */
-public class Preferences {
+public class Preferences extends AbstractPreferences {
 
     private static final String COLOR_PREFIX = "color.";
+    private static final Pattern COLOR_LAYER_PATTERN = Pattern.compile("layer\\.(.+)");
+    private static final Pattern COLOR_MAPPAINT_PATTERN = Pattern.compile("mappaint\\.(.+?)\\.(.+)");
 
     private static final String[] OBSOLETE_PREF_KEYS = {
-      "imagery.layers.addedIds", /* remove entry after June 2017 */
       "projection", /* remove entry after Nov. 2017 */
       "projection.sub", /* remove entry after Nov. 2017 */
     };
 
     private static final long MAX_AGE_DEFAULT_PREFERENCES = TimeUnit.DAYS.toSeconds(50);
 
-    /**
-     * Internal storage for the preference directory.
-     * Do not access this variable directly!
-     * @see #getPreferencesDirectory()
-     */
-    private File preferencesDir;
-
-    /**
-     * Internal storage for the cache directory.
-     */
-    private File cacheDir;
-
-    /**
-     * Internal storage for the user data directory.
-     */
-    private File userdataDir;
+    private final IBaseDirectories dirs;
 
     /**
      * Determines if preferences file is saved each time a property is changed.
@@ -156,7 +116,9 @@ public class Preferences {
 
     /**
      * Maps color keys to human readable color name
+     * @deprecated (since 12987) no longer supported
      */
+    @Deprecated
     protected final SortedMap<String, String> colornames = new TreeMap<>();
 
     /**
@@ -165,78 +127,24 @@ public class Preferences {
      */
     protected boolean initSuccessful;
 
-    /**
-     * Event triggered when a preference entry value changes.
-     */
-    public interface PreferenceChangeEvent {
-        /**
-         * Returns the preference key.
-         * @return the preference key
-         */
-        String getKey();
+    private final ListenerList<org.openstreetmap.josm.spi.preferences.PreferenceChangedListener> listeners = ListenerList.create();
 
-        /**
-         * Returns the old preference value.
-         * @return the old preference value
-         */
-        Setting<?> getOldValue();
-
-        /**
-         * Returns the new preference value.
-         * @return the new preference value
-         */
-        Setting<?> getNewValue();
-    }
-
-    /**
-     * Listener to preference change events.
-     * @since 10600 (functional interface)
-     */
-    @FunctionalInterface
-    public interface PreferenceChangedListener {
-        /**
-         * Trigerred when a preference entry value changes.
-         * @param e the preference change event
-         */
-        void preferenceChanged(PreferenceChangeEvent e);
-    }
-
-    private static class DefaultPreferenceChangeEvent implements PreferenceChangeEvent {
-        private final String key;
-        private final Setting<?> oldValue;
-        private final Setting<?> newValue;
-
-        DefaultPreferenceChangeEvent(String key, Setting<?> oldValue, Setting<?> newValue) {
-            this.key = key;
-            this.oldValue = oldValue;
-            this.newValue = newValue;
-        }
-
-        @Override
-        public String getKey() {
-            return key;
-        }
-
-        @Override
-        public Setting<?> getOldValue() {
-            return oldValue;
-        }
-
-        @Override
-        public Setting<?> getNewValue() {
-            return newValue;
-        }
-    }
-
-    private final ListenerList<PreferenceChangedListener> listeners = ListenerList.create();
-
-    private final HashMap<String, ListenerList<PreferenceChangedListener>> keyListeners = new HashMap<>();
+    private final HashMap<String, ListenerList<org.openstreetmap.josm.spi.preferences.PreferenceChangedListener>> keyListeners = new HashMap<>();
 
     /**
      * Constructs a new {@code Preferences}.
      */
     public Preferences() {
-        // Default constructor
+        this.dirs = Config.getDirs();
+    }
+
+    /**
+     * Constructs a new {@code Preferences}.
+     *
+     * @param dirs the directories to use for saving the preferences
+     */
+    public Preferences(IBaseDirectories dirs) {
+        this.dirs = dirs;
     }
 
     /**
@@ -244,7 +152,9 @@ public class Preferences {
      * @param pref existing preferences to copy
      * @since 12634
      */
+    @SuppressWarnings("deprecation")
     public Preferences(Preferences pref) {
+        this(pref.dirs);
         settingsMap.putAll(pref.settingsMap);
         defaultsMap.putAll(pref.defaultsMap);
         colornames.putAll(pref.colornames);
@@ -253,8 +163,10 @@ public class Preferences {
     /**
      * Adds a new preferences listener.
      * @param listener The listener to add
+     * @since 12881
      */
-    public void addPreferenceChangeListener(PreferenceChangedListener listener) {
+    @Override
+    public void addPreferenceChangeListener(org.openstreetmap.josm.spi.preferences.PreferenceChangedListener listener) {
         if (listener != null) {
             listeners.addListener(listener);
         }
@@ -263,8 +175,10 @@ public class Preferences {
     /**
      * Removes a preferences listener.
      * @param listener The listener to remove
+     * @since 12881
      */
-    public void removePreferenceChangeListener(PreferenceChangedListener listener) {
+    @Override
+    public void removePreferenceChangeListener(org.openstreetmap.josm.spi.preferences.PreferenceChangedListener listener) {
         listeners.removeListener(listener);
     }
 
@@ -272,9 +186,10 @@ public class Preferences {
      * Adds a listener that only listens to changes in one preference
      * @param key The preference key to listen to
      * @param listener The listener to add.
-     * @since 10824
+     * @since 12881
      */
-    public void addKeyPreferenceChangeListener(String key, PreferenceChangedListener listener) {
+    @Override
+    public void addKeyPreferenceChangeListener(String key, org.openstreetmap.josm.spi.preferences.PreferenceChangedListener listener) {
         listenersForKey(key).addListener(listener);
     }
 
@@ -284,46 +199,42 @@ public class Preferences {
      * @param listener The listener to add.
      * @since 10824
      */
-    public void addWeakKeyPreferenceChangeListener(String key, PreferenceChangedListener listener) {
+    public void addWeakKeyPreferenceChangeListener(String key, org.openstreetmap.josm.spi.preferences.PreferenceChangedListener listener) {
         listenersForKey(key).addWeakListener(listener);
     }
 
-    private ListenerList<PreferenceChangedListener> listenersForKey(String key) {
-        ListenerList<PreferenceChangedListener> keyListener = keyListeners.get(key);
-        if (keyListener == null) {
-            keyListener = ListenerList.create();
-            keyListeners.put(key, keyListener);
-        }
-        return keyListener;
+    private ListenerList<org.openstreetmap.josm.spi.preferences.PreferenceChangedListener> listenersForKey(String key) {
+        return keyListeners.computeIfAbsent(key, k -> ListenerList.create());
     }
 
     /**
      * Removes a listener that only listens to changes in one preference
      * @param key The preference key to listen to
      * @param listener The listener to add.
+     * @since 12881
      */
-    public void removeKeyPreferenceChangeListener(String key, PreferenceChangedListener listener) {
+    @Override
+    public void removeKeyPreferenceChangeListener(String key, org.openstreetmap.josm.spi.preferences.PreferenceChangedListener listener) {
         Optional.ofNullable(keyListeners.get(key)).orElseThrow(
                 () -> new IllegalArgumentException("There are no listeners registered for " + key))
         .removeListener(listener);
     }
 
     protected void firePreferenceChanged(String key, Setting<?> oldValue, Setting<?> newValue) {
-        final PreferenceChangeEvent evt = new DefaultPreferenceChangeEvent(key, oldValue, newValue);
+        final org.openstreetmap.josm.spi.preferences.PreferenceChangeEvent evt =
+                new org.openstreetmap.josm.spi.preferences.DefaultPreferenceChangeEvent(key, oldValue, newValue);
         listeners.fireEvent(listener -> listener.preferenceChanged(evt));
 
-        ListenerList<PreferenceChangedListener> forKey = keyListeners.get(key);
+        ListenerList<org.openstreetmap.josm.spi.preferences.PreferenceChangedListener> forKey = keyListeners.get(key);
         if (forKey != null) {
             forKey.fireEvent(listener -> listener.preferenceChanged(evt));
         }
     }
 
     /**
-     * Get the base name of the JOSM directories for preferences, cache and
-     * user data.
+     * Get the base name of the JOSM directories for preferences, cache and user data.
      * Default value is "JOSM", unless overridden by system property "josm.dir.name".
-     * @return the base name of the JOSM directories for preferences, cache and
-     * user data
+     * @return the base name of the JOSM directories for preferences, cache and user data
      */
     public String getJOSMDirectoryBaseName() {
         String name = System.getProperty("josm.dir.name");
@@ -334,26 +245,33 @@ public class Preferences {
     }
 
     /**
+     * Get the base directories associated with this preference instance.
+     * @return the base directories
+     */
+    public IBaseDirectories getDirs() {
+        return dirs;
+    }
+
+    /**
      * Returns the user defined preferences directory, containing the preferences.xml file
      * @return The user defined preferences directory, containing the preferences.xml file
      * @since 7834
+     * @deprecated use {@link #getPreferencesDirectory(boolean)}
      */
+    @Deprecated
     public File getPreferencesDirectory() {
-        if (preferencesDir != null)
-            return preferencesDir;
-        String path;
-        path = System.getProperty("josm.pref");
-        if (path != null) {
-            preferencesDir = new File(path).getAbsoluteFile();
-        } else {
-            path = System.getProperty("josm.home");
-            if (path != null) {
-                preferencesDir = new File(path).getAbsoluteFile();
-            } else {
-                preferencesDir = Main.platform.getDefaultPrefDirectory();
-            }
-        }
-        return preferencesDir;
+        return getPreferencesDirectory(false);
+    }
+
+    /**
+     * @param createIfMissing if true, automatically creates this directory,
+     * in case it is missing
+     * @return the preferences directory
+     * @deprecated use {@link #getDirs()} or (more generally) {@link Config#getDirs()}
+     */
+    @Deprecated
+    public File getPreferencesDirectory(boolean createIfMissing) {
+        return dirs.getPreferencesDirectory(createIfMissing);
     }
 
     /**
@@ -361,23 +279,22 @@ public class Preferences {
      * Depending on the OS it may be the same directory as preferences directory.
      * @return The user data directory, containing autosave, plugins, etc.
      * @since 7834
+     * @deprecated use {@link #getUserDataDirectory(boolean)}
      */
+    @Deprecated
     public File getUserDataDirectory() {
-        if (userdataDir != null)
-            return userdataDir;
-        String path;
-        path = System.getProperty("josm.userdata");
-        if (path != null) {
-            userdataDir = new File(path).getAbsoluteFile();
-        } else {
-            path = System.getProperty("josm.home");
-            if (path != null) {
-                userdataDir = new File(path).getAbsoluteFile();
-            } else {
-                userdataDir = Main.platform.getDefaultUserDataDirectory();
-            }
-        }
-        return userdataDir;
+        return getUserDataDirectory(false);
+    }
+
+    /**
+     * @param createIfMissing if true, automatically creates this directory,
+     * in case it is missing
+     * @return the user data directory
+     * @deprecated use {@link #getDirs()} or (more generally) {@link Config#getDirs()}
+     */
+    @Deprecated
+    public File getUserDataDirectory(boolean createIfMissing) {
+        return dirs.getUserDataDirectory(createIfMissing);
     }
 
     /**
@@ -385,7 +302,7 @@ public class Preferences {
      * @return The user preferences file (preferences.xml)
      */
     public File getPreferenceFile() {
-        return new File(getPreferencesDirectory(), "preferences.xml");
+        return new File(dirs.getPreferencesDirectory(false), "preferences.xml");
     }
 
     /**
@@ -393,7 +310,7 @@ public class Preferences {
      * @return the cache file for default preferences
      */
     public File getDefaultsCacheFile() {
-        return new File(getCacheDirectory(), "default_preferences.xml");
+        return new File(dirs.getCacheDirectory(true), "default_preferences.xml");
     }
 
     /**
@@ -401,7 +318,7 @@ public class Preferences {
      * @return The user plugin directory
      */
     public File getPluginsDirectory() {
-        return new File(getUserDataDirectory(), "plugins");
+        return new File(dirs.getUserDataDirectory(false), "plugins");
     }
 
     /**
@@ -410,36 +327,22 @@ public class Preferences {
      * If the directory doesn't exist on the file system, it will be created by this method.
      *
      * @return the cache directory
+     * @deprecated use {@link #getCacheDirectory(boolean)}
      */
+    @Deprecated
     public File getCacheDirectory() {
-        if (cacheDir != null)
-            return cacheDir;
-        String path = System.getProperty("josm.cache");
-        if (path != null) {
-            cacheDir = new File(path).getAbsoluteFile();
-        } else {
-            path = System.getProperty("josm.home");
-            if (path != null) {
-                cacheDir = new File(path, "cache");
-            } else {
-                path = get("cache.folder", null);
-                if (path != null) {
-                    cacheDir = new File(path).getAbsoluteFile();
-                } else {
-                    cacheDir = Main.platform.getDefaultCacheDirectory();
-                }
-            }
-        }
-        if (!cacheDir.exists() && !cacheDir.mkdirs()) {
-            Logging.warn(tr("Failed to create missing cache directory: {0}", cacheDir.getAbsoluteFile()));
-            JOptionPane.showMessageDialog(
-                    Main.parent,
-                    tr("<html>Failed to create missing cache directory: {0}</html>", cacheDir.getAbsoluteFile()),
-                    tr("Error"),
-                    JOptionPane.ERROR_MESSAGE
-            );
-        }
-        return cacheDir;
+        return getCacheDirectory(true);
+    }
+
+    /**
+     * @param createIfMissing if true, automatically creates this directory,
+     * in case it is missing
+     * @return the cache directory
+     * @deprecated use {@link #getDirs()} or (more generally) {@link Config#getDirs()}
+     */
+    @Deprecated
+    public File getCacheDirectory(boolean createIfMissing) {
+        return dirs.getCacheDirectory(createIfMissing);
     }
 
     private static void addPossibleResourceDir(Set<String> locations, String s) {
@@ -457,8 +360,8 @@ public class Preferences {
      */
     public Collection<String> getAllPossiblePreferenceDirs() {
         Set<String> locations = new HashSet<>();
-        addPossibleResourceDir(locations, getPreferencesDirectory().getPath());
-        addPossibleResourceDir(locations, getUserDataDirectory().getPath());
+        addPossibleResourceDir(locations, dirs.getPreferencesDirectory(false).getPath());
+        addPossibleResourceDir(locations, dirs.getUserDataDirectory(false).getPath());
         addPossibleResourceDir(locations, System.getenv("JOSM_RESOURCES"));
         addPossibleResourceDir(locations, System.getProperty("josm.resources"));
         if (Main.isPlatformWindows()) {
@@ -476,26 +379,6 @@ public class Preferences {
             locations.add("/usr/lib/josm/");
         }
         return locations;
-    }
-
-    /**
-     * Get settings value for a certain key.
-     * @param key the identifier for the setting
-     * @return "" if there is nothing set for the preference key, the corresponding value otherwise. The result is not null.
-     */
-    public synchronized String get(final String key) {
-        String value = get(key, null);
-        return value == null ? "" : value;
-    }
-
-    /**
-     * Get settings value for a certain key and provide default a value.
-     * @param key the identifier for the setting
-     * @param def the default value. For each call of get() with a given key, the default value must be the same.
-     * @return the corresponding value if the property has been set before, {@code def} otherwise
-     */
-    public synchronized String get(final String key, final String def) {
-        return getSetting(key, new StringSetting(def), StringSetting.class).getValue();
     }
 
     /**
@@ -529,13 +412,49 @@ public class Preferences {
     }
 
     /**
+     * Get all named colors, including customized and the default ones.
+     * @return a map of all named colors (maps preference key to {@link ColorInfo})
+     */
+    public synchronized Map<String, ColorInfo> getAllNamedColors() {
+        final Map<String, ColorInfo> all = new TreeMap<>();
+        for (final Entry<String, Setting<?>> e : settingsMap.entrySet()) {
+            if (!e.getKey().startsWith(NamedColorProperty.NAMED_COLOR_PREFIX))
+                continue;
+            Utils.instanceOfAndCast(e.getValue(), ListSetting.class)
+                    .map(d -> d.getValue())
+                    .map(lst -> ColorInfo.fromPref(lst, false))
+                    .ifPresent(info -> all.put(e.getKey(), info));
+        }
+        for (final Entry<String, Setting<?>> e : defaultsMap.entrySet()) {
+            if (!e.getKey().startsWith(NamedColorProperty.NAMED_COLOR_PREFIX))
+                continue;
+            Utils.instanceOfAndCast(e.getValue(), ListSetting.class)
+                    .map(d -> d.getValue())
+                    .map(lst -> ColorInfo.fromPref(lst, true))
+                    .ifPresent(infoDef -> {
+                        ColorInfo info = all.get(e.getKey());
+                        if (info == null) {
+                            all.put(e.getKey(), infoDef);
+                        } else {
+                            info.setDefaultValue(infoDef.getDefaultValue());
+                        }
+                    });
+        }
+        return all;
+    }
+
+    /**
      * Gets all known colors (preferences starting with the color prefix)
      * @return All colors
+     * @deprecated (since 12987) replaced by {@link #getAllNamedColors()}
      */
+    @Deprecated
     public synchronized Map<String, String> getAllColors() {
         final Map<String, String> all = new TreeMap<>();
         for (final Entry<String, Setting<?>> e : defaultsMap.entrySet()) {
             if (e.getKey().startsWith(COLOR_PREFIX) && e.getValue() instanceof StringSetting) {
+                if (e.getKey().startsWith(COLOR_PREFIX+"layer."))
+                    continue; // do not add unchanged layer colors
                 StringSetting d = (StringSetting) e.getValue();
                 if (d.getValue() != null) {
                     all.put(e.getKey().substring(6), d.getValue());
@@ -548,99 +467,6 @@ public class Preferences {
             }
         }
         return all;
-    }
-
-    /**
-     * Gets a boolean preference
-     * @param key The preference key
-     * @return The boolean or <code>false</code> if it could not be parsed
-     * @see IntegerProperty#get()
-     */
-    public synchronized boolean getBoolean(final String key) {
-        String s = get(key, null);
-        return s != null && Boolean.parseBoolean(s);
-    }
-
-    /**
-     * Gets a boolean preference
-     * @param key The preference key
-     * @param def The default value to use
-     * @return The boolean, <code>false</code> if it could not be parsed, the default value if it is unset
-     * @see IntegerProperty#get()
-     */
-    public synchronized boolean getBoolean(final String key, final boolean def) {
-        return Boolean.parseBoolean(get(key, Boolean.toString(def)));
-    }
-
-    /**
-     * Gets an boolean that may be specialized
-     * @param key The basic key
-     * @param specName The sub-key to append to the key
-     * @param def The default value
-     * @return The boolean value or the default value if it could not be parsed
-     */
-    public synchronized boolean getBoolean(final String key, final String specName, final boolean def) {
-        boolean generic = getBoolean(key, def);
-        String skey = key+'.'+specName;
-        Setting<?> prop = settingsMap.get(skey);
-        if (prop instanceof StringSetting)
-            return Boolean.parseBoolean(((StringSetting) prop).getValue());
-        else
-            return generic;
-    }
-
-    /**
-     * Set a value for a certain setting.
-     * @param key the unique identifier for the setting
-     * @param value the value of the setting. Can be null or "" which both removes the key-value entry.
-     * @return {@code true}, if something has changed (i.e. value is different than before)
-     */
-    public boolean put(final String key, String value) {
-        return putSetting(key, value == null || value.isEmpty() ? null : new StringSetting(value));
-    }
-
-    /**
-     * Set a boolean value for a certain setting.
-     * @param key the unique identifier for the setting
-     * @param value The new value
-     * @return {@code true}, if something has changed (i.e. value is different than before)
-     * @see BooleanProperty
-     */
-    public boolean put(final String key, final boolean value) {
-        return put(key, Boolean.toString(value));
-    }
-
-    /**
-     * Set a boolean value for a certain setting.
-     * @param key the unique identifier for the setting
-     * @param value The new value
-     * @return {@code true}, if something has changed (i.e. value is different than before)
-     * @see IntegerProperty#put(Integer)
-     */
-    public boolean putInteger(final String key, final Integer value) {
-        return put(key, Integer.toString(value));
-    }
-
-    /**
-     * Set a boolean value for a certain setting.
-     * @param key the unique identifier for the setting
-     * @param value The new value
-     * @return {@code true}, if something has changed (i.e. value is different than before)
-     * @see DoubleProperty#put(Double)
-     */
-    public boolean putDouble(final String key, final Double value) {
-        return put(key, Double.toString(value));
-    }
-
-    /**
-     * Set a boolean value for a certain setting.
-     * @param key the unique identifier for the setting
-     * @param value The new value
-     * @return {@code true}, if something has changed (i.e. value is different than before)
-     * @see LongProperty#put(Long)
-     */
-    public boolean putLong(final String key, final Long value) {
-        return put(key, Long.toString(value));
     }
 
     /**
@@ -662,9 +488,7 @@ public class Preferences {
     protected void save(File prefFile, Stream<Entry<String, Setting<?>>> settings, boolean defaults) throws IOException {
         if (!defaults) {
             /* currently unused, but may help to fix configuration issues in future */
-            putInteger("josm.version", Version.getInstance().getVersion());
-
-            updateSystemProperties();
+            putInt("josm.version", Version.getInstance().getVersion());
         }
 
         File backupFile = new File(prefFile + "_backup");
@@ -718,7 +542,6 @@ public class Preferences {
         reader.parse();
         settingsMap.clear();
         settingsMap.putAll(reader.getSettings());
-        updateSystemProperties();
         removeObsolete(reader.getVersion());
     }
 
@@ -765,7 +588,7 @@ public class Preferences {
     public void init(boolean reset) {
         initSuccessful = false;
         // get the preferences.
-        File prefDir = getPreferencesDirectory();
+        File prefDir = dirs.getPreferencesDirectory(false);
         if (prefDir.exists()) {
             if (!prefDir.isDirectory()) {
                 Logging.warn(tr("Failed to initialize preferences. Preference directory ''{0}'' is not a directory.",
@@ -865,9 +688,6 @@ public class Preferences {
      */
     public void resetToInitialState() {
         resetToDefault();
-        preferencesDir = null;
-        cacheDir = null;
-        userdataDir = null;
         saveOnPut = true;
         initSuccessful = false;
     }
@@ -880,56 +700,28 @@ public class Preferences {
     }
 
     /**
-     * Convenience method for accessing colour preferences.
-     * <p>
-     * To be removed: end of 2016
-     *
-     * @param colName name of the colour
-     * @param def default value
-     * @return a Color object for the configured colour, or the default value if none configured.
-     * @deprecated Use a {@link ColorProperty} instead.
+     * only for preferences
+     * @param o color key
+     * @return translated color name
+     * @deprecated (since 12987) no longer supported
      */
     @Deprecated
-    public synchronized Color getColor(String colName, Color def) {
-        return getColor(colName, null, def);
-    }
-
-    /* only for preferences */
     public synchronized String getColorName(String o) {
-        Matcher m = Pattern.compile("mappaint\\.(.+?)\\.(.+)").matcher(o);
-        if (m.matches()) {
-            return tr("Paint style {0}: {1}", tr(I18n.escape(m.group(1))), tr(I18n.escape(m.group(2))));
-        }
-        m = Pattern.compile("layer (.+)").matcher(o);
+        Matcher m = COLOR_LAYER_PATTERN.matcher(o);
         if (m.matches()) {
             return tr("Layer: {0}", tr(I18n.escape(m.group(1))));
         }
-        return tr(I18n.escape(colornames.containsKey(o) ? colornames.get(o) : o));
-    }
-
-    /**
-     * Convenience method for accessing colour preferences.
-     * <p>
-     * To be removed: end of 2016
-     * @param colName name of the colour
-     * @param specName name of the special colour settings
-     * @param def default value
-     * @return a Color object for the configured colour, or the default value if none configured.
-     * @deprecated Use a {@link ColorProperty} instead.
-     * You can replace this by: <code>new ColorProperty(colName, def).getChildColor(specName)</code>
-     */
-    @Deprecated
-    public synchronized Color getColor(String colName, String specName, Color def) {
-        String colKey = ColorProperty.getColorKey(colName);
-        registerColor(colKey, colName);
-        String colStr = specName != null ? get(COLOR_PREFIX+specName) : "";
-        if (colStr.isEmpty()) {
-            colStr = get(colKey, ColorHelper.color2html(def, true));
-        }
-        if (colStr != null && !colStr.isEmpty()) {
-            return ColorHelper.html2color(colStr);
+        String fullKey = COLOR_PREFIX + o;
+        if (colornames.containsKey(fullKey)) {
+            String name = colornames.get(fullKey);
+            Matcher m2 = COLOR_MAPPAINT_PATTERN.matcher(name);
+            if (m2.matches()) {
+                return tr("Paint style {0}: {1}", tr(I18n.escape(m2.group(1))), tr(I18n.escape(m2.group(2))));
+            } else {
+                return tr(I18n.escape(colornames.get(fullKey)));
+            }
         } else {
-            return def;
+            return fullKey;
         }
     }
 
@@ -938,7 +730,9 @@ public class Preferences {
      * @param colKey The key
      * @param colName The name of the color.
      * @since 10824
+     * @deprecated (since 12987) no longer supported
      */
+    @Deprecated
     public void registerColor(String colKey, String colName) {
         if (!colKey.equals(colName)) {
             colornames.put(colKey, colName);
@@ -949,7 +743,9 @@ public class Preferences {
      * Gets the default color that was registered with the preference
      * @param colKey The color name
      * @return The color
+     * @deprecated (since 12989) no longer supported
      */
+    @Deprecated
     public synchronized Color getDefaultColor(String colKey) {
         StringSetting col = Utils.cast(defaultsMap.get(COLOR_PREFIX+colKey), StringSetting.class);
         String colStr = col == null ? null : col.getValue();
@@ -961,128 +757,12 @@ public class Preferences {
      * @param colKey The color name
      * @param val The color
      * @return true if the setting was modified
-     * @see ColorProperty#put(Color)
+     * @see NamedColorProperty#put(Color)
+     * @deprecated (since 12987) no longer supported (see {@link NamedColorProperty})
      */
+    @Deprecated
     public synchronized boolean putColor(String colKey, Color val) {
         return put(COLOR_PREFIX+colKey, val != null ? ColorHelper.color2html(val, true) : null);
-    }
-
-    /**
-     * Gets an integer preference
-     * @param key The preference key
-     * @param def The default value to use
-     * @return The integer
-     * @see IntegerProperty#get()
-     */
-    public synchronized int getInteger(String key, int def) {
-        String v = get(key, Integer.toString(def));
-        if (v.isEmpty())
-            return def;
-
-        try {
-            return Integer.parseInt(v);
-        } catch (NumberFormatException e) {
-            // fall out
-            Logging.trace(e);
-        }
-        return def;
-    }
-
-    /**
-     * Gets an integer that may be specialized
-     * @param key The basic key
-     * @param specName The sub-key to append to the key
-     * @param def The default value
-     * @return The integer value or the default value if it could not be parsed
-     */
-    public synchronized int getInteger(String key, String specName, int def) {
-        String v = get(key+'.'+specName);
-        if (v.isEmpty())
-            v = get(key, Integer.toString(def));
-        if (v.isEmpty())
-            return def;
-
-        try {
-            return Integer.parseInt(v);
-        } catch (NumberFormatException e) {
-            // fall out
-            Logging.trace(e);
-        }
-        return def;
-    }
-
-    /**
-     * Gets a long preference
-     * @param key The preference key
-     * @param def The default value to use
-     * @return The long value or the default value if it could not be parsed
-     * @see LongProperty#get()
-     */
-    public synchronized long getLong(String key, long def) {
-        String v = get(key, Long.toString(def));
-        if (null == v)
-            return def;
-
-        try {
-            return Long.parseLong(v);
-        } catch (NumberFormatException e) {
-            // fall out
-            Logging.trace(e);
-        }
-        return def;
-    }
-
-    /**
-     * Gets a double preference
-     * @param key The preference key
-     * @param def The default value to use
-     * @return The double value or the default value if it could not be parsed
-     * @see LongProperty#get()
-     */
-    public synchronized double getDouble(String key, double def) {
-        String v = get(key, Double.toString(def));
-        if (null == v)
-            return def;
-
-        try {
-            return Double.parseDouble(v);
-        } catch (NumberFormatException e) {
-            // fall out
-            Logging.trace(e);
-        }
-        return def;
-    }
-
-    /**
-     * Get a list of values for a certain key
-     * @param key the identifier for the setting
-     * @param def the default value.
-     * @return the corresponding value if the property has been set before, {@code def} otherwise
-     */
-    public Collection<String> getCollection(String key, Collection<String> def) {
-        return getSetting(key, ListSetting.create(def), ListSetting.class).getValue();
-    }
-
-    /**
-     * Get a list of values for a certain key
-     * @param key the identifier for the setting
-     * @return the corresponding value if the property has been set before, an empty collection otherwise.
-     */
-    public Collection<String> getCollection(String key) {
-        Collection<String> val = getCollection(key, null);
-        return val == null ? Collections.<String>emptyList() : val;
-    }
-
-    /**
-     * Removes a value from a given String collection
-     * @param key The preference key the collection is stored with
-     * @param value The value that should be removed in the collection
-     * @see #getCollection(String)
-     */
-    public synchronized void removeFromCollection(String key, String value) {
-        List<String> a = new ArrayList<>(getCollection(key, Collections.<String>emptyList()));
-        a.remove(value);
-        putCollection(key, a);
     }
 
     /**
@@ -1092,6 +772,7 @@ public class Preferences {
      * @param setting the value of the setting. In case it is null, the key-value entry will be removed.
      * @return {@code true}, if something has changed (i.e. value is different than before)
      */
+    @Override
     public boolean putSetting(final String key, Setting<?> setting) {
         CheckParameterUtil.ensureParameterNotNull(key);
         if (setting != null && setting.getValue() == null)
@@ -1145,6 +826,7 @@ public class Preferences {
      * @return the corresponding value if the property has been set before, {@code def} otherwise
      */
     @SuppressWarnings("unchecked")
+    @Override
     public synchronized <T extends Setting<?>> T getSetting(String key, T def, Class<T> klass) {
         CheckParameterUtil.ensureParameterNotNull(key);
         CheckParameterUtil.ensureParameterNotNull(def);
@@ -1166,359 +848,9 @@ public class Preferences {
         }
     }
 
-    /**
-     * Put a collection.
-     * @param key key
-     * @param value value
-     * @return {@code true}, if something has changed (i.e. value is different than before)
-     */
-    public boolean putCollection(String key, Collection<String> value) {
-        return putSetting(key, value == null ? null : ListSetting.create(value));
-    }
-
-    /**
-     * Saves at most {@code maxsize} items of collection {@code val}.
-     * @param key key
-     * @param maxsize max number of items to save
-     * @param val value
-     * @return {@code true}, if something has changed (i.e. value is different than before)
-     */
-    public boolean putCollectionBounded(String key, int maxsize, Collection<String> val) {
-        Collection<String> newCollection = new ArrayList<>(Math.min(maxsize, val.size()));
-        for (String i : val) {
-            if (newCollection.size() >= maxsize) {
-                break;
-            }
-            newCollection.add(i);
-        }
-        return putCollection(key, newCollection);
-    }
-
-    /**
-     * Used to read a 2-dimensional array of strings from the preference file.
-     * If not a single entry could be found, <code>def</code> is returned.
-     * @param key preference key
-     * @param def default array value
-     * @return array value
-     */
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-    public synchronized Collection<Collection<String>> getArray(String key, Collection<Collection<String>> def) {
-        ListListSetting val = getSetting(key, ListListSetting.create(def), ListListSetting.class);
-        return (Collection) val.getValue();
-    }
-
-    /**
-     * Gets a collection of string collections for the given key
-     * @param key The key
-     * @return The collection of string collections or an empty collection as default
-     */
-    public Collection<Collection<String>> getArray(String key) {
-        Collection<Collection<String>> res = getArray(key, null);
-        return res == null ? Collections.<Collection<String>>emptyList() : res;
-    }
-
-    /**
-     * Put an array.
-     * @param key key
-     * @param value value
-     * @return {@code true}, if something has changed (i.e. value is different than before)
-     */
-    public boolean putArray(String key, Collection<Collection<String>> value) {
-        return putSetting(key, value == null ? null : ListListSetting.create(value));
-    }
-
-    /**
-     * Gets a collection of key/value maps.
-     * @param key The key to search at
-     * @param def The default value to use
-     * @return The stored value or the default one if it could not be parsed
-     */
-    public Collection<Map<String, String>> getListOfStructs(String key, Collection<Map<String, String>> def) {
-        return getSetting(key, new MapListSetting(def == null ? null : new ArrayList<>(def)), MapListSetting.class).getValue();
-    }
-
-    /**
-     * Stores a list of structs
-     * @param key The key to store the list in
-     * @param value A list of key/value maps
-     * @return <code>true</code> if the value was changed
-     * @see #getListOfStructs(String, Collection)
-     */
-    public boolean putListOfStructs(String key, Collection<Map<String, String>> value) {
-        return putSetting(key, value == null ? null : new MapListSetting(new ArrayList<>(value)));
-    }
-
-    /**
-     * Annotation used for converting objects to String Maps and vice versa.
-     * Indicates that a certain field should be considered in the conversion process. Otherwise it is ignored.
-     *
-     * @see #serializeStruct(java.lang.Object, java.lang.Class)
-     * @see #deserializeStruct(java.util.Map, java.lang.Class)
-     */
-    @Retention(RetentionPolicy.RUNTIME) // keep annotation at runtime
-    public @interface pref { }
-
-    /**
-     * Annotation used for converting objects to String Maps.
-     * Indicates that a certain field should be written to the map, even if the value is the same as the default value.
-     *
-     * @see #serializeStruct(java.lang.Object, java.lang.Class)
-     */
-    @Retention(RetentionPolicy.RUNTIME) // keep annotation at runtime
-    public @interface writeExplicitly { }
-
-    /**
-     * Get a list of hashes which are represented by a struct-like class.
-     * Possible properties are given by fields of the class klass that have the @pref annotation.
-     * Default constructor is used to initialize the struct objects, properties then override some of these default values.
-     * @param <T> klass type
-     * @param key main preference key
-     * @param klass The struct class
-     * @return a list of objects of type T or an empty list if nothing was found
-     */
-    public <T> List<T> getListOfStructs(String key, Class<T> klass) {
-        return Optional.ofNullable(getListOfStructs(key, null, klass)).orElseGet(Collections::emptyList);
-    }
-
-    /**
-     * same as above, but returns def if nothing was found
-     * @param <T> klass type
-     * @param key main preference key
-     * @param def default value
-     * @param klass The struct class
-     * @return a list of objects of type T or {@code def} if nothing was found
-     */
-    public <T> List<T> getListOfStructs(String key, Collection<T> def, Class<T> klass) {
-        Collection<Map<String, String>> prop =
-            getListOfStructs(key, def == null ? null : serializeListOfStructs(def, klass));
-        if (prop == null)
-            return def == null ? null : new ArrayList<>(def);
-        return prop.stream().map(p -> deserializeStruct(p, klass)).collect(Collectors.toList());
-    }
-
-    /**
-     * Convenience method that saves a MapListSetting which is provided as a collection of objects.
-     *
-     * Each object is converted to a <code>Map&lt;String, String&gt;</code> using the fields with {@link pref} annotation.
-     * The field name is the key and the value will be converted to a string.
-     *
-     * Considers only fields that have the @pref annotation.
-     * In addition it does not write fields with null values. (Thus they are cleared)
-     * Default values are given by the field values after default constructor has been called.
-     * Fields equal to the default value are not written unless the field has the @writeExplicitly annotation.
-     * @param <T> the class,
-     * @param key main preference key
-     * @param val the list that is supposed to be saved
-     * @param klass The struct class
-     * @return true if something has changed
-     */
-    public <T> boolean putListOfStructs(String key, Collection<T> val, Class<T> klass) {
-        return putListOfStructs(key, serializeListOfStructs(val, klass));
-    }
-
-    private static <T> Collection<Map<String, String>> serializeListOfStructs(Collection<T> l, Class<T> klass) {
-        if (l == null)
-            return null;
-        Collection<Map<String, String>> vals = new ArrayList<>();
-        for (T struct : l) {
-            if (struct != null) {
-                vals.add(serializeStruct(struct, klass));
-            }
-        }
-        return vals;
-    }
-
-    @SuppressWarnings("rawtypes")
-    private static String mapToJson(Map map) {
-        StringWriter stringWriter = new StringWriter();
-        try (JsonWriter writer = Json.createWriter(stringWriter)) {
-            JsonObjectBuilder object = Json.createObjectBuilder();
-            for (Object o: map.entrySet()) {
-                Entry e = (Entry) o;
-                Object evalue = e.getValue();
-                object.add(e.getKey().toString(), evalue.toString());
-            }
-            writer.writeObject(object.build());
-        }
-        return stringWriter.toString();
-    }
-
-    @SuppressWarnings({ "rawtypes", "unchecked" })
-    private static Map mapFromJson(String s) {
-        Map ret = null;
-        try (JsonReader reader = Json.createReader(new StringReader(s))) {
-            JsonObject object = reader.readObject();
-            ret = new HashMap(object.size());
-            for (Entry<String, JsonValue> e: object.entrySet()) {
-                JsonValue value = e.getValue();
-                if (value instanceof JsonString) {
-                    // in some cases, when JsonValue.toString() is called, then additional quotation marks are left in value
-                    ret.put(e.getKey(), ((JsonString) value).getString());
-                } else {
-                    ret.put(e.getKey(), e.getValue().toString());
-                }
-            }
-        }
-        return ret;
-    }
-
-    @SuppressWarnings("rawtypes")
-    private static String multiMapToJson(MultiMap map) {
-        StringWriter stringWriter = new StringWriter();
-        try (JsonWriter writer = Json.createWriter(stringWriter)) {
-            JsonObjectBuilder object = Json.createObjectBuilder();
-            for (Object o: map.entrySet()) {
-                Entry e = (Entry) o;
-                Set evalue = (Set) e.getValue();
-                JsonArrayBuilder a = Json.createArrayBuilder();
-                for (Object evo: evalue) {
-                    a.add(evo.toString());
-                }
-                object.add(e.getKey().toString(), a.build());
-            }
-            writer.writeObject(object.build());
-        }
-        return stringWriter.toString();
-    }
-
-    @SuppressWarnings({ "rawtypes", "unchecked" })
-    private static MultiMap multiMapFromJson(String s) {
-        MultiMap ret = null;
-        try (JsonReader reader = Json.createReader(new StringReader(s))) {
-            JsonObject object = reader.readObject();
-            ret = new MultiMap(object.size());
-            for (Entry<String, JsonValue> e: object.entrySet()) {
-                JsonValue value = e.getValue();
-                if (value instanceof JsonArray) {
-                    for (JsonString js: ((JsonArray) value).getValuesAs(JsonString.class)) {
-                        ret.put(e.getKey(), js.getString());
-                    }
-                } else if (value instanceof JsonString) {
-                    // in some cases, when JsonValue.toString() is called, then additional quotation marks are left in value
-                    ret.put(e.getKey(), ((JsonString) value).getString());
-                } else {
-                    ret.put(e.getKey(), e.getValue().toString());
-                }
-            }
-        }
-        return ret;
-    }
-
-    /**
-     * Convert an object to a String Map, by using field names and values as map key and value.
-     *
-     * The field value is converted to a String.
-     *
-     * Only fields with annotation {@link pref} are taken into account.
-     *
-     * Fields will not be written to the map if the value is null or unchanged
-     * (compared to an object created with the no-arg-constructor).
-     * The {@link writeExplicitly} annotation overrides this behavior, i.e. the default value will also be written.
-     *
-     * @param <T> the class of the object <code>struct</code>
-     * @param struct the object to be converted
-     * @param klass the class T
-     * @return the resulting map (same data content as <code>struct</code>)
-     */
-    public static <T> Map<String, String> serializeStruct(T struct, Class<T> klass) {
-        T structPrototype;
-        try {
-            structPrototype = klass.getConstructor().newInstance();
-        } catch (ReflectiveOperationException ex) {
-            throw new IllegalArgumentException(ex);
-        }
-
-        Map<String, String> hash = new LinkedHashMap<>();
-        for (Field f : klass.getDeclaredFields()) {
-            if (f.getAnnotation(pref.class) == null) {
-                continue;
-            }
-            Utils.setObjectsAccessible(f);
-            try {
-                Object fieldValue = f.get(struct);
-                Object defaultFieldValue = f.get(structPrototype);
-                if (fieldValue != null && (f.getAnnotation(writeExplicitly.class) != null || !Objects.equals(fieldValue, defaultFieldValue))) {
-                    String key = f.getName().replace('_', '-');
-                    if (fieldValue instanceof Map) {
-                        hash.put(key, mapToJson((Map<?, ?>) fieldValue));
-                    } else if (fieldValue instanceof MultiMap) {
-                        hash.put(key, multiMapToJson((MultiMap<?, ?>) fieldValue));
-                    } else {
-                        hash.put(key, fieldValue.toString());
-                    }
-                }
-            } catch (IllegalAccessException ex) {
-                throw new JosmRuntimeException(ex);
-            }
-        }
-        return hash;
-    }
-
-    /**
-     * Converts a String-Map to an object of a certain class, by comparing map keys to field names of the class and assigning
-     * map values to the corresponding fields.
-     *
-     * The map value (a String) is converted to the field type. Supported types are: boolean, Boolean, int, Integer, double,
-     * Double, String, Map&lt;String, String&gt; and Map&lt;String, List&lt;String&gt;&gt;.
-     *
-     * Only fields with annotation {@link pref} are taken into account.
-     * @param <T> the class
-     * @param hash the string map with initial values
-     * @param klass the class T
-     * @return an object of class T, initialized as described above
-     */
-    public static <T> T deserializeStruct(Map<String, String> hash, Class<T> klass) {
-        T struct = null;
-        try {
-            struct = klass.getConstructor().newInstance();
-        } catch (ReflectiveOperationException ex) {
-            throw new IllegalArgumentException(ex);
-        }
-        for (Entry<String, String> keyValue : hash.entrySet()) {
-            Object value;
-            Field f;
-            try {
-                f = klass.getDeclaredField(keyValue.getKey().replace('-', '_'));
-            } catch (NoSuchFieldException ex) {
-                Logging.trace(ex);
-                continue;
-            }
-            if (f.getAnnotation(pref.class) == null) {
-                continue;
-            }
-            Utils.setObjectsAccessible(f);
-            if (f.getType() == Boolean.class || f.getType() == boolean.class) {
-                value = Boolean.valueOf(keyValue.getValue());
-            } else if (f.getType() == Integer.class || f.getType() == int.class) {
-                try {
-                    value = Integer.valueOf(keyValue.getValue());
-                } catch (NumberFormatException nfe) {
-                    continue;
-                }
-            } else if (f.getType() == Double.class || f.getType() == double.class) {
-                try {
-                    value = Double.valueOf(keyValue.getValue());
-                } catch (NumberFormatException nfe) {
-                    continue;
-                }
-            } else if (f.getType() == String.class) {
-                value = keyValue.getValue();
-            } else if (f.getType().isAssignableFrom(Map.class)) {
-                value = mapFromJson(keyValue.getValue());
-            } else if (f.getType().isAssignableFrom(MultiMap.class)) {
-                value = multiMapFromJson(keyValue.getValue());
-            } else
-                throw new JosmRuntimeException("unsupported preference primitive type");
-
-            try {
-                f.set(struct, value);
-            } catch (IllegalArgumentException ex) {
-                throw new AssertionError(ex);
-            } catch (IllegalAccessException ex) {
-                throw new JosmRuntimeException(ex);
-            }
-        }
-        return struct;
+    @Override
+    public Set<String> getKeySet() {
+        return Collections.unmodifiableSet(settingsMap.keySet());
     }
 
     /**
@@ -1538,43 +870,12 @@ public class Preferences {
     }
 
     /**
-     * Updates system properties with the current values in the preferences.
-     */
-    public void updateSystemProperties() {
-        if ("true".equals(get("prefer.ipv6", "auto")) && !"true".equals(Utils.updateSystemProperty("java.net.preferIPv6Addresses", "true"))) {
-            // never set this to false, only true!
-            Logging.info(tr("Try enabling IPv6 network, prefering IPv6 over IPv4 (only works on early startup)."));
-        }
-        Utils.updateSystemProperty("http.agent", Version.getInstance().getAgentString());
-        Utils.updateSystemProperty("user.language", get("language"));
-        // Workaround to fix a Java bug. This ugly hack comes from Sun bug database: https://bugs.openjdk.java.net/browse/JDK-6292739
-        // Force AWT toolkit to update its internal preferences (fix #6345).
-        // Does not work anymore with Java 9, to remove with Java 9 migration
-        if (Utils.getJavaVersion() < 9 && !GraphicsEnvironment.isHeadless()) {
-            try {
-                Field field = Toolkit.class.getDeclaredField("resources");
-                Utils.setObjectsAccessible(field);
-                field.set(null, ResourceBundle.getBundle("sun.awt.resources.awt"));
-            } catch (ReflectiveOperationException | RuntimeException e) { // NOPMD
-                // Catch RuntimeException in order to catch InaccessibleObjectException, new in Java 9
-                Logging.warn(e);
-            }
-        }
-        // Possibility to disable SNI (not by default) in case of misconfigured https servers
-        // See #9875 + http://stackoverflow.com/a/14884941/2257172
-        // then https://josm.openstreetmap.de/ticket/12152#comment:5 for details
-        if (getBoolean("jdk.tls.disableSNIExtension", false)) {
-            Utils.updateSystemProperty("jsse.enableSNIExtension", "false");
-        }
-    }
-
-    /**
      * Replies the collection of plugin site URLs from where plugin lists can be downloaded.
      * @return the collection of plugin site URLs
      * @see #getOnlinePluginSites
      */
     public Collection<String> getPluginSites() {
-        return getCollection("pluginmanager.sites", Collections.singleton(Main.getJOSMWebsite()+"/pluginicons%<?plugins=>"));
+        return getList("pluginmanager.sites", Collections.singletonList(Main.getJOSMWebsite()+"/pluginicons%<?plugins=>"));
     }
 
     /**
@@ -1601,7 +902,7 @@ public class Preferences {
      * @param sites the site URLs
      */
     public void setPluginSites(Collection<String> sites) {
-        putCollection("pluginmanager.sites", sites);
+        putList("pluginmanager.sites", new ArrayList<>(sites));
     }
 
     /**
@@ -1642,82 +943,10 @@ public class Preferences {
      * @param loadedVersion JOSM version when the preferences file was written
      */
     private void removeObsolete(int loadedVersion) {
-        // drop in March 2017
-        removeUrlFromEntries(loadedVersion, 10063,
-                "validator.org.openstreetmap.josm.data.validation.tests.MapCSSTagChecker.entries",
-                "resource://data/validator/power.mapcss");
-        // drop in March 2017
-        if (loadedVersion < 11058) {
-            migrateOldColorKeys();
-        }
-        // drop in September 2017
-        if (loadedVersion < 11424) {
-            addNewerDefaultEntry(
-                    "validator.org.openstreetmap.josm.data.validation.tests.MapCSSTagChecker.entries",
-                    "resource://data/validator/territories.mapcss");
-        }
-
         for (String key : OBSOLETE_PREF_KEYS) {
             if (settingsMap.containsKey(key)) {
                 settingsMap.remove(key);
                 Logging.info(tr("Preference setting {0} has been removed since it is no longer used.", key));
-            }
-        }
-    }
-
-    private void migrateOldColorKeys() {
-        settingsMap.keySet().stream()
-                .filter(key -> key.startsWith(COLOR_PREFIX))
-                .flatMap(this::searchOldColorKey)
-                .collect(Collectors.toList()) // to avoid ConcurrentModificationException
-                .forEach(entry -> {
-                    final String oldKey = entry.getKey();
-                    final String newKey = entry.getValue();
-                    Logging.info("Migrating old color key {0} => {1}", oldKey, newKey);
-                    put(newKey, get(oldKey));
-                    put(oldKey, null);
-                });
-    }
-
-    private Stream<AbstractMap.SimpleImmutableEntry<String, String>> searchOldColorKey(String key) {
-        final String newKey = ColorProperty.getColorKey(key.substring(COLOR_PREFIX.length()));
-        return key.equals(newKey) || settingsMap.containsKey(newKey)
-                ? Stream.empty()
-                : Stream.of(new AbstractMap.SimpleImmutableEntry<>(key, newKey));
-    }
-
-    private void removeUrlFromEntries(int loadedVersion, int versionMax, String key, String urlPart) {
-        if (loadedVersion < versionMax) {
-            Setting<?> setting = settingsMap.get(key);
-            if (setting instanceof MapListSetting) {
-                List<Map<String, String>> l = new LinkedList<>();
-                boolean modified = false;
-                for (Map<String, String> map: ((MapListSetting) setting).getValue()) {
-                    String url = map.get("url");
-                    if (url != null && url.contains(urlPart)) {
-                        modified = true;
-                    } else {
-                        l.add(map);
-                    }
-                }
-                if (modified) {
-                    putListOfStructs(key, l);
-                }
-            }
-        }
-    }
-
-    private void addNewerDefaultEntry(String key, final String url) {
-        Setting<?> setting = settingsMap.get(key);
-        if (setting instanceof MapListSetting) {
-            List<Map<String, String>> l = new ArrayList<>(((MapListSetting) setting).getValue());
-            if (l.stream().noneMatch(x -> x.containsValue(url))) {
-                ValidatorPrefHelper helper = ValidatorPrefHelper.INSTANCE;
-                Optional<ExtendedSourceEntry> val = helper.getDefault().stream().filter(x -> url.equals(x.url)).findFirst();
-                if (val.isPresent()) {
-                    l.add(helper.serialize(val.get()));
-                }
-                putListOfStructs(key, l);
             }
         }
     }

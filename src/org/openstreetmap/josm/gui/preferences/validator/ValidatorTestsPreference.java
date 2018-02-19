@@ -15,7 +15,6 @@ import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.preferences.sources.ValidatorPrefHelper;
 import org.openstreetmap.josm.data.validation.OsmValidator;
 import org.openstreetmap.josm.data.validation.Test;
@@ -27,6 +26,7 @@ import org.openstreetmap.josm.gui.preferences.SubPreferenceSetting;
 import org.openstreetmap.josm.gui.preferences.TabPreferenceSetting;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.VerticallyScrollablePanel;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.GBC;
 
 /**
@@ -96,8 +96,8 @@ public class ValidatorTestsPreference implements SubPreferenceSetting {
 
     @Override
     public boolean ok() {
-        Collection<String> tests = new LinkedList<>();
-        Collection<String> testsBeforeUpload = new LinkedList<>();
+        List<String> tests = new LinkedList<>();
+        List<String> testsBeforeUpload = new LinkedList<>();
 
         for (Test test : allTests) {
             test.ok();
@@ -115,8 +115,8 @@ public class ValidatorTestsPreference implements SubPreferenceSetting {
         testsToInitialize.remove(OsmValidator.getTest(MapCSSTagChecker.class));
         OsmValidator.initializeTests(testsToInitialize);
 
-        Main.pref.putCollection(ValidatorPrefHelper.PREF_SKIP_TESTS, tests);
-        Main.pref.putCollection(ValidatorPrefHelper.PREF_SKIP_TESTS_BEFORE_UPLOAD, testsBeforeUpload);
+        Config.getPref().putList(ValidatorPrefHelper.PREF_SKIP_TESTS, tests);
+        Config.getPref().putList(ValidatorPrefHelper.PREF_SKIP_TESTS_BEFORE_UPLOAD, testsBeforeUpload);
         ValidatorPrefHelper.PREF_USE_IGNORE.put(prefUseIgnore.isSelected());
         ValidatorPrefHelper.PREF_OTHER.put(prefOther.isSelected());
         ValidatorPrefHelper.PREF_OTHER_UPLOAD.put(prefOtherUpload.isSelected());

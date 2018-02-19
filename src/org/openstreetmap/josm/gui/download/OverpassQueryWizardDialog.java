@@ -8,6 +8,7 @@ import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import javax.swing.JEditorPane;
@@ -19,7 +20,7 @@ import javax.swing.event.HyperlinkEvent;
 import javax.swing.text.JTextComponent;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.data.preferences.CollectionProperty;
+import org.openstreetmap.josm.data.preferences.ListProperty;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.HistoryComboBox;
@@ -46,8 +47,8 @@ public final class OverpassQueryWizardDialog extends ExtendedDialog {
     private static final String TD_END = "</td>";
     private static final String SPAN_START = "<span>";
     private static final String SPAN_END = "</span>";
-    private static final CollectionProperty OVERPASS_WIZARD_HISTORY =
-            new CollectionProperty("download.overpass.wizard", new ArrayList<String>());
+    private static final ListProperty OVERPASS_WIZARD_HISTORY =
+            new ListProperty("download.overpass.wizard", new ArrayList<String>());
     private final transient OverpassTurboQueryWizard overpassQueryBuilder;
 
     // dialog buttons
@@ -88,7 +89,13 @@ public final class OverpassQueryWizardDialog extends ExtendedDialog {
         panel.add(queryWizard, GBC.eol().insets(0, 0, 0, 15).fill(GBC.HORIZONTAL).anchor(GBC.SOUTH));
         panel.add(scroll, GBC.eol().fill(GBC.BOTH).anchor(GBC.CENTER));
 
-        queryWizard.setPossibleItems(OVERPASS_WIZARD_HISTORY.get());
+        List<String> items = new ArrayList<>(OVERPASS_WIZARD_HISTORY.get());
+        if (!items.isEmpty()) {
+            queryWizard.setText(items.get(0));
+        }
+        // HistoryComboBox needs the reversed list
+        Collections.reverse(items);
+        queryWizard.setPossibleItems(items);
 
         setCancelButton(CANCEL + 1);
         setDefaultButton(BUILD_AN_EXECUTE_QUERY + 1);
@@ -136,10 +143,8 @@ public final class OverpassQueryWizardDialog extends ExtendedDialog {
      */
     private Optional<String> tryParseSearchTerm(String searchTerm) {
         try {
-            String query = this.overpassQueryBuilder.constructQuery(searchTerm);
-
-            return Optional.of(query);
-        } catch (UncheckedParseException ex) {
+            return Optional.of(overpassQueryBuilder.constructQuery(searchTerm));
+        } catch (UncheckedParseException | IllegalStateException ex) {
             Logging.error(ex);
             JOptionPane.showMessageDialog(
                     dsPanel.getParent(),
@@ -150,7 +155,6 @@ public final class OverpassQueryWizardDialog extends ExtendedDialog {
                     tr("Parse error"),
                     JOptionPane.ERROR_MESSAGE
             );
-
             return Optional.empty();
         }
     }

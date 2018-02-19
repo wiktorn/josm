@@ -20,10 +20,7 @@ import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.mapmode.MapMode;
-import org.openstreetmap.josm.data.Preferences.PreferenceChangeEvent;
-import org.openstreetmap.josm.data.Preferences.PreferenceChangedListener;
 import org.openstreetmap.josm.data.osm.BBox;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Filter;
@@ -55,6 +52,9 @@ import org.openstreetmap.josm.gui.layer.LayerManager.LayerRemoveEvent;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.mappaint.mapcss.Selector;
 import org.openstreetmap.josm.gui.widgets.OSDLabel;
+import org.openstreetmap.josm.spi.preferences.Config;
+import org.openstreetmap.josm.spi.preferences.PreferenceChangeEvent;
+import org.openstreetmap.josm.spi.preferences.PreferenceChangedListener;
 import org.openstreetmap.josm.tools.Logging;
 
 /**
@@ -123,7 +123,7 @@ implements ZoomChangeListener, MapModeChangeListener, DataSetListener, Preferenc
 
     private AutoFilterManager() {
         MapFrame.addMapModeChangeListener(this);
-        Main.pref.addPreferenceChangeListener(this);
+        Config.getPref().addPreferenceChangeListener(this);
         NavigatableComponent.addZoomChangeListener(this);
         MainApplication.getLayerManager().addLayerChangeListener(this);
         DatasetEventManager.getInstance().addDatasetListener(this, FireMode.IN_EDT_CONSOLIDATED);
@@ -193,7 +193,7 @@ implements ZoomChangeListener, MapModeChangeListener, DataSetListener, Preferenc
     }
 
     private static Set<String> getTagValues(String key) {
-        DataSet ds = MainApplication.getLayerManager().getEditDataSet();
+        DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
         Set<String> values = new TreeSet<>();
         if (ds != null) {
             BBox bbox = MainApplication.getMap().mapView.getState().getViewArea().getLatLonBoundsBox().toBBox();
@@ -370,9 +370,9 @@ implements ZoomChangeListener, MapModeChangeListener, DataSetListener, Preferenc
             model.addFilter(autoFilter.getFilter());
             model.executeFilters();
             if (model.isChanged()) {
-                OsmDataLayer editLayer = MainApplication.getLayerManager().getEditLayer();
-                if (editLayer != null) {
-                    editLayer.invalidate();
+                OsmDataLayer dataLayer = MainApplication.getLayerManager().getActiveDataLayer();
+                if (dataLayer != null) {
+                    dataLayer.invalidate();
                 }
             }
         }
@@ -421,7 +421,7 @@ implements ZoomChangeListener, MapModeChangeListener, DataSetListener, Preferenc
 
     @Override
     public void layerRemoving(LayerRemoveEvent e) {
-        if (MainApplication.getLayerManager().getEditLayer() == null) {
+        if (MainApplication.getLayerManager().getActiveDataLayer() == null) {
             resetCurrentAutoFilter();
         }
     }

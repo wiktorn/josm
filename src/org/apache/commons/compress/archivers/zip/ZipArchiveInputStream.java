@@ -34,6 +34,7 @@ import java.util.zip.ZipException;
 import org.apache.commons.compress.archivers.ArchiveEntry;
 import org.apache.commons.compress.archivers.ArchiveInputStream;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
+import org.apache.commons.compress.compressors.deflate64.Deflate64CompressorInputStream;
 import org.apache.commons.compress.utils.ArchiveUtils;
 import org.apache.commons.compress.utils.IOUtils;
 
@@ -297,6 +298,9 @@ public class ZipArchiveInputStream extends ArchiveInputStream {
         final byte[] fileName = new byte[fileNameLen];
         readFully(fileName);
         current.entry.setName(entryEncoding.decode(fileName), fileName);
+        if (hasUTF8Flag) {
+            current.entry.setNameSource(ZipArchiveEntry.NameSource.NAME_WITH_EFS_FLAG);
+        }
 
         final byte[] extraData = new byte[extraLen];
         readFully(extraData);
@@ -312,17 +316,35 @@ public class ZipArchiveInputStream extends ArchiveInputStream {
         current.entry.setDataOffset(getBytesRead());
         current.entry.setStreamContiguous(true);
 
+        ZipMethod m = ZipMethod.getMethodByCode(current.entry.getMethod());
         if (current.entry.getCompressedSize() != ArchiveEntry.SIZE_UNKNOWN) {
-            if (current.entry.getMethod() == ZipMethod.UNSHRINKING.getCode()) {
-                current.in = new UnshrinkingInputStream(new BoundedInputStream(in, current.entry.getCompressedSize()));
-            } else if (current.entry.getMethod() == ZipMethod.IMPLODING.getCode()) {
-                current.in = new ExplodingInputStream(
+            if (ZipUtil.canHandleEntryData(current.entry) && m != ZipMethod.STORED && m != ZipMethod.DEFLATED) {
+                InputStream bis = new BoundedInputStream(in, current.entry.getCompressedSize());
+                switch (m) {
+                case UNSHRINKING:
+                    current.in = new UnshrinkingInputStream(bis);
+                    break;
+                case IMPLODING:
+                    current.in = new ExplodingInputStream(
                         current.entry.getGeneralPurposeBit().getSlidingDictionarySize(),
                         current.entry.getGeneralPurposeBit().getNumberOfShannonFanoTrees(),
-                        new BoundedInputStream(in, current.entry.getCompressedSize()));
-            } else if (current.entry.getMethod() == ZipMethod.BZIP2.getCode()) {
-                current.in = new BZip2CompressorInputStream(new BoundedInputStream(in, current.entry.getCompressedSize()));
+                        bis);
+                    break;
+                case BZIP2:
+                    current.in = new BZip2CompressorInputStream(bis);
+                    break;
+                case ENHANCED_DEFLATED:
+                    current.in = new Deflate64CompressorInputStream(bis);
+                    break;
+                default:
+                    // we should never get here as all supported methods have been covered
+                    // will cause an error when read is invoked, don't throw an exception here so people can
+                    // skip unsupported entries
+                    break;
+                }
             }
+        } else if (m == ZipMethod.ENHANCED_DEFLATED) {
+            current.in = new Deflate64CompressorInputStream(in);
         }
 
         entriesRead++;
@@ -358,7 +380,7 @@ public class ZipArchiveInputStream extends ArchiveInputStream {
      */
     private void processZip64Extra(final ZipLong size, final ZipLong cSize) {
         final Zip64ExtendedInformationExtraField z64 =
-            (Zip64ExtendedInformationExtraField) 
+            (Zip64ExtendedInformationExtraField)
             current.entry.getExtraField(Zip64ExtendedInformationExtraField.HEADER_ID);
         current.usesZip64 = z64 != null;
         if (!current.hasDataDescriptor) {
@@ -390,8 +412,8 @@ public class ZipArchiveInputStream extends ArchiveInputStream {
         if (ae instanceof ZipArchiveEntry) {
             final ZipArchiveEntry ze = (ZipArchiveEntry) ae;
             return ZipUtil.canHandleEntryData(ze)
-                && supportsDataDescriptorFor(ze);
-
+                && supportsDataDescriptorFor(ze)
+                && supportsCompressedSizeFor(ze);
         }
         return false;
     }
@@ -410,10 +432,14 @@ public class ZipArchiveInputStream extends ArchiveInputStream {
         if (offset > buffer.length || length < 0 || offset < 0 || buffer.length - offset < length) {
             throw new ArrayIndexOutOfBoundsException();
         }
-        
+
         ZipUtil.checkRequestedFeatures(current.entry);
         if (!supportsDataDescriptorFor(current.entry)) {
             throw new UnsupportedZipFeatureException(UnsupportedZipFeatureException.Feature.DATA_DESCRIPTOR,
+                    current.entry);
+        }
+        if (!supportsCompressedSizeFor(current.entry)) {
+            throw new UnsupportedZipFeatureException(UnsupportedZipFeatureException.Feature.UNKNOWN_COMPRESSED_SIZE,
                     current.entry);
         }
 
@@ -424,17 +450,18 @@ public class ZipArchiveInputStream extends ArchiveInputStream {
             read = readDeflated(buffer, offset, length);
         } else if (current.entry.getMethod() == ZipMethod.UNSHRINKING.getCode()
                 || current.entry.getMethod() == ZipMethod.IMPLODING.getCode()
+                || current.entry.getMethod() == ZipMethod.ENHANCED_DEFLATED.getCode()
                 || current.entry.getMethod() == ZipMethod.BZIP2.getCode()) {
             read = current.in.read(buffer, offset, length);
         } else {
             throw new UnsupportedZipFeatureException(ZipMethod.getMethodByCode(current.entry.getMethod()),
                     current.entry);
         }
-        
+
         if (read >= 0) {
             current.crc.update(buffer, offset, read);
         }
-        
+
         return read;
     }
 
@@ -770,13 +797,27 @@ public class ZipArchiveInputStream extends ArchiveInputStream {
      *
      * @return true if allowStoredEntriesWithDataDescriptor is true,
      * the entry doesn't require any data descriptor or the method is
-     * DEFLATED.
+     * DEFLATED or ENHANCED_DEFLATED.
      */
     private boolean supportsDataDescriptorFor(final ZipArchiveEntry entry) {
         return !entry.getGeneralPurposeBit().usesDataDescriptor()
 
                 || (allowStoredEntriesWithDataDescriptor && entry.getMethod() == ZipEntry.STORED)
-                || entry.getMethod() == ZipEntry.DEFLATED;
+                || entry.getMethod() == ZipEntry.DEFLATED
+                || entry.getMethod() == ZipMethod.ENHANCED_DEFLATED.getCode();
+    }
+
+    /**
+     * Whether the compressed size for the entry is either known or
+     * not required by the compression method being used.
+     */
+    private boolean supportsCompressedSizeFor(final ZipArchiveEntry entry) {
+        return entry.getCompressedSize() != ArchiveEntry.SIZE_UNKNOWN
+            || entry.getMethod() == ZipEntry.DEFLATED
+            || entry.getMethod() == ZipMethod.ENHANCED_DEFLATED.getCode()
+            || (entry.getGeneralPurposeBit().usesDataDescriptor()
+                && allowStoredEntriesWithDataDescriptor
+                && entry.getMethod() == ZipEntry.STORED);
     }
 
     /**
@@ -1069,7 +1110,7 @@ public class ZipArchiveInputStream extends ArchiveInputStream {
 
         /** the number of bytes already returned */
         private long pos = 0;
-    
+
         /**
          * Creates a new <code>BoundedInputStream</code> that wraps the given input
          * stream and limits it to a certain size.
@@ -1124,7 +1165,7 @@ public class ZipArchiveInputStream extends ArchiveInputStream {
             pos += skippedBytes;
             return skippedBytes;
         }
-    
+
         @Override
         public int available() throws IOException {
             if (max >= 0 && pos >= max) {

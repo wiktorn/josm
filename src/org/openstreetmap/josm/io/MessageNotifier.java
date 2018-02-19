@@ -19,6 +19,7 @@ import org.openstreetmap.josm.io.auth.CredentialsAgentException;
 import org.openstreetmap.josm.io.auth.CredentialsAgentResponse;
 import org.openstreetmap.josm.io.auth.CredentialsManager;
 import org.openstreetmap.josm.io.auth.JosmPreferencesCredentialAgent;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -45,7 +46,7 @@ public final class MessageNotifier {
         void notifyNewMessages(UserInfo userInfo);
     }
 
-    private static NotifierCallback callback;
+    private static volatile NotifierCallback callback;
 
     /**
      * Sets the {@link NotifierCallback} responsible of notifying the user when new messages are received.
@@ -141,8 +142,8 @@ public final class MessageNotifier {
                     if (OsmApi.isUsingOAuth()) {
                         return credManager.lookupOAuthAccessToken() != null;
                     } else {
-                        String username = Main.pref.get("osm-server.username", null);
-                        String password = Main.pref.get("osm-server.password", null);
+                        String username = Config.getPref().get("osm-server.username", null);
+                        String password = Config.getPref().get("osm-server.password", null);
                         return username != null && !username.isEmpty() && password != null && !password.isEmpty();
                     }
                 } else {

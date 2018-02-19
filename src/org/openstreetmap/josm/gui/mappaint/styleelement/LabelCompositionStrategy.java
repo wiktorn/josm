@@ -7,10 +7,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.data.Preferences.PreferenceChangeEvent;
-import org.openstreetmap.josm.data.Preferences.PreferenceChangedListener;
+import org.openstreetmap.josm.spi.preferences.PreferenceChangeEvent;
+import org.openstreetmap.josm.spi.preferences.PreferenceChangedListener;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.LanguageInfo;
 
 /**
@@ -232,15 +232,15 @@ public interface LabelCompositionStrategy {
          * <tt>mappaint.nameOrder</tt> and <tt>mappaint.nameComplementOrder</tt>.
          */
         public final void initNameTagsFromPreferences() {
-            if (Main.pref == null) {
+            if (Config.getPref() == null) {
                 this.nameTags = new ArrayList<>(Arrays.asList(DEFAULT_NAME_TAGS));
                 this.nameComplementTags = new ArrayList<>(Arrays.asList(DEFAULT_NAME_COMPLEMENT_TAGS));
             } else {
                 this.nameTags = new ArrayList<>(
-                        Main.pref.getCollection("mappaint.nameOrder", Arrays.asList(DEFAULT_NAME_TAGS))
+                        Config.getPref().getList("mappaint.nameOrder", Arrays.asList(DEFAULT_NAME_TAGS))
                 );
                 this.nameComplementTags = new ArrayList<>(
-                        Main.pref.getCollection("mappaint.nameComplementOrder", Arrays.asList(DEFAULT_NAME_COMPLEMENT_TAGS))
+                        Config.getPref().getList("mappaint.nameComplementOrder", Arrays.asList(DEFAULT_NAME_COMPLEMENT_TAGS))
                 );
             }
         }

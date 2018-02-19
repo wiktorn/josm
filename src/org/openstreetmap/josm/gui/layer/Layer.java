@@ -28,7 +28,7 @@ import org.openstreetmap.josm.data.ProjectionBounds;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
 import org.openstreetmap.josm.data.preferences.AbstractProperty;
 import org.openstreetmap.josm.data.preferences.AbstractProperty.ValueChangeListener;
-import org.openstreetmap.josm.data.preferences.ColorProperty;
+import org.openstreetmap.josm.data.preferences.NamedColorProperty;
 import org.openstreetmap.josm.data.projection.Projection;
 import org.openstreetmap.josm.data.projection.ProjectionChangeListener;
 import org.openstreetmap.josm.tools.Destroyable;
@@ -203,10 +203,9 @@ public abstract class Layer extends AbstractMapViewPaintable implements Destroya
      * @since 10824
      */
     public AbstractProperty<Color> getColorProperty() {
-        ColorProperty base = getBaseColorProperty();
+        NamedColorProperty base = getBaseColorProperty();
         if (base != null) {
-            // cannot cache this - name may change.
-            return base.getChildColor("layer " + getName());
+            return base.getChildColor(NamedColorProperty.COLOR_CATEGORY_LAYER, getName(), base.getName());
         } else {
             return null;
         }
@@ -217,7 +216,7 @@ public abstract class Layer extends AbstractMapViewPaintable implements Destroya
      * @return The property or <code>null</code> if this layer is not colored.
      * @since 10824
      */
-    protected ColorProperty getBaseColorProperty() {
+    protected NamedColorProperty getBaseColorProperty() {
         return null;
     }
 
@@ -502,18 +501,6 @@ public abstract class Layer extends AbstractMapViewPaintable implements Destroya
     }
 
     /**
-     * Check changed status of layer
-     *
-     * @return True if layer was changed since last paint
-     * @deprecated This is not supported by multiple map views.
-     * Fire an {@link #invalidate()} to trigger a repaint.
-     */
-    @Deprecated
-    public boolean isChanged() {
-        return false;
-    }
-
-    /**
      * allows to check whether a projection is supported or not
      * @param proj projection
      *
@@ -543,7 +530,7 @@ public abstract class Layer extends AbstractMapViewPaintable implements Destroya
          * @param layer The layer to save.
          */
         public LayerSaveAction(Layer layer) {
-            putValue(SMALL_ICON, ImageProvider.get("save"));
+            new ImageProvider("save").getResource().attachImageIcon(this, true);
             putValue(SHORT_DESCRIPTION, tr("Save the current data."));
             putValue(NAME, tr("Save"));
             setEnabled(true);
@@ -567,7 +554,7 @@ public abstract class Layer extends AbstractMapViewPaintable implements Destroya
          * @param layer The layer that should be saved.
          */
         public LayerSaveAsAction(Layer layer) {
-            putValue(SMALL_ICON, ImageProvider.get("save_as"));
+            new ImageProvider("save_as").getResource().attachImageIcon(this, true);
             putValue(SHORT_DESCRIPTION, tr("Save the current data to a new file."));
             putValue(NAME, tr("Save As..."));
             setEnabled(true);
@@ -591,7 +578,7 @@ public abstract class Layer extends AbstractMapViewPaintable implements Destroya
          * @param layer The layer
          */
         public LayerGpxExportAction(Layer layer) {
-            putValue(SMALL_ICON, ImageProvider.get("exportgpx"));
+            new ImageProvider("exportgpx").getResource().attachImageIcon(this, true);
             putValue(SHORT_DESCRIPTION, tr("Export the data to GPX file."));
             putValue(NAME, tr("Export to GPX..."));
             setEnabled(true);

@@ -47,6 +47,11 @@ node[natural=tree_row] {
   assertMatch: "node bridge=viaduct";
 }
 
+/* {0} on a node, should be a way or relation */
+node[boundary=administrative] {
+  throwWarning: tr("{0} on a node. Should be used on a way or relation.", "{0.tag}");
+}
+
 /* {0} on a node, should be an area; see ticket #10679 */
 node[area=yes],
 node[landuse],
@@ -106,10 +111,29 @@ way[highway=motorway_junction] {
   throwWarning: tr("{0} on a way. Should be used on a node.", "{0.tag}"); 
 }
 
-/* {0} on a way, should be a relation; see #10252, #14288 */
+/* {0} on a way, should be a relation; see #15642, #10252, #14288 */
+way[restriction][restriction =~ /^(no_right_turn|no_left_turn|no_u_turn|no_straight_on|only_right_turn|only_left_turn|only_straight_on|no_entry|no_exit)$/],
 way[type=multipolygon],
 way[route=bus] {
   throwError: tr("{0} on a way. Should be used in a relation", "{0.tag}"); 
+}
+
+/* #14395 */
+way >[index=1] node,
+way >[index=-1] node {
+  set first_last_node;
+}
+way[highway][area!=yes][!tunnel][!covered] > node {
+  set node_in_highway;
+}
+way[building][building!=no] > node.node_in_highway!.first_last_node {
+  throwWarning: tr("node connects highway and building");
+}
+
+/* #15035, must not warn for node 3815077900*/
+node[man_made!=monitoring_station][at(0.0,0.0)] {
+  throwError: tr("Object at Position 0.00E 0.00N. There is nothing at this position except an already mapped weather buoy.");
+  fixDeleteObject: this;
 }
 
 /* #12502 */
@@ -186,7 +210,7 @@ node[tag("power") = parent_tag("power")] ∈ *[power] {
   group: tr("{0} inside {1}", "power", "power");
 }
 
-/* isolated nodes which should be part of a way, see #10825 */
+/* isolated nodes which should be part of a way, see #10825, #15478 */
 node:unconnected:in-downloaded-area[entrance],
 node:unconnected:in-downloaded-area[traffic_calming],
 node:unconnected:in-downloaded-area[highway=passing_place],
@@ -199,6 +223,8 @@ node:unconnected:in-downloaded-area[highway=give_way],
 node:unconnected:in-downloaded-area[highway=traffic_signals],
 node:unconnected:in-downloaded-area[highway=crossing],
 node:unconnected:in-downloaded-area[crossing],
+node:unconnected:in-downloaded-area[highway=milestone],
+node:unconnected:in-downloaded-area[railway=milestone],
 node:unconnected:in-downloaded-area[railway=crossing],
 node:unconnected:in-downloaded-area[railway=level_crossing],
 node:unconnected:in-downloaded-area[railway=buffer_stop],
@@ -246,7 +272,7 @@ way[waterway] > node.node_in_bridge {
   throwWarning: tr("node connects waterway and bridge");
 }
 
-/* #11128, #14812 */
+/* #11128, #14812, #15032 */
 way[highway] > node[tourism=information][information=guidepost] {
   set guidepost;
   throwOther: tr("{0} node connected to a highway", "{1.tag}");
@@ -256,7 +282,8 @@ way[highway] > node[building][!entrance],
 way[highway] > node[leisure][!entrance][leisure!=slipway],
 way[highway] > node[office][!entrance],
 way[highway] > node[shop][!entrance],
-way[highway] > node[tourism][!entrance][tourism!=viewpoint]!.guidepost {
+way[highway] > node[tourism][!entrance][tourism!=viewpoint]!.guidepost.first_last_node:connection,
+way[highway] > node[tourism][!entrance][tourism!=viewpoint]!.guidepost!.first_last_node {
   throwWarning: tr("{0} node connected to a highway", "{0.key}");
 }
 
@@ -276,6 +303,11 @@ area:closed[place=island][eval(areasize()) < 500000] {
   throwWarning: tr("{0} on a small area", "{1.tag}");
   suggestAlternative: "place=islet";
   fixAdd: "place=islet";
+}
+
+/* #15648 */
+way[place=island]!:closed {
+  throwError: tr("Way with {1} not closed.", "{0.tag}");
 }
 
 /* #12561 - building larger than Aalsmeer Flower Auction (518000) and Tesla factory (510000) */
@@ -318,24 +350,6 @@ area:closed[waterway = ditch][area!=no],
 area:closed[waterway = stream][area!=no],
 area:closed[waterway = river][area!=no] {
   throwWarning: tr("{0} is the tag for the linear waterway. To tag the water area use {1} + {2} instead.", "{1.tag}", "natural=water", "water=*");
-}
-
-/* #14395 */
-way >[index=1] node,
-way >[index=-1] node {
-  set first_last_node;
-}
-way[highway][area!=yes][!tunnel][!covered] > node {
-  set node_in_highway;
-}
-way[building][building!=no] > node.node_in_highway!.first_last_node {
-  throwWarning: tr("node connects highway and building");
-}
-
-/* #15035, must not warn for node 3815077900*/
-node[man_made!=monitoring_station][at(0.0,0.0)] {
-  throwError: tr("Object at Position 0.00E 0.00N. There is nothing at this position except an already mapped weather buoy.");
-  fixDeleteObject: this;
 }
 
 /* #15097 */

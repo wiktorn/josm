@@ -1,6 +1,8 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.data.projection;
 
+import java.util.function.Consumer;
+
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.ProjectionBounds;
 import org.openstreetmap.josm.data.coor.EastNorth;
@@ -49,14 +51,6 @@ public interface Projection extends Projecting {
      * @return the projection identifier
      */
     String toCode();
-
-    /**
-     * Get a filename compatible string (for the cache directory).
-     * @return the cache directory name (base name)
-     * @deprecated unused - remove in 2017-07
-     */
-    @Deprecated
-    String getCacheDirectoryName();
 
     /**
      * Get the bounds of the world.
@@ -120,4 +114,15 @@ public interface Projection extends Projecting {
      * @return true if natural order of coordinates is North East, false if East North
      */
     boolean switchXY();
+
+    /**
+     * Visit points along the edge of this bounds instance.
+     * <p>
+     * Depending on the shape in east/north space, it may simply visit the 4 corners
+     * or (more generally) several points along the curved edges.
+     * @param bounds the lat/lon rectangle to trace
+     * @param visitor a function to call for the points on the edge.
+     * @since 12818
+     */
+    void visitOutline(Bounds bounds, Consumer<EastNorth> visitor);
 }

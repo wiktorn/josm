@@ -55,6 +55,7 @@ import org.openstreetmap.josm.data.projection.Projections;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.layer.NativeScaleLayer.ScaleList;
 import org.openstreetmap.josm.io.CachedFile;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.Logging;
@@ -145,6 +146,11 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
             crs = builder.crs;
             identifier = builder.identifier;
         }
+
+        @Override
+        public String toString() {
+            return "TileMatrixSet [crs=" + crs + ", identifier=" + identifier + ']';
+        }
     }
 
     private static class Dimension {
@@ -186,6 +192,12 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
          */
         public String getUserTitle() {
             return title != null ? title : identifier;
+        }
+
+        @Override
+        public String toString() {
+            return "Layer [identifier=" + identifier + ", title=" + title + ", tileMatrixSet="
+                    + tileMatrixSet + ", baseUrl=" + baseUrl + ", style=" + style + ']';
         }
     }
 
@@ -244,6 +256,7 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
                         }
                     });
             this.list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+            this.list.setAutoCreateRowSorter(true);
             this.list.setRowSelectionAllowed(true);
             this.list.setColumnSelectionAllowed(false);
             JPanel panel = new JPanel(new GridBagLayout());
@@ -256,7 +269,7 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
             if (index < 0) {
                 return null; //nothing selected
             }
-            Layer selectedLayer = layers.get(index).getValue().get(0);
+            Layer selectedLayer = layers.get(list.convertRowIndexToModel(index)).getValue().get(0);
             return new WMTSDefaultLayer(selectedLayer.identifier, selectedLayer.tileMatrixSet.identifier);
         }
 
@@ -357,7 +370,7 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
      */
     private Collection<Layer> getCapabilities() throws IOException {
         try (CachedFile cf = new CachedFile(baseUrl); InputStream in = cf.setHttpHeaders(headers).
-                setMaxAge(7 * CachedFile.DAYS).
+                setMaxAge(Config.getPref().getLong("wmts.capabilities.cache.max_age", 7 * CachedFile.DAYS)).
                 setCachingStrategy(CachedFile.CachingStrategy.IfModifiedSince).
                 getInputStream()) {
             byte[] data = Utils.readBytesFromStream(in);
@@ -681,7 +694,8 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
                     }
                 }
                 if (this.currentLayer == null)
-                    return;
+                    throw new IllegalArgumentException(
+                            layers.stream().map(l -> l.tileMatrixSet).collect(Collectors.toList()).toString());
             } // else: keep currentLayer and tileProjection as is
         }
         if (this.currentLayer != null) {
@@ -718,11 +732,13 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
 
     @Override
     public int getTileSize() {
-        // no support for non-square tiles (tileHeight != tileWidth)
-        // and for different tile sizes at different zoom levels
-        Collection<Layer> projLayers = getLayers(null, tileProjection.toCode());
-        if (!projLayers.isEmpty()) {
-            return projLayers.iterator().next().tileMatrixSet.tileMatrix.get(0).tileHeight;
+        if (tileProjection != null) {
+            // no support for non-square tiles (tileHeight != tileWidth)
+            // and for different tile sizes at different zoom levels
+            Collection<Layer> projLayers = getLayers(null, tileProjection.toCode());
+            if (!projLayers.isEmpty()) {
+                return projLayers.iterator().next().tileMatrixSet.tileMatrix.get(0).tileHeight;
+            }
         }
         // if no layers is found, fallback to default mercator tile size. Maybe it will work
         Logging.warn("WMTS: Could not determine tile size. Using default tile size of: {0}", getDefaultTileSize());
@@ -767,7 +783,7 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
                 .replaceAll("(?i)\\{style\\}", this.currentLayer.style);
 
         for (Dimension d : currentLayer.dimensions) {
-            url = url.replaceAll("\\{"+d.identifier+"\\}", d.defaultValue);
+            url = url.replaceAll("(?i)\\{"+d.identifier+"\\}", d.defaultValue);
         }
 
         return url;
@@ -1057,6 +1073,6 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
 
     @Override
     public String getServerCRS() {
-        return tileProjection.toCode();
+        return tileProjection != null ? tileProjection.toCode() : null;
     }
 }

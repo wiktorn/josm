@@ -38,7 +38,7 @@ public class ChangeSetResults {
     }
 
     /**
-     * Adds the name of a file to the result list which has been 
+     * Adds the name of a file to the result list which has been
      * copied from the source stream to the target stream.
      * @param fileName the file name which has been added from the original stream
      */
@@ -85,9 +85,6 @@ public class ChangeSetResults {
      * @return true, if this filename already has been added
      */
     boolean hasBeenAdded(final String filename) {
-        if(addedFromChangeSet.contains(filename) || addedFromStream.contains(filename)) {
-            return true;
-        } 
-        return false;
+        return addedFromChangeSet.contains(filename) || addedFromStream.contains(filename);
     }
 }

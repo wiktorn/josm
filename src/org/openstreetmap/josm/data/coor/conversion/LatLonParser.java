@@ -16,7 +16,7 @@ import org.openstreetmap.josm.data.coor.LatLon;
  * Support for parsing a {@link LatLon} object from a string.
  * @since 12792
  */
-public class LatLonParser {
+public final class LatLonParser {
 
     /** Character denoting South, as string */
     public static final String SOUTH = trc("compass", "S");
@@ -209,7 +209,7 @@ public class LatLonParser {
 
         if (!in.find()) {
             throw new IllegalArgumentException(
-                    tr("Unable to parse as coordinate value: '{0}'", angleStr));
+                    tr("Unable to parse as coordinate value: ''{0}''", angleStr));
         }
 
         double value = 0;

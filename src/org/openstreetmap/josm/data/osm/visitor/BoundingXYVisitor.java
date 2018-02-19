@@ -16,13 +16,14 @@ import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapFrame;
+import org.openstreetmap.josm.spi.preferences.Config;
 
 /**
  * Calculates the total bounding rectangle of a series of {@link OsmPrimitive} objects, using the
  * EastNorth values as reference.
  * @author imi
  */
-public class BoundingXYVisitor extends AbstractVisitor {
+public class BoundingXYVisitor implements OsmPrimitiveVisitor {
 
     private ProjectionBounds bounds;
 
@@ -55,7 +56,7 @@ public class BoundingXYVisitor extends AbstractVisitor {
      */
     public void visit(Bounds b) {
         if (b != null) {
-            b.visitEdge(Main.getProjection(), this::visit);
+            Main.getProjection().visitOutline(b, this::visit);
         }
     }
 
@@ -125,7 +126,7 @@ public class BoundingXYVisitor extends AbstractVisitor {
      * equal <code>null</code>) this method does not do anything.
      */
     public void enlargeBoundingBox() {
-        enlargeBoundingBox(Main.pref.getDouble("edit.zoom-enlarge-bbox", 0.002));
+        enlargeBoundingBox(Config.getPref().getDouble("edit.zoom-enlarge-bbox", 0.002));
     }
 
     /**

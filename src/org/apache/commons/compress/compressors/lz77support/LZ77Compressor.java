@@ -85,9 +85,21 @@ import java.util.Arrays;
 public class LZ77Compressor {
 
     /**
-     * Base class representing things the compressor may emit.
+     * Base class representing blocks the compressor may emit.
+     *
+     * <p>This class is not supposed to be subclassed by classes
+     * outside of Commons Compress so it is considered internal and
+     * changed that would break subclasses may get introduced with
+     * future releases.</p>
      */
-    public static abstract class Block { }
+    public static abstract class Block {
+        /** Enumeration of the block types the compressor may emit. */
+        public enum BlockType {
+            LITERAL, BACK_REFERENCE, EOD
+        }
+        public abstract BlockType getType();
+    }
+
     /**
      * Represents a literal block of data.
      *
@@ -128,12 +140,16 @@ public class LZ77Compressor {
         public int getLength() {
             return length;
         }
-
+        @Override
+        public BlockType getType() {
+            return BlockType.LITERAL;
+        }
         @Override
         public String toString() {
             return "LiteralBlock starting at " + offset + " with length " + length;
         }
     }
+
     /**
      * Represents a back-reference.
      */
@@ -157,18 +173,25 @@ public class LZ77Compressor {
         public int getLength() {
             return length;
         }
-
+        @Override
+        public BlockType getType() {
+            return BlockType.BACK_REFERENCE;
+        }
         @Override
         public String toString() {
             return "BackReference with offset " + offset + " and length " + length;
         }
     }
-    /**
-     * A simple "we are done" marker.
-     */
-    public static final class EOD extends Block { }
 
-    private static final EOD THE_EOD = new EOD();
+    /** A simple "we are done" marker. */
+    public static final class EOD extends Block {
+        @Override
+        public BlockType getType() {
+            return BlockType.EOD;
+        }
+    }
+
+    private static final Block THE_EOD = new EOD();
 
     /**
      * Callback invoked while the compressor processes data.

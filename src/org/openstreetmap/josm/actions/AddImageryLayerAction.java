@@ -39,6 +39,7 @@ import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Logging;
+import org.openstreetmap.josm.tools.bugreport.ReportedException;
 
 /**
  * Action displayed in imagery menu to add a new imagery layer.
@@ -75,7 +76,7 @@ public class AddImageryLayerAction extends JosmAction implements AdaptableAction
         // change toolbar icon from if specified
         String icon = info.getIcon();
         if (icon != null) {
-            new ImageProvider(icon).setOptional(true).getResourceAsync().thenAccept(result -> {
+            new ImageProvider(icon).setOptional(true).getResourceAsync(result -> {
                 if (result != null) {
                     GuiHelper.runInEDT(() -> result.attachImageIcon(this));
                 }
@@ -135,19 +136,23 @@ public class AddImageryLayerAction extends JosmAction implements AdaptableAction
     @Override
     public void actionPerformed(ActionEvent e) {
         if (!isEnabled()) return;
+        ImageryLayer layer = null;
         try {
             final ImageryInfo infoToAdd = convertImagery(info);
             if (infoToAdd != null) {
-                getLayerManager().addLayer(ImageryLayer.create(infoToAdd));
+                layer = ImageryLayer.create(infoToAdd);
+                getLayerManager().addLayer(layer);
                 AlignImageryPanel.addNagPanelIfNeeded(infoToAdd);
             }
-        } catch (IllegalArgumentException ex) {
+        } catch (IllegalArgumentException | ReportedException ex) {
             if (ex.getMessage() == null || ex.getMessage().isEmpty() || GraphicsEnvironment.isHeadless()) {
                 throw ex;
             } else {
-                JOptionPane.showMessageDialog(Main.parent,
-                        ex.getMessage(), tr("Error"),
-                        JOptionPane.ERROR_MESSAGE);
+                Logging.error(ex);
+                JOptionPane.showMessageDialog(Main.parent, ex.getMessage(), tr("Error"), JOptionPane.ERROR_MESSAGE);
+                if (layer != null) {
+                    getLayerManager().removeLayer(layer);
+                }
             }
         }
     }
@@ -168,7 +173,7 @@ public class AddImageryLayerAction extends JosmAction implements AdaptableAction
         final WMSLayerTree tree = new WMSLayerTree();
         tree.updateTree(wms);
         List<String> wmsFormats = wms.getFormats();
-        final JComboBox<String> formats = new JComboBox<>(wmsFormats.toArray(new String[wmsFormats.size()]));
+        final JComboBox<String> formats = new JComboBox<>(wmsFormats.toArray(new String[0]));
         formats.setSelectedItem(wms.getPreferredFormats());
         formats.setToolTipText(tr("Select image format for WMS layer"));
 

@@ -91,6 +91,7 @@ import org.openstreetmap.josm.actions.SessionSaveAsAction;
 import org.openstreetmap.josm.actions.ShowStatusReportAction;
 import org.openstreetmap.josm.actions.SimplifyWayAction;
 import org.openstreetmap.josm.actions.SplitWayAction;
+import org.openstreetmap.josm.actions.TaggingPresetSearchAction;
 import org.openstreetmap.josm.actions.UnGlueAction;
 import org.openstreetmap.josm.actions.UnJoinNodeWayAction;
 import org.openstreetmap.josm.actions.UndoAction;
@@ -119,8 +120,8 @@ import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeListen
 import org.openstreetmap.josm.gui.mappaint.MapPaintMenu;
 import org.openstreetmap.josm.gui.preferences.imagery.ImageryPreference;
 import org.openstreetmap.josm.gui.preferences.map.TaggingPresetPreference;
-import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetSearchAction;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetSearchPrimitiveDialog;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.Shortcut;
 
 /**
@@ -729,12 +730,6 @@ public class MainMenu extends JMenuBar {
             fullscreenToggleAction.addButtonModel(fullscreen.getModel());
         }
 
-        // -- dialogs panel toggle action
-        final JCheckBoxMenuItem dialogsToggle = new JCheckBoxMenuItem(dialogsToggleAction);
-        dialogsToggle.setAccelerator(dialogsToggleAction.getShortcut().getKeyStroke());
-        dialogsToggleAction.addButtonModel(dialogsToggle.getModel());
-        viewMenu.add(dialogsToggle);
-
         add(viewMenu, jumpToAct, true);
         viewMenu.addSeparator();
         add(viewMenu, info);
@@ -748,6 +743,12 @@ public class MainMenu extends JMenuBar {
         viewMenu.add(new PreferenceToggleAction(tr("Edit toolbar"),
                 tr("Toggles the visibility of the edit toolbar (i.e., the vertical tool)"),
                 "sidetoolbar.visible", true).getCheckbox());
+        // -- dialogs panel toggle action
+        final JCheckBoxMenuItem dialogsToggle = new JCheckBoxMenuItem(dialogsToggleAction);
+        dialogsToggle.setAccelerator(dialogsToggleAction.getShortcut().getKeyStroke());
+        dialogsToggleAction.addButtonModel(dialogsToggle.getModel());
+        viewMenu.add(dialogsToggle);
+        viewMenu.addSeparator();
         // -- expert mode toggle action
         final JCheckBoxMenuItem expertItem = new JCheckBoxMenuItem(ExpertToggleAction.getInstance());
         viewMenu.add(expertItem);
@@ -798,11 +799,11 @@ public class MainMenu extends JMenuBar {
                 MainMenu.WINDOW_MENU_GROUP.ALWAYS);
         changesetManager.addButtonModel(mi.getModel());
 
-        if (!Main.pref.getBoolean("audio.menuinvisible", false)) {
+        if (!Config.getPref().getBoolean("audio.menuinvisible", false)) {
             showAudioMenu(true);
         }
 
-        Main.pref.addPreferenceChangeListener(e -> {
+        Config.getPref().addPreferenceChangeListener(e -> {
             if ("audio.menuinvisible".equals(e.getKey())) {
                 showAudioMenu(!Boolean.parseBoolean(e.getNewValue().toString()));
             }

@@ -6,7 +6,6 @@ import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.util.Objects;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.Way;
@@ -16,9 +15,11 @@ import org.openstreetmap.josm.data.preferences.IntegerProperty;
 import org.openstreetmap.josm.gui.mappaint.Cascade;
 import org.openstreetmap.josm.gui.mappaint.Environment;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles.IconReference;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.HiDPISupport;
 import org.openstreetmap.josm.tools.Utils;
+import org.openstreetmap.josm.tools.bugreport.BugReport;
 
 /**
  * This is the style that defines how an area is filled.
@@ -47,7 +48,7 @@ public class AreaElement extends StyleElement {
      * Fill the area only partially from the borders
      * <p>
      * Public access is discouraged.
-     * @see StyledMapRenderer#drawArea(Way, Color, MapImage, Float, Float, boolean, TextLabel)
+     * @see StyledMapRenderer#drawArea
      */
     public Float extent;
 
@@ -55,7 +56,7 @@ public class AreaElement extends StyleElement {
      * Areas smaller than this are filled no matter what value {@link #extent} has.
      * <p>
      * Public access is discouraged.
-     * @see StyledMapRenderer#drawArea(Way, Color, MapImage, Float, Float, boolean, TextLabel)
+     * @see StyledMapRenderer#drawArea
      */
     public Float extentThreshold;
 
@@ -85,11 +86,15 @@ public class AreaElement extends StyleElement {
             // get base image from possible multi-resolution image, so we can
             // cast to BufferedImage and get pixel value at the center of the image
             img = HiDPISupport.getBaseImage(img);
-            color = new Color(((BufferedImage) img).getRGB(
-                    fillImage.getWidth() / 2, fillImage.getHeight() / 2)
-            );
+            try {
+                color = new Color(((BufferedImage) img).getRGB(
+                        img.getWidth(null) / 2, img.getHeight(null) / 2)
+                );
+            } catch (ArrayIndexOutOfBoundsException e) {
+                throw BugReport.intercept(e).put("env.osm", env.osm).put("iconRef", iconRef).put("fillImage", fillImage).put("img", img);
+            }
 
-            fillImage.alpha = Utils.clamp(Main.pref.getInteger("mappaint.fill-image-alpha", 255), 0, 255);
+            fillImage.alpha = Utils.clamp(Config.getPref().getInt("mappaint.fill-image-alpha", 255), 0, 255);
             Integer pAlpha = Utils.colorFloat2int(c.get(FILL_OPACITY, null, float.class));
             if (pAlpha != null) {
                 fillImage.alpha = pAlpha;

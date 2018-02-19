@@ -7,9 +7,9 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.io.remotecontrol.handler.RequestHandler;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.Logging;
 
 /**
@@ -94,7 +94,7 @@ public class RemoteControl {
      * @since 7335
      */
     public static String getRemoteControlDir() {
-        return new File(Main.pref.getUserDataDirectory(), "remotecontrol").getAbsolutePath();
+        return new File(Config.getDirs().getUserDataDirectory(true), "remotecontrol").getAbsolutePath();
     }
 
     /**
@@ -104,7 +104,7 @@ public class RemoteControl {
      * @since 8337
      */
     public static InetAddress getInet6Address() throws UnknownHostException {
-        for (InetAddress a : InetAddress.getAllByName(Main.pref.get("remote.control.host.ipv6", "::1"))) {
+        for (InetAddress a : InetAddress.getAllByName(Config.getPref().get("remote.control.host.ipv6", "::1"))) {
             if (a instanceof Inet6Address) {
                 return a;
             }
@@ -120,7 +120,7 @@ public class RemoteControl {
      */
     public static InetAddress getInet4Address() throws UnknownHostException {
         // Return an address to the loopback interface by default
-        for (InetAddress a : InetAddress.getAllByName(Main.pref.get("remote.control.host.ipv4", "127.0.0.1"))) {
+        for (InetAddress a : InetAddress.getAllByName(Config.getPref().get("remote.control.host.ipv4", "127.0.0.1"))) {
             if (a instanceof Inet4Address) {
                 return a;
             }

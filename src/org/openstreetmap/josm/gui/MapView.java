@@ -34,14 +34,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.AbstractButton;
 import javax.swing.JComponent;
-import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.mapmode.MapMode;
 import org.openstreetmap.josm.data.Bounds;
-import org.openstreetmap.josm.data.Preferences.PreferenceChangeEvent;
-import org.openstreetmap.josm.data.Preferences.PreferenceChangedListener;
 import org.openstreetmap.josm.data.ProjectionBounds;
 import org.openstreetmap.josm.data.ViewportData;
 import org.openstreetmap.josm.data.coor.EastNorth;
@@ -75,6 +72,9 @@ import org.openstreetmap.josm.gui.layer.markerlayer.PlayHeadMarker;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles.MapPaintSylesUpdateListener;
 import org.openstreetmap.josm.io.audio.AudioPlayer;
+import org.openstreetmap.josm.spi.preferences.Config;
+import org.openstreetmap.josm.spi.preferences.PreferenceChangeEvent;
+import org.openstreetmap.josm.spi.preferences.PreferenceChangedListener;
 import org.openstreetmap.josm.tools.JosmRuntimeException;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Shortcut;
@@ -253,20 +253,6 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
     /**
      * Constructs a new {@code MapView}.
      * @param layerManager The layers to display.
-     * @param contentPane Ignored. Main content pane is used.
-     * @param viewportData the initial viewport of the map. Can be null, then
-     * the viewport is derived from the layer data.
-     * @since 10279
-     * @deprecated use {@link #MapView(MainLayerManager, ViewportData)} instead
-     */
-    @Deprecated
-    public MapView(MainLayerManager layerManager, final JPanel contentPane, final ViewportData viewportData) {
-        this(layerManager, viewportData);
-    }
-
-    /**
-     * Constructs a new {@code MapView}.
-     * @param layerManager The layers to display.
      * @param viewportData the initial viewport of the map. Can be null, then
      * the viewport is derived from the layer data.
      * @since 11713
@@ -276,7 +262,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
         initialViewport = viewportData;
         layerManager.addAndFireLayerChangeListener(this);
         layerManager.addActiveLayerChangeListener(this);
-        Main.pref.addPreferenceChangeListener(this);
+        Config.getPref().addPreferenceChangeListener(this);
 
         addComponentListener(new ComponentAdapter() {
             @Override
@@ -394,12 +380,12 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
     }
 
     /**
-     * Replies true if the active data layer (edit layer) is visible.
+     * Replies true if the active data layer is visible.
      *
-     * @return true if the active data layer (edit layer) is visible, false otherwise
+     * @return true if the active data layer is visible, false otherwise
      */
     public boolean isActiveLayerVisible() {
-        OsmDataLayer e = layerManager.getEditLayer();
+        OsmDataLayer e = layerManager.getActiveDataLayer();
         return e != null && e.isVisible();
     }
 
@@ -503,7 +489,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
         }
 
         try {
-            drawMapContent(g);
+            drawMapContent((Graphics2D) g);
         } catch (JosmRuntimeException | IllegalArgumentException | IllegalStateException e) {
             throw BugReport.intercept(e).put("visibleLayers", layerManager::getVisibleLayersInZOrder)
                     .put("temporaryLayers", temporaryLayers);
@@ -511,7 +497,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
         super.paint(g);
     }
 
-    private void drawMapContent(Graphics g) {
+    private void drawMapContent(Graphics2D g) {
         // In HiDPI-mode, the Graphics g will have a transform that scales
         // everything by a factor of 2.0 or so. At the same time, the value returned
         // by getWidth()/getHeight will be reduced by that factor.
@@ -522,10 +508,9 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
         // of the temporary buffer pixel by pixel onto g, without scaling.
         // (Otherwise, we would upscale a small buffer image and the result would be
         // blurry, with 2x2 pixel blocks.)
-        Graphics2D gg = (Graphics2D) g;
-        AffineTransform trOrig = gg.getTransform();
-        double uiScaleX = gg.getTransform().getScaleX();
-        double uiScaleY = gg.getTransform().getScaleY();
+        AffineTransform trOrig = g.getTransform();
+        double uiScaleX = g.getTransform().getScaleX();
+        double uiScaleY = g.getTransform().getScaleY();
         // width/height in full-resolution screen pixels
         int width = (int) Math.round(getWidth() * uiScaleX);
         int height = (int) Math.round(getHeight() * uiScaleY);
@@ -628,8 +613,8 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
         }
 
         try {
-            gg.setTransform(new AffineTransform(1, 0, 0, 1, trOrig.getTranslateX(), trOrig.getTranslateY()));
-            gg.drawImage(offscreenBuffer, 0, 0, null);
+            g.setTransform(new AffineTransform(1, 0, 0, 1, trOrig.getTranslateX(), trOrig.getTranslateY()));
+            g.drawImage(offscreenBuffer, 0, 0, null);
         } catch (ClassCastException e) {
             // See #11002 and duplicate tickets. On Linux with Java >= 8 Many users face this error here:
             //
@@ -656,7 +641,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
             // But the application seems to work fine after, so let's just log the error
             Logging.error(e);
         } finally {
-            gg.setTransform(trOrig);
+            g.setTransform(trOrig);
         }
     }
 
@@ -812,7 +797,7 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
     public void destroy() {
         layerManager.removeAndFireLayerChangeListener(this);
         layerManager.removeActiveLayerChangeListener(this);
-        Main.pref.removePreferenceChangeListener(this);
+        Config.getPref().removePreferenceChangeListener(this);
         SelectionEventManager.getInstance().removeSelectionListener(repaintSelectionChangedListener);
         MultipolygonCache.getInstance().clear();
         if (mapMover != null) {
@@ -925,5 +910,14 @@ LayerManager.LayerChangeListener, MainLayerManager.ActiveLayerChangeListener {
      */
     public void scheduleZoomTo(ViewportData viewportData) {
         initialViewport = viewportData;
+    }
+
+    /**
+     * Returns the internal {@link MapMover}.
+     * @return the internal {@code MapMover}
+     * @since 13126
+     */
+    public final MapMover getMapMover() {
+        return mapMover;
     }
 }

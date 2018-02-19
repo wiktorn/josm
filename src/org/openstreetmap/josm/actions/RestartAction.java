@@ -18,6 +18,7 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane.ButtonSpec;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.io.SaveLayersDialog;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Shortcut;
@@ -94,7 +95,7 @@ public class RestartAction extends JosmAction {
             cmd = getCommands();
         }
         Logging.info("Restart "+cmd);
-        if (Logging.isDebugEnabled() && Main.pref.getBoolean("restart.debug.simulation")) {
+        if (Logging.isDebugEnabled() && Config.getPref().getBoolean("restart.debug.simulation")) {
             Logging.debug("Restart cancelled to get debug info");
             return;
         }
@@ -104,7 +105,7 @@ public class RestartAction extends JosmAction {
             @Override
             public void run() {
                 try {
-                    Runtime.getRuntime().exec(cmd.toArray(new String[cmd.size()]));
+                    Runtime.getRuntime().exec(cmd.toArray(new String[0]));
                 } catch (IOException e) {
                     Logging.error(e);
                 }
@@ -135,6 +136,9 @@ public class RestartAction extends JosmAction {
         final String jnlp = System.getProperty("jnlpx.origFilenameArg");
         // program main and program arguments (be careful a sun property. might not be supported by all JVM)
         final String javaCommand = System.getProperty("sun.java.command");
+        if (javaCommand == null) {
+            throw new IOException("Unable to retrieve sun.java.command property");
+        }
         String[] mainCommand = javaCommand.split(" ");
         if (javaCommand.endsWith(".jnlp") && jnlp == null) {
             // see #11751 - jnlp on Linux
@@ -156,7 +160,7 @@ public class RestartAction extends JosmAction {
                 // else it's a .class, add the classpath and mainClass
                 cmd.add("-cp");
                 cmd.add('"' + System.getProperty("java.class.path") + '"');
-                cmd.add(mainCommand[0]);
+                cmd.add(mainCommand[0].replace("jdk.plugin/", "")); // Main class appears to be invalid on Java WebStart 9
             }
             // add JNLP file.
             if (jnlp != null) {

@@ -29,6 +29,7 @@ import javax.swing.AbstractAction;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.JosmAction;
@@ -47,11 +48,11 @@ import org.openstreetmap.josm.data.osm.WaySegment;
 import org.openstreetmap.josm.data.osm.event.SelectionEventManager;
 import org.openstreetmap.josm.data.osm.visitor.paint.ArrowPaintHelper;
 import org.openstreetmap.josm.data.osm.visitor.paint.PaintColors;
-import org.openstreetmap.josm.data.preferences.AbstractToStringProperty;
+import org.openstreetmap.josm.data.preferences.AbstractProperty;
 import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.data.preferences.CachingProperty;
-import org.openstreetmap.josm.data.preferences.ColorProperty;
 import org.openstreetmap.josm.data.preferences.DoubleProperty;
+import org.openstreetmap.josm.data.preferences.NamedColorProperty;
 import org.openstreetmap.josm.data.preferences.StrokeProperty;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MainMenu;
@@ -109,12 +110,12 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
             = new BooleanProperty("draw.anglesnap.showAngle", true).cached();
 
     static final CachingProperty<Color> SNAP_HELPER_COLOR
-            = new ColorProperty(marktr("draw angle snap"), Color.ORANGE).cached();
+            = new NamedColorProperty(marktr("draw angle snap"), Color.ORANGE).cached();
 
     static final CachingProperty<Color> HIGHLIGHT_COLOR
-            = new ColorProperty(marktr("draw angle snap highlight"), ORANGE_TRANSPARENT).cached();
+            = new NamedColorProperty(marktr("draw angle snap highlight"), ORANGE_TRANSPARENT).cached();
 
-    static final AbstractToStringProperty<Color> RUBBER_LINE_COLOR
+    static final AbstractProperty<Color> RUBBER_LINE_COLOR
             = PaintColors.SELECTED.getProperty().getChildColor(marktr("helper line"));
 
     static final CachingProperty<Boolean> DRAW_HELPER_LINE
@@ -197,9 +198,10 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
 
     /**
      * Checks if a map redraw is required and does so if needed. Also updates the status bar.
+     * @param e event, can be null
      * @return true if a repaint is needed
      */
-    private boolean redrawIfRequired() {
+    private boolean redrawIfRequired(Object e) {
         updateStatusLine();
         // repaint required if the helper line is active.
         boolean needsRepaint = DRAW_HELPER_LINE.get() && !wayIsFinished;
@@ -226,16 +228,22 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
 
         // update selection to reflect which way being modified
         OsmDataLayer editLayer = getLayerManager().getEditLayer();
-        if (editLayer != null && getCurrentBaseNode() != null && !editLayer.data.selectionEmpty()) {
+        Node baseNode = getCurrentBaseNode();
+        if (editLayer != null && baseNode != null && !editLayer.data.selectionEmpty()) {
             DataSet currentDataSet = editLayer.data;
-            Way continueFrom = getWayForNode(getCurrentBaseNode());
-            if (alt && continueFrom != null && (!getCurrentBaseNode().isSelected() || continueFrom.isSelected())) {
-                addRemoveSelection(currentDataSet, getCurrentBaseNode(), continueFrom);
+            Way continueFrom = getWayForNode(baseNode);
+            if (alt && continueFrom != null && (!baseNode.isSelected() || continueFrom.isSelected())) {
+                addRemoveSelection(currentDataSet, baseNode, continueFrom);
                 needsRepaint = true;
             } else if (!alt && continueFrom != null && !continueFrom.isSelected()) {
-                currentDataSet.addSelected(continueFrom);
+                addSelection(currentDataSet, continueFrom);
                 needsRepaint = true;
             }
+        }
+
+        if (!needsRepaint && e instanceof SelectionChangeEvent) {
+            SelectionChangeEvent event = (SelectionChangeEvent) e;
+            needsRepaint = !event.getOldSelection().isEmpty() && event.getSelection().isEmpty();
         }
 
         if (needsRepaint && editLayer != null) {
@@ -247,11 +255,41 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
     private static void addRemoveSelection(DataSet ds, OsmPrimitive toAdd, OsmPrimitive toRemove) {
         ds.beginUpdate(); // to prevent the selection listener to screw around with the state
         try {
-            ds.addSelected(toAdd);
-            ds.clearSelection(toRemove);
+            addSelection(ds, toAdd);
+            clearSelection(ds, toRemove);
         } finally {
             ds.endUpdate();
         }
+    }
+
+    private static void updatePreservedFlag(OsmPrimitive osm, boolean state) {
+        // Preserves selected primitives and selected way nodes
+        osm.setPreserved(state);
+        if (osm instanceof Way) {
+            for (Node n : ((Way) osm).getNodes()) {
+                n.setPreserved(state);
+            }
+        }
+    }
+
+    private static void setSelection(DataSet ds, Collection<OsmPrimitive> toSet) {
+        toSet.stream().forEach(x -> updatePreservedFlag(x, true));
+        ds.setSelected(toSet);
+    }
+
+    private static void setSelection(DataSet ds, OsmPrimitive toSet) {
+        updatePreservedFlag(toSet, true);
+        ds.setSelected(toSet);
+    }
+
+    private static void addSelection(DataSet ds, OsmPrimitive toAdd) {
+        updatePreservedFlag(toAdd, true);
+        ds.addSelected(toAdd);
+    }
+
+    private static void clearSelection(DataSet ds, OsmPrimitive toRemove) {
+        ds.clearSelection(toRemove);
+        updatePreservedFlag(toRemove, false);
     }
 
     @Override
@@ -300,7 +338,12 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
         map.statusLine.getAnglePanel().removeMouseListener(snapHelper.anglePopupListener);
         map.statusLine.activateAnglePanel(false);
 
-        removeHighlighting();
+        DataSet ds = getLayerManager().getEditDataSet();
+        if (ds != null) {
+            ds.getSelected().stream().forEach(x -> updatePreservedFlag(x, false));
+        }
+
+        removeHighlighting(null);
         map.keyDetector.removeKeyListener(this);
         map.keyDetector.removeModifierExListener(this);
     }
@@ -314,7 +357,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
             return;
         updateKeyModifiersEx(modifiers);
         computeHelperLine();
-        addHighlighting();
+        addHighlighting(null);
     }
 
     @Override
@@ -323,7 +366,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
             return;
         snapHelper.setFixedMode();
         computeHelperLine();
-        redrawIfRequired();
+        redrawIfRequired(e);
     }
 
     @Override
@@ -336,7 +379,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
         }
         snapHelper.unFixOrTurnOff();
         computeHelperLine();
-        redrawIfRequired();
+        redrawIfRequired(e);
     }
 
     /**
@@ -346,12 +389,19 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
     public void selectionChanged(SelectionChangeEvent event) {
         if (!MainApplication.getMap().mapView.isActiveLayerDrawable())
             return;
-        computeHelperLine();
-        addHighlighting();
+        // Make sure helper line is computed later (causes deadlock in selection event chain otherwise)
+        SwingUtilities.invokeLater(() -> {
+            event.getOldSelection().stream().forEach(x -> updatePreservedFlag(x, false));
+            event.getSelection().stream().forEach(x -> updatePreservedFlag(x, true));
+            if (MainApplication.getMap() != null) {
+                computeHelperLine();
+                addHighlighting(event);
+            }
+        });
     }
 
     private void tryAgain(MouseEvent e) {
-        getLayerManager().getEditDataSet().setSelected();
+        getLayerManager().getEditDataSet().clearSelection();
         mouseReleased(e);
     }
 
@@ -368,7 +418,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
 
         // Redraw to remove the helper line stub
         computeHelperLine();
-        removeHighlighting();
+        removeHighlighting(null);
     }
 
     @Override
@@ -439,11 +489,11 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
                 // (this is just a convenience option so that people don't
                 // have to switch modes)
 
-                ds.setSelected(n);
+                setSelection(ds, n);
                 // If we extend/continue an existing way, select it already now to make it obvious
                 Way continueFrom = getWayForNode(n);
                 if (continueFrom != null) {
-                    ds.addSelected(continueFrom);
+                    addSelection(ds, continueFrom);
                 }
 
                 // The user explicitly selected a node, so let him continue drawing
@@ -621,7 +671,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
             lastUsedNode = n;
         }
 
-        ds.setSelected(newSelection);
+        setSelection(ds, newSelection);
 
         // "viewport following" mode for tracing long features
         // from aerial imagery or GPS tracks.
@@ -629,7 +679,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
             mapView.smoothScrollTo(n.getEastNorth());
         }
         computeHelperLine();
-        removeHighlighting();
+        removeHighlighting(e);
     }
 
     private static String getTitle(boolean newNode, Node n, Collection<OsmPrimitive> newSelection, List<Way> reuseWays,
@@ -724,7 +774,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
             if ((posn0 != -1 && // n0 is part of way
                 (posn0 >= 1                            && targetNode.equals(selectedWay.getNode(posn0-1)))) || // previous node
                 (posn0 < selectedWay.getNodesCount()-1 && targetNode.equals(selectedWay.getNode(posn0+1)))) {  // next node
-                getLayerManager().getEditDataSet().setSelected(targetNode);
+                setSelection(getLayerManager().getEditDataSet(), targetNode);
                 lastUsedNode = targetNode;
                 return true;
             }
@@ -783,7 +833,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
             tryToSetBaseSegmentForAngleSnap();
 
         computeHelperLine();
-        addHighlighting();
+        addHighlighting(e);
     }
 
     /**
@@ -811,14 +861,13 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
             return;
         }
 
-        Collection<OsmPrimitive> selection = getLayerManager().getEditDataSet().getSelected();
+        DataSet ds = getLayerManager().getEditDataSet();
+        Collection<OsmPrimitive> selection = ds != null ? ds.getSelected() : Collections.emptyList();
 
         MapView mv = MainApplication.getMap().mapView;
         Node currentMouseNode = null;
         mouseOnExistingNode = null;
         mouseOnExistingWays = new HashSet<>();
-
-        showStatusInfo(-1, -1, -1, snapHelper.isSnapOn());
 
         if (!ctrl && mousePos != null) {
             currentMouseNode = mv.getNearestNode(mousePos, OsmPrimitive::isSelectable);
@@ -851,6 +900,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
         if (getCurrentBaseNode() == null || getCurrentBaseNode() == currentMouseNode)
             return; // Don't create zero length way segments.
 
+        showStatusInfo(-1, -1, -1, snapHelper.isSnapOn());
 
         double curHdg = Utils.toDegrees(getCurrentBaseNode().getEastNorth()
                 .heading(currentMouseEastNorth));
@@ -955,7 +1005,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
             return;
         mousePos = e.getPoint();
         snapHelper.noSnapNow();
-        boolean repaintIssued = removeHighlighting();
+        boolean repaintIssued = removeHighlighting(e);
         // force repaint in case snapHelper needs one. If removeHighlighting
         // caused one already, don't do it again.
         if (!repaintIssued) {
@@ -964,6 +1014,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
     }
 
     /**
+     * Replies the parent way of a node, if it is the end of exactly one usable way.
      * @param n node
      * @return If the node is the end of exactly one way, return this.
      *  <code>null</code> otherwise.
@@ -1116,15 +1167,16 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
      * The status bar derives its information from oldHighlights, so in order to update the status
      * bar both addHighlighting() and repaintIfRequired() are needed, since former fills newHighlights
      * and latter processes them into oldHighlights.
+     * @param event event, can be null
      */
-    private void addHighlighting() {
+    private void addHighlighting(Object event) {
         newHighlights = new HashSet<>();
         MapView mapView = MainApplication.getMap().mapView;
 
         // if ctrl key is held ("no join"), don't highlight anything
         if (ctrl) {
             mapView.setNewCursor(cursor, this);
-            redrawIfRequired();
+            redrawIfRequired(event);
             return;
         }
 
@@ -1136,29 +1188,30 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
         if (mouseOnExistingNode != null) {
             mapView.setNewCursor(cursorJoinNode, this);
             newHighlights.add(mouseOnExistingNode);
-            redrawIfRequired();
+            redrawIfRequired(event);
             return;
         }
 
         // Insert the node into all the nearby way segments
         if (mouseOnExistingWays.isEmpty()) {
             mapView.setNewCursor(cursor, this);
-            redrawIfRequired();
+            redrawIfRequired(event);
             return;
         }
 
         mapView.setNewCursor(cursorJoinWay, this);
         newHighlights.addAll(mouseOnExistingWays);
-        redrawIfRequired();
+        redrawIfRequired(event);
     }
 
     /**
      * Removes target highlighting from primitives. Issues repaint if required.
+     * @param event event, can be null
      * @return true if a repaint has been issued.
      */
-    private boolean removeHighlighting() {
+    private boolean removeHighlighting(Object event) {
         newHighlights = new HashSet<>();
-        return redrawIfRequired();
+        return redrawIfRequired(event);
     }
 
     @Override
@@ -1304,15 +1357,22 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
         return ds.getSelected();
     }
 
+    /**
+     * Gets a collection of primitives that should not be hidden by the filter.
+     * @return The primitives that the filter should not hide.
+     * @deprecated use {@link org.openstreetmap.josm.data.osm.DataSet#allPreservedPrimitives}
+     * @since 11993
+     */
     @Override
+    @Deprecated
     public Collection<? extends OsmPrimitive> getPreservedPrimitives() {
         DataSet ds = getLayerManager().getEditDataSet();
-        return ds != null ? ds.getSelected() : Collections.emptySet();
+        return ds != null ? ds.allPreservedPrimitives() : Collections.emptySet();
     }
 
     @Override
     public boolean layerIsSupported(Layer l) {
-        return l instanceof OsmDataLayer;
+        return isEditableDataLayer(l);
     }
 
     @Override
@@ -1352,7 +1412,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
             }
             // select last added node - maybe we will continue drawing from it
             if (n != null) {
-                getLayerManager().getEditDataSet().addSelected(n);
+                addSelection(getLayerManager().getEditDataSet(), n);
             }
         }
     }

@@ -36,6 +36,7 @@ import org.openstreetmap.josm.gui.dialogs.ConflictDialog;
 import org.openstreetmap.josm.gui.dialogs.LayerListDialog;
 import org.openstreetmap.josm.gui.dialogs.ValidatorDialog.ValidatorBoundingXYVisitor;
 import org.openstreetmap.josm.gui.layer.Layer;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Shortcut;
 
@@ -74,7 +75,7 @@ public class AutoScaleAction extends JosmAction {
      *
      */
     public static void zoomToSelection() {
-        DataSet dataSet = MainApplication.getLayerManager().getEditDataSet();
+        DataSet dataSet = MainApplication.getLayerManager().getActiveDataSet();
         if (dataSet == null) {
             return;
         }
@@ -261,7 +262,7 @@ public class AutoScaleAction extends JosmAction {
         v.visit(error);
         if (v.getBounds() == null)
             return null;
-        v.enlargeBoundingBox(Main.pref.getDouble("validator.zoom-enlarge-bbox", 0.0002));
+        v.enlargeBoundingBox(Config.getPref().getDouble("validator.zoom-enlarge-bbox", 0.0002));
         return v;
     }
 
@@ -284,7 +285,7 @@ public class AutoScaleAction extends JosmAction {
     private BoundingXYVisitor modeSelectionOrConflict(BoundingXYVisitor v) {
         Collection<OsmPrimitive> sel = new HashSet<>();
         if ("selection".equals(mode)) {
-            DataSet dataSet = getLayerManager().getEditDataSet();
+            DataSet dataSet = getLayerManager().getActiveDataSet();
             if (dataSet != null) {
                 sel = dataSet.getSelected();
             }
@@ -313,16 +314,16 @@ public class AutoScaleAction extends JosmAction {
         v.enlargeBoundingBoxLogarithmically(100);
         // Make the bounding box at least 100 meter wide to
         // ensure reasonable zoom level when zooming onto single nodes.
-        v.enlargeToMinSize(Main.pref.getDouble("zoom_to_selection_min_size_in_meter", 100));
+        v.enlargeToMinSize(Config.getPref().getDouble("zoom_to_selection_min_size_in_meter", 100));
         return v;
     }
 
     private BoundingXYVisitor modeDownload(BoundingXYVisitor v) {
         if (lastZoomTime > 0 &&
-                System.currentTimeMillis() - lastZoomTime > Main.pref.getLong("zoom.bounds.reset.time", TimeUnit.SECONDS.toMillis(10))) {
+                System.currentTimeMillis() - lastZoomTime > Config.getPref().getLong("zoom.bounds.reset.time", TimeUnit.SECONDS.toMillis(10))) {
             lastZoomTime = -1;
         }
-        final DataSet dataset = getLayerManager().getEditDataSet();
+        final DataSet dataset = getLayerManager().getActiveDataSet();
         if (dataset != null) {
             List<DataSource> dataSources = new ArrayList<>(dataset.getDataSources());
             int s = dataSources.size();
@@ -335,7 +336,7 @@ public class AutoScaleAction extends JosmAction {
                     v.visit(dataSources.get(lastZoomArea).bounds);
                 } else {
                     lastZoomArea = -1;
-                    Area sourceArea = getLayerManager().getEditDataSet().getDataSourceArea();
+                    Area sourceArea = getLayerManager().getActiveDataSet().getDataSourceArea();
                     if (sourceArea != null) {
                         v.visit(new Bounds(sourceArea.getBounds2D()));
                     }
@@ -351,7 +352,7 @@ public class AutoScaleAction extends JosmAction {
 
     @Override
     protected void updateEnabledState() {
-        DataSet ds = getLayerManager().getEditDataSet();
+        DataSet ds = getLayerManager().getActiveDataSet();
         MapFrame map = MainApplication.getMap();
         switch (mode) {
         case "selection":

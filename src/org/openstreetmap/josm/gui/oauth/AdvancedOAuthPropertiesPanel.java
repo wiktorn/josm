@@ -15,7 +15,6 @@ import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 
-import org.openstreetmap.josm.data.Preferences;
 import org.openstreetmap.josm.data.oauth.OAuthParameters;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane.ButtonSpec;
@@ -23,6 +22,7 @@ import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
 import org.openstreetmap.josm.gui.widgets.SelectAllOnFocusGainedDecorator;
 import org.openstreetmap.josm.gui.widgets.VerticallyScrollablePanel;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.ImageProvider;
 
@@ -256,35 +256,31 @@ public class AdvancedOAuthPropertiesPanel extends VerticallyScrollablePanel {
     /**
      * Initializes the panel from the values in the preferences <code>preferences</code>.
      *
-     * @param pref the preferences. Must not be null.
-     * @throws IllegalArgumentException if pref is null
+     * @param paramApiUrl the API URL. Must not be null.
+     * @throws IllegalArgumentException if paramApiUrl is null
      */
-    public void initFromPreferences(Preferences pref) {
-        CheckParameterUtil.ensureParameterNotNull(pref, "pref");
-        setApiUrl(pref.get("osm-server.url"));
-        boolean useDefault = pref.getBoolean("oauth.settings.use-default", true);
+    public void initialize(String paramApiUrl) {
+        CheckParameterUtil.ensureParameterNotNull(paramApiUrl, "paramApiUrl");
+        setApiUrl(paramApiUrl);
+        boolean useDefault = Config.getPref().getBoolean("oauth.settings.use-default", true);
         ilUseDefault.setEnabled(false);
         if (useDefault) {
             resetToDefaultSettings();
         } else {
-            setAdvancedParameters(OAuthParameters.createFromPreferences(pref));
+            setAdvancedParameters(OAuthParameters.createFromApiUrl(paramApiUrl));
         }
         ilUseDefault.setEnabled(true);
     }
 
     /**
      * Remembers the current values in the preferences <code>pref</code>.
-     *
-     * @param pref the preferences. Must not be null.
-     * @throws IllegalArgumentException if pref is null.
      */
-    public void rememberPreferences(Preferences pref) {
-        CheckParameterUtil.ensureParameterNotNull(pref, "pref");
-        pref.put("oauth.settings.use-default", cbUseDefaults.isSelected());
+    public void rememberPreferences() {
+        Config.getPref().putBoolean("oauth.settings.use-default", cbUseDefaults.isSelected());
         if (cbUseDefaults.isSelected()) {
-            new OAuthParameters(null, null, null, null, null, null, null).rememberPreferences(pref);
+            new OAuthParameters(null, null, null, null, null, null, null).rememberPreferences();
         } else {
-            getAdvancedParameters().rememberPreferences(pref);
+            getAdvancedParameters().rememberPreferences();
         }
     }
 

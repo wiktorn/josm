@@ -295,7 +295,7 @@ public final class DomainValidator extends AbstractValidator {
 
     // WARNING: this array MUST be sorted, otherwise it cannot be searched reliably using binary search
     private static final String[] GENERIC_TLDS = new String[] {
-        // Taken from Version 2017071002, Last Updated Tue Jul 11 07:07:02 2017 UTC
+        // Taken from Version 2018012600, Last Updated Fri Jan 26 07:07:01 2018 UTC
         "aaa", // aaa American Automobile Association, Inc.
         "aarp", // aarp AARP
         "abarth", // abarth Fiat Chrysler Automobiles N.V.
@@ -498,7 +498,6 @@ public final class DomainValidator extends AbstractValidator {
         "chat", // chat Sand Fields, LLC
         "cheap", // cheap Sand Cover, LLC
         "chintai", // chintai CHINTAI Corporation
-        "chloe", // chloe Richemont DNS Inc.
         "christmas", // christmas Uniregistry, Corp.
         "chrome", // chrome Charleston Road Registry Inc.
         "chrysler", // chrysler FCA US LLC.
@@ -793,7 +792,6 @@ public final class DomainValidator extends AbstractValidator {
         "house", // house Sugar Park, LLC
         "how", // how Charleston Road Registry Inc.
         "hsbc", // hsbc HSBC Holdings PLC
-        "htc", // htc HTC corporation
         "hughes", // hughes Hughes Satellite Systems Corporation
         "hyatt", // hyatt Hyatt GTLD, L.L.C.
         "hyundai", // hyundai Hyundai Motor Company
@@ -1060,7 +1058,6 @@ public final class DomainValidator extends AbstractValidator {
         "ott", // ott Dish DBS Corporation
         "ovh", // ovh OVH SAS
         "page", // page Charleston Road Registry Inc.
-        "pamperedchef", // pamperedchef The Pampered Chef, Ltd.
         "panasonic", // panasonic Panasonic Corporation
         "panerai", // panerai Richemont DNS Inc.
         "paris", // paris City of Paris
@@ -1251,6 +1248,7 @@ public final class DomainValidator extends AbstractValidator {
         "soy", // soy Charleston Road Registry Inc.
         "space", // space DotSpace Inc.
         "spiegel", // spiegel SPIEGEL-Verlag Rudolf Augstein GmbH &amp; Co. KG
+        "sport", // sport Global Association of International Sports Federations (GAISF)
         "spot", // spot Amazon Registry Services, Inc.
         "spreadbetting", // spreadbetting DOTSPREADBETTING REGISTRY LTD
         "srl", // srl InterNetX Corp.
@@ -1506,6 +1504,7 @@ public final class DomainValidator extends AbstractValidator {
         "xn--nqv7f", // 机构 Public Interest Registry
         "xn--nqv7fs00ema", // 组织机构 Public Interest Registry
         "xn--nyqy26a", // 健康 Stable Tone Limited
+        "xn--otu796d", // 招聘 Dot Trademark TLD Holding Company Limited
         "xn--p1acf", // рус Rusnames Limited
         "xn--pbt977c", // 珠宝 Richemont DNS Inc.
         "xn--pssy2u", // 大拿 VeriSign Sarl

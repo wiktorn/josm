@@ -52,11 +52,11 @@ import org.openstreetmap.josm.gui.dialogs.changeset.ChangesetListModel;
 import org.openstreetmap.josm.gui.dialogs.changeset.ChangesetsInActiveDataLayerListModel;
 import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.io.CloseChangesetTask;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.ListPopupMenu;
 import org.openstreetmap.josm.gui.widgets.PopupMenuLauncher;
 import org.openstreetmap.josm.io.OnlineResource;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.OpenBrowser;
@@ -121,26 +121,24 @@ public class ChangesetDialog extends ToggleDialog {
         // events and bootstrap it's content
         ChangesetCache.getInstance().addChangesetCacheListener(inActiveDataLayerModel);
         MainApplication.getLayerManager().addActiveLayerChangeListener(inActiveDataLayerModel);
-        OsmDataLayer editLayer = MainApplication.getLayerManager().getEditLayer();
-        if (editLayer != null) {
-            editLayer.data.addDataSetListener(inActiveDataLayerModel);
-            inActiveDataLayerModel.initFromDataSet(editLayer.data);
-            inSelectionModel.initFromPrimitives(editLayer.data.getAllSelected());
+        DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
+        if (ds != null) {
+            ds.addDataSetListener(inActiveDataLayerModel);
+            inActiveDataLayerModel.initFromDataSet(ds);
+            inSelectionModel.initFromPrimitives(ds.getAllSelected());
         }
     }
 
     protected void unregisterAsListener() {
         // remove the list model for the current edit layer as listener
-        //
         ChangesetCache.getInstance().removeChangesetCacheListener(inActiveDataLayerModel);
         MainApplication.getLayerManager().removeActiveLayerChangeListener(inActiveDataLayerModel);
-        OsmDataLayer editLayer = MainApplication.getLayerManager().getEditLayer();
-        if (editLayer != null) {
-            editLayer.data.removeDataSetListener(inActiveDataLayerModel);
+        DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
+        if (ds != null) {
+            ds.removeDataSetListener(inActiveDataLayerModel);
         }
 
-        // remove the list model for the changesets in the current selection as
-        // listener
+        // remove the list model for the changesets in the current selection as listener
         SelectionEventManager.getInstance().removeSelectionListener(inSelectionModel);
         ChangesetCache.getInstance().removeChangesetCacheListener(inSelectionModel);
     }
@@ -164,7 +162,7 @@ public class ChangesetDialog extends ToggleDialog {
         pnl.add(cbInSelectionOnly);
         cbInSelectionOnly.setToolTipText(tr("<html>Select to show changesets for the currently selected objects only.<br>"
                 + "Unselect to show all changesets for objects in the current data layer.</html>"));
-        cbInSelectionOnly.setSelected(Main.pref.getBoolean("changeset-dialog.for-selected-objects-only", false));
+        cbInSelectionOnly.setSelected(Config.getPref().getBoolean("changeset-dialog.for-selected-objects-only", false));
         return pnl;
     }
 
@@ -233,10 +231,10 @@ public class ChangesetDialog extends ToggleDialog {
     }
 
     protected void initWithCurrentData() {
-        OsmDataLayer editLayer = MainApplication.getLayerManager().getEditLayer();
-        if (editLayer != null) {
-            inSelectionModel.initFromPrimitives(editLayer.data.getAllSelected());
-            inActiveDataLayerModel.initFromDataSet(editLayer.data);
+        DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
+        if (ds != null) {
+            inSelectionModel.initFromPrimitives(ds.getAllSelected());
+            inActiveDataLayerModel.initFromDataSet(ds);
         }
     }
 
@@ -264,9 +262,9 @@ public class ChangesetDialog extends ToggleDialog {
             Set<Integer> sel = getCurrentChangesetListModel().getSelectedChangesetIds();
             if (sel.isEmpty())
                 return;
-            if (MainApplication.getLayerManager().getEditDataSet() == null)
+            if (MainApplication.getLayerManager().getActiveDataSet() == null)
                 return;
-            new SelectObjectsAction().selectObjectsByChangesetIds(MainApplication.getLayerManager().getEditDataSet(), sel);
+            new SelectObjectsAction().selectObjectsByChangesetIds(MainApplication.getLayerManager().getActiveDataSet(), sel);
         }
 
     }
@@ -274,7 +272,7 @@ public class ChangesetDialog extends ToggleDialog {
     class FilterChangeHandler implements ItemListener {
         @Override
         public void itemStateChanged(ItemEvent e) {
-            Main.pref.put("changeset-dialog.for-selected-objects-only", cbInSelectionOnly.isSelected());
+            Config.getPref().putBoolean("changeset-dialog.for-selected-objects-only", cbInSelectionOnly.isSelected());
             pnlList.removeAll();
             if (cbInSelectionOnly.isSelected()) {
                 pnlList.add(new JScrollPane(lstInSelection), BorderLayout.CENTER);
@@ -312,14 +310,14 @@ public class ChangesetDialog extends ToggleDialog {
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            if (MainApplication.getLayerManager().getEditLayer() == null)
+            DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
+            if (ds == null)
                 return;
             ChangesetListModel model = getCurrentChangesetListModel();
             Set<Integer> sel = model.getSelectedChangesetIds();
             if (sel.isEmpty())
                 return;
 
-            DataSet ds = MainApplication.getLayerManager().getEditLayer().data;
             selectObjectsByChangesetIds(ds, sel);
         }
 

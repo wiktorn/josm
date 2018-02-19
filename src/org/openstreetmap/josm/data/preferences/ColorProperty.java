@@ -4,13 +4,16 @@ package org.openstreetmap.josm.data.preferences;
 import java.awt.Color;
 import java.util.Locale;
 
+import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.ColorHelper;
 
 /**
  * A property containing a {@link Color} value.
  * @since 5464
+ * @deprecated (since 12987) replaced by {@link NamedColorProperty}
  */
+@Deprecated
 public class ColorProperty extends AbstractToStringProperty<Color> {
 
     private final String name;
@@ -33,7 +36,7 @@ public class ColorProperty extends AbstractToStringProperty<Color> {
         super(getColorKey(colName), defaultValue);
         CheckParameterUtil.ensureParameterNotNull(defaultValue, "defaultValue");
         this.name = colName;
-        getPreferences().registerColor(getColorKey(colName), colName);
+        Main.pref.registerColor(getColorKey(colName), colName);
     }
 
     @Override

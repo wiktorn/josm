@@ -42,28 +42,29 @@ import javax.swing.KeyStroke;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.APIDataSet;
-import org.openstreetmap.josm.data.Preferences.PreferenceChangeEvent;
-import org.openstreetmap.josm.data.Preferences.PreferenceChangedListener;
 import org.openstreetmap.josm.data.Version;
 import org.openstreetmap.josm.data.osm.Changeset;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
-import org.openstreetmap.josm.data.preferences.Setting;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.help.ContextSensitiveHelpAction;
 import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.util.GuiHelper;
+import org.openstreetmap.josm.gui.util.MultiLineFlowLayout;
 import org.openstreetmap.josm.gui.util.WindowGeometry;
 import org.openstreetmap.josm.io.OsmApi;
 import org.openstreetmap.josm.io.UploadStrategy;
 import org.openstreetmap.josm.io.UploadStrategySpecification;
+import org.openstreetmap.josm.spi.preferences.Config;
+import org.openstreetmap.josm.spi.preferences.PreferenceChangeEvent;
+import org.openstreetmap.josm.spi.preferences.PreferenceChangedListener;
+import org.openstreetmap.josm.spi.preferences.Setting;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageOverlay;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.ImageProvider.ImageSizes;
 import org.openstreetmap.josm.tools.InputMapUtils;
-import org.openstreetmap.josm.tools.MultiLineFlowLayout;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -110,6 +111,7 @@ public class UploadDialog extends AbstractUploadDialog implements PropertyChange
     public UploadDialog() {
         super(GuiHelper.getFrameForComponent(Main.parent), ModalityType.DOCUMENT_MODAL);
         build();
+        pack();
     }
 
     /**
@@ -205,9 +207,7 @@ public class UploadDialog extends AbstractUploadDialog implements PropertyChange
 
         addWindowListener(new WindowEventHandler());
 
-
-        // make sure the configuration panels listen to each other
-        // changes
+        // make sure the configuration panels listen to each other changes
         //
         pnlChangesetManagement.addPropertyChangeListener(this);
         pnlChangesetManagement.addPropertyChangeListener(
@@ -251,7 +251,7 @@ public class UploadDialog extends AbstractUploadDialog implements PropertyChange
 
         setMinimumSize(new Dimension(600, 350));
 
-        Main.pref.addPreferenceChangeListener(this);
+        Config.getPref().addPreferenceChangeListener(this);
     }
 
     /**
@@ -431,7 +431,7 @@ public class UploadDialog extends AbstractUploadDialog implements PropertyChange
         UploadAction(IUploadDialog dialog) {
             this.dialog = dialog;
             putValue(NAME, tr("Upload Changes"));
-            putValue(SMALL_ICON, ImageProvider.get("upload"));
+            new ImageProvider("upload").getResource().attachImageIcon(this, true);
             putValue(SHORT_DESCRIPTION, tr("Upload the changed primitives"));
         }
 
@@ -586,7 +586,7 @@ public class UploadDialog extends AbstractUploadDialog implements PropertyChange
         CancelAction(IUploadDialog dialog) {
             this.dialog = dialog;
             putValue(NAME, tr("Cancel"));
-            putValue(SMALL_ICON, ImageProvider.get("cancel"));
+            new ImageProvider("cancel").getResource().attachImageIcon(this, true);
             putValue(SHORT_DESCRIPTION, tr("Cancel the upload and resume editing"));
         }
 
@@ -602,18 +602,20 @@ public class UploadDialog extends AbstractUploadDialog implements PropertyChange
     /**
      * Listens to window closing events and processes them as cancel events.
      * Listens to window open events and initializes user input
-     *
      */
     class WindowEventHandler extends WindowAdapter {
+        private boolean activatedOnce;
+
         @Override
         public void windowClosing(WindowEvent e) {
             setCanceled(true);
         }
 
         @Override
-        public void windowActivated(WindowEvent arg0) {
-            if (tpConfigPanels.getSelectedIndex() == 0) {
+        public void windowActivated(WindowEvent e) {
+            if (!activatedOnce && tpConfigPanels.getSelectedIndex() == 0) {
                 pnlBasicUploadSettings.initEditingOfUploadComment();
+                activatedOnce = true;
             }
         }
     }
@@ -652,9 +654,9 @@ public class UploadDialog extends AbstractUploadDialog implements PropertyChange
     }
 
     private static String getLastChangesetTagFromHistory(String historyKey, List<String> def) {
-        Collection<String> history = Main.pref.getCollection(historyKey, def);
-        int age = (int) (System.currentTimeMillis() / 1000 - Main.pref.getInteger(BasicUploadSettingsPanel.HISTORY_LAST_USED_KEY, 0));
-        if (history != null && age < Main.pref.getLong(BasicUploadSettingsPanel.HISTORY_MAX_AGE_KEY, TimeUnit.HOURS.toMillis(4))
+        Collection<String> history = Config.getPref().getList(historyKey, def);
+        int age = (int) (System.currentTimeMillis() / 1000 - Config.getPref().getInt(BasicUploadSettingsPanel.HISTORY_LAST_USED_KEY, 0));
+        if (history != null && age < Config.getPref().getLong(BasicUploadSettingsPanel.HISTORY_MAX_AGE_KEY, TimeUnit.HOURS.toMillis(4))
                 && !history.isEmpty()) {
             return history.iterator().next();
         } else {

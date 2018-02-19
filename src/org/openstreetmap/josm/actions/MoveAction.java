@@ -151,7 +151,7 @@ public class MoveAction extends JosmAction {
         }
 
         for (Node n : affectedNodes) {
-            if (n.getCoor().isOutSideWorld()) {
+            if (n.isLatLonKnown() && n.getCoor().isOutSideWorld()) {
                 // Revert move
                 ((MoveCommand) c).moveAgain(-distx, -disty);
                 JOptionPane.showMessageDialog(
@@ -174,6 +174,6 @@ public class MoveAction extends JosmAction {
 
     @Override
     protected void updateEnabledState(Collection<? extends OsmPrimitive> selection) {
-        setEnabled(selection != null && !selection.isEmpty());
+        updateEnabledStateOnModifiableSelection(selection);
     }
 }

@@ -18,11 +18,12 @@ import javax.swing.AbstractAction;
 import org.openstreetmap.gui.jmapviewer.JMapViewer;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.mapmode.SelectAction;
-import org.openstreetmap.josm.data.Preferences.PreferenceChangeEvent;
-import org.openstreetmap.josm.data.Preferences.PreferenceChangedListener;
+import org.openstreetmap.josm.spi.preferences.PreferenceChangeEvent;
+import org.openstreetmap.josm.spi.preferences.PreferenceChangedListener;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.gui.MapViewState.MapViewPoint;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.Destroyable;
 import org.openstreetmap.josm.tools.Pair;
 import org.openstreetmap.josm.tools.Shortcut;
@@ -47,7 +48,7 @@ public class MapMover extends MouseAdapter implements Destroyable {
     private static class JMapViewerUpdater implements PreferenceChangedListener {
 
         JMapViewerUpdater() {
-            Main.pref.addPreferenceChangeListener(this);
+            Config.getPref().addPreferenceChangeListener(this);
             updateJMapViewer();
         }
 

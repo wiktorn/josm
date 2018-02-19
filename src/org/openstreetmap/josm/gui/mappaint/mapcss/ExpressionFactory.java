@@ -27,9 +27,9 @@ import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
-import org.openstreetmap.josm.data.osm.search.SearchParseError;
 import org.openstreetmap.josm.data.osm.search.SearchCompiler;
 import org.openstreetmap.josm.data.osm.search.SearchCompiler.Match;
+import org.openstreetmap.josm.data.osm.search.SearchParseError;
 import org.openstreetmap.josm.gui.mappaint.Cascade;
 import org.openstreetmap.josm.gui.mappaint.Environment;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
@@ -504,6 +504,18 @@ public final class ExpressionFactory {
          */
         public static String child_tag(final Environment env, String key) { // NO_UCD (unused code)
             return env.child == null ? null : env.child.get(key);
+        }
+
+        /**
+         * Returns the OSM id of the object's parent.
+         * <p>
+         * Parent must be matched by child selector.
+         * @param env the environment
+         * @return the OSM id of the object's parent, if available, or {@code null}
+         * @see OsmPrimitive#getUniqueId()
+         */
+        public static Long parent_osm_id(final Environment env) { // NO_UCD (unused code)
+            return env.parent == null ? null : env.parent.getUniqueId();
         }
 
         /**

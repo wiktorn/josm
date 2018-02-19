@@ -2,6 +2,7 @@
 package org.openstreetmap.josm.gui;
 
 import java.awt.Cursor;
+import java.awt.GraphicsEnvironment;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.ComponentAdapter;
@@ -59,6 +60,8 @@ import org.openstreetmap.josm.gui.layer.NativeScaleLayer.ScaleList;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
 import org.openstreetmap.josm.gui.mappaint.mapcss.MapCSSStyleSource;
 import org.openstreetmap.josm.gui.util.CursorManager;
+import org.openstreetmap.josm.gui.util.GuiHelper;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -119,7 +122,7 @@ public class NavigatableComponent extends JComponent implements Helpful {
      *
      * @param listener the listener. Ignored if null or already absent
      */
-    public static void removeZoomChangeListener(NavigatableComponent.ZoomChangeListener listener) {
+    public static void removeZoomChangeListener(ZoomChangeListener listener) {
         zoomChangeListeners.remove(listener);
     }
 
@@ -128,16 +131,18 @@ public class NavigatableComponent extends JComponent implements Helpful {
      *
      * @param listener the listener. Ignored if null or already registered.
      */
-    public static void addZoomChangeListener(NavigatableComponent.ZoomChangeListener listener) {
+    public static void addZoomChangeListener(ZoomChangeListener listener) {
         if (listener != null) {
             zoomChangeListeners.addIfAbsent(listener);
         }
     }
 
     protected static void fireZoomChanged() {
-        for (ZoomChangeListener l : zoomChangeListeners) {
-            l.zoomChanged();
-        }
+        GuiHelper.runInEDTAndWait(() -> {
+            for (ZoomChangeListener l : zoomChangeListeners) {
+                l.zoomChanged();
+            }
+        });
     }
 
     // The only events that may move/resize this map view are window movements or changes to the map view size.
@@ -318,7 +323,9 @@ public class NavigatableComponent extends JComponent implements Helpful {
     }
 
     protected boolean isVisibleOnScreen() {
-        return SwingUtilities.getWindowAncestor(this) != null && isShowing();
+        return GraphicsEnvironment.isHeadless() || (
+            SwingUtilities.getWindowAncestor(this) != null && isShowing()
+        );
     }
 
     /**
@@ -868,9 +875,9 @@ public class NavigatableComponent extends JComponent implements Helpful {
 
     private void pushZoomUndo(EastNorth center, double scale) {
         Date now = new Date();
-        if ((now.getTime() - zoomTimestamp.getTime()) > (Main.pref.getDouble("zoom.undo.delay", 1.0) * 1000)) {
+        if ((now.getTime() - zoomTimestamp.getTime()) > (Config.getPref().getDouble("zoom.undo.delay", 1.0) * 1000)) {
             zoomUndoBuffer.push(new ZoomData(center, scale));
-            if (zoomUndoBuffer.size() > Main.pref.getInteger("zoom.undo.max", 50)) {
+            if (zoomUndoBuffer.size() > Config.getPref().getInt("zoom.undo.max", 50)) {
                 zoomUndoBuffer.remove(0);
             }
             zoomRedoBuffer.clear();
@@ -931,7 +938,7 @@ public class NavigatableComponent extends JComponent implements Helpful {
      */
     private Map<Double, List<Node>> getNearestNodesImpl(Point p, Predicate<OsmPrimitive> predicate) {
         Map<Double, List<Node>> nearestMap = new TreeMap<>();
-        DataSet ds = MainApplication.getLayerManager().getEditDataSet();
+        DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
 
         if (ds != null) {
             double dist, snapDistanceSq = PROP_SNAP_DISTANCE.get();
@@ -1140,13 +1147,13 @@ public class NavigatableComponent extends JComponent implements Helpful {
      */
     private Map<Double, List<WaySegment>> getNearestWaySegmentsImpl(Point p, Predicate<OsmPrimitive> predicate) {
         Map<Double, List<WaySegment>> nearestMap = new TreeMap<>();
-        DataSet ds = MainApplication.getLayerManager().getEditDataSet();
+        DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
 
         if (ds != null) {
-            double snapDistanceSq = Main.pref.getInteger("mappaint.segment.snap-distance", 10);
+            double snapDistanceSq = Config.getPref().getInt("mappaint.segment.snap-distance", 10);
             snapDistanceSq *= snapDistanceSq;
 
-            for (Way w : ds.searchWays(getBBox(p, Main.pref.getInteger("mappaint.segment.snap-distance", 10)))) {
+            for (Way w : ds.searchWays(getBBox(p, Config.getPref().getInt("mappaint.segment.snap-distance", 10)))) {
                 if (!predicate.test(w)) {
                     continue;
                 }
@@ -1501,7 +1508,7 @@ public class NavigatableComponent extends JComponent implements Helpful {
      */
     public final OsmPrimitive getNearestNodeOrWay(Point p, Predicate<OsmPrimitive> predicate, boolean useSelected) {
         Collection<OsmPrimitive> sel;
-        DataSet ds = MainApplication.getLayerManager().getEditDataSet();
+        DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
         if (useSelected && ds != null) {
             sel = ds.getSelected();
         } else {

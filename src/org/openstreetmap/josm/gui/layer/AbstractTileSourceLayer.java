@@ -72,6 +72,7 @@ import org.openstreetmap.gui.jmapviewer.interfaces.TileLoaderListener;
 import org.openstreetmap.gui.jmapviewer.interfaces.TileSource;
 import org.openstreetmap.gui.jmapviewer.tilesources.AbstractTMSTileSource;
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.actions.ExpertToggleAction;
 import org.openstreetmap.josm.actions.ImageryAdjustAction;
 import org.openstreetmap.josm.actions.RenameLayerAction;
 import org.openstreetmap.josm.actions.SaveActionBase;
@@ -92,6 +93,7 @@ import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.NavigatableComponent.ZoomChangeListener;
+import org.openstreetmap.josm.gui.Notification;
 import org.openstreetmap.josm.gui.dialogs.LayerListDialog;
 import org.openstreetmap.josm.gui.dialogs.LayerListPopup;
 import org.openstreetmap.josm.gui.io.importexport.WMSLayerImporter;
@@ -116,11 +118,13 @@ import org.openstreetmap.josm.gui.layer.imagery.ZoomToNativeLevelAction;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.tools.GBC;
+import org.openstreetmap.josm.tools.HttpClient;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.MemoryManager;
 import org.openstreetmap.josm.tools.MemoryManager.MemoryHandle;
 import org.openstreetmap.josm.tools.MemoryManager.NotEnoughMemoryException;
 import org.openstreetmap.josm.tools.Utils;
+import org.openstreetmap.josm.tools.bugreport.BugReport;
 
 /**
  * Base abstract class that supports displaying images provided by TileSource. It might be TMS source, WMS or WMTS
@@ -498,6 +502,42 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         }
     }
 
+    private void sendOsmTileRequest(String request) {
+        Tile clickedTile = clickedTileHolder.getTile();
+        if (clickedTile != null) {
+            try {
+                new Notification(HttpClient.create(new URL(clickedTile.getUrl() + '/' + request))
+                        .connect().fetchContent()).show();
+            } catch (IOException ex) {
+                Logging.error(ex);
+            }
+        }
+    }
+
+    private final class GetOsmTileStatusAction extends AbstractAction {
+        private GetOsmTileStatusAction() {
+            super(tr("Get tile status"));
+            setEnabled(clickedTileHolder.getTile() != null);
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            sendOsmTileRequest("status");
+        }
+    }
+
+    private final class MarkOsmTileDirtyAction extends AbstractAction {
+        private MarkOsmTileDirtyAction() {
+            super(tr("Force tile rendering"));
+            setEnabled(clickedTileHolder.getTile() != null);
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            sendOsmTileRequest("dirty");
+        }
+    }
+
     /**
      * Simple class to keep clickedTile within hookUpMapView
      */
@@ -576,6 +616,10 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             add(new JSeparator());
             add(new JMenuItem(new LoadTileAction()));
             add(new JMenuItem(new ShowTileInfoAction()));
+            if (ExpertToggleAction.isExpert() && tileSource != null && tileSource.isModTileFeatures()) {
+                add(new JMenuItem(new GetOsmTileStatusAction()));
+                add(new JMenuItem(new MarkOsmTileDirtyAction()));
+            }
         }
     }
 
@@ -615,7 +659,8 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             }
             break;
         default:
-            // trigger a redraw just to be sure.
+            // e.g. displacement
+            // trigger a redraw in every case
             invalidate();
         }
     }
@@ -1142,6 +1187,8 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
 
     protected class TileSet extends TileRange {
 
+        private volatile TileSetInfo info;
+
         protected TileSet(TileXY t1, TileXY t2, int zoom) {
             super(t1, t2, zoom);
             sanitize();
@@ -1268,10 +1315,92 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             }
         }
 
+        /**
+         * Check if there is any tile fully loaded without error.
+         * @return true if there is any tile fully loaded without error
+         */
+        public boolean hasVisibleTiles() {
+            return getTileSetInfo().hasVisibleTiles;
+        }
+
+        /**
+         * Check if there there is a tile that is overzoomed.
+         * <p>
+         * I.e. the server response for one tile was "there is no tile here".
+         * This usually happens when zoomed in too much. The limit depends on
+         * the region, so at the edge of such a region, some tiles may be
+         * available and some not.
+         * @return true if there there is a tile that is overzoomed
+         */
+        public boolean hasOverzoomedTiles() {
+            return getTileSetInfo().hasOverzoomedTiles;
+        }
+
+        /**
+         * Check if there are tiles still loading.
+         * <p>
+         * This is the case if there is a tile not yet in the cache, or in the
+         * cache but marked as loading ({@link Tile#isLoading()}.
+         * @return true if there are tiles still loading
+         */
+        public boolean hasLoadingTiles() {
+            return getTileSetInfo().hasLoadingTiles;
+        }
+
+        /**
+         * Check if all tiles in the range are fully loaded.
+         * <p>
+         * A tile is considered to be fully loaded even if the result of loading
+         * the tile was an error.
+         * @return true if all tiles in the range are fully loaded
+         */
+        public boolean hasAllLoadedTiles() {
+            return getTileSetInfo().hasAllLoadedTiles;
+        }
+
+        private TileSetInfo getTileSetInfo() {
+            if (info == null) {
+                synchronized (this) {
+                    if (info == null) {
+                        List<Tile> allTiles = this.allExistingTiles();
+                        info = new TileSetInfo();
+                        info.hasLoadingTiles = allTiles.size() < this.size();
+                        info.hasAllLoadedTiles = true;
+                        for (Tile t : allTiles) {
+                            if ("no-tile".equals(t.getValue("tile-info"))) {
+                                info.hasOverzoomedTiles = true;
+                            }
+                            if (t.isLoaded()) {
+                                if (!t.hasError()) {
+                                    info.hasVisibleTiles = true;
+                                }
+                            } else {
+                                info.hasAllLoadedTiles = false;
+                                if (t.isLoading()) {
+                                    info.hasLoadingTiles = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return info;
+        }
+
         @Override
         public String toString() {
             return getClass().getName() + ": zoom: " + zoom + " X(" + minX + ", " + maxX + ") Y(" + minY + ", " + maxY + ") size: " + size();
         }
+    }
+
+    /**
+     * Data container to hold information about a {@code TileSet} class.
+     */
+    private static class TileSetInfo {
+        boolean hasVisibleTiles;
+        boolean hasOverzoomedTiles;
+        boolean hasLoadingTiles;
+        boolean hasAllLoadedTiles;
     }
 
     /**
@@ -1288,6 +1417,9 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         IProjected botRightUnshifted = coordinateConverter.shiftDisplayToServer(bounds.getMax());
         if (coordinateConverter.requiresReprojection()) {
             Projection projServer = Projections.getProjectionByCode(tileSource.getServerCRS());
+            if (projServer == null) {
+                throw new IllegalStateException(tileSource.toString());
+            }
             ProjectionBounds projBounds = new ProjectionBounds(
                     CoordinateConversion.projToEn(topLeftUnshifted),
                     CoordinateConversion.projToEn(botRightUnshifted));
@@ -1301,49 +1433,20 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         return new TileSet(t1, t2, zoom);
     }
 
-    private static class TileSetInfo {
-        boolean hasVisibleTiles;
-        boolean hasOverzoomedTiles;
-        boolean hasLoadingTiles;
-        boolean hasAllLoadedTiles;
-    }
-
-    private static <S extends AbstractTMSTileSource> TileSetInfo getTileSetInfo(AbstractTileSourceLayer<S>.TileSet ts) {
-        List<Tile> allTiles = ts.allExistingTiles();
-        TileSetInfo result = new TileSetInfo();
-        result.hasLoadingTiles = allTiles.size() < ts.size();
-        result.hasAllLoadedTiles = true;
-        for (Tile t : allTiles) {
-            if ("no-tile".equals(t.getValue("tile-info"))) {
-                result.hasOverzoomedTiles = true;
-            }
-            if (t.isLoaded()) {
-                if (!t.hasError()) {
-                    result.hasVisibleTiles = true;
-                }
-            } else {
-                result.hasAllLoadedTiles = false;
-                if (t.isLoading()) {
-                    result.hasLoadingTiles = true;
-                }
-            }
-        }
-        return result;
-    }
-
     private class DeepTileSet {
         private final ProjectionBounds bounds;
         private final int minZoom, maxZoom;
         private final TileSet[] tileSets;
-        private final TileSetInfo[] tileSetInfos;
 
         @SuppressWarnings("unchecked")
         DeepTileSet(ProjectionBounds bounds, int minZoom, int maxZoom) {
             this.bounds = bounds;
             this.minZoom = minZoom;
             this.maxZoom = maxZoom;
+            if (minZoom > maxZoom) {
+                throw new IllegalArgumentException(minZoom + " > " + maxZoom);
+            }
             this.tileSets = new AbstractTileSourceLayer.TileSet[maxZoom - minZoom + 1];
-            this.tileSetInfos = new TileSetInfo[maxZoom - minZoom + 1];
         }
 
         public TileSet getTileSet(int zoom) {
@@ -1356,19 +1459,6 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
                     tileSets[zoom-minZoom] = ts;
                 }
                 return ts;
-            }
-        }
-
-        public TileSetInfo getTileSetInfo(int zoom) {
-            if (zoom < minZoom)
-                return new TileSetInfo();
-            synchronized (tileSetInfos) {
-                TileSetInfo tsi = tileSetInfos[zoom-minZoom];
-                if (tsi == null) {
-                    tsi = AbstractTileSourceLayer.getTileSetInfo(getTileSet(zoom));
-                    tileSetInfos[zoom-minZoom] = tsi;
-                }
-                return tsi;
             }
         }
     }
@@ -1385,28 +1475,27 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         }
 
         DeepTileSet dts = new DeepTileSet(pb, getMinZoomLvl(), zoom);
-        TileSet ts = dts.getTileSet(zoom);
 
         int displayZoomLevel = zoom;
 
         boolean noTilesAtZoom = false;
         if (getDisplaySettings().isAutoZoom() && getDisplaySettings().isAutoLoad()) {
             // Auto-detection of tilesource maxzoom (currently fully works only for Bing)
-            TileSetInfo tsi = dts.getTileSetInfo(zoom);
-            if (!tsi.hasVisibleTiles && (!tsi.hasLoadingTiles || tsi.hasOverzoomedTiles)) {
+            TileSet ts0 = dts.getTileSet(zoom);
+            if (!ts0.hasVisibleTiles() && (!ts0.hasLoadingTiles() || ts0.hasOverzoomedTiles())) {
                 noTilesAtZoom = true;
             }
             // Find highest zoom level with at least one visible tile
             for (int tmpZoom = zoom; tmpZoom > dts.minZoom; tmpZoom--) {
-                if (dts.getTileSetInfo(tmpZoom).hasVisibleTiles) {
+                if (dts.getTileSet(tmpZoom).hasVisibleTiles()) {
                     displayZoomLevel = tmpZoom;
                     break;
                 }
             }
             // Do binary search between currentZoomLevel and displayZoomLevel
-            while (zoom > displayZoomLevel && !tsi.hasVisibleTiles && tsi.hasOverzoomedTiles) {
+            while (zoom > displayZoomLevel && !ts0.hasVisibleTiles() && ts0.hasOverzoomedTiles()) {
                 zoom = (zoom + displayZoomLevel)/2;
-                tsi = dts.getTileSetInfo(zoom);
+                ts0 = dts.getTileSet(zoom);
             }
 
             setZoomLevel(zoom, false);
@@ -1414,21 +1503,21 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             // If all tiles at displayZoomLevel is loaded, load all tiles at next zoom level
             // to make sure there're really no more zoom levels
             // loading is done in the next if section
-            if (zoom == displayZoomLevel && !tsi.hasLoadingTiles && zoom < dts.maxZoom) {
+            if (zoom == displayZoomLevel && !ts0.hasLoadingTiles() && zoom < dts.maxZoom) {
                 zoom++;
-                tsi = dts.getTileSetInfo(zoom);
+                ts0 = dts.getTileSet(zoom);
             }
             // When we have overzoomed tiles and all tiles at current zoomlevel is loaded,
             // load tiles at previovus zoomlevels until we have all tiles on screen is loaded.
             // loading is done in the next if section
-            while (zoom > dts.minZoom && tsi.hasOverzoomedTiles && !tsi.hasLoadingTiles) {
+            while (zoom > dts.minZoom && ts0.hasOverzoomedTiles() && !ts0.hasLoadingTiles()) {
                 zoom--;
-                tsi = dts.getTileSetInfo(zoom);
+                ts0 = dts.getTileSet(zoom);
             }
-            ts = dts.getTileSet(zoom);
         } else if (getDisplaySettings().isAutoZoom()) {
             setZoomLevel(zoom, false);
         }
+        TileSet ts = dts.getTileSet(zoom);
 
         // Too many tiles... refuse to download
         if (!ts.tooLarge()) {
@@ -1439,7 +1528,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
 
         if (displayZoomLevel != zoom) {
             ts = dts.getTileSet(displayZoomLevel);
-            if (!dts.getTileSetInfo(displayZoomLevel).hasAllLoadedTiles && displayZoomLevel < zoom) {
+            if (!dts.getTileSet(displayZoomLevel).hasAllLoadedTiles() && displayZoomLevel < zoom) {
                 // if we are showing tiles from lower zoom level, ensure that all tiles are loaded as they are few,
                 // and should not trash the tile cache
                 // This is especially needed when dts.getTileSet(zoom).tooLarge() is true and we are not loading tiles
@@ -1610,7 +1699,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         actions.addAll(getMenuAdditions());
         actions.add(SeparatorLayerAction.INSTANCE);
         actions.add(new LayerListPopup.InfoAction(this));
-        return actions.toArray(new Action[actions.size()]);
+        return actions.toArray(new Action[0]);
     }
 
     /**
@@ -1800,7 +1889,12 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         }
 
         private void doPaint(MapViewGraphics graphics) {
-            drawInViewArea(graphics.getDefaultGraphics(), graphics.getMapView(), graphics.getClipBounds().getProjectionBounds());
+            try {
+                drawInViewArea(graphics.getDefaultGraphics(), graphics.getMapView(), graphics.getClipBounds().getProjectionBounds());
+            } catch (IllegalArgumentException | IllegalStateException e) {
+                throw BugReport.intercept(e)
+                               .put("graphics", graphics).put("tileSource", tileSource).put("currentZoomLevel", currentZoomLevel);
+            }
         }
 
         private void allocateCacheMemory() {
@@ -1837,6 +1931,45 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         displaySettings.setOffsetBookmark(displaySettings.getOffsetBookmark());
         if (tileCache != null) {
             tileCache.clear();
+        }
+    }
+
+    @Override
+    protected List<OffsetMenuEntry> getOffsetMenuEntries() {
+        return OffsetBookmark.getBookmarks()
+            .stream()
+            .filter(b -> b.isUsable(this))
+            .map(OffsetMenuBookmarkEntry::new)
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * An entry for a bookmark in the offset menu.
+     * @author Michael Zangl
+     */
+    private class OffsetMenuBookmarkEntry implements OffsetMenuEntry {
+        private final OffsetBookmark bookmark;
+
+        OffsetMenuBookmarkEntry(OffsetBookmark bookmark) {
+            this.bookmark = bookmark;
+
+        }
+
+        @Override
+        public String getLabel() {
+            return bookmark.getName();
+        }
+
+        @Override
+        public boolean isActive() {
+            EastNorth offset = bookmark.getDisplacement(Main.getProjection());
+            EastNorth active = getDisplaySettings().getDisplacement();
+            return Utils.equalsEpsilon(offset.east(), active.east()) && Utils.equalsEpsilon(offset.north(), active.north());
+        }
+
+        @Override
+        public void actionPerformed() {
+            getDisplaySettings().setOffsetBookmark(bookmark);
         }
     }
 }

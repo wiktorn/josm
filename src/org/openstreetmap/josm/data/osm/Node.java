@@ -12,8 +12,8 @@ import java.util.function.Predicate;
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
+import org.openstreetmap.josm.data.osm.visitor.OsmPrimitiveVisitor;
 import org.openstreetmap.josm.data.osm.visitor.PrimitiveVisitor;
-import org.openstreetmap.josm.data.osm.visitor.Visitor;
 import org.openstreetmap.josm.data.projection.Projecting;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.Utils;
@@ -40,17 +40,6 @@ public final class Node extends OsmPrimitive implements INode {
      * The cache key to use for {@link #east} and {@link #north}.
      */
     private Object eastNorthCacheKey;
-
-    /**
-     * Determines if this node has valid coordinates.
-     * @return {@code true} if this node has valid coordinates
-     * @since 7828
-     */
-    @Override
-    public boolean isLatLonKnown() {
-        // We cannot use default implementation - if we remove this implementation, we will break binary compatibility.
-        return !Double.isNaN(lat) && !Double.isNaN(lon);
-    }
 
     @Override
     public void setCoor(LatLon coor) {
@@ -103,13 +92,9 @@ public final class Node extends OsmPrimitive implements INode {
      * <p>
      * Uses the {@link Main#getProjection() global projection} to project the lat/lon-coordinates.
      * <p>
-     * Method {@link org.openstreetmap.josm.data.coor.ILatLon#getEastNorth()} of
-     * implemented interface <code>ILatLon</code> is deprecated, but this method is not.
      * @return the east north coordinates or {@code null} if {@link #isLatLonKnown()}
      * is false.
      */
-    @SuppressWarnings("deprecation")
-    @Override
     public EastNorth getEastNorth() {
         return getEastNorth(Main.getProjection());
     }
@@ -234,7 +219,7 @@ public final class Node extends OsmPrimitive implements INode {
     }
 
     @Override
-    public void accept(Visitor visitor) {
+    public void accept(OsmPrimitiveVisitor visitor) {
         visitor.visit(this);
     }
 
@@ -402,7 +387,7 @@ public final class Node extends OsmPrimitive implements INode {
         CheckParameterUtil.ensureThat(hops >= 0, "hops must be non-negative!");
         return hops == 0
                 ? isConnectedTo(otherNodes, hops, predicate, null)
-                : isConnectedTo(otherNodes, hops, predicate, new TreeSet<Node>());
+                : isConnectedTo(otherNodes, hops, predicate, new TreeSet<>());
     }
 
     private boolean isConnectedTo(final Collection<Node> otherNodes, final int hops, Predicate<Node> predicate, Set<Node> visited) {

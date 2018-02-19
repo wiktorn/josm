@@ -200,11 +200,12 @@ public class SearchCompiler {
                             }
                             return new TimestampRange(minDate, maxDate);
                         } else {
-                            throw new SearchParseError("<html>" + tr("Expecting {0} after {1}", "<i>min</i>/<i>max</i>", "<i>timestamp</i>"));
+                            throw new SearchParseError("<html>" + tr("Expecting {0} after {1}", "<i>min</i>/<i>max</i>", "<i>timestamp</i>")
+                                + "</html>");
                         }
                     }
                 } else {
-                    throw new SearchParseError("<html>" + tr("Expecting {0} after {1}", "<code>:</code>", "<i>" + keyword + "</i>"));
+                    throw new SearchParseError("<html>" + tr("Expecting {0} after {1}", "<code>:</code>", "<i>" + keyword + "</i>") + "</html>");
                 }
             }
             throw new IllegalStateException("Not expecting keyword " + keyword);
@@ -834,11 +835,11 @@ public class SearchCompiler {
             case NONE:
                 return false;
             case MISSING_KEY:
-                return osm.get(key) == null;
+                return !osm.hasTag(key);
             case ANY:
                 return true;
             case ANY_VALUE:
-                return osm.get(key) != null;
+                return osm.hasTag(key);
             case ANY_KEY:
                 for (String v:osm.getKeys().values()) {
                     if (v.equals(value))

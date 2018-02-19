@@ -4,7 +4,7 @@ package org.openstreetmap.josm.io.audio;
 import java.io.IOException;
 import java.net.URL;
 
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.JosmRuntimeException;
 import org.openstreetmap.josm.tools.Logging;
 
@@ -233,10 +233,11 @@ public final class AudioPlayer extends Thread implements AudioListener {
         state = State.INITIALIZING;
         command = new Execute();
         playingUrl = null;
-        double leadIn = Main.pref.getDouble("audio.leadin", 1.0 /* default, seconds */);
-        double calibration = Main.pref.getDouble("audio.calibration", 1.0 /* default, ratio */);
+        double leadIn = Config.getPref().getDouble("audio.leadin", 1.0 /* default, seconds */);
+        double calibration = Config.getPref().getDouble("audio.calibration", 1.0 /* default, ratio */);
         try {
-            soundPlayer = (SoundPlayer) Class.forName("org.openstreetmap.josm.io.audio.JavaFxMediaPlayer").getConstructor().newInstance();
+            soundPlayer = (SoundPlayer) Class.forName("org.openstreetmap.josm.io.audio.JavaFxMediaPlayer")
+                    .getDeclaredConstructor().newInstance();
         } catch (ReflectiveOperationException | IllegalArgumentException | SecurityException e) {
             Logging.debug(e);
             Logging.warn("JOSM compiled without Java FX support. Falling back to Java Sound API");

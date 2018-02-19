@@ -59,6 +59,7 @@ public class InspectPrimitiveDialogTest {
                 "  In changeset: 0\n" +
                 "  Coordinates: 0.0, 0.0\n" +
                 "  Coordinates (projected): 0.0, -7.081154551613622E-10\n" +
+                "  UTM Zone: 31S\n" +
                 "\n", InspectPrimitiveDialog.buildDataText(ds, new ArrayList<>(ds.allPrimitives())));
     }
 
@@ -94,7 +95,7 @@ public class InspectPrimitiveDialogTest {
 
         // CHECKSTYLE.OFF: LineLength
         String baseText =
-                "Styles Cache for \"node ‎(0.0, 0.0)\":\n" +
+                "Styles Cache for \"node\":\n" +
                 "\n" +
                 "> applying mapcss style \"JOSM default (MapCSS)\"\n" +
                 "\n" +

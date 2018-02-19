@@ -26,17 +26,18 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Version;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.DatasetConsistencyTest;
-import org.openstreetmap.josm.data.preferences.Setting;
 import org.openstreetmap.josm.data.preferences.sources.MapPaintPrefHelper;
 import org.openstreetmap.josm.data.preferences.sources.PresetPrefHelper;
-import org.openstreetmap.josm.data.preferences.sources.ValidatorPrefHelper;
 import org.openstreetmap.josm.data.preferences.sources.SourcePrefHelper;
+import org.openstreetmap.josm.data.preferences.sources.ValidatorPrefHelper;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.bugreport.DebugTextDisplay;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.io.OsmApi;
 import org.openstreetmap.josm.plugins.PluginHandler;
+import org.openstreetmap.josm.spi.preferences.Config;
+import org.openstreetmap.josm.spi.preferences.Setting;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.PlatformHookUnixoid;
 import org.openstreetmap.josm.tools.Shortcut;
@@ -176,7 +177,7 @@ public final class ShowStatusReportAction extends JosmAction {
             text.append("Program arguments: ").append(Arrays.toString(paramCleanup(commandLineArgs).toArray())).append('\n');
         }
         if (Main.main != null) {
-            DataSet dataset = MainApplication.getLayerManager().getEditDataSet();
+            DataSet dataset = MainApplication.getLayerManager().getActiveDataSet();
             if (dataset != null) {
                 String result = DatasetConsistencyTest.runTests(dataset);
                 if (result.isEmpty()) {
@@ -229,11 +230,11 @@ public final class ShowStatusReportAction extends JosmAction {
         final String envJavaHomeAlt = Main.isPlatformWindows() ? "%JAVA_HOME%" : "${JAVA_HOME}";
         final String propJavaHome = System.getProperty("java.home");
         final String propJavaHomeAlt = "<java.home>";
-        final String prefDir = Main.pref.getPreferencesDirectory().toString();
+        final String prefDir = Config.getDirs().getPreferencesDirectory(false).toString();
         final String prefDirAlt = "<josm.pref>";
-        final String userDataDir = Main.pref.getUserDataDirectory().toString();
+        final String userDataDir = Config.getDirs().getUserDataDirectory(false).toString();
         final String userDataDirAlt = "<josm.userdata>";
-        final String userCacheDir = Main.pref.getCacheDirectory().toString();
+        final String userCacheDir = Config.getDirs().getCacheDirectory(false).toString();
         final String userCacheDirAlt = "<josm.cache>";
         final String userHomeDir = System.getProperty("user.home");
         final String userHomeDirAlt = Main.isPlatformWindows() ? "%UserProfile%" : "${HOME}";

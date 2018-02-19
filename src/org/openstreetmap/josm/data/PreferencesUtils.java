@@ -5,6 +5,7 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -17,12 +18,12 @@ import javax.script.ScriptException;
 import javax.swing.JOptionPane;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.data.preferences.ListListSetting;
-import org.openstreetmap.josm.data.preferences.ListSetting;
-import org.openstreetmap.josm.data.preferences.MapListSetting;
-import org.openstreetmap.josm.data.preferences.Setting;
-import org.openstreetmap.josm.data.preferences.StringSetting;
-import org.openstreetmap.josm.gui.io.CustomConfigurator;
+import org.openstreetmap.josm.spi.preferences.IPreferences;
+import org.openstreetmap.josm.spi.preferences.ListListSetting;
+import org.openstreetmap.josm.spi.preferences.ListSetting;
+import org.openstreetmap.josm.spi.preferences.MapListSetting;
+import org.openstreetmap.josm.spi.preferences.Setting;
+import org.openstreetmap.josm.spi.preferences.StringSetting;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -33,8 +34,57 @@ import org.openstreetmap.josm.tools.Utils;
  */
 public final class PreferencesUtils {
 
+    private static volatile StringBuilder summary = new StringBuilder();
+
     private PreferencesUtils() {
         // Hide implicit public constructor for utility class
+    }
+
+    /**
+     * Log a formatted message.
+     * @param fmt format
+     * @param vars arguments
+     * @see String#format
+     * @since 12826
+     */
+    public static void log(String fmt, Object... vars) {
+        summary.append(String.format(fmt, vars));
+    }
+
+    /**
+     * Log a message.
+     * @param s message to log
+     * @since 12826
+     */
+    public static void log(String s) {
+        summary.append(s).append('\n');
+    }
+
+    /**
+     * Log an exception.
+     * @param e exception to log
+     * @param s message prefix
+     * @since 12826
+     */
+    public static void log(Exception e, String s) {
+        summary.append(s).append(' ').append(Logging.getErrorMessage(e)).append('\n');
+    }
+
+    /**
+     * Returns the log.
+     * @return the log
+     * @since 12826
+     */
+    public static String getLog() {
+        return summary.toString();
+    }
+
+    /**
+     * Resets the log.
+     * @since 12826
+     */
+    public static void resetLog() {
+        summary = new StringBuilder();
     }
 
     public static void replacePreferences(Preferences fragment, Preferences mainpref) {
@@ -50,7 +100,7 @@ public final class PreferencesUtils {
                 mainpref.putSetting(key, entry.getValue());
             } else if (entry.getValue() instanceof ListSetting) {
                 ListSetting lSetting = (ListSetting) entry.getValue();
-                Collection<String> newItems = getCollection(mainpref, key, true);
+                List<String> newItems = getList(mainpref, key, true);
                 if (newItems == null) continue;
                 for (String item : lSetting.getValue()) {
                     // add nonexisting elements to then list
@@ -58,19 +108,19 @@ public final class PreferencesUtils {
                         newItems.add(item);
                     }
                 }
-                mainpref.putCollection(key, newItems);
+                mainpref.putList(key, newItems);
             } else if (entry.getValue() instanceof ListListSetting) {
                 ListListSetting llSetting = (ListListSetting) entry.getValue();
-                Collection<Collection<String>> newLists = getArray(mainpref, key, true);
+                List<List<String>> newLists = getListOfLists(mainpref, key, true);
                 if (newLists == null) continue;
 
-                for (Collection<String> list : llSetting.getValue()) {
+                for (List<String> list : llSetting.getValue()) {
                     // add nonexisting list (equals comparison for lists is used implicitly)
                     if (!newLists.contains(list)) {
                         newLists.add(list);
                     }
                 }
-                mainpref.putArray(key, newLists);
+                mainpref.putListOfLists(key, newLists);
             } else if (entry.getValue() instanceof MapListSetting) {
                 MapListSetting mlSetting = (MapListSetting) entry.getValue();
                 List<Map<String, String>> newMaps = getListOfStructs(mainpref, key, true);
@@ -84,7 +134,7 @@ public final class PreferencesUtils {
                         newMaps.add(map);
                     }
                 }
-                mainpref.putListOfStructs(entry.getKey(), newMaps);
+                mainpref.putListOfMaps(entry.getKey(), newMaps);
             }
         }
     }
@@ -106,34 +156,34 @@ public final class PreferencesUtils {
                 }
             } else if (entry.getValue() instanceof ListSetting) {
                 ListSetting lSetting = (ListSetting) entry.getValue();
-                Collection<String> newItems = getCollection(mainpref, key, true);
+                List<String> newItems = getList(mainpref, key, true);
                 if (newItems == null) continue;
 
                 // remove mentioned items from collection
                 for (String item : lSetting.getValue()) {
-                    CustomConfigurator.log("Deleting preferences: from list %s: %s\n", key, item);
+                    log("Deleting preferences: from list %s: %s\n", key, item);
                     newItems.remove(item);
                 }
-                mainpref.putCollection(entry.getKey(), newItems);
+                mainpref.putList(entry.getKey(), newItems);
             } else if (entry.getValue() instanceof ListListSetting) {
                 ListListSetting llSetting = (ListListSetting) entry.getValue();
-                Collection<Collection<String>> newLists = getArray(mainpref, key, true);
+                List<List<String>> newLists = getListOfLists(mainpref, key, true);
                 if (newLists == null) continue;
 
                 // if items are found in one of lists, remove that list!
-                Iterator<Collection<String>> listIterator = newLists.iterator();
+                Iterator<List<String>> listIterator = newLists.iterator();
                 while (listIterator.hasNext()) {
                     Collection<String> list = listIterator.next();
                     for (Collection<String> removeList : llSetting.getValue()) {
                         if (list.containsAll(removeList)) {
                             // remove current list, because it matches search criteria
-                            CustomConfigurator.log("Deleting preferences: list from lists %s: %s\n", key, list);
+                            log("Deleting preferences: list from lists %s: %s\n", key, list);
                             listIterator.remove();
                         }
                     }
                 }
 
-                mainpref.putArray(key, newLists);
+                mainpref.putListOfLists(key, newLists);
             } else if (entry.getValue() instanceof MapListSetting) {
                 MapListSetting mlSetting = (MapListSetting) entry.getValue();
                 List<Map<String, String>> newMaps = getListOfStructs(mainpref, key, true);
@@ -145,12 +195,12 @@ public final class PreferencesUtils {
                     for (Map<String, String> removeMap : mlSetting.getValue()) {
                         if (map.entrySet().containsAll(removeMap.entrySet())) {
                             // the map contain all mentioned key-value pair, so it should be deleted from "maps"
-                            CustomConfigurator.log("Deleting preferences: deleting map from maps %s: %s\n", key, map);
+                            log("Deleting preferences: deleting map from maps %s: %s\n", key, map);
                             mapIterator.remove();
                         }
                     }
                 }
-                mainpref.putListOfStructs(entry.getKey(), newMaps);
+                mainpref.putListOfMaps(entry.getKey(), newMaps);
             }
         }
     }
@@ -160,7 +210,7 @@ public final class PreferencesUtils {
         for (Entry<String, Setting<?>> entry : allSettings.entrySet()) {
             String key = entry.getKey();
             if (key.matches(pattern)) {
-                CustomConfigurator.log("Deleting preferences: deleting key from preferences: " + key);
+                log("Deleting preferences: deleting key from preferences: " + key);
                 pref.putSetting(key, null);
             }
         }
@@ -169,12 +219,12 @@ public final class PreferencesUtils {
     public static void deletePreferenceKey(String key, Preferences pref) {
         Map<String, Setting<?>> allSettings = pref.getAllSettings();
         if (allSettings.containsKey(key)) {
-            CustomConfigurator.log("Deleting preferences: deleting key from preferences: " + key);
+            log("Deleting preferences: deleting key from preferences: " + key);
             pref.putSetting(key, null);
         }
     }
 
-    private static Collection<String> getCollection(Preferences mainpref, String key, boolean warnUnknownDefault) {
+    private static List<String> getList(Preferences mainpref, String key, boolean warnUnknownDefault) {
         ListSetting existing = Utils.cast(mainpref.settingsMap.get(key), ListSetting.class);
         ListSetting defaults = Utils.cast(mainpref.defaultsMap.get(key), ListSetting.class);
         if (existing == null && defaults == null) {
@@ -187,7 +237,7 @@ public final class PreferencesUtils {
             return defaults.getValue() == null ? null : new ArrayList<>(defaults.getValue());
     }
 
-    private static Collection<Collection<String>> getArray(Preferences mainpref, String key, boolean warnUnknownDefault) {
+    private static List<List<String>> getListOfLists(Preferences mainpref, String key, boolean warnUnknownDefault) {
         ListListSetting existing = Utils.cast(mainpref.settingsMap.get(key), ListListSetting.class);
         ListListSetting defaults = Utils.cast(mainpref.defaultsMap.get(key), ListListSetting.class);
 
@@ -217,7 +267,7 @@ public final class PreferencesUtils {
     }
 
     private static void defaultUnknownWarning(String key) {
-        CustomConfigurator.log("Warning: Unknown default value of %s , skipped\n", key);
+        log("Warning: Unknown default value of %s , skipped\n", key);
         JOptionPane.showMessageDialog(
                 Main.parent,
                 tr("<html>Settings file asks to append preferences to <b>{0}</b>,<br/> "+
@@ -284,7 +334,7 @@ public final class PreferencesUtils {
             "    }"+
             "    listmapMap.put(key, l);"+
             "  }  else {" +
-            "   " + CustomConfigurator.class.getName() + ".log('Unknown type:'+val.type+ '- use list, listlist or listmap'); }"+
+            "   " + PreferencesUtils.class.getName() + ".log('Unknown type:'+val.type+ '- use list, listlist or listmap'); }"+
             "  }";
         engine.eval(finish);
 
@@ -427,4 +477,88 @@ public final class PreferencesUtils {
         // Execute conversion script
         engine.eval(init);
     }
+
+    /**
+     * Gets an boolean that may be specialized
+     * @param prefs the preferences
+     * @param key The basic key
+     * @param specName The sub-key to append to the key
+     * @param def The default value
+     * @return The boolean value or the default value if it could not be parsed
+     * @since 12891
+     */
+    public static boolean getBoolean(IPreferences prefs, final String key, final String specName, final boolean def) {
+        synchronized (prefs) {
+            boolean generic = prefs.getBoolean(key, def);
+            String skey = key+'.'+specName;
+            String svalue = prefs.get(skey, null);
+            if (svalue != null)
+                return Boolean.parseBoolean(svalue);
+            else
+                return generic;
+        }
+    }
+
+    /**
+     * Gets an integer that may be specialized
+     * @param prefs the preferences
+     * @param key The basic key
+     * @param specName The sub-key to append to the key
+     * @param def The default value
+     * @return The integer value or the default value if it could not be parsed
+     * @since 12891
+     */
+    public static int getInteger(IPreferences prefs, String key, String specName, int def) {
+        synchronized (prefs) {
+            String v = prefs.get(key+'.'+specName);
+            if (v.isEmpty())
+                v = prefs.get(key, Integer.toString(def));
+            if (v.isEmpty())
+                return def;
+
+            try {
+                return Integer.parseInt(v);
+            } catch (NumberFormatException e) {
+                // fall out
+                Logging.trace(e);
+            }
+            return def;
+        }
+    }
+
+    /**
+     * Removes a value from a given String list
+     * @param prefs the preferences
+     * @param key The preference key the list is stored with
+     * @param value The value that should be removed in the list
+     * @since 12894
+     */
+    public static void removeFromList(IPreferences prefs, String key, String value) {
+        synchronized (prefs) {
+            List<String> a = new ArrayList<>(prefs.getList(key, Collections.<String>emptyList()));
+            a.remove(value);
+            prefs.putList(key, a);
+        }
+    }
+
+    /**
+     * Saves at most {@code maxsize} items of list {@code val}.
+     * @param prefs the preferences
+     * @param key key
+     * @param maxsize max number of items to save
+     * @param val value
+     * @return {@code true}, if something has changed (i.e. value is different than before)
+     * @since 12894
+     */
+    public static boolean putListBounded(IPreferences prefs, String key, int maxsize, List<String> val) {
+        List<String> newCollection = new ArrayList<>(Math.min(maxsize, val.size()));
+        for (String i : val) {
+            if (newCollection.size() >= maxsize) {
+                break;
+            }
+            newCollection.add(i);
+        }
+        return prefs.putList(key, newCollection);
+    }
+
 }

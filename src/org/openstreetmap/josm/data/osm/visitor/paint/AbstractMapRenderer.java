@@ -8,7 +8,6 @@ import java.awt.geom.Path2D;
 import java.awt.geom.Rectangle2D;
 import java.util.Iterator;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.osm.BBox;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
@@ -18,6 +17,7 @@ import org.openstreetmap.josm.gui.MapViewState;
 import org.openstreetmap.josm.gui.MapViewState.MapViewPoint;
 import org.openstreetmap.josm.gui.MapViewState.MapViewRectangle;
 import org.openstreetmap.josm.gui.NavigatableComponent;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.Logging;
 
@@ -127,7 +127,7 @@ public abstract class AbstractMapRenderer implements Rendering {
      * @param bbox The bounding box being displayed.
      */
     public void drawVirtualNodes(DataSet data, BBox bbox) {
-        if (virtualNodeSize == 0 || data == null || bbox == null)
+        if (virtualNodeSize == 0 || data == null || bbox == null || data.isReadOnly())
             return;
         // print normal virtual nodes
         GeneralPath path = new GeneralPath();
@@ -181,9 +181,9 @@ public abstract class AbstractMapRenderer implements Rendering {
      * @param virtual <code>true</code> if virtual nodes are used
      */
     protected void getSettings(boolean virtual) {
-        this.virtualNodeSize = virtual ? Main.pref.getInteger("mappaint.node.virtual-size", 8) / 2 : 0;
-        this.virtualNodeSpace = Main.pref.getInteger("mappaint.node.virtual-space", 70);
-        this.segmentNumberSpace = Main.pref.getInteger("mappaint.segmentnumber.space", 40);
+        this.virtualNodeSize = virtual ? Config.getPref().getInt("mappaint.node.virtual-size", 8) / 2 : 0;
+        this.virtualNodeSpace = Config.getPref().getInt("mappaint.node.virtual-space", 70);
+        this.segmentNumberSpace = Config.getPref().getInt("mappaint.segmentnumber.space", 40);
         getColors();
     }
 

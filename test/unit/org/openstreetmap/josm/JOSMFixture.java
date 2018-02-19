@@ -15,6 +15,7 @@ import java.util.TimeZone;
 
 import org.openstreetmap.josm.actions.DeleteAction;
 import org.openstreetmap.josm.command.DeleteCommand;
+import org.openstreetmap.josm.data.preferences.JosmBaseDirectories;
 import org.openstreetmap.josm.data.projection.Projections;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MainApplicationTest;
@@ -22,6 +23,7 @@ import org.openstreetmap.josm.gui.layer.LayerManagerTest.TestLayer;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.io.CertificateAmendment;
 import org.openstreetmap.josm.io.OsmApi;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
 import org.openstreetmap.josm.tools.I18n;
 import org.openstreetmap.josm.tools.JosmRuntimeException;
@@ -95,6 +97,8 @@ public class JOSMFixture {
         }
         System.setProperty("josm.home", josmHome);
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+        Config.setPreferencesInstance(Main.pref);
+        Config.setBaseDirectoriesProvider(JosmBaseDirectories.getInstance());
         Main.pref.resetToInitialState();
         Main.pref.enableSaveOnPut(false);
         I18n.init();
@@ -105,11 +109,11 @@ public class JOSMFixture {
 
         Logging.setLogLevel(Logging.LEVEL_INFO);
         Main.pref.init(false);
-        String url = Main.pref.get("osm-server.url");
+        String url = Config.getPref().get("osm-server.url");
         if (url == null || url.isEmpty() || isProductionApiUrl(url)) {
-            Main.pref.put("osm-server.url", "http://api06.dev.openstreetmap.org/api");
+            Config.getPref().put("osm-server.url", "http://api06.dev.openstreetmap.org/api");
         }
-        I18n.set(Main.pref.get("language", "en"));
+        I18n.set(Config.getPref().get("language", "en"));
 
         try {
             CertificateAmendment.addMissingCertificates();
@@ -133,12 +137,7 @@ public class JOSMFixture {
         DeleteCommand.setDeletionCallback(DeleteAction.defaultDeletionCallback);
 
         if (createGui) {
-            GuiHelper.runInEDTAndWaitWithException(new Runnable() {
-                @Override
-                public void run() {
-                    setupGUI();
-                }
-            });
+            GuiHelper.runInEDTAndWaitWithException(() -> setupGUI());
         }
     }
 
@@ -159,12 +158,6 @@ public class JOSMFixture {
         initToolbar();
         if (Main.main == null) {
             new MainApplication().initialize();
-        } else {
-            if (Main.main.panel == null) {
-                initMainPanel(false);
-                Main.main.panel = MainApplication.getMainPanel();
-            }
-            Main.main.panel.reAddListeners();
         }
         // Add a test layer to the layer manager to get the MapFrame
         MainApplication.getLayerManager().addLayer(new TestLayer());

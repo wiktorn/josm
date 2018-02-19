@@ -5,6 +5,7 @@ import static org.openstreetmap.josm.gui.help.HelpUtil.ht;
 import static org.openstreetmap.josm.tools.I18n.tr;
 import static org.openstreetmap.josm.tools.I18n.trn;
 
+import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -56,6 +57,7 @@ import org.openstreetmap.josm.data.osm.search.SearchSetting;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapFrame;
+import org.openstreetmap.josm.gui.Notification;
 import org.openstreetmap.josm.gui.PleaseWaitRunnable;
 import org.openstreetmap.josm.gui.mappaint.mapcss.MapCSSException;
 import org.openstreetmap.josm.gui.preferences.ToolbarPreferences;
@@ -65,6 +67,7 @@ import org.openstreetmap.josm.gui.tagging.presets.TaggingPreset;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetSelector;
 import org.openstreetmap.josm.gui.widgets.AbstractTextComponentValidator;
 import org.openstreetmap.josm.gui.widgets.HistoryComboBox;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.JosmRuntimeException;
 import org.openstreetmap.josm.tools.Logging;
@@ -110,7 +113,7 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
             }
         });
 
-        for (String s: Main.pref.getCollection("search.history", Collections.<String>emptyList())) {
+        for (String s: Config.getPref().getList("search.history", Collections.<String>emptyList())) {
             SearchSetting ss = SearchSetting.readFromString(s);
             if (ss != null) {
                 searchHistory.add(ss);
@@ -138,7 +141,7 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
             searchHistory.remove(s);
             searchHistory.addFirst(new SearchSetting(s));
         }
-        int maxsize = Main.pref.getInteger("search.history-size", DEFAULT_SEARCH_HISTORY_SIZE);
+        int maxsize = Config.getPref().getInt("search.history-size", DEFAULT_SEARCH_HISTORY_SIZE);
         while (searchHistory.size() > maxsize) {
             searchHistory.removeLast();
         }
@@ -146,7 +149,7 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
         for (SearchSetting item: searchHistory) {
             savedHistory.add(item.writeToString());
         }
-        Main.pref.putCollection("search.history", savedHistory);
+        Config.getPref().putList("search.history", new ArrayList<>(savedHistory));
     }
 
     /**
@@ -197,11 +200,24 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
             this.hcb = hcb;
         }
 
+        /**
+         * Adds the title (prefix) label at the beginning of the row. Should be called only once.
+         * @param title English title
+         * @return {@code this} for easy chaining
+         */
         public SearchKeywordRow addTitle(String title) {
             add(new JLabel(tr("{0}: ", title)));
             return this;
         }
 
+        /**
+         * Adds an example keyword label at the end of the row. Can be called several times.
+         * @param displayText displayed HTML text
+         * @param insertText optional: if set, makes the label clickable, and {@code insertText} will be inserted in search string
+         * @param description optional: HTML text to be displayed in the tooltip
+         * @param examples optional: examples joined as HTML list in the tooltip
+         * @return {@code this} for easy chaining
+         */
         public SearchKeywordRow addKeyword(String displayText, final String insertText, String description, String... examples) {
             JLabel label = new JLabel("<html>"
                     + "<style>td{border:1px solid gray; font-weight:normal;}</style>"
@@ -399,11 +415,13 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
                         ss.mapCSSSearch = mapCSSSearch.isSelected();
                         SearchCompiler.compile(ss);
                         super.buttonAction(buttonIndex, evt);
-                    } catch (SearchParseError e) {
+                    } catch (SearchParseError | MapCSSException e) {
                         Logging.debug(e);
                         JOptionPane.showMessageDialog(
                                 Main.parent,
-                                tr("Search expression is not valid: \n\n {0}", e.getMessage()),
+                                "<html>" + tr("Search expression is not valid: \n\n {0}",
+                                        e.getMessage().replace("<html>", "").replace("</html>", "")).replace("\n", "<br>") +
+                                "</html>",
                                 tr("Invalid search expression"),
                                 JOptionPane.ERROR_MESSAGE);
                     }
@@ -465,10 +483,11 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
                 .addKeyword("-<i>key</i>:<i>valuefragment</i>", null, tr("''valuefragment'' nowhere in ''key''")),
                 GBC.eol());
         hintPanel.add(new SearchKeywordRow(hcbSearchString)
+                .addKeyword("<i>key</i>", null, tr("matches if ''key'' exists"))
                 .addKeyword("<i>key</i>=<i>value</i>", null, tr("''key'' with exactly ''value''"))
                 .addKeyword("<i>key</i>=*", null, tr("''key'' with any value"))
+                .addKeyword("<i>key</i>=", null, tr("''key'' with empty value"))
                 .addKeyword("*=<i>value</i>", null, tr("''value'' in any key"))
-                .addKeyword("<i>key</i>=", null, tr("matches if ''key'' exists"))
                 .addKeyword("<i>key</i>><i>value</i>", null, tr("matches if ''key'' is greater than ''value'' (analogously, less than)"))
                 .addKeyword("\"key\"=\"value\"", "\"\"=\"\"",
                         tr("to quote operators.<br>Within quoted strings the <b>\"</b> and <b>\\</b> characters need to be escaped " +
@@ -667,8 +686,9 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
          * @param result The result collection, including the initial collection.
          * @param foundMatches The number of matches added to the result.
          * @param setting The setting used.
+         * @param parent parent component
          */
-        void receiveSearchResult(DataSet ds, Collection<OsmPrimitive> result, int foundMatches, SearchSetting setting);
+        void receiveSearchResult(DataSet ds, Collection<OsmPrimitive> result, int foundMatches, SearchSetting setting, Component parent);
     }
 
     /**
@@ -677,7 +697,7 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
     private static class SelectSearchReceiver implements SearchReceiver {
 
         @Override
-        public void receiveSearchResult(DataSet ds, Collection<OsmPrimitive> result, int foundMatches, SearchSetting setting) {
+        public void receiveSearchResult(DataSet ds, Collection<OsmPrimitive> result, int foundMatches, SearchSetting setting, Component parent) {
             ds.setSelected(result);
             MapFrame map = MainApplication.getMap();
             if (foundMatches == 0) {
@@ -698,12 +718,7 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
                     map.statusLine.setHelpText(msg);
                 }
                 if (!GraphicsEnvironment.isHeadless()) {
-                    JOptionPane.showMessageDialog(
-                            Main.parent,
-                            msg,
-                            tr("Warning"),
-                            JOptionPane.WARNING_MESSAGE
-                    );
+                    new Notification(msg).show();
                 }
             } else {
                 map.statusLine.setHelpText(tr("Found {0} matches", foundMatches));
@@ -720,7 +735,7 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
 
         @Override
         public void receiveSearchResult(DataSet ds, Collection<OsmPrimitive> result, int foundMatches,
-                SearchSetting setting) {
+                SearchSetting setting, Component parent) {
                     this.result = result;
         }
     }
@@ -745,7 +760,7 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
         }
 
         static SearchTask newSearchTask(SearchSetting setting, SearchReceiver resultReceiver) {
-            final DataSet ds = MainApplication.getLayerManager().getEditDataSet();
+            final DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
             return newSearchTask(setting, ds, resultReceiver);
         }
 
@@ -825,7 +840,7 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
             if (canceled) {
                 return;
             }
-            resultReceiver.receiveSearchResult(ds, selection, foundMatches, setting);
+            resultReceiver.receiveSearchResult(ds, selection, foundMatches, setting, getProgressMonitor().getWindowParent());
         }
     }
 
@@ -863,11 +878,10 @@ public class SearchAction extends JosmAction implements ParameterizedAction {
 
     /**
      * Refreshes the enabled state
-     *
      */
     @Override
     protected void updateEnabledState() {
-        setEnabled(getLayerManager().getEditLayer() != null);
+        setEnabled(getLayerManager().getActiveDataSet() != null);
     }
 
     @Override

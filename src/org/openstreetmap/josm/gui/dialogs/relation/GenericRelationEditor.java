@@ -62,6 +62,7 @@ import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MainMenu;
 import org.openstreetmap.josm.gui.ScrollViewport;
 import org.openstreetmap.josm.gui.datatransfer.ClipboardUtils;
+import org.openstreetmap.josm.gui.dialogs.relation.actions.AbstractRelationEditorAction;
 import org.openstreetmap.josm.gui.dialogs.relation.actions.AddSelectedAfterSelection;
 import org.openstreetmap.josm.gui.dialogs.relation.actions.AddSelectedAtEndAction;
 import org.openstreetmap.josm.gui.dialogs.relation.actions.AddSelectedAtStartAction;
@@ -82,6 +83,7 @@ import org.openstreetmap.josm.gui.dialogs.relation.actions.RefreshAction;
 import org.openstreetmap.josm.gui.dialogs.relation.actions.RemoveAction;
 import org.openstreetmap.josm.gui.dialogs.relation.actions.RemoveSelectedAction;
 import org.openstreetmap.josm.gui.dialogs.relation.actions.ReverseAction;
+import org.openstreetmap.josm.gui.dialogs.relation.actions.SelectAction;
 import org.openstreetmap.josm.gui.dialogs.relation.actions.SelectPrimitivesForSelectedMembersAction;
 import org.openstreetmap.josm.gui.dialogs.relation.actions.SelectedMembersForSelectionAction;
 import org.openstreetmap.josm.gui.dialogs.relation.actions.SetRoleAction;
@@ -99,6 +101,7 @@ import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetHandler;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetType;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPresets;
 import org.openstreetmap.josm.gui.util.WindowGeometry;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Shortcut;
@@ -140,6 +143,10 @@ public class GenericRelationEditor extends RelationEditor {
      * Action for performing the {@link ApplyAction}
      */
     private final ApplyAction applyAction;
+    /**
+     * Action for performing the {@link SelectAction}
+     */
+    private final SelectAction selectAction;
     /**
      * Action for performing the {@link DuplicateRelationAction}
      */
@@ -243,6 +250,7 @@ public class GenericRelationEditor extends RelationEditor {
 
         refreshAction = new RefreshAction(memberTable, memberTableModel, tagEditorPanel.getModel(), getLayer(), this);
         applyAction = new ApplyAction(memberTable, memberTableModel, tagEditorPanel.getModel(), getLayer(), this);
+        selectAction = new SelectAction(getLayer(), this);
         duplicateAction = new DuplicateRelationAction(memberTableModel, tagEditorPanel.getModel(), getLayer());
         deleteAction = new DeleteCurrentRelationAction(getLayer(), this);
         addPropertyChangeListener(deleteAction);
@@ -250,7 +258,7 @@ public class GenericRelationEditor extends RelationEditor {
         okAction = new OKAction(memberTable, memberTableModel, tagEditorPanel.getModel(), getLayer(), this, tfRole);
         cancelAction = new CancelAction(memberTable, memberTableModel, tagEditorPanel.getModel(), getLayer(), this, tfRole);
 
-        getContentPane().add(buildToolBar(refreshAction, applyAction, duplicateAction, deleteAction), BorderLayout.NORTH);
+        getContentPane().add(buildToolBar(refreshAction, applyAction, selectAction, duplicateAction, deleteAction), BorderLayout.NORTH);
         getContentPane().add(tabbedPane, BorderLayout.CENTER);
         getContentPane().add(buildOkCancelButtonPanel(okAction, cancelAction), BorderLayout.SOUTH);
 
@@ -329,6 +337,15 @@ public class GenericRelationEditor extends RelationEditor {
     }
 
     /**
+     * Select relation.
+     * @see SelectAction
+     * @since 12933
+     */
+    public void select() {
+        selectAction.actionPerformed(null);
+    }
+
+    /**
      * Cancel changes.
      * @see CancelAction
      */
@@ -338,21 +355,16 @@ public class GenericRelationEditor extends RelationEditor {
 
     /**
      * Creates the toolbar
-     * @param refreshAction refresh action
-     * @param applyAction apply action
-     * @param duplicateAction duplicate action
-     * @param deleteAction delete action
-     *
+     * @param actions relation toolbar actions
      * @return the toolbar
+     * @since 12933
      */
-    protected static JToolBar buildToolBar(RefreshAction refreshAction, ApplyAction applyAction,
-            DuplicateRelationAction duplicateAction, DeleteCurrentRelationAction deleteAction) {
+    protected static JToolBar buildToolBar(AbstractRelationEditorAction... actions) {
         JToolBar tb = new JToolBar();
         tb.setFloatable(false);
-        tb.add(refreshAction);
-        tb.add(applyAction);
-        tb.add(duplicateAction);
-        tb.add(deleteAction);
+        for (AbstractRelationEditorAction action : actions) {
+            tb.add(action);
+        }
         return tb;
     }
 
@@ -428,7 +440,7 @@ public class GenericRelationEditor extends RelationEditor {
                     }
                 }
         );
-        tfRole.setText(Main.pref.get("relation.editor.generic.lastrole", ""));
+        tfRole.setText(Config.getPref().get("relation.editor.generic.lastrole", ""));
         return tfRole;
     }
 

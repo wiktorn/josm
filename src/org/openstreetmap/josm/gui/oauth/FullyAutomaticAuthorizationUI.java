@@ -28,7 +28,6 @@ import javax.swing.event.DocumentListener;
 import javax.swing.text.JTextComponent;
 import javax.swing.text.html.HTMLEditorKit;
 
-import org.openstreetmap.josm.data.Preferences;
 import org.openstreetmap.josm.data.oauth.OAuthToken;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.PleaseWaitRunnable;
@@ -168,11 +167,11 @@ public class FullyAutomaticAuthorizationUI extends AbstractAuthorizationUI {
 
     /**
      * Initializes the panel with values from the preferences
-     * @param pref Preferences structure
+     * @param paramApiUrl the API URL
      */
     @Override
-    public void initFromPreferences(Preferences pref) {
-        super.initFromPreferences(pref);
+    public void initialize(String paramApiUrl) {
+        super.initialize(paramApiUrl);
         CredentialsAgent cm = CredentialsManager.getInstance();
         try {
             PasswordAuthentication pa = cm.lookup(RequestorType.SERVER, OsmApi.getOsmApi().getHost());

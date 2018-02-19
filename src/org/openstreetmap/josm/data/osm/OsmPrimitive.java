@@ -19,12 +19,12 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.data.osm.search.SearchParseError;
 import org.openstreetmap.josm.data.osm.search.SearchCompiler;
 import org.openstreetmap.josm.data.osm.search.SearchCompiler.Match;
-import org.openstreetmap.josm.data.osm.visitor.Visitor;
+import org.openstreetmap.josm.data.osm.search.SearchParseError;
+import org.openstreetmap.josm.data.osm.visitor.OsmPrimitiveVisitor;
 import org.openstreetmap.josm.gui.mappaint.StyleCache;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
@@ -203,9 +203,28 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
     }
 
     /**
+     * Check if the cached style for this primitive is up to date.
+     * @return true if the cached style for this primitive is up to date
+     * @since 13420
+     */
+    public final boolean isCachedStyleUpToDate() {
+        return mappaintStyle != null && mappaintCacheIdx == dataSet.getMappaintCacheIndex();
+    }
+
+    /**
+     * Declare that the cached style for this primitive is up to date.
+     * @since 13420
+     */
+    public final void declareCachedStyleUpToDate() {
+        this.mappaintCacheIdx = dataSet.getMappaintCacheIndex();
+    }
+
+    /**
      * Returns mappaint cache index.
      * @return mappaint cache index
+     * @deprecated no longer supported (see also {@link #isCachedStyleUpToDate()})
      */
+    @Deprecated
     public final short getMappaintCacheIdx() {
         return mappaintCacheIdx;
     }
@@ -213,7 +232,9 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
     /**
      * Sets the mappaint cache index.
      * @param mappaintCacheIdx mappaint cache index
+     * @deprecated no longer supported (see also {@link #declareCachedStyleUpToDate()})
      */
+    @Deprecated
     public final void setMappaintCacheIdx(short mappaintCacheIdx) {
         this.mappaintCacheIdx = mappaintCacheIdx;
     }
@@ -253,6 +274,14 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
             throw new DataIntegrityProblemException("Primitive must be part of the dataset: " + toString());
     }
 
+    /**
+     * Throws exception if primitive is in a read-only dataset
+     */
+    protected final void checkDatasetNotReadOnly() {
+        if (dataSet != null && dataSet.isReadOnly())
+            throw new DataIntegrityProblemException("Primitive cannot be modified in read-only dataset: " + toString());
+    }
+
     protected boolean writeLock() {
         if (dataSet != null) {
             dataSet.beginUpdate();
@@ -283,6 +312,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      */
     @Override
     public void setOsmId(long id, int version) {
+        checkDatasetNotReadOnly();
         boolean locked = writeLock();
         try {
             if (id <= 0)
@@ -321,6 +351,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
 
     @Override
     public void setUser(User user) {
+        checkDatasetNotReadOnly();
         boolean locked = writeLock();
         try {
             super.setUser(user);
@@ -331,6 +362,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
 
     @Override
     public void setChangesetId(int changesetId) {
+        checkDatasetNotReadOnly();
         boolean locked = writeLock();
         try {
             int old = this.changesetId;
@@ -345,6 +377,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
 
     @Override
     public void setTimestamp(Date timestamp) {
+        checkDatasetNotReadOnly();
         boolean locked = writeLock();
         try {
             super.setTimestamp(timestamp);
@@ -427,6 +460,15 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
     }
 
     /**
+     * Set binary property used internally by the filter mechanism.
+     * @param isPreserved new "preserved" flag value
+     * @since 13309
+     */
+    public void setPreserved(boolean isPreserved) {
+        updateFlags(FLAG_PRESERVED, isPreserved);
+    }
+
+    /**
      * Replies true, if this primitive is disabled. (E.g. a filter applies)
      * @return {@code true} if this object has the "disabled" flag enabled
      */
@@ -456,6 +498,15 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      */
     public boolean getDisabledType() {
         return (flags & FLAG_DISABLED_TYPE) != 0;
+    }
+
+    /**
+     * Replies true, if this primitive is preserved from filtering.
+     * @return {@code true} if this object has the "preserved" flag enabled
+     * @since 13309
+     */
+    public boolean isPreserved() {
+        return (flags & FLAG_PRESERVED) != 0;
     }
 
     /**
@@ -494,6 +545,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
 
     @Override
     public void setModified(boolean modified) {
+        checkDatasetNotReadOnly();
         boolean locked = writeLock();
         try {
             super.setModified(modified);
@@ -508,6 +560,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
 
     @Override
     public void setVisible(boolean visible) {
+        checkDatasetNotReadOnly();
         boolean locked = writeLock();
         try {
             super.setVisible(visible);
@@ -519,6 +572,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
 
     @Override
     public void setDeleted(boolean deleted) {
+        checkDatasetNotReadOnly();
         boolean locked = writeLock();
         try {
             super.setDeleted(deleted);
@@ -537,6 +591,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
 
     @Override
     protected final void setIncomplete(boolean incomplete) {
+        checkDatasetNotReadOnly();
         boolean locked = writeLock();
         try {
             if (dataSet != null && incomplete != this.isIncomplete()) {
@@ -649,7 +704,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
                 "watch", "watch:", "description", "attribution"));
             l.addAll(getDiscardableKeys());
             l.addAll(getWorkInProgressKeys());
-            uninteresting = new HashSet<>(Main.pref.getCollection("tags.uninteresting", l));
+            uninteresting = new HashSet<>(Config.getPref().getList("tags.uninteresting", l));
         }
         return uninteresting;
     }
@@ -661,7 +716,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      */
     public static Collection<String> getDiscardableKeys() {
         if (discardable == null) {
-            discardable = new HashSet<>(Main.pref.getCollection("tags.discardable",
+            discardable = new HashSet<>(Config.getPref().getList("tags.discardable",
                     Arrays.asList(
                             "created_by",
                             "converted_by",
@@ -719,7 +774,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      */
     public static Collection<String> getWorkInProgressKeys() {
         if (workinprogress == null) {
-            workinprogress = new HashSet<>(Main.pref.getCollection("tags.workinprogress",
+            workinprogress = new HashSet<>(Config.getPref().getList("tags.workinprogress",
                     Arrays.asList("note", "fixme", "FIXME")));
         }
         return workinprogress;
@@ -759,7 +814,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
 
     private static Match compileDirectionKeys(String prefName, String defaultValue) throws AssertionError {
         try {
-            return SearchCompiler.compile(Main.pref.get(prefName, defaultValue));
+            return SearchCompiler.compile(Config.getPref().get(prefName, defaultValue));
         } catch (SearchParseError e) {
             Logging.log(Logging.LEVEL_ERROR, "Unable to compile pattern for " + prefName + ", trying default pattern:", e);
         }
@@ -851,6 +906,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
 
     @Override
     public final void setKeys(TagMap keys) {
+        checkDatasetNotReadOnly();
         boolean locked = writeLock();
         try {
             super.setKeys(keys);
@@ -861,6 +917,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
 
     @Override
     public final void setKeys(Map<String, String> keys) {
+        checkDatasetNotReadOnly();
         boolean locked = writeLock();
         try {
             super.setKeys(keys);
@@ -871,6 +928,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
 
     @Override
     public final void put(String key, String value) {
+        checkDatasetNotReadOnly();
         boolean locked = writeLock();
         try {
             super.put(key, value);
@@ -881,6 +939,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
 
     @Override
     public final void remove(String key) {
+        checkDatasetNotReadOnly();
         boolean locked = writeLock();
         try {
             super.remove(key);
@@ -891,6 +950,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
 
     @Override
     public final void removeAll() {
+        checkDatasetNotReadOnly();
         boolean locked = writeLock();
         try {
             super.removeAll();
@@ -926,6 +986,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      * @param referrer The referrer to add
      */
     protected void addReferrer(OsmPrimitive referrer) {
+        checkDatasetNotReadOnly();
         if (referrers == null) {
             referrers = referrer;
         } else if (referrers instanceof OsmPrimitive) {
@@ -946,6 +1007,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      * @param referrer The referrer to remove
      */
     protected void removeReferrer(OsmPrimitive referrer) {
+        checkDatasetNotReadOnly();
         if (referrers instanceof OsmPrimitive) {
             if (referrers == referrer) {
                 referrers = null;
@@ -1026,8 +1088,9 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      * <p>Visits {@code visitor} for all referrers.</p>
      *
      * @param visitor the visitor. Ignored, if null.
+     * @since 12809
      */
-    public void visitReferrers(Visitor visitor) {
+    public void visitReferrers(OsmPrimitiveVisitor visitor) {
         if (visitor == null) return;
         if (this.referrers == null)
             return;
@@ -1077,8 +1140,9 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      * Implementation of the visitor scheme. Subclasses have to call the correct
      * visitor function.
      * @param visitor The visitor from which the visit() function must be called.
+     * @since 12809
      */
-    public abstract void accept(Visitor visitor);
+    public abstract void accept(OsmPrimitiveVisitor visitor);
 
     /**
      * Get and write all attributes from the parameter. Does not fire any listener, so
@@ -1106,6 +1170,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      * @throws DataIntegrityProblemException if other isn't new and other.getId() != this.getId()
      */
     public void mergeFrom(OsmPrimitive other) {
+        checkDatasetNotReadOnly();
         boolean locked = writeLock();
         try {
             CheckParameterUtil.ensureParameterNotNull(other, "other");
@@ -1197,6 +1262,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      * @param data The object which should be cloned
      */
     public void load(PrimitiveData data) {
+        checkDatasetNotReadOnly();
         // Write lock is provided by subclasses
         setKeys(data.hasKeys() ? data.getKeys() : null);
         setRawTimestamp(data.getRawTimestamp());
@@ -1204,6 +1270,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
         setChangesetId(data.getChangesetId());
         setDeleted(data.isDeleted());
         setModified(data.isModified());
+        setVisible(data.isVisible());
         setIncomplete(data.isIncomplete());
         version = data.getVersion();
     }

@@ -22,7 +22,6 @@ import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.oauth.OAuthAccessTokenHolder;
 import org.openstreetmap.josm.data.oauth.OAuthParameters;
 import org.openstreetmap.josm.data.oauth.OAuthToken;
@@ -95,7 +94,7 @@ public class OAuthAuthenticationPreferencesPanel extends JPanel implements Prope
         gc.weightx = 1.0;
         gc.weighty = 1.0;
         pnl.add(pnlAdvancedProperties, gc);
-        pnlAdvancedProperties.initFromPreferences(Main.pref);
+        pnlAdvancedProperties.initialize(OsmApi.getOsmApi().getServerUrl());
         pnlAdvancedProperties.setBorder(
                 BorderFactory.createCompoundBorder(
                         BorderFactory.createLineBorder(Color.GRAY, 1),
@@ -161,8 +160,8 @@ public class OAuthAuthenticationPreferencesPanel extends JPanel implements Prope
      */
     public void saveToPreferences() {
         OAuthAccessTokenHolder.getInstance().setSaveToPreferences(cbSaveToPreferences.isSelected());
-        OAuthAccessTokenHolder.getInstance().save(Main.pref, CredentialsManager.getInstance());
-        pnlAdvancedProperties.rememberPreferences(Main.pref);
+        OAuthAccessTokenHolder.getInstance().save(CredentialsManager.getInstance());
+        pnlAdvancedProperties.rememberPreferences();
     }
 
     /**
@@ -358,7 +357,7 @@ public class OAuthAuthenticationPreferencesPanel extends JPanel implements Prope
         @Override
         public void actionPerformed(ActionEvent evt) {
             OAuthToken token = OAuthAccessTokenHolder.getInstance().getAccessToken();
-            OAuthParameters parameters = OAuthParameters.createFromPreferences(Main.pref);
+            OAuthParameters parameters = OAuthParameters.createFromApiUrl(OsmApi.getOsmApi().getServerUrl());
             TestAccessTokenTask task = new TestAccessTokenTask(
                     OAuthAuthenticationPreferencesPanel.this,
                     apiUrl,

@@ -4,13 +4,13 @@ package org.openstreetmap.josm.io;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.util.concurrent.TimeUnit;
 
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -75,7 +75,7 @@ public abstract class CacheCustomContent<T extends Throwable> {
     public CacheCustomContent(String ident, int updateInterval) {
         this.ident = ident;
         this.updateInterval = updateInterval;
-        this.path = new File(Main.pref.getCacheDirectory(), ident);
+        this.path = new File(Config.getDirs().getCacheDirectory(true), ident);
     }
 
     /**
@@ -90,7 +90,7 @@ public abstract class CacheCustomContent<T extends Throwable> {
         if (isOffline()) {
             return false;
         }
-        return Main.pref.getInteger("cache." + ident, 0) + updateInterval < TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis())
+        return Config.getPref().getInt("cache." + ident, 0) + updateInterval < TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis())
                 || !isCacheValid();
     }
 
@@ -140,7 +140,7 @@ public abstract class CacheCustomContent<T extends Throwable> {
     private byte[] updateForce() throws T {
         this.data = updateData();
         saveToDisk();
-        Main.pref.putInteger("cache." + ident, (int) (TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis())));
+        Config.getPref().putInt("cache." + ident, (int) (TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis())));
         return data;
     }
 
@@ -184,12 +184,12 @@ public abstract class CacheCustomContent<T extends Throwable> {
      * @throws T a {@link Throwable}
      */
     private void loadFromDisk() throws T {
-        try (BufferedInputStream input = new BufferedInputStream(new FileInputStream(path))) {
+        try (BufferedInputStream input = new BufferedInputStream(Files.newInputStream(path.toPath()))) {
             this.data = new byte[input.available()];
             if (input.read(this.data) < this.data.length) {
                 Logging.error("Failed to read expected contents from "+path);
             }
-        } catch (IOException e) {
+        } catch (IOException | InvalidPathException e) {
             Logging.trace(e);
             if (!isOffline()) {
                 this.data = updateForce();
@@ -201,10 +201,10 @@ public abstract class CacheCustomContent<T extends Throwable> {
      * Stores the data to disk
      */
     private void saveToDisk() {
-        try (BufferedOutputStream output = new BufferedOutputStream(new FileOutputStream(path))) {
+        try (BufferedOutputStream output = new BufferedOutputStream(Files.newOutputStream(path.toPath()))) {
             output.write(this.data);
             output.flush();
-        } catch (IOException e) {
+        } catch (IOException | InvalidPathException e) {
             Logging.error(e);
         }
     }

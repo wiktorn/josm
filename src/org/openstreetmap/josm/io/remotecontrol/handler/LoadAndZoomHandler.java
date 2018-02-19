@@ -5,9 +5,11 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.geom.Area;
 import java.awt.geom.Rectangle2D;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.Future;
 
@@ -22,8 +24,8 @@ import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.SimplePrimitiveId;
-import org.openstreetmap.josm.data.osm.search.SearchParseError;
 import org.openstreetmap.josm.data.osm.search.SearchCompiler;
+import org.openstreetmap.josm.data.osm.search.SearchParseError;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapFrame;
@@ -59,6 +61,8 @@ public class LoadAndZoomHandler extends RequestHandler {
     // Optional argument 'select'
     private final Set<SimplePrimitiveId> toSelect = new HashSet<>();
 
+    private boolean isKeepingCurrentSelection;
+
     @Override
     public String getPermissionMessage() {
         String msg = tr("Remote Control has been asked to load data from the API.") +
@@ -76,7 +80,8 @@ public class LoadAndZoomHandler extends RequestHandler {
 
     @Override
     public String[] getOptionalParams() {
-        return new String[] {"new_layer", "layer_name", "addtags", "select", "zoom_mode", "changeset_comment", "changeset_source", "search"};
+        return new String[] {"new_layer", "layer_name", "addtags", "select", "zoom_mode",
+                "changeset_comment", "changeset_source", "changeset_hashtags", "search"};
     }
 
     @Override
@@ -157,7 +162,7 @@ public class LoadAndZoomHandler extends RequestHandler {
         /**
          * deselect objects if parameter addtags given
          */
-        if (args.containsKey("addtags")) {
+        if (args.containsKey("addtags") && !isKeepingCurrentSelection) {
             GuiHelper.executeByMainWorkerInEDT(() -> {
                 DataSet ds = MainApplication.getLayerManager().getEditDataSet();
                 if (ds == null) // e.g. download failed
@@ -182,7 +187,13 @@ public class LoadAndZoomHandler extends RequestHandler {
                         forTagAdd.add(p);
                     }
                 }
+                if (isKeepingCurrentSelection) {
+                    Collection<OsmPrimitive> sel = ds.getSelected();
+                    newSel.addAll(sel);
+                    forTagAdd.addAll(sel);
+                }
                 toSelect.clear();
+                isKeepingCurrentSelection = false;
                 ds.setSelected(newSel);
                 zoom(newSel, bbox);
                 MapFrame map = MainApplication.getMap();
@@ -212,14 +223,14 @@ public class LoadAndZoomHandler extends RequestHandler {
         }
 
         // add changeset tags after download if necessary
-        if (args.containsKey("changeset_comment") || args.containsKey("changeset_source")) {
+        if (args.containsKey("changeset_comment") || args.containsKey("changeset_source") || args.containsKey("changeset_hashtags")) {
             MainApplication.worker.submit(() -> {
-                if (MainApplication.getLayerManager().getEditDataSet() != null) {
-                    if (args.containsKey("changeset_comment")) {
-                        MainApplication.getLayerManager().getEditDataSet().addChangeSetTag("comment", args.get("changeset_comment"));
-                    }
-                    if (args.containsKey("changeset_source")) {
-                        MainApplication.getLayerManager().getEditDataSet().addChangeSetTag("source", args.get("changeset_source"));
+                DataSet ds = MainApplication.getLayerManager().getEditDataSet();
+                if (ds != null) {
+                    for (String tag : Arrays.asList("changeset_comment", "changeset_source", "changeset_hashtags")) {
+                        if (args.containsKey(tag)) {
+                            ds.addChangeSetTag(tag.substring("changeset_".length()), args.get(tag));
+                        }
                     }
                 }
             });
@@ -284,6 +295,10 @@ public class LoadAndZoomHandler extends RequestHandler {
             toSelect.clear();
             for (String item : args.get("select").split(",")) {
                 if (!item.isEmpty()) {
+                    if ("currentselection".equals(item.toLowerCase(Locale.ENGLISH))) {
+                        isKeepingCurrentSelection = true;
+                        continue;
+                    }
                     try {
                         toSelect.add(SimplePrimitiveId.fromString(item));
                     } catch (IllegalArgumentException ex) {

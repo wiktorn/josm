@@ -4,15 +4,19 @@ package org.openstreetmap.josm.data.gpx;
 import java.io.File;
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.DoubleSummaryStatistics;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.openstreetmap.josm.Main;
@@ -21,6 +25,8 @@ import org.openstreetmap.josm.data.Data;
 import org.openstreetmap.josm.data.DataSource;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.gpx.GpxTrack.GpxTrackChangeListener;
+import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.layer.GpxLayer;
 import org.openstreetmap.josm.tools.ListenerList;
 import org.openstreetmap.josm.tools.ListeningCollection;
 
@@ -106,7 +112,7 @@ public class GpxData extends WithAttributes implements Data {
      * Merges data from another object.
      * @param other existing GPX data
      */
-    public void mergeFrom(GpxData other) {
+    public synchronized void mergeFrom(GpxData other) {
         if (storageFile == null && other.storageFile != null) {
             storageFile = other.storageFile;
         }
@@ -124,9 +130,9 @@ public class GpxData extends WithAttributes implements Data {
                 put(k, ent.getValue());
             }
         }
-        other.getTracks().forEach(this::addTrack);
-        other.getRoutes().forEach(this::addRoute);
-        other.getWaypoints().forEach(this::addWaypoint);
+        other.privateTracks.forEach(this::addTrack);
+        other.privateRoutes.forEach(this::addRoute);
+        other.privateWaypoints.forEach(this::addWaypoint);
         dataSources.addAll(other.dataSources);
         fireInvalidate();
     }
@@ -135,8 +141,25 @@ public class GpxData extends WithAttributes implements Data {
      * Get all tracks contained in this data set.
      * @return The tracks.
      */
-    public Collection<GpxTrack> getTracks() {
+    public synchronized Collection<GpxTrack> getTracks() {
         return Collections.unmodifiableCollection(privateTracks);
+    }
+
+    /**
+     * Get stream of track segments.
+     * @return {@code Stream<GPXTrack>}
+     */
+    private synchronized Stream<GpxTrackSegment> getTrackSegmentsStream() {
+        return getTracks().stream().flatMap(trk -> trk.getSegments().stream());
+    }
+
+    /**
+     * Clear all tracks, empties the current privateTracks container,
+     * helper method for some gpx manipulations.
+     */
+    private synchronized void clearTracks() {
+        privateTracks.forEach(t -> t.removeListener(proxy));
+        privateTracks.clear();
     }
 
     /**
@@ -144,7 +167,7 @@ public class GpxData extends WithAttributes implements Data {
      * @param track The new track
      * @since 12156
      */
-    public void addTrack(GpxTrack track) {
+    public synchronized void addTrack(GpxTrack track) {
         if (privateTracks.stream().anyMatch(t -> t == track)) {
             throw new IllegalArgumentException(MessageFormat.format("The track was already added to this data: {0}", track));
         }
@@ -158,7 +181,7 @@ public class GpxData extends WithAttributes implements Data {
      * @param track The old track
      * @since 12156
      */
-    public void removeTrack(GpxTrack track) {
+    public synchronized void removeTrack(GpxTrack track) {
         if (!privateTracks.removeIf(t -> t == track)) {
             throw new IllegalArgumentException(MessageFormat.format("The track was not in this data: {0}", track));
         }
@@ -167,11 +190,109 @@ public class GpxData extends WithAttributes implements Data {
     }
 
     /**
+     * Combine tracks into a single, segmented track.
+     * The attributes of the first track are used, the rest discarded.
+     *
+     * @since 13210
+     */
+    public synchronized void combineTracksToSegmentedTrack() {
+        List<GpxTrackSegment> segs = getTrackSegmentsStream()
+                .collect(Collectors.toCollection(ArrayList<GpxTrackSegment>::new));
+        Map<String, Object> attrs = new HashMap<>(privateTracks.get(0).getAttributes());
+
+        // do not let the name grow if split / combine operations are called iteratively
+        attrs.put("name", attrs.get("name").toString().replaceFirst(" #\\d+$", ""));
+
+        clearTracks();
+        addTrack(new ImmutableGpxTrack(segs, attrs));
+    }
+
+    /**
+     * @param attrs attributes of/for an gpx track, written to if the name appeared previously in {@code counts}.
+     * @param counts a {@code HashMap} of previously seen names, associated with their count.
+     * @return the unique name for the gpx track.
+     *
+     * @since 13210
+     */
+    public static String ensureUniqueName(Map<String, Object> attrs, Map<String, Integer> counts) {
+        String name = attrs.getOrDefault("name", "GPX split result").toString();
+        Integer count = counts.getOrDefault(name, 0) + 1;
+        counts.put(name, count);
+
+        attrs.put("name", MessageFormat.format("{0}{1}", name, (count > 1) ? " #"+count : ""));
+        return attrs.get("name").toString();
+    }
+
+    /**
+     * Split tracks so that only single-segment tracks remain.
+     * Each segment will make up one individual track after this operation.
+     *
+     * @since 13210
+     */
+    public synchronized void splitTrackSegmentsToTracks() {
+        final HashMap<String, Integer> counts = new HashMap<>();
+
+        List<GpxTrack> trks = getTracks().stream()
+            .flatMap(trk -> {
+                return trk.getSegments().stream().map(seg -> {
+                    HashMap<String, Object> attrs = new HashMap<>(trk.getAttributes());
+                    ensureUniqueName(attrs, counts);
+                    return new ImmutableGpxTrack(Arrays.asList(seg), attrs);
+                });
+            })
+            .collect(Collectors.toCollection(ArrayList<GpxTrack>::new));
+
+        clearTracks();
+        trks.stream().forEachOrdered(this::addTrack);
+    }
+
+    /**
+     * Split tracks into layers, the result is one layer for each track.
+     * If this layer currently has only one GpxTrack this is a no-operation.
+     *
+     * The new GpxLayers are added to the LayerManager, the original GpxLayer
+     * is untouched as to preserve potential route or wpt parts.
+     *
+     * @since 13210
+     */
+    public synchronized void splitTracksToLayers() {
+        final HashMap<String, Integer> counts = new HashMap<>();
+
+        getTracks().stream()
+            .filter(trk -> privateTracks.size() > 1)
+            .map(trk -> {
+                HashMap<String, Object> attrs = new HashMap<>(trk.getAttributes());
+                GpxData d = new GpxData();
+                d.addTrack(trk);
+                return new GpxLayer(d, ensureUniqueName(attrs, counts)); })
+            .forEachOrdered(layer -> MainApplication.getLayerManager().addLayer(layer));
+    }
+
+    /**
+     * Replies the current number of tracks in this GpxData
+     * @return track count
+     * @since 13210
+     */
+    public synchronized int getTrackCount() {
+        return privateTracks.size();
+    }
+
+    /**
+     * Replies the accumulated total of all track segments,
+     * the sum of segment counts for each track present.
+     * @return track segments count
+     * @since 13210
+     */
+    public synchronized int getTrackSegsCount() {
+        return privateTracks.stream().collect(Collectors.summingInt(t -> t.getSegments().size()));
+    }
+
+    /**
      * Gets the list of all routes defined in this data set.
      * @return The routes
      * @since 12156
      */
-    public Collection<GpxRoute> getRoutes() {
+    public synchronized Collection<GpxRoute> getRoutes() {
         return Collections.unmodifiableCollection(privateRoutes);
     }
 
@@ -180,7 +301,7 @@ public class GpxData extends WithAttributes implements Data {
      * @param route The new route
      * @since 12156
      */
-    public void addRoute(GpxRoute route) {
+    public synchronized void addRoute(GpxRoute route) {
         if (privateRoutes.stream().anyMatch(r -> r == route)) {
             throw new IllegalArgumentException(MessageFormat.format("The route was already added to this data: {0}", route));
         }
@@ -193,7 +314,7 @@ public class GpxData extends WithAttributes implements Data {
      * @param route The old route
      * @since 12156
      */
-    public void removeRoute(GpxRoute route) {
+    public synchronized void removeRoute(GpxRoute route) {
         if (!privateRoutes.removeIf(r -> r == route)) {
             throw new IllegalArgumentException(MessageFormat.format("The route was not in this data: {0}", route));
         }
@@ -205,7 +326,7 @@ public class GpxData extends WithAttributes implements Data {
      * @return The way points.
      * @since 12156
      */
-    public Collection<WayPoint> getWaypoints() {
+    public synchronized Collection<WayPoint> getWaypoints() {
         return Collections.unmodifiableCollection(privateWaypoints);
     }
 
@@ -214,7 +335,7 @@ public class GpxData extends WithAttributes implements Data {
      * @param waypoint The new waypoint
      * @since 12156
      */
-    public void addWaypoint(WayPoint waypoint) {
+    public synchronized void addWaypoint(WayPoint waypoint) {
         if (privateWaypoints.stream().anyMatch(w -> w == waypoint)) {
             throw new IllegalArgumentException(MessageFormat.format("The route was already added to this data: {0}", waypoint));
         }
@@ -227,7 +348,7 @@ public class GpxData extends WithAttributes implements Data {
      * @param waypoint The old waypoint
      * @since 12156
      */
-    public void removeWaypoint(WayPoint waypoint) {
+    public synchronized void removeWaypoint(WayPoint waypoint) {
         if (!privateWaypoints.removeIf(w -> w == waypoint)) {
             throw new IllegalArgumentException(MessageFormat.format("The route was not in this data: {0}", waypoint));
         }
@@ -238,7 +359,7 @@ public class GpxData extends WithAttributes implements Data {
      * Determines if this GPX data has one or more track points
      * @return {@code true} if this GPX data has track points, {@code false} otherwise
      */
-    public boolean hasTrackPoints() {
+    public synchronized boolean hasTrackPoints() {
         return getTrackPoints().findAny().isPresent();
     }
 
@@ -250,7 +371,7 @@ public class GpxData extends WithAttributes implements Data {
      * @see GpxTrackSegment#getWayPoints()
      * @since 12156
      */
-    public Stream<WayPoint> getTrackPoints() {
+    public synchronized Stream<WayPoint> getTrackPoints() {
         return getTracks().stream().flatMap(trk -> trk.getSegments().stream()).flatMap(trkseg -> trkseg.getWayPoints().stream());
     }
 
@@ -258,15 +379,15 @@ public class GpxData extends WithAttributes implements Data {
      * Determines if this GPX data has one or more route points
      * @return {@code true} if this GPX data has route points, {@code false} otherwise
      */
-    public boolean hasRoutePoints() {
-        return getRoutes().stream().anyMatch(rte -> !rte.routePoints.isEmpty());
+    public synchronized boolean hasRoutePoints() {
+        return privateRoutes.stream().anyMatch(rte -> !rte.routePoints.isEmpty());
     }
 
     /**
      * Determines if this GPX data is empty (i.e. does not contain any point)
      * @return {@code true} if this GPX data is empty, {@code false} otherwise
      */
-    public boolean isEmpty() {
+    public synchronized boolean isEmpty() {
         return !hasRoutePoints() && !hasTrackPoints() && waypoints.isEmpty();
     }
 
@@ -300,16 +421,16 @@ public class GpxData extends WithAttributes implements Data {
      * @see #getMetaBounds()
      * @see #dataSources
      */
-    public Bounds recalculateBounds() {
+    public synchronized Bounds recalculateBounds() {
         Bounds bounds = null;
-        for (WayPoint wpt : getWaypoints()) {
+        for (WayPoint wpt : privateWaypoints) {
             if (bounds == null) {
                 bounds = new Bounds(wpt.getCoor());
             } else {
                 bounds.extend(wpt.getCoor());
             }
         }
-        for (GpxRoute rte : getRoutes()) {
+        for (GpxRoute rte : privateRoutes) {
             for (WayPoint wpt : rte.routePoints) {
                 if (bounds == null) {
                     bounds = new Bounds(wpt.getCoor());
@@ -318,7 +439,7 @@ public class GpxData extends WithAttributes implements Data {
                 }
             }
         }
-        for (GpxTrack trk : getTracks()) {
+        for (GpxTrack trk : privateTracks) {
             Bounds trkBounds = trk.getBounds();
             if (trkBounds != null) {
                 if (bounds == null) {
@@ -335,8 +456,8 @@ public class GpxData extends WithAttributes implements Data {
      * calculates the sum of the lengths of all track segments
      * @return the length in meters
      */
-    public double length() {
-        return getTracks().stream().mapToDouble(GpxTrack::length).sum();
+    public synchronized double length() {
+        return privateTracks.stream().mapToDouble(GpxTrack::length).sum();
     }
 
     /**
@@ -361,7 +482,7 @@ public class GpxData extends WithAttributes implements Data {
     * works correctly @since 5815
      * @return minimum and maximum dates in array of 2 elements
     */
-    public Date[] getMinMaxTimeForAllTracks() {
+    public synchronized Date[] getMinMaxTimeForAllTracks() {
         double now = System.currentTimeMillis() / 1000.0;
         final DoubleSummaryStatistics statistics = tracks.stream()
                 .flatMap(trk -> trk.getSegments().stream())
@@ -383,7 +504,7 @@ public class GpxData extends WithAttributes implements Data {
      * @return the closest point on the track to p, which may be the first or last point if off the
      * end of a segment, or may be null if nothing close enough
      */
-    public WayPoint nearestPointOnTrack(EastNorth p, double tolerance) {
+    public synchronized WayPoint nearestPointOnTrack(EastNorth p, double tolerance) {
         /*
          * assume the coordinates of P are xp,yp, and those of a section of track between two
          * trackpoints are R=xr,yr and S=xs,ys. Let N be the projected point.
@@ -413,7 +534,7 @@ public class GpxData extends WithAttributes implements Data {
         double px = p.east();
         double py = p.north();
         double rx = 0.0, ry = 0.0, sx, sy, x, y;
-        for (GpxTrack track : getTracks()) {
+        for (GpxTrack track : privateTracks) {
             for (GpxTrackSegment seg : track.getSegments()) {
                 WayPoint r = null;
                 for (WayPoint wpSeg : seg.getWayPoints()) {
@@ -501,8 +622,8 @@ public class GpxData extends WithAttributes implements Data {
     /**
      * Resets the internal caches of east/north coordinates.
      */
-    public void resetEastNorthCache() {
-        getWaypoints().forEach(WayPoint::invalidateEastNorthCache);
+    public synchronized void resetEastNorthCache() {
+        privateWaypoints.forEach(WayPoint::invalidateEastNorthCache);
         getTrackPoints().forEach(WayPoint::invalidateEastNorthCache);
         for (GpxRoute route: getRoutes()) {
             if (route.routePoints == null) {
@@ -593,7 +714,7 @@ public class GpxData extends WithAttributes implements Data {
     }
 
     @Override
-    public int hashCode() {
+    public synchronized int hashCode() {
         final int prime = 31;
         int result = 1;
         result = prime * result + ((dataSources == null) ? 0 : dataSources.hashCode());
@@ -604,7 +725,7 @@ public class GpxData extends WithAttributes implements Data {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public synchronized boolean equals(Object obj) {
         if (this == obj)
             return true;
         if (obj == null)

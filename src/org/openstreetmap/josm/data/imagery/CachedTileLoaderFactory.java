@@ -10,10 +10,10 @@ import java.util.concurrent.TimeUnit;
 import org.apache.commons.jcs.access.behavior.ICacheAccess;
 import org.openstreetmap.gui.jmapviewer.interfaces.TileLoader;
 import org.openstreetmap.gui.jmapviewer.interfaces.TileLoaderListener;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Version;
 import org.openstreetmap.josm.data.cache.BufferedImageCacheEntry;
 import org.openstreetmap.josm.data.preferences.StringProperty;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.Logging;
 
@@ -55,7 +55,7 @@ public class CachedTileLoaderFactory implements TileLoaderFactory {
     private static StringProperty getTileCacheDir() {
         String defPath = null;
         try {
-            defPath = new File(Main.pref.getCacheDirectory(), "tiles").getAbsolutePath();
+            defPath = new File(Config.getDirs().getCacheDirectory(true), "tiles").getAbsolutePath();
         } catch (SecurityException e) {
             Logging.warn(e);
         }
@@ -71,8 +71,8 @@ public class CachedTileLoaderFactory implements TileLoaderFactory {
             headers.putAll(inputHeaders);
 
         return getLoader(listener, cache,
-                (int) TimeUnit.SECONDS.toMillis(Main.pref.getInteger("socket.timeout.connect", 15)),
-                (int) TimeUnit.SECONDS.toMillis(Main.pref.getInteger("socket.timeout.read", 30)),
+                (int) TimeUnit.SECONDS.toMillis(Config.getPref().getInt("socket.timeout.connect", 15)),
+                (int) TimeUnit.SECONDS.toMillis(Config.getPref().getInt("socket.timeout.read", 30)),
                 headers);
     }
 

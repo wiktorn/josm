@@ -11,6 +11,7 @@ import javax.swing.table.TableModel;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.UserIdentityManager;
+import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.OsmPrimitiveType;
@@ -34,7 +35,7 @@ import org.openstreetmap.josm.data.osm.history.HistoryNode;
 import org.openstreetmap.josm.data.osm.history.HistoryOsmPrimitive;
 import org.openstreetmap.josm.data.osm.history.HistoryRelation;
 import org.openstreetmap.josm.data.osm.history.HistoryWay;
-import org.openstreetmap.josm.data.osm.visitor.AbstractVisitor;
+import org.openstreetmap.josm.data.osm.visitor.OsmPrimitiveVisitor;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeEvent;
@@ -101,9 +102,9 @@ public class HistoryBrowserModel extends ChangeNotifier implements ActiveLayerCh
         referenceRelationMemberTableModel = new DiffTableModel();
 
         if (Main.main != null) {
-            OsmDataLayer editLayer = MainApplication.getLayerManager().getEditLayer();
-            if (editLayer != null) {
-                editLayer.data.addDataSetListener(this);
+            DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
+            if (ds != null) {
+                ds.addDataSetListener(this);
             }
         }
         MainApplication.getLayerManager().addActiveLayerChangeListener(this);
@@ -151,13 +152,11 @@ public class HistoryBrowserModel extends ChangeNotifier implements ActiveLayerCh
 
         // if latest version from history is higher than a non existing primitive version,
         // that means this version has been redacted and the primitive cannot be used.
-        if (history.getLatest().getVersion() > primitive.getVersion())
-            return false;
+        return history.getLatest().getVersion() <= primitive.getVersion();
 
         // latest has a higher version than one of the primitives
         // in the history (probably because the history got out of sync
         // with uploaded data) -> show the primitive as latest
-        return true;
     }
 
     /**
@@ -170,9 +169,9 @@ public class HistoryBrowserModel extends ChangeNotifier implements ActiveLayerCh
         this.history = history;
         if (history.getNumVersions() > 0) {
             HistoryOsmPrimitive newLatest = null;
-            OsmDataLayer editLayer = MainApplication.getLayerManager().getEditLayer();
-            if (editLayer != null) {
-                OsmPrimitive p = editLayer.data.getPrimitiveById(history.getId(), history.getType());
+            DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
+            if (ds != null) {
+                OsmPrimitive p = ds.getPrimitiveById(history.getId(), history.getType());
                 if (canShowAsLatest(p)) {
                     newLatest = new HistoryPrimitiveBuilder().build(p);
                 }
@@ -531,9 +530,9 @@ public class HistoryBrowserModel extends ChangeNotifier implements ActiveLayerCh
      *
      */
     public void unlinkAsListener() {
-        OsmDataLayer editLayer = MainApplication.getLayerManager().getEditLayer();
-        if (editLayer != null) {
-            editLayer.data.removeDataSetListener(this);
+        DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
+        if (ds != null) {
+            ds.removeDataSetListener(this);
         }
         MainApplication.getLayerManager().removeActiveLayerChangeListener(this);
     }
@@ -644,7 +643,7 @@ public class HistoryBrowserModel extends ChangeNotifier implements ActiveLayerCh
      * Creates a {@link HistoryOsmPrimitive} from a {@link OsmPrimitive}
      *
      */
-    static class HistoryPrimitiveBuilder extends AbstractVisitor {
+    static class HistoryPrimitiveBuilder implements OsmPrimitiveVisitor {
         private HistoryOsmPrimitive clone;
 
         @Override

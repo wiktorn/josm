@@ -19,16 +19,17 @@ import javax.swing.text.Document;
 import javax.swing.text.PlainDocument;
 import javax.swing.text.StyleConstants;
 
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.tagging.ac.AutoCompletionItem;
 import org.openstreetmap.josm.gui.util.CellEditorSupport;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.Logging;
 
 /**
  * AutoCompletingTextField is a text field with autocompletion behaviour. It
  * can be used as table cell editor in {@link JTable}s.
  *
- * Autocompletion is controlled by a list of {@link AutoCompletionListItem}s
+ * Autocompletion is controlled by a list of {@link AutoCompletionItem}s
  * managed in a {@link AutoCompletionList}.
  *
  * @since 1762
@@ -78,7 +79,7 @@ public class AutoCompletingTextField extends JosmTextField implements ComboBoxEd
 
             String currentText = getText(0, getLength());
             // if the text starts with a number we don't autocomplete
-            if (Main.pref.getBoolean("autocomplete.dont_complete_numbers", true)) {
+            if (Config.getPref().getBoolean("autocomplete.dont_complete_numbers", true)) {
                 try {
                     Long.parseLong(str);
                     if (currentText.isEmpty()) {
@@ -98,7 +99,7 @@ public class AutoCompletingTextField extends JosmTextField implements ComboBoxEd
             autoCompletionList.applyFilter(prefix+str);
             if (autoCompletionList.getFilteredSize() > 0 && !Objects.equals(str, noAutoCompletionString)) {
                 // there are matches. Insert the new text and highlight the auto completed suffix
-                String matchingString = autoCompletionList.getFilteredItem(0).getValue();
+                String matchingString = autoCompletionList.getFilteredItemAt(0).getValue();
                 remove(0, getLength());
                 super.insertString(0, matchingString, a);
 
@@ -129,8 +130,13 @@ public class AutoCompletingTextField extends JosmTextField implements ComboBoxEd
     protected final void init() {
         addFocusListener(
                 new FocusAdapter() {
-                    @Override public void focusGained(FocusEvent e) {
-                        selectAll();
+                    @Override
+                    public void focusGained(FocusEvent e) {
+                        if (e != null && e.getOppositeComponent() != null) {
+                            // Select all characters when the change of focus occurs inside JOSM only.
+                            // When switching from another application, it is annoying, see #13747
+                            selectAll();
+                        }
                         applyFilter(getText());
                     }
                 }
@@ -138,7 +144,6 @@ public class AutoCompletingTextField extends JosmTextField implements ComboBoxEd
 
         addKeyListener(
                 new KeyAdapter() {
-
                     @Override
                     public void keyReleased(KeyEvent e) {
                         if (getText().isEmpty()) {

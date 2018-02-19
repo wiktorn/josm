@@ -28,7 +28,6 @@ import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.Tagged;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.osm.visitor.PrimitiveVisitor;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.tools.date.DateUtils;
 
 /**
@@ -129,10 +128,15 @@ public class OsmWriter extends XmlWriter implements PrimitiveVisitor {
         return result;
     }
 
-    public void writeLayer(OsmDataLayer layer) {
-        header(layer.data.getUploadPolicy());
-        writeDataSources(layer.data);
-        writeContent(layer.data);
+    /**
+     * Writes the full OSM file for the given data set (header, data sources, osm data, footer).
+     * @param data OSM data set
+     * @since 12800
+     */
+    public void write(DataSet data) {
+        header(data.getUploadPolicy());
+        writeDataSources(data);
+        writeContent(data);
         footer();
     }
 

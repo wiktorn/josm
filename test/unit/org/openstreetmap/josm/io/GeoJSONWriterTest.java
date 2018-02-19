@@ -15,7 +15,6 @@ import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.Way;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 
 /**
  * Unit tests of {@link GeoJSONWriter} class.
@@ -40,22 +39,21 @@ public class GeoJSONWriterTest {
         node.put("source", "code");
         final DataSet ds = new DataSet();
         ds.addPrimitive(node);
-        final OsmDataLayer layer = new OsmDataLayer(ds, "foo", null);
-        final GeoJSONWriter writer = new GeoJSONWriter(layer);
+        final GeoJSONWriter writer = new GeoJSONWriter(ds);
         assertEquals(("" +
                 "{\n" +
-                "    'type':'FeatureCollection',\n" +
-                "    'generator':'JOSM',\n" +
-                "    'features':[\n" +
+                "    'type': 'FeatureCollection',\n" +
+                "    'generator': 'JOSM',\n" +
+                "    'features': [\n" +
                 "        {\n" +
-                "            'type':'Feature',\n" +
-                "            'properties':{\n" +
-                "                'name':'foo',\n" +
-                "                'source':'code'\n" +
+                "            'type': 'Feature',\n" +
+                "            'properties': {\n" +
+                "                'name': 'foo',\n" +
+                "                'source': 'code'\n" +
                 "            },\n" +
-                "            'geometry':{\n" +
-                "                'type':'Point',\n" +
-                "                'coordinates':[\n" +
+                "            'geometry': {\n" +
+                "                'type': 'Point',\n" +
+                "                'coordinates': [\n" +
                 "                    4.56000000000,\n" +
                 "                    12.30000000000\n" +
                 "                ]\n" +
@@ -79,21 +77,20 @@ public class GeoJSONWriterTest {
         way.put("highway", "footway");
         way.setNodes(Arrays.asList(n1, n2));
         ds.addPrimitive(way);
-        final OsmDataLayer layer = new OsmDataLayer(ds, "foo", null);
-        final GeoJSONWriter writer = new GeoJSONWriter(layer);
+        final GeoJSONWriter writer = new GeoJSONWriter(ds);
         assertEquals(("" +
                 "{\n" +
-                "    'type':'FeatureCollection',\n" +
-                "    'generator':'JOSM',\n" +
-                "    'features':[\n" +
+                "    'type': 'FeatureCollection',\n" +
+                "    'generator': 'JOSM',\n" +
+                "    'features': [\n" +
                 "        {\n" +
-                "            'type':'Feature',\n" +
-                "            'properties':{\n" +
-                "                'highway':'footway'\n" +
+                "            'type': 'Feature',\n" +
+                "            'properties': {\n" +
+                "                'highway': 'footway'\n" +
                 "            },\n" +
-                "            'geometry':{\n" +
-                "                'type':'LineString',\n" +
-                "                'coordinates':[\n" +
+                "            'geometry': {\n" +
+                "                'type': 'LineString',\n" +
+                "                'coordinates': [\n" +
                 "                    [\n" +
                 "                        4.56000000000,\n" +
                 "                        12.30000000000\n" +
@@ -117,8 +114,7 @@ public class GeoJSONWriterTest {
     public void testMultipolygon() throws Exception {
         try (FileInputStream in = new FileInputStream(TestUtils.getTestDataRoot() + "multipolygon.osm")) {
             DataSet ds = OsmReader.parseDataSet(in, null);
-            final OsmDataLayer layer = new OsmDataLayer(ds, "foo", null);
-            final GeoJSONWriter writer = new GeoJSONWriter(layer);
+            final GeoJSONWriter writer = new GeoJSONWriter(ds);
             assertTrue(writer.write().contains("MultiPolygon"));
         }
     }
@@ -131,8 +127,7 @@ public class GeoJSONWriterTest {
     public void testMultipolygonRobustness() throws Exception {
         try (FileInputStream in = new FileInputStream("data_nodist/multipolygon.osm")) {
             DataSet ds = OsmReader.parseDataSet(in, null);
-            final OsmDataLayer layer = new OsmDataLayer(ds, "foo", null);
-            final GeoJSONWriter writer = new GeoJSONWriter(layer);
+            final GeoJSONWriter writer = new GeoJSONWriter(ds);
             assertTrue(writer.write().contains("MultiPolygon"));
         }
     }

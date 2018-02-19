@@ -36,8 +36,8 @@ import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.osm.WaySegment;
 import org.openstreetmap.josm.data.preferences.CachingProperty;
-import org.openstreetmap.josm.data.preferences.ColorProperty;
 import org.openstreetmap.josm.data.preferences.IntegerProperty;
+import org.openstreetmap.josm.data.preferences.NamedColorProperty;
 import org.openstreetmap.josm.data.preferences.StrokeProperty;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapFrame;
@@ -46,7 +46,6 @@ import org.openstreetmap.josm.gui.draw.MapViewPath;
 import org.openstreetmap.josm.gui.draw.SymbolShape;
 import org.openstreetmap.josm.gui.layer.AbstractMapViewPaintable;
 import org.openstreetmap.josm.gui.layer.Layer;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.util.ModifierExListener;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Pair;
@@ -61,7 +60,7 @@ import org.openstreetmap.josm.tools.Shortcut;
 public class ImproveWayAccuracyAction extends MapMode implements
         SelectionChangedListener, ModifierExListener {
 
-    private static final String CROSSHAIR = "crosshair";
+    private static final String CROSSHAIR = /* ICON(cursor/)*/ "crosshair";
 
     enum State {
         SELECTING, IMPROVING
@@ -80,13 +79,13 @@ public class ImproveWayAccuracyAction extends MapMode implements
     private Point mousePos;
     private boolean dragging;
 
-    private final Cursor cursorSelect = ImageProvider.getCursor("normal", "mode");
-    private final Cursor cursorSelectHover = ImageProvider.getCursor("hand", "mode");
+    private final Cursor cursorSelect = ImageProvider.getCursor(/* ICON(cursor/)*/ "normal", /* ICON(cursor/modifier/)*/ "mode");
+    private final Cursor cursorSelectHover = ImageProvider.getCursor(/* ICON(cursor/)*/ "hand", /* ICON(cursor/modifier/)*/ "mode");
     private final Cursor cursorImprove = ImageProvider.getCursor(CROSSHAIR, null);
-    private final Cursor cursorImproveAdd = ImageProvider.getCursor(CROSSHAIR, "addnode");
-    private final Cursor cursorImproveDelete = ImageProvider.getCursor(CROSSHAIR, "delete_node");
-    private final Cursor cursorImproveAddLock = ImageProvider.getCursor(CROSSHAIR, "add_node_lock");
-    private final Cursor cursorImproveLock = ImageProvider.getCursor(CROSSHAIR, "lock");
+    private final Cursor cursorImproveAdd = ImageProvider.getCursor(CROSSHAIR, /* ICON(cursor/modifier/)*/ "addnode");
+    private final Cursor cursorImproveDelete = ImageProvider.getCursor(CROSSHAIR, /* ICON(cursor/modifier/)*/ "delete_node");
+    private final Cursor cursorImproveAddLock = ImageProvider.getCursor(CROSSHAIR, /* ICON(cursor/modifier/)*/ "add_node_lock");
+    private final Cursor cursorImproveLock = ImageProvider.getCursor(CROSSHAIR, /* ICON(cursor/modifier/)*/ "lock");
 
     private Color guideColor;
 
@@ -160,7 +159,7 @@ public class ImproveWayAccuracyAction extends MapMode implements
 
     @Override
     protected void readPreferences() {
-        guideColor = new ColorProperty(marktr("improve way accuracy helper line"), Color.RED).get();
+        guideColor = new NamedColorProperty(marktr("improve way accuracy helper line"), Color.RED).get();
     }
 
     @Override
@@ -209,7 +208,7 @@ public class ImproveWayAccuracyAction extends MapMode implements
 
     @Override
     public boolean layerIsSupported(Layer l) {
-        return l instanceof OsmDataLayer;
+        return isEditableDataLayer(l);
     }
 
     @Override
@@ -277,7 +276,7 @@ public class ImproveWayAccuracyAction extends MapMode implements
                 int index = nodes.indexOf(candidateNode);
 
                 // Only draw line if node is not first and/or last
-                if (index != 0 && index != (nodes.size() - 1)) {
+                if (index > 0 && index < (nodes.size() - 1)) {
                     p1 = nodes.get(index - 1);
                     p2 = nodes.get(index + 1);
                 } else if (targetWay.isClosed()) {

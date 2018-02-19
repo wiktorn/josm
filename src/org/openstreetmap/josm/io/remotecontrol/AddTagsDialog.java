@@ -13,6 +13,7 @@ import java.awt.event.MouseEvent;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -35,7 +36,6 @@ import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.util.TableHelper;
 import org.openstreetmap.josm.tools.GBC;
-import org.openstreetmap.josm.tools.Utils;
 
 /**
  * Dialog to add tags as part of the remotecontrol.
@@ -208,6 +208,7 @@ public class AddTagsDialog extends ExtendedDialog {
             }
         };
 
+        propertyTable.setAutoCreateRowSorter(true);
         propertyTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
         // a checkbox has a size of 15 px
         propertyTable.getColumnModel().getColumn(0).setMaxWidth(15);
@@ -271,15 +272,15 @@ public class AddTagsDialog extends ExtendedDialog {
     /**
      * parse addtags parameters Example URL (part):
      * addtags=wikipedia:de%3DResidenzschloss Dresden|name:en%3DDresden Castle
-     * @param args request arguments
+     * @param args request arguments (URL encoding already removed)
      * @param sender is a string for skipping confirmations. Use empty string for always confirmed adding.
      * @param primitives OSM objects that will be modified
      */
     public static void addTags(final Map<String, String> args, final String sender, final Collection<? extends OsmPrimitive> primitives) {
         if (args.containsKey("addtags")) {
             GuiHelper.executeByMainWorkerInEDT(() -> {
-                Set<String> tagSet = new HashSet<>();
-                for (String tag1 : Utils.decodeUrl(args.get("addtags")).split("\\|")) {
+                Set<String> tagSet = new LinkedHashSet<>(); // preserve order, see #15704
+                for (String tag1 : args.get("addtags").split("\\|")) {
                     if (!tag1.trim().isEmpty() && tag1.contains("=")) {
                         tagSet.add(tag1.trim());
                     }

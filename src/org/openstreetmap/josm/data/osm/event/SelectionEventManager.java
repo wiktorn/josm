@@ -8,9 +8,8 @@ import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Stream;
 
-import javax.swing.SwingUtilities;
-
 import org.openstreetmap.josm.data.SelectionChangedListener;
+import org.openstreetmap.josm.data.osm.DataIntegrityProblemException;
 import org.openstreetmap.josm.data.osm.DataSelectionListener;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.event.DatasetEventManager.FireMode;
@@ -18,6 +17,9 @@ import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.MainLayerManager;
 import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeEvent;
 import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeListener;
+import org.openstreetmap.josm.gui.util.GuiHelper;
+import org.openstreetmap.josm.tools.bugreport.BugReport;
+import org.openstreetmap.josm.tools.bugreport.ReportedException;
 
 /**
  * Similar like {@link DatasetEventManager}, just for selection events.
@@ -69,6 +71,11 @@ public class SelectionEventManager implements DataSelectionListener, ActiveLayer
             OldListenerInfo that = (OldListenerInfo) o;
             return Objects.equals(listener, that.listener);
         }
+
+        @Override
+        public String toString() {
+            return "OldListenerInfo [listener=" + listener + ']';
+        }
     }
 
     private static class DataListenerInfo implements ListenerInfo {
@@ -94,6 +101,11 @@ public class SelectionEventManager implements DataSelectionListener, ActiveLayer
             if (o == null || getClass() != o.getClass()) return false;
             DataListenerInfo that = (DataListenerInfo) o;
             return Objects.equals(listener, that.listener);
+        }
+
+        @Override
+        public String toString() {
+            return "DataListenerInfo [listener=" + listener + ']';
         }
     }
 
@@ -171,36 +183,42 @@ public class SelectionEventManager implements DataSelectionListener, ActiveLayer
 
     @Override
     public void activeOrEditLayerChanged(ActiveLayerChangeEvent e) {
-        DataSet oldDataSet = e.getPreviousEditDataSet();
+        DataSet oldDataSet = e.getPreviousDataSet();
         if (oldDataSet != null) {
             // Fake a selection removal
             // Relying on this allows components to not have to monitor layer changes.
             // If we would not do this, e.g. the move command would have a hard time tracking which layer
             // the last moved selection was in.
-            SelectionReplaceEvent event = new SelectionReplaceEvent(oldDataSet,
-                    new HashSet<>(oldDataSet.getAllSelected()), Stream.empty());
-            selectionChanged(event);
+            selectionChanged(new SelectionReplaceEvent(oldDataSet,
+                    new HashSet<>(oldDataSet.getAllSelected()), Stream.empty()));
             oldDataSet.removeSelectionListener(this);
         }
-        DataSet newDataSet = e.getSource().getEditDataSet();
+        DataSet newDataSet = e.getSource().getActiveDataSet();
         if (newDataSet != null) {
             newDataSet.addSelectionListener(this);
             // Fake a selection add
-            SelectionReplaceEvent event = new SelectionReplaceEvent(newDataSet,
-                    Collections.emptySet(), newDataSet.getAllSelected().stream());
-            selectionChanged(event);
+            selectionChanged(new SelectionReplaceEvent(newDataSet,
+                    Collections.emptySet(), newDataSet.getAllSelected().stream()));
         }
     }
 
     @Override
     public void selectionChanged(SelectionChangeEvent event) {
         fireEvent(immedatelyListeners, event);
-        SwingUtilities.invokeLater(() -> fireEvent(inEDTListeners, event));
+        try {
+            GuiHelper.runInEDTAndWaitWithException(() -> fireEvent(inEDTListeners, event));
+        } catch (ReportedException e) {
+            throw BugReport.intercept(e).put("event", event).put("inEDTListeners", inEDTListeners);
+        }
     }
 
     private static void fireEvent(List<ListenerInfo> listeners, SelectionChangeEvent event) {
         for (ListenerInfo listener: listeners) {
-            listener.fire(event);
+            try {
+                listener.fire(event);
+            } catch (DataIntegrityProblemException e) {
+                throw BugReport.intercept(e).put("event", event).put("listeners", listeners);
+            }
         }
     }
 

@@ -15,6 +15,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
 
 import org.apache.commons.jcs.access.behavior.ICacheAccess;
 import org.apache.commons.jcs.engine.behavior.ICacheElement;
@@ -73,8 +74,6 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
             new LinkedBlockingDeque<Runnable>(),
             Utils.newThreadFactory("JCS-downloader-%d", Thread.NORM_PRIORITY)
             );
-
-
 
     private static final ConcurrentMap<String, Set<ICachedLoaderListener>> inProgress = new ConcurrentHashMap<>();
     private static final ConcurrentMap<String, Boolean> useHead = new ConcurrentHashMap<>();
@@ -358,6 +357,17 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
                     raw = Utils.readBytesFromStream(urlConn.getContent());
                 } else {
                     raw = new byte[]{};
+                    try {
+                        String data = urlConn.fetchContent();
+                        if (!data.isEmpty()) {
+                            Matcher m = HttpClient.getTomcatErrorMatcher(data);
+                            if (m.matches()) {
+                                attributes.setErrorMessage(m.group(1).replace("'", "''"));
+                            }
+                        }
+                    } catch (IOException e) {
+                        Logging.warn(e);
+                    }
                 }
 
                 if (isResponseLoadable(urlConn.getHeaderFields(), urlConn.getResponseCode(), raw)) {
@@ -389,7 +399,7 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
             }
             return doCache;
         } catch (IOException e) {
-            Logging.debug("JCS - IOExecption during communication with server for: {0}", getUrlNoException());
+            Logging.debug("JCS - IOException during communication with server for: {0}", getUrlNoException());
             if (isObjectLoadable()) {
                 return true;
             } else {

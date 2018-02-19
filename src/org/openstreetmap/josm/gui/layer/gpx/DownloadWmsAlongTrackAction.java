@@ -42,7 +42,8 @@ public class DownloadWmsAlongTrackAction extends AbstractAction {
      * @param data that represents GPX track, along which data should be downloaded
      */
     public DownloadWmsAlongTrackAction(final GpxData data) {
-        super(tr("Precache imagery tiles along this track"), ImageProvider.get("downloadalongtrack"));
+        super(tr("Precache imagery tiles along this track"));
+        new ImageProvider("downloadalongtrack").getResource().attachImageIcon(this, true);
         this.data = data;
     }
 
@@ -122,7 +123,7 @@ public class DownloadWmsAlongTrackAction extends AbstractAction {
             }
             return null;
         }
-        return AbstractMergeAction.askTargetLayer(targetLayers.toArray(new AbstractTileSourceLayer[targetLayers.size()]),
+        return AbstractMergeAction.askTargetLayer(targetLayers.toArray(new AbstractTileSourceLayer[0]),
                 tr("Please select the imagery layer."),
                 tr("Select imagery layer"),
                 tr("Download"), "dialogs/down");

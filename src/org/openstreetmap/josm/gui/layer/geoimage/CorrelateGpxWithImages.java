@@ -20,9 +20,9 @@ import java.awt.event.ItemListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -78,7 +78,7 @@ import org.openstreetmap.josm.gui.widgets.AbstractFileChooser;
 import org.openstreetmap.josm.gui.widgets.JosmComboBox;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
 import org.openstreetmap.josm.io.GpxReader;
-import org.openstreetmap.josm.tools.ExifReader;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.JosmRuntimeException;
@@ -105,7 +105,8 @@ public class CorrelateGpxWithImages extends AbstractAction {
      * @param layer The image layer
      */
     public CorrelateGpxWithImages(GeoImageLayer layer) {
-        super(tr("Correlate to GPX"), ImageProvider.get("dialogs/geoimage/gpx2img"));
+        super(tr("Correlate to GPX"));
+        new ImageProvider("dialogs/geoimage/gpx2img").getResource().attachImageIcon(this, true);
         this.yLayer = layer;
     }
 
@@ -171,9 +172,9 @@ public class CorrelateGpxWithImages extends AbstractAction {
                 actionPerformed(null);
                 break;
             case DONE:
-                Main.pref.put("geoimage.timezone", timezone.formatTimezone());
-                Main.pref.put("geoimage.delta", delta.formatOffset());
-                Main.pref.put("geoimage.showThumbs", yLayer.useThumbs);
+                Config.getPref().put("geoimage.timezone", timezone.formatTimezone());
+                Config.getPref().put("geoimage.delta", delta.formatOffset());
+                Config.getPref().putBoolean("geoimage.showThumbs", yLayer.useThumbs);
 
                 yLayer.useThumbs = cbShowThumbs.isSelected();
                 yLayer.startLoadThumbs();
@@ -328,9 +329,9 @@ public class CorrelateGpxWithImages extends AbstractAction {
 
         private InputStream createInputStream(File sel) throws IOException {
             if (Utils.hasExtension(sel, "gpx.gz")) {
-                return new GZIPInputStream(new FileInputStream(sel));
+                return new GZIPInputStream(Files.newInputStream(sel.toPath()));
             } else {
-                return new FileInputStream(sel);
+                return Files.newInputStream(sel.toPath());
             }
         }
     }
@@ -418,9 +419,9 @@ public class CorrelateGpxWithImages extends AbstractAction {
 
             Collections.sort(vtTimezones);
 
-            JosmComboBox<String> cbTimezones = new JosmComboBox<>(vtTimezones.toArray(new String[vtTimezones.size()]));
+            JosmComboBox<String> cbTimezones = new JosmComboBox<>(vtTimezones.toArray(new String[0]));
 
-            String tzId = Main.pref.get("geoimage.timezoneid", "");
+            String tzId = Config.getPref().get("geoimage.timezoneid", "");
             TimeZone defaultTz;
             if (tzId.isEmpty()) {
                 defaultTz = TimeZone.getDefault();
@@ -456,8 +457,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
             imgList.getSelectionModel().setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
             imgList.getSelectionModel().addListSelectionListener(evt -> {
                 int index = imgList.getSelectedIndex();
-                Integer orientation = ExifReader.readOrientation(yLayer.data.get(index).getFile());
-                imgDisp.setImage(yLayer.data.get(index).getFile(), orientation);
+                imgDisp.setImage(yLayer.data.get(index));
                 Date date = yLayer.data.get(index).getExifTime();
                 if (date != null) {
                     DateFormat df = DateUtils.getDateTimeFormat(DateFormat.SHORT, DateFormat.MEDIUM);
@@ -480,12 +480,11 @@ public class CorrelateGpxWithImages extends AbstractAction {
                         JpgImporter.FILE_FILTER_WITH_FOLDERS, JFileChooser.FILES_ONLY, "geoimage.lastdirectory");
                 if (fc == null)
                     return;
-                File sel = fc.getSelectedFile();
+                ImageEntry entry = new ImageEntry(fc.getSelectedFile());
+                entry.extractExif();
+                imgDisp.setImage(entry);
 
-                Integer orientation = ExifReader.readOrientation(sel);
-                imgDisp.setImage(sel, orientation);
-
-                Date date = ExifReader.readTime(sel);
+                Date date = entry.getExifTime();
                 if (date != null) {
                     lbExifTime.setText(DateUtils.getDateTimeFormat(DateFormat.SHORT, DateFormat.MEDIUM).format(date));
                     tfGpsTime.setText(DateUtils.getDateFormat(DateFormat.SHORT).format(date)+' ');
@@ -528,7 +527,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
                 tzId = selectedTz.substring(0, pos - 1);
                 String tzValue = selectedTz.substring(pos + 1, selectedTz.length() - 1);
 
-                Main.pref.put("geoimage.timezoneid", tzId);
+                Config.getPref().put("geoimage.timezoneid", tzId);
                 tfOffset.setText(Offset.milliseconds(delta).formatOffset());
                 tfTimezone.setText(tzValue);
 
@@ -544,6 +543,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
     public void actionPerformed(ActionEvent ae) {
         // Construct the list of loaded GPX tracks
         Collection<Layer> layerLst = MainApplication.getLayerManager().getLayers();
+        gpxLst.clear();
         GpxDataWrapper defaultItem = null;
         for (Layer cur : layerLst) {
             if (cur instanceof GpxLayer) {
@@ -569,9 +569,17 @@ public class CorrelateGpxWithImages extends AbstractAction {
 
         panelCb.add(new JLabel(tr("GPX track: ")));
 
-        cbGpx = new JosmComboBox<>(gpxLst.toArray(new GpxDataWrapper[gpxLst.size()]));
+        cbGpx = new JosmComboBox<>(gpxLst.toArray(new GpxDataWrapper[0]));
         if (defaultItem != null) {
             cbGpx.setSelectedItem(defaultItem);
+        } else {
+            // select first GPX track associated to a file
+            for (GpxDataWrapper item : gpxLst) {
+                if (item.file != null) {
+                    cbGpx.setSelectedItem(item);
+                    break;
+                }
+            }
         }
         cbGpx.addActionListener(statusBarUpdaterWithRepaint);
         panelCb.add(cbGpx);
@@ -583,7 +591,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
         JPanel panelTf = new JPanel(new GridBagLayout());
 
         try {
-            timezone = Timezone.parseTimezone(Optional.ofNullable(Main.pref.get("geoimage.timezone", "0:00")).orElse("0:00"));
+            timezone = Timezone.parseTimezone(Optional.ofNullable(Config.getPref().get("geoimage.timezone", "0:00")).orElse("0:00"));
         } catch (ParseException e) {
             timezone = Timezone.ZERO;
         }
@@ -592,7 +600,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
         tfTimezone.setText(timezone.formatTimezone());
 
         try {
-            delta = Offset.parseOffset(Main.pref.get("geoimage.delta", "0"));
+            delta = Offset.parseOffset(Config.getPref().get("geoimage.delta", "0"));
         } catch (ParseException e) {
             delta = Offset.ZERO;
         }
@@ -626,7 +634,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
 
         labelPosition.setEnabled(cbExifImg.isEnabled() || cbTaggedImg.isEnabled());
 
-        boolean ticked = yLayer.thumbsLoaded || Main.pref.getBoolean("geoimage.showThumbs", false);
+        boolean ticked = yLayer.thumbsLoaded || Config.getPref().getBoolean("geoimage.showThumbs", false);
         cbShowThumbs = new JCheckBox(tr("Show Thumbnail images on the map"), ticked);
         cbShowThumbs.setEnabled(!yLayer.thumbsLoaded);
 
@@ -1182,7 +1190,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
                     curImg.tmp.setSpeed(speed);
                     curImg.tmp.setElevation(curElevation);
                     curImg.tmp.setGpsTime(new Date(curImg.getExifTime().getTime() - offset));
-                    curImg.flagNewGpsData();
+                    curImg.tmp.flagNewGpsData();
                     ret++;
                 }
                 i--;
@@ -1208,7 +1216,7 @@ public class CorrelateGpxWithImages extends AbstractAction {
                     curImg.tmp.setElevation(prevElevation + (curElevation - prevElevation) * timeDiff);
                 }
                 curImg.tmp.setGpsTime(new Date(curImg.getExifTime().getTime() - offset));
-                curImg.flagNewGpsData();
+                curImg.tmp.flagNewGpsData();
 
                 ret++;
             }

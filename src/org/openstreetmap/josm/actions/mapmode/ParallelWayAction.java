@@ -34,9 +34,9 @@ import org.openstreetmap.josm.data.osm.WaySegment;
 import org.openstreetmap.josm.data.preferences.AbstractToStringProperty;
 import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.data.preferences.CachingProperty;
-import org.openstreetmap.josm.data.preferences.ColorProperty;
 import org.openstreetmap.josm.data.preferences.DoubleProperty;
 import org.openstreetmap.josm.data.preferences.IntegerProperty;
+import org.openstreetmap.josm.data.preferences.NamedColorProperty;
 import org.openstreetmap.josm.data.preferences.StrokeProperty;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapFrame;
@@ -45,7 +45,6 @@ import org.openstreetmap.josm.gui.Notification;
 import org.openstreetmap.josm.gui.draw.MapViewPath;
 import org.openstreetmap.josm.gui.layer.AbstractMapViewPaintable;
 import org.openstreetmap.josm.gui.layer.Layer;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.util.ModifierExListener;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.Geometry;
@@ -104,7 +103,7 @@ public class ParallelWayAction extends MapMode implements ModifierExListener {
     private static final CachingProperty<Double> SNAP_DISTANCE_IMPERIAL = new DoubleProperty(prefKey("snap-distance-imperial"), 1).cached();
     private static final CachingProperty<Double> SNAP_DISTANCE_CHINESE  = new DoubleProperty(prefKey("snap-distance-chinese"), 1).cached();
     private static final CachingProperty<Double> SNAP_DISTANCE_NAUTICAL = new DoubleProperty(prefKey("snap-distance-nautical"), 0.1).cached();
-    private static final CachingProperty<Color> MAIN_COLOR = new ColorProperty(marktr("make parallel helper line"), Color.RED).cached();
+    private static final CachingProperty<Color> MAIN_COLOR = new NamedColorProperty(marktr("make parallel helper line"), Color.RED).cached();
 
     private static final CachingProperty<Map<Modifier, Boolean>> SNAP_MODIFIER_COMBO
             = new KeyboardModifiersProperty(prefKey("snap-modifier-combo"),             "?sC").cached();
@@ -211,8 +210,8 @@ public class ParallelWayAction extends MapMode implements ModifierExListener {
     }
 
     @Override
-    public boolean layerIsSupported(Layer layer) {
-        return layer instanceof OsmDataLayer;
+    public boolean layerIsSupported(Layer l) {
+        return isEditableDataLayer(l);
     }
 
     @Override
@@ -503,6 +502,8 @@ public class ParallelWayAction extends MapMode implements ModifierExListener {
         referenceSegment = mv.getNearestWaySegment(p, OsmPrimitive::isUsable, true);
         if (referenceSegment == null)
             return false;
+
+        sourceWays.removeIf(w -> w.isIncomplete() || w.getNodesCount() == 0);
 
         if (!sourceWays.contains(referenceSegment.way)) {
             clearSourceWays();

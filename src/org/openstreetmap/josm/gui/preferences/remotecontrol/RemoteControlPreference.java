@@ -27,6 +27,7 @@ import javax.swing.JPanel;
 import javax.swing.JSeparator;
 
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.preferences.DefaultTabPreferenceSetting;
 import org.openstreetmap.josm.gui.preferences.PreferenceSetting;
 import org.openstreetmap.josm.gui.preferences.PreferenceSettingFactory;
@@ -37,6 +38,7 @@ import org.openstreetmap.josm.io.remotecontrol.PermissionPrefWithDefault;
 import org.openstreetmap.josm.io.remotecontrol.RemoteControl;
 import org.openstreetmap.josm.io.remotecontrol.RemoteControlHttpsServer;
 import org.openstreetmap.josm.io.remotecontrol.handler.RequestHandler;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.PlatformHookWindows;
@@ -75,7 +77,7 @@ public final class RemoteControlPreference extends DefaultTabPreferenceSetting {
     private JButton installCertificate;
     private JButton uninstallCertificate;
 
-    private final JCheckBox loadInNewLayer = new JCheckBox(tr("Download objects to new layer"));
+    private final JCheckBox loadInNewLayer = new JCheckBox(tr("Download as new layer"));
     private final JCheckBox alwaysAskUserConfirm = new JCheckBox(tr("Confirm all Remote Control actions manually"));
 
     @Override
@@ -92,8 +94,8 @@ public final class RemoteControlPreference extends DefaultTabPreferenceSetting {
         final JLabel portLabel = new JLabel("<html>"
                 + tr("JOSM will always listen at <b>port {0}</b> (http) and <b>port {1}</b> (https) on localhost."
                 + "<br>These ports are not configurable because they are referenced by external applications talking to JOSM.",
-                Main.pref.get("remote.control.port", "8111"),
-                Main.pref.get("remote.control.https.port", "8112")) + "</html>");
+                Config.getPref().get("remote.control.port", "8111"),
+                Config.getPref().get("remote.control.https.port", "8112")) + "</html>");
         portLabel.setFont(portLabel.getFont().deriveFont(Font.PLAIN));
         remote.add(portLabel, GBC.eol().insets(5, 5, 0, 10).fill(GBC.HORIZONTAL));
 
@@ -166,8 +168,10 @@ public final class RemoteControlPreference extends DefaultTabPreferenceSetting {
 
         remote.add(Box.createVerticalGlue(), GBC.eol().fill(GBC.VERTICAL));
 
-        loadInNewLayer.setSelected(Main.pref.getBoolean(RequestHandler.loadInNewLayerKey, RequestHandler.loadInNewLayerDefault));
-        alwaysAskUserConfirm.setSelected(Main.pref.getBoolean(RequestHandler.globalConfirmationKey, RequestHandler.globalConfirmationDefault));
+        loadInNewLayer.setSelected(Config.getPref().getBoolean(
+                RequestHandler.loadInNewLayerKey, RequestHandler.loadInNewLayerDefault));
+        alwaysAskUserConfirm.setSelected(Config.getPref().getBoolean(
+                RequestHandler.globalConfirmationKey, RequestHandler.globalConfirmationDefault));
 
         ActionListener remoteControlEnabled = e -> {
             GuiHelper.setEnabledRec(wrapper, enableRemoteControl.isSelected());
@@ -195,10 +199,10 @@ public final class RemoteControlPreference extends DefaultTabPreferenceSetting {
         boolean httpsChanged = RemoteControl.PROP_REMOTECONTROL_HTTPS_ENABLED.put(httpsEnabled);
         if (enabled) {
             for (Entry<PermissionPrefWithDefault, JCheckBox> p : prefs.entrySet()) {
-                Main.pref.put(p.getKey().pref, p.getValue().isSelected());
+                Config.getPref().putBoolean(p.getKey().pref, p.getValue().isSelected());
             }
-            Main.pref.put(RequestHandler.loadInNewLayerKey, loadInNewLayer.isSelected());
-            Main.pref.put(RequestHandler.globalConfirmationKey, alwaysAskUserConfirm.isSelected());
+            Config.getPref().putBoolean(RequestHandler.loadInNewLayerKey, loadInNewLayer.isSelected());
+            Config.getPref().putBoolean(RequestHandler.globalConfirmationKey, alwaysAskUserConfirm.isSelected());
         }
         if (changed) {
             if (enabled) {
@@ -214,5 +218,10 @@ public final class RemoteControlPreference extends DefaultTabPreferenceSetting {
             }
         }
         return false;
+    }
+
+    @Override
+    public String getHelpContext() {
+        return HelpUtil.ht("/Preferences/RemoteControl");
     }
 }

@@ -26,6 +26,7 @@ public class OsmTileSource {
          */
         public Mapnik() {
             super("Mapnik", PATTERN, "MAPNIK");
+            modTileFeatures = true;
         }
 
         @Override

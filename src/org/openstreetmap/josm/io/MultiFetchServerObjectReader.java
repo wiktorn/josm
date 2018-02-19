@@ -23,7 +23,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.DataSetMerger;
 import org.openstreetmap.josm.data.osm.Node;
@@ -34,9 +33,9 @@ import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.SimplePrimitiveId;
 import org.openstreetmap.josm.data.osm.Way;
-import org.openstreetmap.josm.gui.preferences.server.OverpassServerPreference;
 import org.openstreetmap.josm.gui.progress.NullProgressMonitor;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -86,13 +85,13 @@ public class MultiFetchServerObjectReader extends OsmServerReader {
 
     /**
      * Creates a new instance of {@link MultiFetchServerObjectReader} or {@link MultiFetchOverpassObjectReader}
-     * depending on the {@link OverpassServerPreference#useForMultiFetch preference}.
+     * depending on the {@link OverpassDownloadReader#FOR_MULTI_FETCH preference}.
      *
      * @return a new instance
      * @since 9241
      */
     public static MultiFetchServerObjectReader create() {
-        return create(OverpassServerPreference.useForMultiFetch());
+        return create(OverpassDownloadReader.FOR_MULTI_FETCH.get());
     }
 
     /**
@@ -321,7 +320,7 @@ public class MultiFetchServerObjectReader extends OsmServerReader {
         Set<Long> toFetch = new HashSet<>(ids);
         // Build a list of fetchers that will  download smaller sets containing only MAX_IDS_PER_REQUEST (200) primitives each.
         // we will run up to MAX_DOWNLOAD_THREADS concurrent fetchers.
-        int threadsNumber = Main.pref.getInteger("osm.download.threads", OsmApi.MAX_DOWNLOAD_THREADS);
+        int threadsNumber = Config.getPref().getInt("osm.download.threads", OsmApi.MAX_DOWNLOAD_THREADS);
         threadsNumber = Utils.clamp(threadsNumber, 1, OsmApi.MAX_DOWNLOAD_THREADS);
         final ExecutorService exec = Executors.newFixedThreadPool(
                 threadsNumber, Utils.newThreadFactory(getClass() + "-%d", Thread.NORM_PRIORITY));

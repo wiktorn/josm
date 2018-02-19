@@ -19,12 +19,16 @@ import org.openstreetmap.josm.tools.Logging;
 import org.xml.sax.SAXException;
 
 /**
- * File importer that reads note dump files (*.osn, .osn.gz and .osn.bz2)
+ * File importer that reads note dump files (*.osn, .osn.gz, .osn.xz and .osn.bz2)
  * @since 7538
  */
 public class NoteImporter extends FileImporter {
 
-    private static final ExtensionFileFilter FILE_FILTER = ExtensionFileFilter.newFilterWithArchiveExtensions(
+    /**
+     * The Notes file filter (*.osn files).
+     * @since 13114
+     */
+    public static final ExtensionFileFilter FILE_FILTER = ExtensionFileFilter.newFilterWithArchiveExtensions(
             "osn", "osn", tr("Note Files"), true);
 
     /** Create an importer for note dump files */
@@ -63,13 +67,8 @@ public class NoteImporter extends FileImporter {
     public NoteLayer loadLayer(InputStream in, final File associatedFile, final String layerName, ProgressMonitor progressMonitor)
             throws SAXException, IOException {
         final List<Note> fileNotes = new NoteReader(in).parse();
-        List<NoteLayer> noteLayers = null;
-        if (MainApplication.getMap() != null) {
-            noteLayers = MainApplication.getLayerManager().getLayersOfType(NoteLayer.class);
-        }
-        final NoteLayer layer;
-        if (noteLayers != null && !noteLayers.isEmpty()) {
-            layer = noteLayers.get(0);
+        NoteLayer layer = MainApplication.getLayerManager().getNoteLayer();
+        if (layer != null) {
             layer.getNoteData().addNotes(fileNotes);
         } else {
             layer = new NoteLayer(fileNotes, associatedFile != null ? associatedFile.getName() : tr("Notes"));

@@ -12,8 +12,11 @@ import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.EventQueue;
 import java.awt.Font;
+import java.awt.GraphicsEnvironment;
 import java.awt.GridBagLayout;
+import java.awt.MouseInfo;
 import java.awt.Point;
+import java.awt.PointerInfo;
 import java.awt.SystemColor;
 import java.awt.Toolkit;
 import java.awt.event.AWTEventListener;
@@ -32,6 +35,7 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.TreeSet;
@@ -55,8 +59,7 @@ import javax.swing.event.PopupMenuEvent;
 import javax.swing.event.PopupMenuListener;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.data.Preferences.PreferenceChangeEvent;
-import org.openstreetmap.josm.data.Preferences.PreferenceChangedListener;
+import org.openstreetmap.josm.data.SelectionChangedListener;
 import org.openstreetmap.josm.data.SystemOfMeasurement;
 import org.openstreetmap.josm.data.SystemOfMeasurement.SoMChangeListener;
 import org.openstreetmap.josm.data.coor.LatLon;
@@ -66,22 +69,41 @@ import org.openstreetmap.josm.data.coor.conversion.ICoordinateFormat;
 import org.openstreetmap.josm.data.coor.conversion.ProjectedCoordinateFormat;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
+import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
+import org.openstreetmap.josm.data.osm.event.AbstractDatasetChangedEvent;
+import org.openstreetmap.josm.data.osm.event.DataChangedEvent;
+import org.openstreetmap.josm.data.osm.event.DataSetListener;
+import org.openstreetmap.josm.data.osm.event.DatasetEventManager;
+import org.openstreetmap.josm.data.osm.event.DatasetEventManager.FireMode;
+import org.openstreetmap.josm.data.osm.event.NodeMovedEvent;
+import org.openstreetmap.josm.data.osm.event.PrimitivesAddedEvent;
+import org.openstreetmap.josm.data.osm.event.PrimitivesRemovedEvent;
+import org.openstreetmap.josm.data.osm.event.RelationMembersChangedEvent;
+import org.openstreetmap.josm.data.osm.event.SelectionEventManager;
+import org.openstreetmap.josm.data.osm.event.TagsChangedEvent;
+import org.openstreetmap.josm.data.osm.event.WayNodesChangedEvent;
 import org.openstreetmap.josm.data.preferences.AbstractProperty;
 import org.openstreetmap.josm.data.preferences.BooleanProperty;
-import org.openstreetmap.josm.data.preferences.ColorProperty;
 import org.openstreetmap.josm.data.preferences.DoubleProperty;
+import org.openstreetmap.josm.data.preferences.NamedColorProperty;
+import org.openstreetmap.josm.gui.NavigatableComponent.ZoomChangeListener;
 import org.openstreetmap.josm.gui.help.Helpful;
 import org.openstreetmap.josm.gui.progress.swing.PleaseWaitProgressMonitor;
 import org.openstreetmap.josm.gui.progress.swing.PleaseWaitProgressMonitor.ProgressMonitorDialog;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.ImageLabel;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
+import org.openstreetmap.josm.spi.preferences.Config;
+import org.openstreetmap.josm.spi.preferences.PreferenceChangeEvent;
+import org.openstreetmap.josm.spi.preferences.PreferenceChangedListener;
+import org.openstreetmap.josm.tools.ColorHelper;
 import org.openstreetmap.josm.tools.Destroyable;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Logging;
+import org.openstreetmap.josm.tools.SubclassFilteredCollection;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -97,9 +119,10 @@ import org.openstreetmap.josm.tools.Utils;
  *
  * @author imi
  */
-public final class MapStatus extends JPanel implements Helpful, Destroyable, PreferenceChangedListener, SoMChangeListener {
+public final class MapStatus extends JPanel implements
+    Helpful, Destroyable, PreferenceChangedListener, SoMChangeListener, SelectionChangedListener, DataSetListener, ZoomChangeListener {
 
-    private final DecimalFormat DECIMAL_FORMAT = new DecimalFormat(Main.pref.get("statusbar.decimal-format", "0.0"));
+    private final DecimalFormat DECIMAL_FORMAT = new DecimalFormat(Config.getPref().get("statusbar.decimal-format", "0.0"));
     private static final AbstractProperty<Double> DISTANCE_THRESHOLD = new DoubleProperty("statusbar.distance-threshold", 0.01).cached();
 
     private static final AbstractProperty<Boolean> SHOW_ID = new BooleanProperty("osm-primitives.showid", false);
@@ -108,28 +131,28 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
      * Property for map status background color.
      * @since 6789
      */
-    public static final ColorProperty PROP_BACKGROUND_COLOR = new ColorProperty(
-            marktr("Status bar background"), "#b8cfe5");
+    public static final NamedColorProperty PROP_BACKGROUND_COLOR = new NamedColorProperty(
+            marktr("Status bar background"), ColorHelper.html2color("#b8cfe5"));
 
     /**
      * Property for map status background color (active state).
      * @since 6789
      */
-    public static final ColorProperty PROP_ACTIVE_BACKGROUND_COLOR = new ColorProperty(
-            marktr("Status bar background: active"), "#aaff5e");
+    public static final NamedColorProperty PROP_ACTIVE_BACKGROUND_COLOR = new NamedColorProperty(
+            marktr("Status bar background: active"), ColorHelper.html2color("#aaff5e"));
 
     /**
      * Property for map status foreground color.
      * @since 6789
      */
-    public static final ColorProperty PROP_FOREGROUND_COLOR = new ColorProperty(
+    public static final NamedColorProperty PROP_FOREGROUND_COLOR = new NamedColorProperty(
             marktr("Status bar foreground"), Color.black);
 
     /**
      * Property for map status foreground color (active state).
      * @since 6789
      */
-    public static final ColorProperty PROP_ACTIVE_FOREGROUND_COLOR = new ColorProperty(
+    public static final NamedColorProperty PROP_ACTIVE_FOREGROUND_COLOR = new NamedColorProperty(
             marktr("Status bar foreground: active"), Color.black);
 
     /**
@@ -303,7 +326,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
                 boolean isAtOldPosition = mouseNotMoved && popup != null;
                 boolean middleMouseDown = (ms.modifiers & MouseEvent.BUTTON2_DOWN_MASK) != 0;
 
-                ds = mv.getLayerManager().getEditDataSet();
+                ds = mv.getLayerManager().getActiveDataSet();
                 if (ds != null) {
                     // This is not perfect, if current dataset was changed during execution, the lock would be useless
                     if (isAtOldPosition && middleMouseDown) {
@@ -488,7 +511,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
          * @param mods modifiers (i.e. control keys)
          */
         private void popupCycleSelection(Collection<OsmPrimitive> osms, int mods) {
-            DataSet ds = MainApplication.getLayerManager().getEditDataSet();
+            DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
             // Find some items that are required for cycling through
             OsmPrimitive firstItem = null;
             OsmPrimitive firstSelected = null;
@@ -579,7 +602,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
          * @param osm The primitive to derive the colors from
          */
         private void popupSetLabelColors(JLabel lbl, OsmPrimitive osm) {
-            DataSet ds = MainApplication.getLayerManager().getEditDataSet();
+            DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
             if (ds.isSelected(osm)) {
                 lbl.setBackground(SystemColor.textHighlight);
                 lbl.setForeground(SystemColor.textHighlightText);
@@ -652,7 +675,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
 
                 @Override
                 public void mouseClicked(MouseEvent e) {
-                    DataSet ds = MainApplication.getLayerManager().getEditDataSet();
+                    DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
                     // Let the user toggle the selection
                     ds.toggleSelected(osm);
                     l.validate();
@@ -669,8 +692,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
 
                  @Override
                  public void mouseDragged(MouseEvent e) {
-                    l.setBackground(SystemColor.info);
-                    l.setForeground(SystemColor.infoText);
+                     mouseMoved(e);
                  }
             });
             return l;
@@ -774,7 +796,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
             @Override
             public void actionPerformed(ActionEvent e) {
                 boolean sel = ((JCheckBoxMenuItem) e.getSource()).getState();
-                Main.pref.put("statusbar.always-visible", sel);
+                Config.getPref().putBoolean("statusbar.always-visible", sel);
             }
         });
 
@@ -819,7 +841,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
                         item.setVisible(latText.equals(invoker) || lonText.equals(invoker));
                     }
                     separator.setVisible(distText.equals(invoker) || latText.equals(invoker) || lonText.equals(invoker));
-                    doNotHide.setSelected(Main.pref.getBoolean("statusbar.always-visible", true));
+                    doNotHide.setSelected(Config.getPref().getBoolean("statusbar.always-visible", true));
                 }
 
                 @Override
@@ -873,27 +895,9 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
             public void mouseMoved(MouseEvent e) {
                 if (mv.getCenter() == null)
                     return;
-                // Do not update the view if ctrl is pressed.
-                if ((e.getModifiersEx() & MouseEvent.CTRL_DOWN_MASK) == 0) {
-                    ICoordinateFormat mCord = CoordinateFormatManager.getDefaultFormat();
-                    LatLon p = mv.getLatLon(e.getX(), e.getY());
-                    latText.setText(mCord.latToString(p));
-                    lonText.setText(mCord.lonToString(p));
-                    if (Objects.equals(previousCoordinateFormat, mCord)) {
-                        // do nothing
-                    } else if (ProjectedCoordinateFormat.INSTANCE.equals(mCord)) {
-                        latText.setIcon("northing");
-                        lonText.setIcon("easting");
-                        latText.setToolTipText(tr("The northing at the mouse pointer."));
-                        lonText.setToolTipText(tr("The easting at the mouse pointer."));
-                        previousCoordinateFormat = mCord;
-                    } else {
-                        latText.setIcon("lat");
-                        lonText.setIcon("lon");
-                        latText.setToolTipText(tr("The geographic latitude at the mouse pointer."));
-                        lonText.setToolTipText(tr("The geographic longitude at the mouse pointer."));
-                        previousCoordinateFormat = mCord;
-                    }
+                // Do not update the view if ctrl or right button is pressed.
+                if ((e.getModifiersEx() & (MouseEvent.CTRL_DOWN_MASK | MouseEvent.BUTTON3_DOWN_MASK)) == 0) {
+                    updateLatLonText(e.getX(), e.getY());
                 }
             }
         });
@@ -913,7 +917,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
         add(angleText, GBC.std().insets(3, 0, 0, 0));
         add(distText, GBC.std().insets(3, 0, 0, 0));
 
-        if (Main.pref.getBoolean("statusbar.change-system-of-measurement-on-click", true)) {
+        if (Config.getPref().getBoolean("statusbar.change-system-of-measurement-on-click", true)) {
             distText.addMouseListener(new MouseAdapter() {
                 private final List<String> soms = new ArrayList<>(new TreeSet<>(SystemOfMeasurement.ALL_SYSTEMS.keySet()));
 
@@ -929,6 +933,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
         }
 
         SystemOfMeasurement.addSoMChangeListener(this);
+        NavigatableComponent.addZoomChangeListener(this);
 
         latText.addMouseListener(jumpToOnLeftClick);
         lonText.addMouseListener(jumpToOnLeftClick);
@@ -944,7 +949,9 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
         add(progressBar, gbc);
         progressBar.addMouseListener(new ShowMonitorDialogMouseAdapter());
 
-        Main.pref.addPreferenceChangeListener(this);
+        Config.getPref().addPreferenceChangeListener(this);
+        DatasetEventManager.getInstance().addDatasetListener(this, FireMode.IN_EDT);
+        SelectionEventManager.getInstance().addSelectionListener(this, FireMode.IN_EDT_CONSOLIDATED);
 
         mvComponentAdapter = new ComponentAdapter() {
             @Override
@@ -961,6 +968,28 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
         thread.start();
     }
 
+    private void updateLatLonText(int x, int y) {
+        LatLon p = mv.getLatLon(x, y);
+        ICoordinateFormat mCord = CoordinateFormatManager.getDefaultFormat();
+        latText.setText(mCord.latToString(p));
+        lonText.setText(mCord.lonToString(p));
+        if (Objects.equals(previousCoordinateFormat, mCord)) {
+            // do nothing
+        } else if (ProjectedCoordinateFormat.INSTANCE.equals(mCord)) {
+            latText.setIcon("northing");
+            lonText.setIcon("easting");
+            latText.setToolTipText(tr("The northing at the mouse pointer."));
+            lonText.setToolTipText(tr("The easting at the mouse pointer."));
+            previousCoordinateFormat = mCord;
+        } else {
+            latText.setIcon("lat");
+            lonText.setIcon("lon");
+            latText.setToolTipText(tr("The geographic latitude at the mouse pointer."));
+            lonText.setToolTipText(tr("The geographic longitude at the mouse pointer."));
+            previousCoordinateFormat = mCord;
+        }
+    }
+
     @Override
     public void systemOfMeasurementChanged(String oldSoM, String newSoM) {
         setDist(distValue);
@@ -973,7 +1002,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
      */
     public void updateSystemOfMeasurement(String newsom) {
         SystemOfMeasurement.setSystemOfMeasurement(newsom);
-        if (Main.pref.getBoolean("statusbar.notify.change-system-of-measurement", true)) {
+        if (Config.getPref().getBoolean("statusbar.notify.change-system-of-measurement", true)) {
             new Notification(tr("System of measurement changed to {0}", newsom))
                 .setDuration(Notification.TIME_SHORT)
                 .show();
@@ -1012,7 +1041,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
      * @param id The object that caused the status update (or a id object it selects). May be <code>null</code>
      * @param text The text
      */
-    public void setHelpText(Object id, final String text) {
+    public synchronized void setHelpText(Object id, final String text) {
         StatusTextHistory entry = new StatusTextHistory(id, text);
 
         statusText.remove(entry);
@@ -1028,7 +1057,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
      * Removes a help text and restores the previous one
      * @param id The id passed to {@link #setHelpText(Object, String)}
      */
-    public void resetHelpText(Object id) {
+    public synchronized void resetHelpText(Object id) {
         if (statusText.isEmpty())
             return;
 
@@ -1078,7 +1107,7 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
         double dist = -1;
         // Compute total length of selected way(s) until an arbitrary limit set to 250 ways
         // in order to prevent performance issue if a large number of ways are selected (old behaviour kept in that case, see #8403)
-        int maxWays = Math.max(1, Main.pref.getInteger("selection.max-ways-for-statusline", 250));
+        int maxWays = Math.max(1, Config.getPref().getInt("selection.max-ways-for-statusline", 250));
         if (!ways.isEmpty() && ways.size() <= maxWays) {
             dist = 0.0;
             for (Way w : ways) {
@@ -1105,7 +1134,10 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
     @Override
     public void destroy() {
         SystemOfMeasurement.removeSoMChangeListener(this);
-        Main.pref.removePreferenceChangeListener(this);
+        NavigatableComponent.removeZoomChangeListener(this);
+        Config.getPref().removePreferenceChangeListener(this);
+        DatasetEventManager.getInstance().removeDatasetListener(this);
+        SelectionEventManager.getInstance().removeSelectionListener(this);
         mv.removeComponentListener(mvComponentAdapter);
 
         // MapFrame gets destroyed when the last layer is removed, but the status line background
@@ -1150,5 +1182,85 @@ public final class MapStatus extends JPanel implements Helpful, Destroyable, Pre
     private static int getNameLabelCharacterCount(Component parent) {
         int w = parent != null ? parent.getWidth() : 800;
         return Math.min(80, 20 + Math.max(0, w-1280) * 60 / (1920-1280));
+    }
+
+    private void refreshDistText(Collection<? extends OsmPrimitive> newSelection) {
+        if (newSelection.size() == 2) {
+            Iterator<? extends OsmPrimitive> it = newSelection.iterator();
+            OsmPrimitive n1 = it.next();
+            OsmPrimitive n2 = it.next();
+            // show distance between two selected nodes with coordinates
+            if (n1 instanceof Node && n2 instanceof Node) {
+                LatLon c1 = ((Node) n1).getCoor();
+                LatLon c2 = ((Node) n2).getCoor();
+                if (c1 != null && c2 != null) {
+                    setDist(c1.greatCircleDistance(c2));
+                    return;
+                }
+            }
+        }
+        setDist(new SubclassFilteredCollection<OsmPrimitive, Way>(newSelection, Way.class::isInstance));
+    }
+
+    @Override
+    public void selectionChanged(Collection<? extends OsmPrimitive> newSelection) {
+        refreshDistText(newSelection);
+    }
+
+    @Override
+    public void zoomChanged() {
+        if (!GraphicsEnvironment.isHeadless()) {
+            PointerInfo pointerInfo = MouseInfo.getPointerInfo();
+            if (pointerInfo != null) {
+                Point mp = pointerInfo.getLocation();
+                updateLatLonText(mp.x, mp.y);
+            }
+        }
+    }
+
+    @Override
+    public void wayNodesChanged(WayNodesChangedEvent event) {
+        Collection<OsmPrimitive> sel = event.getDataset().getSelected();
+        if (sel.size() == 1 && sel.contains(event.getChangedWay())) {
+            refreshDistText(sel);
+        }
+    }
+
+    @Override
+    public void nodeMoved(NodeMovedEvent event) {
+        Collection<OsmPrimitive> sel = event.getDataset().getSelected();
+        if (sel.size() == 2 && sel.contains(event.getNode())) {
+            refreshDistText(sel);
+        }
+    }
+
+    @Override
+    public void primitivesAdded(PrimitivesAddedEvent event) {
+        // Do nothing
+    }
+
+    @Override
+    public void primitivesRemoved(PrimitivesRemovedEvent event) {
+        // Do nothing
+    }
+
+    @Override
+    public void tagsChanged(TagsChangedEvent event) {
+        // Do nothing
+    }
+
+    @Override
+    public void relationMembersChanged(RelationMembersChangedEvent event) {
+        // Do nothing
+    }
+
+    @Override
+    public void otherDatasetChange(AbstractDatasetChangedEvent event) {
+        // Do nothing
+    }
+
+    @Override
+    public void dataChanged(DataChangedEvent event) {
+        // Do nothing
     }
 }

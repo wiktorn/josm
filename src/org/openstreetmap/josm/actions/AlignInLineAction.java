@@ -20,6 +20,7 @@ import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.MoveCommand;
 import org.openstreetmap.josm.command.SequenceCommand;
 import org.openstreetmap.josm.data.coor.EastNorth;
+import org.openstreetmap.josm.data.coor.PolarCoor;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
@@ -171,7 +172,10 @@ public final class AlignInLineAction extends JosmAction {
             return;
 
         try {
-            MainApplication.undoRedo.add(buildCommand());
+            Command cmd = buildCommand(getLayerManager().getEditDataSet());
+            if (cmd != null) {
+                MainApplication.undoRedo.add(cmd);
+            }
         } catch (InvalidSelection except) {
             Logging.debug(except);
             new Notification(except.getMessage())
@@ -182,12 +186,12 @@ public final class AlignInLineAction extends JosmAction {
 
     /**
      * Builds "align in line" command depending on the selected objects.
+     * @param ds data set in which the command operates
      * @return the resulting command to execute to perform action
      * @throws InvalidSelection if a polygon is selected, or if a node is used by 3 or more ways
-     * @since 12562
+     * @since 13108
      */
-    public Command buildCommand() throws InvalidSelection {
-        DataSet ds = getLayerManager().getEditDataSet();
+    public Command buildCommand(DataSet ds) throws InvalidSelection {
         List<Node> selectedNodes = new ArrayList<>(ds.getSelectedNodes());
         List<Way> selectedWays = new ArrayList<>(ds.getSelectedWays());
         selectedWays.removeIf(OsmPrimitive::isIncomplete);
@@ -254,6 +258,9 @@ public final class AlignInLineAction extends JosmAction {
             nodes.addAll(w.getNodes());
             lines.put(w, new Line(w));
         }
+        if (nodes.isEmpty()) {
+            throw new InvalidSelection(tr("Intersection of three or more ways can not be solved. Abort."));
+        }
         Collection<Command> cmds = new ArrayList<>(nodes.size());
         List<Way> referers = new ArrayList<>(ways.size());
         for (Node n: nodes) {
@@ -267,12 +274,11 @@ public final class AlignInLineAction extends JosmAction {
                 if (way.isFirstLastNode(n)) continue;
                 cmds.add(lines.get(way).projectionCommand(n));
             } else if (referers.size() == 2) {
-                Command cmd = lines.get(referers.get(0)).intersectionCommand(n, lines.get(referers.get(1)));
-                cmds.add(cmd);
+                cmds.add(lines.get(referers.get(0)).intersectionCommand(n, lines.get(referers.get(1))));
             } else
                 throw new InvalidSelection(tr("Intersection of three or more ways can not be solved. Abort."));
         }
-        return new SequenceCommand(tr("Align Nodes in Line"), cmds);
+        return cmds.isEmpty() ? null : new SequenceCommand(tr("Align Nodes in Line"), cmds);
     }
 
     /**
@@ -305,8 +311,7 @@ public final class AlignInLineAction extends JosmAction {
                 EastNorth c = node.getEastNorth();
                 double[] angle = new double[4];
                 for (int i = 0; i < 4; i++) {
-                    EastNorth p = neighbors.get(i).getEastNorth();
-                    angle[i] = Math.atan2(p.north() - c.north(), p.east() - c.east());
+                    angle[i] = PolarCoor.computeAngle(neighbors.get(i).getEastNorth(), c);
                 }
                 double[] deltaAngle = new double[3];
                 for (int i = 0; i < 3; i++) {
@@ -428,6 +433,6 @@ public final class AlignInLineAction extends JosmAction {
 
     @Override
     protected void updateEnabledState(Collection<? extends OsmPrimitive> selection) {
-        setEnabled(selection != null && !selection.isEmpty());
+        updateEnabledStateOnModifiableSelection(selection);
     }
 }

@@ -16,7 +16,11 @@ import java.util.Set;
  * Deforms an image geometrically according to a given transformation formula.
  * @since 11858
  */
-public class ImageWarp {
+public final class ImageWarp {
+
+    private ImageWarp() {
+        // Hide default constructor
+    }
 
     /**
      * Transformation that translates the pixel coordinates.
@@ -86,13 +90,7 @@ public class ImageWarp {
         }
 
         private Point2D getValue(int xIdx, int yIdx) {
-            Map<Integer, Point2D> row = getRow(yIdx);
-            Point2D val = row.get(xIdx);
-            if (val == null) {
-                val = trfm.transform(new Point2D.Double(xIdx * stride, yIdx * stride));
-                row.put(xIdx, val);
-            }
-            return val;
+            return getRow(yIdx).computeIfAbsent(xIdx, k -> trfm.transform(new Point2D.Double(xIdx * stride, yIdx * stride)));
         }
 
         private Map<Integer, Point2D> getRow(int yIdx) {

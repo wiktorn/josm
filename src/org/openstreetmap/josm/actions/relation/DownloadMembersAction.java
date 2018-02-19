@@ -27,7 +27,7 @@ public class DownloadMembersAction extends AbstractRelationAction {
     public DownloadMembersAction() {
         putValue(SHORT_DESCRIPTION, tr("Download all members of the selected relations"));
         putValue(NAME, tr("Download members"));
-        putValue(SMALL_ICON, ImageProvider.get("dialogs", "downloadincomplete"));
+        new ImageProvider("dialogs", "downloadincomplete").getResource().attachImageIcon(this, true);
         putValue("help", ht("/Dialog/RelationList#DownloadMembers"));
     }
 
@@ -46,6 +46,7 @@ public class DownloadMembersAction extends AbstractRelationAction {
 
     @Override
     protected void updateEnabledState() {
-        setEnabled(!relations.isEmpty() && !Main.isOffline(OnlineResource.OSM_API));
+        setEnabled(!relations.isEmpty() && !Main.isOffline(OnlineResource.OSM_API)
+                && !relations.iterator().next().getDataSet().isReadOnly());
     }
 }

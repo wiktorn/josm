@@ -13,11 +13,13 @@ import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Scanner;
 import java.util.TreeMap;
@@ -35,6 +37,7 @@ import org.openstreetmap.josm.io.ProgressInputStream;
 import org.openstreetmap.josm.io.ProgressOutputStream;
 import org.openstreetmap.josm.io.UTFInputStreamReader;
 import org.openstreetmap.josm.io.auth.DefaultAuthenticator;
+import org.openstreetmap.josm.spi.preferences.Config;
 
 /**
  * Provides a uniform access for a HTTP/HTTPS server. This class should be used in favour of {@link HttpURLConnection}.
@@ -44,18 +47,26 @@ public final class HttpClient {
 
     private URL url;
     private final String requestMethod;
-    private int connectTimeout = (int) TimeUnit.SECONDS.toMillis(Main.pref.getInteger("socket.timeout.connect", 15));
-    private int readTimeout = (int) TimeUnit.SECONDS.toMillis(Main.pref.getInteger("socket.timeout.read", 30));
+    private int connectTimeout = (int) TimeUnit.SECONDS.toMillis(Config.getPref().getInt("socket.timeout.connect", 15));
+    private int readTimeout = (int) TimeUnit.SECONDS.toMillis(Config.getPref().getInt("socket.timeout.read", 30));
     private byte[] requestBody;
     private long ifModifiedSince;
     private final Map<String, String> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-    private int maxRedirects = Main.pref.getInteger("socket.maxredirects", 5);
+    private int maxRedirects = Config.getPref().getInt("socket.maxredirects", 5);
     private boolean useCache;
     private String reasonForRequest;
     private String outputMessage = tr("Uploading data ...");
     private HttpURLConnection connection; // to allow disconnecting before `response` is set
     private Response response;
     private boolean finishOnCloseOutput = true;
+
+    // Pattern to detect Tomcat error message. Be careful with change of format:
+    // CHECKSTYLE.OFF: LineLength
+    // https://svn.apache.org/viewvc/tomcat/trunk/java/org/apache/catalina/valves/ErrorReportValve.java?r1=1740707&r2=1779641&pathrev=1779641&diff_format=h
+    // CHECKSTYLE.ON: LineLength
+    private static final Pattern TOMCAT_ERR_MESSAGE = Pattern.compile(
+        ".*<p><b>[^<]+</b>[^<]+</p><p><b>[^<]+</b> (?:<u>)?([^<]*)(?:</u>)?</p><p><b>[^<]+</b> (?:<u>)?[^<]*(?:</u>)?</p>.*",
+        Pattern.CASE_INSENSITIVE);
 
     static {
         CookieHandler.setDefault(new CookieManager());
@@ -112,6 +123,9 @@ public final class HttpClient {
 
         if ("PUT".equals(requestMethod) || "POST".equals(requestMethod) || "DELETE".equals(requestMethod)) {
             Logging.info("{0} {1} ({2}) ...", requestMethod, url, Utils.getSizeString(requestBody.length, Locale.getDefault()));
+            if (Logging.isTraceEnabled() && requestBody.length > 0) {
+                Logging.trace("BODY: {0}", new String(requestBody, StandardCharsets.UTF_8));
+            }
             connection.setFixedLengthStreamingMode(requestBody.length);
             connection.setDoOutput(true);
             try (OutputStream out = new BufferedOutputStream(
@@ -139,7 +153,7 @@ public final class HttpClient {
                 if (DefaultAuthenticator.getInstance().isEnabled() && connection.getResponseCode() == HttpURLConnection.HTTP_UNAUTHORIZED) {
                     DefaultAuthenticator.getInstance().addFailedCredentialHost(url.getHost());
                 }
-            } catch (IOException e) {
+            } catch (IOException | IllegalArgumentException | NoSuchElementException e) {
                 Logging.info("{0} {1} -> !!!", requestMethod, url);
                 Logging.warn(e);
                 //noinspection ThrowableResultOfMethodCallIgnored
@@ -679,5 +693,16 @@ public final class HttpClient {
             }
             connection.disconnect();
         }
+    }
+
+    /**
+     * Returns a {@link Matcher} against predefined Tomcat error messages.
+     * If it matches, error message can be extracted from {@code group(1)}.
+     * @param data HTML contents to check
+     * @return a {@link Matcher} against predefined Tomcat error messages
+     * @since 13358
+     */
+    public static Matcher getTomcatErrorMatcher(String data) {
+        return data != null ? TOMCAT_ERR_MESSAGE.matcher(data) : null;
     }
 }

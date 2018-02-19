@@ -42,7 +42,9 @@ import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.progress.swing.PleaseWaitProgressMonitor;
+import org.openstreetmap.josm.gui.util.WindowGeometry;
 import org.openstreetmap.josm.gui.widgets.HistoryComboBox;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Shortcut;
@@ -57,7 +59,11 @@ public class OpenLocationAction extends JosmAction {
     /**
      * true if the URL needs to be opened in a new layer, false otherwise
      */
-    private static final BooleanProperty USE_NEW_LAYER = new BooleanProperty("download.newlayer", false);
+    private static final BooleanProperty USE_NEW_LAYER = new BooleanProperty("download.location.newlayer", false);
+    /**
+     * true to zoom to entire newly downloaded data, false otherwise
+     */
+    private static final BooleanProperty DOWNLOAD_ZOOMTODATA = new BooleanProperty("download.location.zoomtodata", true);
     /**
      * the list of download tasks
      */
@@ -103,7 +109,7 @@ public class OpenLocationAction extends JosmAction {
      * @param cbHistory the history combo box
      */
     protected void restoreUploadAddressHistory(HistoryComboBox cbHistory) {
-        List<String> cmtHistory = new LinkedList<>(Main.pref.getCollection(getClass().getName() + ".uploadAddressHistory",
+        List<String> cmtHistory = new LinkedList<>(Config.getPref().getList(getClass().getName() + ".uploadAddressHistory",
                 new LinkedList<String>()));
         // we have to reverse the history, because ComboBoxHistory will reverse it again in addElement()
         //
@@ -117,7 +123,7 @@ public class OpenLocationAction extends JosmAction {
      */
     protected void remindUploadAddressHistory(HistoryComboBox cbHistory) {
         cbHistory.addCurrentItemToHistory();
-        Main.pref.putCollection(getClass().getName() + ".uploadAddressHistory", cbHistory.getHistory());
+        Config.getPref().putList(getClass().getName() + ".uploadAddressHistory", cbHistory.getHistory());
     }
 
     @Override
@@ -132,10 +138,18 @@ public class OpenLocationAction extends JosmAction {
         all.add(uploadAddresses, GBC.eop().fill(GBC.BOTH));
 
         // use separate layer
-        JCheckBox layer = new JCheckBox(tr("Separate Layer"));
+        JCheckBox layer = new JCheckBox(tr("Download as new layer"));
         layer.setToolTipText(tr("Select if the data should be downloaded into a new layer"));
         layer.setSelected(USE_NEW_LAYER.get());
         all.add(layer, GBC.eop().fill(GBC.BOTH));
+
+        // zoom to downloaded data
+        JCheckBox zoom = new JCheckBox(tr("Zoom to downloaded data"));
+        zoom.setToolTipText(tr("Select to zoom to entire newly downloaded data."));
+        zoom.setSelected(DOWNLOAD_ZOOMTODATA.get());
+        all.add(zoom, GBC.eop().fill(GBC.BOTH));
+
+        ExpertToggleAction.addVisibilitySwitcher(zoom);
 
         ExtendedDialog dialog = new ExtendedDialog(Main.parent,
                 tr("Download Location"),
@@ -146,8 +160,13 @@ public class OpenLocationAction extends JosmAction {
                 tr("Start downloading data"),
                 tr("Close dialog and cancel downloading"))
             .configureContextsensitiveHelp("/Action/OpenLocation", true /* show help button */);
+        dialog.setupDialog();
+        dialog.pack();
+        dialog.setRememberWindowGeometry(getClass().getName() + ".geometry",
+                    WindowGeometry.centerInWindow(Main.parent, dialog.getPreferredSize()));
         if (dialog.showDialog().getValue() == 1) {
             USE_NEW_LAYER.put(layer.isSelected());
+            DOWNLOAD_ZOOMTODATA.put(zoom.isSelected());
             remindUploadAddressHistory(uploadAddresses);
             openUrl(Utils.strip(uploadAddresses.getText()));
         }
@@ -205,7 +224,7 @@ public class OpenLocationAction extends JosmAction {
      * @since 11986 (return type)
      */
     public List<Future<?>> openUrl(boolean newLayer, String url) {
-        return realOpenUrl(newLayer, url);
+        return openUrl(newLayer, DOWNLOAD_ZOOMTODATA.get(), url);
     }
 
     /**
@@ -215,10 +234,18 @@ public class OpenLocationAction extends JosmAction {
      * @since 11986 (return type)
      */
     public List<Future<?>> openUrl(String url) {
-        return realOpenUrl(USE_NEW_LAYER.get(), url);
+        return openUrl(USE_NEW_LAYER.get(), DOWNLOAD_ZOOMTODATA.get(), url);
     }
 
-    private List<Future<?>> realOpenUrl(boolean newLayer, String url) {
+    /**
+     * Open the given URL.
+     * @param newLayer true if the URL needs to be opened in a new layer, false otherwise
+     * @param zoomToData true to zoom to entire newly downloaded data, false otherwise
+     * @param url The URL to open
+     * @return the list of tasks that have been started successfully (can be empty).
+     * @since 13261
+     */
+    public List<Future<?>> openUrl(boolean newLayer, boolean zoomToData, String url) {
         Collection<DownloadTask> tasks = findDownloadTasks(url, false);
 
         if (tasks.size() > 1) {
@@ -233,6 +260,7 @@ public class OpenLocationAction extends JosmAction {
         List<Future<?>> result = new ArrayList<>();
         for (final DownloadTask task : tasks) {
             try {
+                task.setZoomAfterDownload(zoomToData);
                 result.add(MainApplication.worker.submit(new PostDownloadHandler(task, task.loadUrl(newLayer, url, monitor))));
             } catch (IllegalArgumentException e) {
                 Logging.error(e);
@@ -247,7 +275,7 @@ public class OpenLocationAction extends JosmAction {
      * @return the selected tasks from the user or an empty list if the dialog has been canceled
      */
     Collection<DownloadTask> askWhichTasksToLoad(final Collection<DownloadTask> tasks) {
-        final JList<DownloadTask> list = new JList<>(tasks.toArray(new DownloadTask[tasks.size()]));
+        final JList<DownloadTask> list = new JList<>(tasks.toArray(new DownloadTask[0]));
         list.addSelectionInterval(0, tasks.size() - 1);
         final ExtendedDialog dialog = new WhichTasksToPerformDialog(list);
         dialog.showDialog();

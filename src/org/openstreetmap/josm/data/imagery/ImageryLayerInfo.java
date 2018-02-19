@@ -18,12 +18,14 @@ import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.StructUtils;
 import org.openstreetmap.josm.data.imagery.ImageryInfo.ImageryPreferenceEntry;
 import org.openstreetmap.josm.gui.PleaseWaitRunnable;
 import org.openstreetmap.josm.io.CachedFile;
 import org.openstreetmap.josm.io.OfflineAccessException;
 import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.io.imagery.ImageryReader;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 import org.xml.sax.SAXException;
@@ -56,7 +58,7 @@ public class ImageryLayerInfo {
      * @since 7434
      */
     public static Collection<String> getImageryLayersSites() {
-        return Main.pref.getCollection("imagery.layers.sites", Arrays.asList(DEFAULT_LAYER_SITES));
+        return Config.getPref().getList("imagery.layers.sites", Arrays.asList(DEFAULT_LAYER_SITES));
     }
 
     private ImageryLayerInfo() {
@@ -84,7 +86,8 @@ public class ImageryLayerInfo {
      */
     public void load(boolean fastFail) {
         clear();
-        List<ImageryPreferenceEntry> entries = Main.pref.getListOfStructs("imagery.entries", null, ImageryPreferenceEntry.class);
+        List<ImageryPreferenceEntry> entries = StructUtils.getListOfStructs(
+                Config.getPref(), "imagery.entries", null, ImageryPreferenceEntry.class);
         if (entries != null) {
             for (ImageryPreferenceEntry prefEntry : entries) {
                 try {
@@ -235,7 +238,7 @@ public class ImageryLayerInfo {
     public void updateEntriesFromDefaults(boolean dropold) {
         // add new default entries to the user selection
         boolean changed = false;
-        Collection<String> knownDefaults = new TreeSet<>(Main.pref.getCollection("imagery.layers.default"));
+        Collection<String> knownDefaults = new TreeSet<>(Config.getPref().getList("imagery.layers.default"));
         Collection<String> newKnownDefaults = new TreeSet<>();
         for (ImageryInfo def : defaultLayers) {
             if (def.isDefaultEntry()) {
@@ -278,7 +281,7 @@ public class ImageryLayerInfo {
         if (!dropold && !knownDefaults.isEmpty()) {
             newKnownDefaults.addAll(knownDefaults);
         }
-        Main.pref.putCollection("imagery.layers.default", newKnownDefaults);
+        Config.getPref().putList("imagery.layers.default", new ArrayList<>(newKnownDefaults));
 
         // automatically update user entries with same id as a default entry
         for (int i = 0; i < layers.size(); i++) {
@@ -360,7 +363,7 @@ public class ImageryLayerInfo {
         for (ImageryInfo info : layers) {
             entries.add(new ImageryPreferenceEntry(info));
         }
-        Main.pref.putListOfStructs("imagery.entries", entries, ImageryPreferenceEntry.class);
+        StructUtils.putListOfStructs(Config.getPref(), "imagery.entries", entries, ImageryPreferenceEntry.class);
     }
 
     /**

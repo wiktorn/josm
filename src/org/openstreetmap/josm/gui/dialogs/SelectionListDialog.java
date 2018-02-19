@@ -18,7 +18,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
@@ -37,14 +36,12 @@ import javax.swing.event.ListDataListener;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.AbstractSelectAction;
 import org.openstreetmap.josm.actions.AutoScaleAction;
 import org.openstreetmap.josm.actions.relation.DownloadSelectedIncompleteMembersAction;
 import org.openstreetmap.josm.actions.relation.EditRelationAction;
 import org.openstreetmap.josm.actions.relation.SelectInRelationListAction;
 import org.openstreetmap.josm.data.SelectionChangedListener;
-import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
 import org.openstreetmap.josm.data.osm.Node;
@@ -57,7 +54,6 @@ import org.openstreetmap.josm.data.osm.event.DataChangedEvent;
 import org.openstreetmap.josm.data.osm.event.DataSetListener;
 import org.openstreetmap.josm.data.osm.event.DatasetEventManager;
 import org.openstreetmap.josm.data.osm.event.DatasetEventManager.FireMode;
-import org.openstreetmap.josm.data.osm.search.SearchSetting;
 import org.openstreetmap.josm.data.osm.event.NodeMovedEvent;
 import org.openstreetmap.josm.data.osm.event.PrimitivesAddedEvent;
 import org.openstreetmap.josm.data.osm.event.PrimitivesRemovedEvent;
@@ -65,9 +61,9 @@ import org.openstreetmap.josm.data.osm.event.RelationMembersChangedEvent;
 import org.openstreetmap.josm.data.osm.event.SelectionEventManager;
 import org.openstreetmap.josm.data.osm.event.TagsChangedEvent;
 import org.openstreetmap.josm.data.osm.event.WayNodesChangedEvent;
+import org.openstreetmap.josm.data.osm.search.SearchSetting;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
 import org.openstreetmap.josm.gui.MainApplication;
-import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.OsmPrimitivRenderer;
 import org.openstreetmap.josm.gui.PopupMenuHandler;
 import org.openstreetmap.josm.gui.SideButton;
@@ -76,16 +72,16 @@ import org.openstreetmap.josm.gui.datatransfer.data.PrimitiveTransferData;
 import org.openstreetmap.josm.gui.history.HistoryBrowserDialogManager;
 import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeEvent;
 import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeListener;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.util.HighlightHelper;
 import org.openstreetmap.josm.gui.widgets.ListPopupMenu;
 import org.openstreetmap.josm.gui.widgets.PopupMenuLauncher;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.InputMapUtils;
 import org.openstreetmap.josm.tools.Shortcut;
-import org.openstreetmap.josm.tools.SubclassFilteredCollection;
 import org.openstreetmap.josm.tools.Utils;
+import org.openstreetmap.josm.tools.bugreport.BugReport;
 
 /**
  * A small tool dialog for displaying the current selection.
@@ -191,7 +187,7 @@ public class SelectionListDialog extends ToggleDialog {
      */
     class MouseEventHandler extends PopupMenuLauncher {
         private final HighlightHelper helper = new HighlightHelper();
-        private final boolean highlightEnabled = Main.pref.getBoolean("draw.target-highlight", true);
+        private final boolean highlightEnabled = Config.getPref().getBoolean("draw.target-highlight", true);
 
         MouseEventHandler() {
             super(popupMenu);
@@ -202,13 +198,13 @@ public class SelectionListDialog extends ToggleDialog {
             int idx = lstPrimitives.locationToIndex(e.getPoint());
             if (idx < 0) return;
             if (isDoubleClick(e)) {
-                OsmDataLayer layer = MainApplication.getLayerManager().getEditLayer();
-                if (layer == null) return;
+                DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
+                if (ds == null) return;
                 OsmPrimitive osm = model.getElementAt(idx);
-                Collection<OsmPrimitive> sel = layer.data.getSelected();
+                Collection<OsmPrimitive> sel = ds.getSelected();
                 if (sel.size() != 1 || !sel.iterator().next().equals(osm)) {
                     // Select primitive if it's not the whole current selection
-                    layer.data.setSelected(Collections.singleton(osm));
+                    ds.setSelected(Collections.singleton(osm));
                 } else if (osm instanceof Relation) {
                     // else open relation editor if applicable
                     actEditRelationSelection.actionPerformed(null);
@@ -298,7 +294,7 @@ public class SelectionListDialog extends ToggleDialog {
         }
 
         protected void updateEnabledState() {
-            setEnabled(MainApplication.getLayerManager().getEditLayer() != null);
+            setEnabled(MainApplication.getLayerManager().getActiveDataSet() != null);
         }
 
         @Override
@@ -323,9 +319,9 @@ public class SelectionListDialog extends ToggleDialog {
         public void actionPerformed(ActionEvent e) {
             Collection<OsmPrimitive> sel = model.getSelected();
             if (sel.isEmpty()) return;
-            OsmDataLayer editLayer = MainApplication.getLayerManager().getEditLayer();
-            if (editLayer == null) return;
-            editLayer.data.setSelected(sel);
+            DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
+            if (ds == null) return;
+            ds.setSelected(sel);
             model.selectionModel.setSelectionInterval(0, sel.size()-1);
         }
 
@@ -463,7 +459,7 @@ public class SelectionListDialog extends ToggleDialog {
      * JOSM selection.
      *
      */
-    private static class SelectionListModel extends AbstractListModel<OsmPrimitive>
+    static class SelectionListModel extends AbstractListModel<OsmPrimitive>
     implements ActiveLayerChangeListener, SelectionChangedListener, DataSetListener {
 
         private static final int SELECTION_HISTORY_SIZE = 10;
@@ -523,7 +519,7 @@ public class SelectionListDialog extends ToggleDialog {
                     break;
                 }
             }
-            int maxsize = Main.pref.getInteger("select.history-size", SELECTION_HISTORY_SIZE);
+            int maxsize = Config.getPref().getInt("select.history-size", SELECTION_HISTORY_SIZE);
             while (history.size() > maxsize) {
                 history.removeLast();
             }
@@ -616,23 +612,6 @@ public class SelectionListDialog extends ToggleDialog {
                     fireContentsChanged(this, 0, getSize());
                     if (selection != null) {
                         remember(selection);
-                        MapFrame map = MainApplication.getMap();
-                        if (selection.size() == 2) {
-                            Iterator<? extends OsmPrimitive> it = selection.iterator();
-                            OsmPrimitive n1 = it.next();
-                            OsmPrimitive n2 = it.next();
-                            // show distance between two selected nodes with coordinates
-                            if (n1 instanceof Node && n2 instanceof Node) {
-                                LatLon c1 = ((Node) n1).getCoor();
-                                LatLon c2 = ((Node) n2).getCoor();
-                                if (c1 != null && c2 != null) {
-                                    map.statusLine.setDist(c1.greatCircleDistance(c2));
-                                    return;
-                                }
-                            }
-                        }
-                        map.statusLine.setDist(
-                                new SubclassFilteredCollection<OsmPrimitive, Way>(selection, Way.class::isInstance));
                     }
                 }
             });
@@ -661,14 +640,19 @@ public class SelectionListDialog extends ToggleDialog {
          * Sorts the current elements in the selection
          */
         public synchronized void sort() {
-            if (selection.size() <= Main.pref.getInteger("selection.no_sort_above", 100_000)) {
-                boolean quick = selection.size() > Main.pref.getInteger("selection.fast_sort_above", 10_000);
-                Comparator<OsmPrimitive> c = Main.pref.getBoolean("selection.sort_relations_before_ways", true)
+            int size = selection.size();
+            if (size > 1 && size <= Config.getPref().getInt("selection.no_sort_above", 100_000)) {
+                boolean quick = size > Config.getPref().getInt("selection.fast_sort_above", 10_000);
+                Comparator<OsmPrimitive> c = Config.getPref().getBoolean("selection.sort_relations_before_ways", true)
                         ? OsmPrimitiveComparator.orderingRelationsWaysNodes()
                         : OsmPrimitiveComparator.orderingWaysRelationsNodes();
-                selection.sort(c.thenComparing(quick
-                        ? OsmPrimitiveComparator.comparingUniqueId()
-                        : OsmPrimitiveComparator.comparingNames()));
+                try {
+                    selection.sort(c.thenComparing(quick
+                            ? OsmPrimitiveComparator.comparingUniqueId()
+                            : OsmPrimitiveComparator.comparingNames()));
+                } catch (IllegalArgumentException e) {
+                    throw BugReport.intercept(e).put("size", size).put("quick", quick).put("selection", selection);
+                }
             }
         }
 
@@ -688,7 +672,7 @@ public class SelectionListDialog extends ToggleDialog {
         }
 
         /* ------------------------------------------------------------------------ */
-        /* interface SelectionChangeListener                                        */
+        /* interface SelectionChangedListener                                       */
         /* ------------------------------------------------------------------------ */
         @Override
         public void selectionChanged(Collection<? extends OsmPrimitive> newSelection) {
@@ -844,7 +828,7 @@ public class SelectionListDialog extends ToggleDialog {
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            MainApplication.getLayerManager().getEditDataSet().setSelected(sel);
+            MainApplication.getLayerManager().getActiveDataSet().setSelected(sel);
         }
     }
 

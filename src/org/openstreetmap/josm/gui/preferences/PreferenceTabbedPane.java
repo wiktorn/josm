@@ -4,6 +4,7 @@ package org.openstreetmap.josm.gui.preferences;
 import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.Font;
 import java.awt.GridBagLayout;
 import java.awt.event.MouseWheelEvent;
@@ -503,12 +504,11 @@ public final class PreferenceTabbedPane extends JTabbedPane implements MouseWhee
                 Logging.warn("Ignoring preferences "+setting);
             }
         }
-        try {
-            if (sel != null) {
-                setSelectedComponent(sel);
+        if (sel != null) {
+            int index = indexOfComponent(sel);
+            if (index > -1) {
+                setSelectedIndex(index);
             }
-        } catch (IllegalArgumentException e) {
-            Logging.warn(e);
         }
     }
 
@@ -609,6 +609,10 @@ public final class PreferenceTabbedPane extends JTabbedPane implements MouseWhee
                     settingsInitialized.add(preferenceSettings);
                     getModel().addChangeListener(this);
                 }
+            }
+            Container ancestor = getTopLevelAncestor();
+            if (ancestor instanceof PreferenceDialog) {
+                ((PreferenceDialog) ancestor).setHelpContext(preferenceSettings.getHelpContext());
             }
         }
     }

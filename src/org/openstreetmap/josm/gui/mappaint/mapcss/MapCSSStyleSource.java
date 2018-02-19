@@ -31,11 +31,11 @@ import java.util.zip.ZipFile;
 import org.openstreetmap.josm.data.Version;
 import org.openstreetmap.josm.data.osm.AbstractPrimitive;
 import org.openstreetmap.josm.data.osm.AbstractPrimitive.KeyValueVisitor;
-import org.openstreetmap.josm.data.preferences.sources.SourceEntry;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.Way;
+import org.openstreetmap.josm.data.preferences.sources.SourceEntry;
 import org.openstreetmap.josm.gui.mappaint.Cascade;
 import org.openstreetmap.josm.gui.mappaint.Environment;
 import org.openstreetmap.josm.gui.mappaint.MultiCascade;
@@ -437,7 +437,7 @@ public class MapCSSStyleSource extends StyleSource {
                 }
             } catch (IOException e) {
                 Logging.warn(tr("Failed to load Mappaint styles from ''{0}''. Exception was: {1}", url, e.toString()));
-                Logging.error(e);
+                Logging.log(Logging.LEVEL_ERROR, e);
                 logError(e);
             } catch (TokenMgrError e) {
                 Logging.warn(tr("Failed to parse Mappaint styles from ''{0}''. Error was: {1}", url, e.getMessage()));

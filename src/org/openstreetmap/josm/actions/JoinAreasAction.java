@@ -24,12 +24,12 @@ import javax.swing.JOptionPane;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.ReverseWayAction.ReverseWayResult;
-import org.openstreetmap.josm.actions.SplitWayAction.SplitWayResult;
 import org.openstreetmap.josm.command.AddCommand;
 import org.openstreetmap.josm.command.ChangeCommand;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.DeleteCommand;
 import org.openstreetmap.josm.command.SequenceCommand;
+import org.openstreetmap.josm.command.SplitWayCommand;
 import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.osm.DataSet;
@@ -108,7 +108,7 @@ public class JoinAreasAction extends JosmAction {
          * @param way outer way
          */
         public Multipolygon(Way way) {
-            outerWay = way;
+            outerWay = Objects.requireNonNull(way, "way");
             innerWays = new ArrayList<>();
         }
 
@@ -535,11 +535,6 @@ public class JoinAreasAction extends JosmAction {
         //user canceled, do nothing.
 
         try {
-            // see #11026 - Because <ways> is a dynamic filtered (on ways) of a filtered (on selected objects) collection,
-            // retrieve effective dataset before joining the ways (which affects the selection, thus, the <ways> collection)
-            // Dataset retrieving allows to call this code without relying on Main.getCurrentDataSet(), thus, on a mapview instance
-            ds = ways.iterator().next().getDataSet();
-
             // Do the job of joining areas
             JoinAreasResult result = joinAreas(areas);
 
@@ -600,6 +595,13 @@ public class JoinAreasAction extends JosmAction {
      * @throws UserCancelException if user cancels the operation
      */
     public JoinAreasResult joinAreas(List<Multipolygon> areas) throws UserCancelException {
+
+        // see #11026 - Because <ways> is a dynamic filtered (on ways) of a filtered (on selected objects) collection,
+        // retrieve effective dataset before joining the ways (which affects the selection, thus, the <ways> collection)
+        // Dataset retrieving allows to call this code without relying on Main.getCurrentDataSet(), thus, on a mapview instance
+        if (!areas.isEmpty()) {
+            ds = areas.get(0).getOuterWay().getDataSet();
+        }
 
         boolean hasChanges = false;
 
@@ -1007,7 +1009,7 @@ public class JoinAreasAction extends JosmAction {
 
     /**
      * This is a method that splits way into smaller parts, using the prepared nodes list as split points.
-     * Uses {@link SplitWayAction#splitWay} for the heavy lifting.
+     * Uses {@link SplitWayCommand#splitWay} for the heavy lifting.
      * @param way way to split
      * @param nodes split points
      * @return list of split ways (or original ways if no splitting is done).
@@ -1018,12 +1020,12 @@ public class JoinAreasAction extends JosmAction {
         List<List<Node>> chunks = buildNodeChunks(way, nodes);
 
         if (chunks.size() > 1) {
-            SplitWayResult split = SplitWayAction.splitWay(way, chunks,
-                    Collections.<OsmPrimitive>emptyList(), SplitWayAction.Strategy.keepFirstChunk());
+            SplitWayCommand split = SplitWayCommand.splitWay(way, chunks,
+                    Collections.<OsmPrimitive>emptyList(), SplitWayCommand.Strategy.keepFirstChunk());
 
             if (split != null) {
                 //execute the command, we need the results
-                cmds.add(split.getCommand());
+                cmds.add(split);
                 commitCommands(marktr("Split ways into fragments"));
 
                 result.add(split.getOriginalWay());
@@ -1616,6 +1618,6 @@ public class JoinAreasAction extends JosmAction {
 
     @Override
     protected void updateEnabledState(Collection<? extends OsmPrimitive> selection) {
-        setEnabled(selection != null && !selection.isEmpty());
+        updateEnabledStateOnModifiableSelection(selection);
     }
 }

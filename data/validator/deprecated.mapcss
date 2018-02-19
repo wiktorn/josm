@@ -537,16 +537,16 @@ way[sidewalk=yes] {
   group: tr("deprecated tagging");
 }
 
-/* see #10346 */
-way[oneway=1] {
+/* see #10346, #15667 (waterway has its own rules in unnecessary.mapcss) */
+way[oneway=1][!waterway] {
   throwWarning: tr("{0} is deprecated", "{0.tag}");
   suggestAlternative: "oneway=yes";
   group: tr("deprecated tagging");
   fixAdd: "oneway=yes";
 }
 
-/* see #11329 */
-way[oneway=-1] {
+/* see #11329, #15667 */
+way[oneway=-1][!waterway] {
   throwWarning: tr("{0} is not recommended. Use the Reverse Ways function from the Tools menu.", "{0.tag}");
 }
 
@@ -607,20 +607,6 @@ relation[/^..$/][!to] {
   assertMatch: "way to=bar";
   assertMatch: "node fo=bar";
   assertMatch: "node f=b";
-}
-
-/* see #11344 */
-*[tower=air_to_ground] {
-  throwWarning: tr("{0} is deprecated", "{0.tag}");
-  suggestAlternative: "tower=transition";
-  group: tr("deprecated tagging");
-  fixAdd: "tower=transition";
-}
-*[pole=air_to_ground] {
-  throwWarning: tr("{0} is deprecated", "{0.tag}");
-  suggestAlternative: "pole=transition";
-  group: tr("deprecated tagging");
-  fixAdd: "pole=transition";
 }
 
 /* see #11439 */
@@ -810,13 +796,12 @@ node[type][pipeline=marker] {
   fixChangeKey: "type => studio";
 }
 
-/* #11507, #12297 */
+/* #11507, #12297, #15409 */
 *[power=cable_distribution_cabinet] {
   throwWarning: tr("{0} is deprecated", "{0.tag}");
-  suggestAlternative: "man_made=street_cabinet + street_cabinet=power";
+  suggestAlternative: "man_made=street_cabinet + street_cabinet=*";
   group: tr("deprecated tagging");
   fixAdd: "man_made=street_cabinet";
-  fixAdd: "street_cabinet=power";
   fixRemove: "power";
 }
 
@@ -1004,7 +989,8 @@ way[waterway=canal][service][service !~ /^(irrigation|transportation|water_power
   group: tr("deprecated tagging");
 }
 
-/* #13101 */
+/* #11344, #13101, #15480 */
+node[pole=air_to_ground],
 node[pole=transition] {
   throwWarning: tr("{0} is deprecated", "{0.tag}");
   suggestAlternative: "location:transition=yes";
@@ -1012,6 +998,7 @@ node[pole=transition] {
   fixAdd: "location:transition=yes";
   fixRemove: "pole";
 }
+node[tower=air_to_ground],
 node[tower=transition] {
   throwWarning: tr("{0} is deprecated", "{0.tag}");
   suggestAlternative: "location:transition=yes";
@@ -1175,4 +1162,63 @@ way[direction=down][incline][incline!=down] {
   throwWarning: tr("{0} is deprecated", "{0.tag}");
   suggestAlternative: "incline";
   group: tr("deprecated tagging");
+}
+
+way[building=y],
+way[building=1] {
+  throwError: tr("{0}", "{0.tag}");
+  suggestAlternative: "building=yes";
+  group: tr("misspelled value");
+  fixAdd: "building=yes";
+}
+
+/* #15675 */
+node[power=transformer][location=pole][transformer] {
+  throwWarning: tr("{0} together with {1}", "{0.tag}", "{1.tag}");
+  group: tr("deprecated tagging");
+  fixChangeKey: "location => power";
+}
+node[power=transformer][location=pole][!transformer] {
+  throwWarning: tr("{0} together with {1}", "{0.tag}", "{1.tag}");
+  group: tr("deprecated tagging");
+  fixChangeKey: "location => power";
+  fixAdd: "transformer=yes";
+}
+
+node[tourism=picnic_table],
+node[amenity=picnic_table],
+node[leisure=picnic],
+node[leisure=picnic_site] {
+  throwWarning: tr("{0} is deprecated", "{0.tag}");
+  suggestAlternative: "tourism=picnic_site";
+  suggestAlternative: "leisure=picnic_table";
+  group: tr("deprecated tagging");
+}
+
+/* #15804 */
+relation[water=salt],
+way[water=salt],
+way[water=salt_pool],
+way[water=salt_panne],
+way[water=salt_pond] {
+  throwWarning: tr("{0} is deprecated", "{0.tag}");
+  suggestAlternative: "salt=yes";
+  suggestAlternative: "landuse=salt_pond";
+  group: tr("deprecated tagging");
+}
+
+/* #15805 */
+way[water=tidal] {
+  throwWarning: tr("{0} is deprecated", "{0.tag}");
+  suggestAlternative: "tidal=yes";
+  fixAdd: "tidal=yes";
+  fixRemove: "water";
+  group: tr("deprecated tagging");
+}
+
+*[amenity=toilet] {
+  throwError: tr("{0}", "{0.tag}");
+  suggestAlternative: "amenity=toilets";
+  group: tr("misspelled value");
+  fixAdd: "amenity=toilets";
 }

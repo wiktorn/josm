@@ -3,13 +3,14 @@ package org.openstreetmap.josm.tools;
 
 import java.io.BufferedInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -89,6 +90,50 @@ public final class I18n {
     private static volatile Map<String, String> strings;
     private static volatile Map<String, String[]> pstrings;
     private static Map<String, PluralMode> languages = new HashMap<>();
+    static {
+        //languages.put("ar", PluralMode.MODE_AR);
+        languages.put("ast", PluralMode.MODE_NOTONE);
+        languages.put("bg", PluralMode.MODE_NOTONE);
+        languages.put("be", PluralMode.MODE_RU);
+        languages.put("ca", PluralMode.MODE_NOTONE);
+        languages.put("ca@valencia", PluralMode.MODE_NOTONE);
+        languages.put("cs", PluralMode.MODE_CS);
+        languages.put("da", PluralMode.MODE_NOTONE);
+        languages.put("de", PluralMode.MODE_NOTONE);
+        languages.put("el", PluralMode.MODE_NOTONE);
+        languages.put("en_AU", PluralMode.MODE_NOTONE);
+        languages.put("en_GB", PluralMode.MODE_NOTONE);
+        languages.put("es", PluralMode.MODE_NOTONE);
+        languages.put("et", PluralMode.MODE_NOTONE);
+        //languages.put("eu", PluralMode.MODE_NOTONE);
+        languages.put("fi", PluralMode.MODE_NOTONE);
+        languages.put("fr", PluralMode.MODE_GREATERONE);
+        languages.put("gl", PluralMode.MODE_NOTONE);
+        //languages.put("he", PluralMode.MODE_NOTONE);
+        languages.put("hu", PluralMode.MODE_NOTONE);
+        languages.put("id", PluralMode.MODE_NONE);
+        //languages.put("is", PluralMode.MODE_NOTONE);
+        languages.put("it", PluralMode.MODE_NOTONE);
+        languages.put("ja", PluralMode.MODE_NONE);
+        // fully supported only with Java 8 and later (needs CLDR)
+        languages.put("km", PluralMode.MODE_NONE);
+        languages.put("lt", PluralMode.MODE_LT);
+        languages.put("nb", PluralMode.MODE_NOTONE);
+        languages.put("nl", PluralMode.MODE_NOTONE);
+        languages.put("pl", PluralMode.MODE_PL);
+        languages.put("pt", PluralMode.MODE_NOTONE);
+        languages.put("pt_BR", PluralMode.MODE_GREATERONE);
+        //languages.put("ro", PluralMode.MODE_RO);
+        languages.put("ru", PluralMode.MODE_RU);
+        languages.put("sk", PluralMode.MODE_SK);
+        //languages.put("sl", PluralMode.MODE_SL);
+        languages.put("sv", PluralMode.MODE_NOTONE);
+        //languages.put("tr", PluralMode.MODE_NONE);
+        languages.put("uk", PluralMode.MODE_RU);
+        languages.put("vi", PluralMode.MODE_NONE);
+        languages.put("zh_CN", PluralMode.MODE_NONE);
+        languages.put("zh_TW", PluralMode.MODE_NONE);
+    }
 
     /**
      * Translates some text for the current locale.
@@ -300,58 +345,20 @@ public final class I18n {
         return languages.containsKey(code);
     }
 
+    static void setupJavaLocaleProviders() {
+        // Look up SPI providers first (for JosmDecimalFormatSymbolsProvider).
+        // Enable CLDR locale provider on Java 8 to get additional languages, such as Khmer.
+        // http://docs.oracle.com/javase/8/docs/technotes/guides/intl/enhancements.8.html#cldr
+        // FIXME: This must be updated after we switch to Java 9.
+        // See https://docs.oracle.com/javase/9/docs/api/java/util/spi/LocaleServiceProvider.html
+        System.setProperty("java.locale.providers", "SPI,JRE,CLDR"); // Don't call Utils.updateSystemProperty to avoid spurious log at startup
+    }
+
     /**
      * I18n initialization.
      */
     public static void init() {
-        // Enable CLDR locale provider on Java 8 to get additional languages, such as Khmer.
-        // http://docs.oracle.com/javase/8/docs/technotes/guides/intl/enhancements.8.html#cldr
-        // FIXME: This can be removed after we switch to a minimal version of Java that enables CLDR by default
-        // or includes all languages we need in the JRE. See http://openjdk.java.net/jeps/252 for Java 9
-        System.setProperty("java.locale.providers", "JRE,CLDR"); // Don't call Utils.updateSystemProperty to avoid spurious log at startup
-
-        //languages.put("ar", PluralMode.MODE_AR);
-        languages.put("ast", PluralMode.MODE_NOTONE);
-        languages.put("bg", PluralMode.MODE_NOTONE);
-        languages.put("be", PluralMode.MODE_RU);
-        languages.put("ca", PluralMode.MODE_NOTONE);
-        languages.put("ca@valencia", PluralMode.MODE_NOTONE);
-        languages.put("cs", PluralMode.MODE_CS);
-        languages.put("da", PluralMode.MODE_NOTONE);
-        languages.put("de", PluralMode.MODE_NOTONE);
-        languages.put("el", PluralMode.MODE_NOTONE);
-        languages.put("en_AU", PluralMode.MODE_NOTONE);
-        languages.put("en_GB", PluralMode.MODE_NOTONE);
-        languages.put("es", PluralMode.MODE_NOTONE);
-        languages.put("et", PluralMode.MODE_NOTONE);
-        //languages.put("eu", PluralMode.MODE_NOTONE);
-        languages.put("fi", PluralMode.MODE_NOTONE);
-        languages.put("fr", PluralMode.MODE_GREATERONE);
-        languages.put("gl", PluralMode.MODE_NOTONE);
-        //languages.put("he", PluralMode.MODE_NOTONE);
-        languages.put("hu", PluralMode.MODE_NOTONE);
-        languages.put("id", PluralMode.MODE_NONE);
-        //languages.put("is", PluralMode.MODE_NOTONE);
-        languages.put("it", PluralMode.MODE_NOTONE);
-        languages.put("ja", PluralMode.MODE_NONE);
-        // fully supported only with Java 8 and later (needs CLDR)
-        languages.put("km", PluralMode.MODE_NONE);
-        languages.put("lt", PluralMode.MODE_LT);
-        languages.put("nb", PluralMode.MODE_NOTONE);
-        languages.put("nl", PluralMode.MODE_NOTONE);
-        languages.put("pl", PluralMode.MODE_PL);
-        languages.put("pt", PluralMode.MODE_NOTONE);
-        languages.put("pt_BR", PluralMode.MODE_GREATERONE);
-        //languages.put("ro", PluralMode.MODE_RO);
-        languages.put("ru", PluralMode.MODE_RU);
-        languages.put("sk", PluralMode.MODE_SK);
-        //languages.put("sl", PluralMode.MODE_SL);
-        languages.put("sv", PluralMode.MODE_NOTONE);
-        //languages.put("tr", PluralMode.MODE_NONE);
-        languages.put("uk", PluralMode.MODE_RU);
-        languages.put("vi", PluralMode.MODE_NONE);
-        languages.put("zh_CN", PluralMode.MODE_NONE);
-        languages.put("zh_TW", PluralMode.MODE_NONE);
+        setupJavaLocaleProviders();
 
         /* try initial language settings, may be changed later again */
         if (!load(LanguageInfo.getJOSMLocaleCode())) {
@@ -365,7 +372,7 @@ public final class I18n {
         final String enfile = "data/en.lang";
         final String langfile = "data/"+loadedCode+".lang";
         try (
-            FileInputStream fis = new FileInputStream(source);
+            InputStream fis = Files.newInputStream(source.toPath());
             JarInputStream jar = new JarInputStream(fis)
         ) {
             ZipEntry e;
@@ -377,7 +384,7 @@ public final class I18n {
             }
             if (found) {
                 try (
-                    FileInputStream fisTrans = new FileInputStream(source);
+                    InputStream fisTrans = Files.newInputStream(source.toPath());
                     JarInputStream jarTrans = new JarInputStream(fisTrans)
                 ) {
                     found = false;
@@ -390,8 +397,7 @@ public final class I18n {
                         load(jar, jarTrans, true);
                 }
             }
-        } catch (IOException e) {
-            // Ignore
+        } catch (IOException | InvalidPathException e) {
             Logging.trace(e);
         }
     }
@@ -412,8 +418,8 @@ public final class I18n {
             return false;
         }
         try (
-            InputStream enStream = en.openStream();
-            InputStream trStream = tr.openStream()
+            InputStream enStream = Utils.openStream(en);
+            InputStream trStream = Utils.openStream(tr)
         ) {
             if (load(enStream, trStream, false)) {
                 pluralMode = languages.get(l);

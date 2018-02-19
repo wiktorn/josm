@@ -3,11 +3,11 @@ package org.openstreetmap.josm.gui.tagging.presets.items;
 
 import javax.swing.JPanel;
 
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.tagging.ac.AutoCompletionPriority;
 import org.openstreetmap.josm.gui.tagging.ac.AutoCompletingTextField;
-import org.openstreetmap.josm.gui.tagging.ac.AutoCompletionItemPriority;
 import org.openstreetmap.josm.gui.tagging.ac.AutoCompletionList;
 import org.openstreetmap.josm.gui.widgets.JosmComboBox;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.GBC;
 
 /**
@@ -55,7 +55,7 @@ public class Combo extends ComboMultiSelect {
         combobox.reinitialize(lhm.values());
         AutoCompletingTextField tf = new AutoCompletingTextField();
         initAutoCompletionField(tf, key);
-        if (Main.pref.getBoolean("taggingpreset.display-keys-as-hint", true)) {
+        if (Config.getPref().getBoolean("taggingpreset.display-keys-as-hint", true)) {
             tf.setHint(key);
         }
         if (length != null && !length.isEmpty()) {
@@ -63,7 +63,7 @@ public class Combo extends ComboMultiSelect {
         }
         AutoCompletionList acList = tf.getAutoCompletionList();
         if (acList != null) {
-            acList.add(getDisplayValues(), AutoCompletionItemPriority.IS_IN_STANDARD);
+            acList.add(getDisplayValues(), AutoCompletionPriority.IS_IN_STANDARD);
         }
         combobox.setEditor(tf);
 

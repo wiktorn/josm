@@ -50,9 +50,8 @@ import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.Way;
-import org.openstreetmap.josm.data.osm.visitor.AbstractVisitor;
-import org.openstreetmap.josm.data.osm.visitor.Visitor;
-import org.openstreetmap.josm.data.preferences.ColorProperty;
+import org.openstreetmap.josm.data.osm.visitor.OsmPrimitiveVisitor;
+import org.openstreetmap.josm.data.preferences.NamedColorProperty;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane.ButtonSpec;
 import org.openstreetmap.josm.gui.MainApplication;
@@ -78,8 +77,8 @@ import org.openstreetmap.josm.tools.Shortcut;
  */
 public final class ConflictDialog extends ToggleDialog implements ActiveLayerChangeListener, IConflictListener, DataSelectionListener {
 
-    private static final ColorProperty CONFLICT_COLOR = new ColorProperty(marktr("conflict"), Color.GRAY);
-    private static final ColorProperty BACKGROUND_COLOR = new ColorProperty(marktr("background"), Color.BLACK);
+    private static final NamedColorProperty CONFLICT_COLOR = new NamedColorProperty(marktr("conflict"), Color.GRAY);
+    private static final NamedColorProperty BACKGROUND_COLOR = new NamedColorProperty(marktr("background"), Color.BLACK);
 
     /** the collection of conflicts displayed by this conflict dialog */
     private transient ConflictCollection conflicts;
@@ -160,7 +159,7 @@ public final class ConflictDialog extends ToggleDialog implements ActiveLayerCha
     @Override
     public void hideNotify() {
         MainApplication.getLayerManager().removeActiveLayerChangeListener(this);
-        removeEditLayerListeners(MainApplication.getLayerManager().getEditLayer());
+        removeDataLayerListeners(MainApplication.getLayerManager().getEditLayer());
     }
 
     /**
@@ -208,7 +207,11 @@ public final class ConflictDialog extends ToggleDialog implements ActiveLayerCha
             dialog.getConflictResolver().populate(c);
             dialog.showDialog();
 
-            lstConflicts.setSelectedIndex(index);
+            if (index < conflicts.size() - 1) {
+                lstConflicts.setSelectedIndex(index);
+            } else {
+                lstConflicts.setSelectedIndex(index - 1);
+            }
         }
         MainApplication.getMap().mapView.repaint();
     }
@@ -252,7 +255,7 @@ public final class ConflictDialog extends ToggleDialog implements ActiveLayerCha
         if (preferencesColor.equals(BACKGROUND_COLOR.get()))
             return;
         g.setColor(preferencesColor);
-        Visitor conflictPainter = new ConflictPainter(nc, g);
+        OsmPrimitiveVisitor conflictPainter = new ConflictPainter(nc, g);
         synchronized (this) {
             for (OsmPrimitive o : lstConflicts.getSelectedValuesList()) {
                 if (conflicts == null || !conflicts.hasConflictForMy(o)) {
@@ -265,19 +268,19 @@ public final class ConflictDialog extends ToggleDialog implements ActiveLayerCha
 
     @Override
     public void activeOrEditLayerChanged(ActiveLayerChangeEvent e) {
-        removeEditLayerListeners(e.getPreviousEditLayer());
-        addEditLayerListeners(e.getSource().getEditLayer());
+        removeDataLayerListeners(e.getPreviousDataLayer());
+        addDataLayerListeners(e.getSource().getActiveDataLayer());
         refreshView();
     }
 
-    private void addEditLayerListeners(OsmDataLayer newLayer) {
+    private void addDataLayerListeners(OsmDataLayer newLayer) {
         if (newLayer != null) {
             newLayer.getConflicts().addConflictListener(this);
             newLayer.data.addSelectionListener(this);
         }
     }
 
-    private void removeEditLayerListeners(OsmDataLayer oldLayer) {
+    private void removeDataLayerListeners(OsmDataLayer oldLayer) {
         if (oldLayer != null) {
             oldLayer.getConflicts().removeConflictListener(this);
             oldLayer.data.removeSelectionListener(this);
@@ -304,7 +307,7 @@ public final class ConflictDialog extends ToggleDialog implements ActiveLayerCha
 
         int index = lstConflicts.getSelectedIndex();
 
-        return index >= 0 ? conflicts.get(index) : null;
+        return index >= 0 && index < conflicts.size() ? conflicts.get(index) : null;
     }
 
     private synchronized boolean isConflictSelected() {
@@ -541,7 +544,7 @@ public final class ConflictDialog extends ToggleDialog implements ActiveLayerCha
     /**
      * Paints conflicts.
      */
-    public static class ConflictPainter extends AbstractVisitor {
+    public static class ConflictPainter implements OsmPrimitiveVisitor {
         // Manage a stack of visited relations to avoid infinite recursion with cyclic relations (fix #7938)
         private final Set<Relation> visited = new HashSet<>();
         private final NavigatableComponent nc;

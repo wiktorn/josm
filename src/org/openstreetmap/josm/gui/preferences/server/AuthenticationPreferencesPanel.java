@@ -17,12 +17,12 @@ import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JSeparator;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.oauth.OAuthAccessTokenHolder;
 import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.widgets.VerticallyScrollablePanel;
 import org.openstreetmap.josm.io.OsmApi;
 import org.openstreetmap.josm.io.auth.CredentialsManager;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.Logging;
 
 /**
@@ -132,7 +132,7 @@ public class AuthenticationPreferencesPanel extends VerticallyScrollablePanel im
     }
 
     /**
-     * Saves the current values to preferences
+     * Saves the current values to the preferences
      */
     public final void saveToPreferences() {
         // save the authentication method
@@ -142,12 +142,12 @@ public class AuthenticationPreferencesPanel extends VerticallyScrollablePanel im
         } else {
             authMethod = "oauth";
         }
-        Main.pref.put("osm-server.auth-method", authMethod);
+        Config.getPref().put("osm-server.auth-method", authMethod);
         if ("basic".equals(authMethod)) {
             // save username and password and clear the OAuth token
             pnlBasicAuthPreferences.saveToPreferences();
             OAuthAccessTokenHolder.getInstance().clear();
-            OAuthAccessTokenHolder.getInstance().save(Main.pref, CredentialsManager.getInstance());
+            OAuthAccessTokenHolder.getInstance().save(CredentialsManager.getInstance());
         } else if ("oauth".equals(authMethod)) {
             // clear the password in the preferences
             pnlBasicAuthPreferences.clearPassword();

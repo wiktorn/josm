@@ -12,6 +12,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -76,6 +77,10 @@ public class AutosaveTaskTest {
         assertTrue(files.contains(layer1));
         assertTrue(files.contains(layer2));
         assertFalse(files.contains(dir));
+        // cleanup
+        layer1.delete();
+        layer2.delete();
+        dir.delete();
     }
 
     /**
@@ -85,7 +90,7 @@ public class AutosaveTaskTest {
     @Test
     public void testGetNewLayerFile() throws IOException {
         Files.createDirectories(task.getAutosaveDir());
-        AutosaveLayerInfo info = new AutosaveLayerInfo(new OsmDataLayer(new DataSet(), "layer", null));
+        AutosaveLayerInfo<?> info = new AutosaveLayerInfo<>(new OsmDataLayer(new DataSet(), "layer", null));
         Date fixed = Date.from(ZonedDateTime.of(2016, 1, 1, 1, 2, 3, 456_000_000, ZoneId.systemDefault()).toInstant());
 
         AutosaveTask.PROP_INDEX_LIMIT.put(5);
@@ -107,6 +112,10 @@ public class AutosaveTaskTest {
                     assertEquals("null_20160101_010203456_" + i + ".pid", pid.getName());
                 }
             }
+        }
+        // cleanup
+        for (Path entry : Files.newDirectoryStream(task.getAutosaveDir(), "*.{osm,pid}")) {
+            Files.delete(entry);
         }
     }
 

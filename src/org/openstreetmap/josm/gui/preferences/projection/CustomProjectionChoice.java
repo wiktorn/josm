@@ -19,17 +19,17 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.plaf.basic.BasicComboBoxEditor;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.projection.CustomProjection;
 import org.openstreetmap.josm.data.projection.Projection;
 import org.openstreetmap.josm.data.projection.ProjectionConfigurationException;
 import org.openstreetmap.josm.data.projection.Projections;
+import org.openstreetmap.josm.data.tagging.ac.AutoCompletionItem;
 import org.openstreetmap.josm.gui.ExtendedDialog;
-import org.openstreetmap.josm.gui.tagging.ac.AutoCompletionListItem;
 import org.openstreetmap.josm.gui.widgets.AbstractTextComponentValidator;
 import org.openstreetmap.josm.gui.widgets.HistoryComboBox;
 import org.openstreetmap.josm.gui.widgets.HtmlPanel;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Logging;
@@ -64,17 +64,17 @@ public class CustomProjectionChoice extends AbstractProjectionChoice implements 
         private void build(String initialText, final ActionListener listener) {
             input = new JosmTextField(30);
             cbInput = new HistoryComboBox();
-            cbInput.setPrototypeDisplayValue(new AutoCompletionListItem("xxxx"));
+            cbInput.setPrototypeDisplayValue(new AutoCompletionItem("xxxx"));
             cbInput.setEditor(new BasicComboBoxEditor() {
                 @Override
                 protected JosmTextField createEditorComponent() {
                     return input;
                 }
             });
-            Collection<String> samples = Arrays.asList(
+            List<String> samples = Arrays.asList(
                     "+proj=lonlat +ellps=WGS84 +datum=WGS84 +bounds=-180,-90,180,90",
                     "+proj=tmerc +lat_0=0 +lon_0=9 +k_0=1 +x_0=3500000 +y_0=0 +ellps=bessel +nadgrids=BETA2007.gsb");
-            List<String> inputHistory = new LinkedList<>(Main.pref.getCollection("projection.custom.value.history", samples));
+            List<String> inputHistory = new LinkedList<>(Config.getPref().getList("projection.custom.value.history", samples));
             Collections.reverse(inputHistory);
             cbInput.setPossibleItems(inputHistory);
             cbInput.setText(initialText == null ? "" : initialText);
@@ -148,7 +148,7 @@ public class CustomProjectionChoice extends AbstractProjectionChoice implements 
 
         public void rememberHistory() {
             cbInput.addCurrentItemToHistory();
-            Main.pref.putCollection("projection.custom.value.history", cbInput.getHistory());
+            Config.getPref().putList("projection.custom.value.history", cbInput.getHistory());
         }
     }
 

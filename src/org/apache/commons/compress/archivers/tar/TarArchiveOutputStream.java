@@ -34,10 +34,20 @@ import org.apache.commons.compress.archivers.zip.ZipEncoding;
 import org.apache.commons.compress.archivers.zip.ZipEncodingHelper;
 import org.apache.commons.compress.utils.CharsetNames;
 import org.apache.commons.compress.utils.CountingOutputStream;
+import org.apache.commons.compress.utils.FixedLengthBlockOutputStream;
 
 /**
  * The TarOutputStream writes a UNIX tar archive as an OutputStream. Methods are provided to put
  * entries, and then write their contents by writing to this stream using write().
+ *
+ * <p>tar archives consist of a sequence of records of 512 bytes each
+ * that are grouped into blocks. Prior to Apache Commons Compress 1.14
+ * it has been possible to configure a record size different from 512
+ * bytes and arbitrary block sizes. Starting with Compress 1.15 512 is
+ * the only valid option for the record size and the block size must
+ * be a multiple of 512. Also the default block size changed from
+ * 10240 bytes prior to Compress 1.15 to 512 bytes with Compress
+ * 1.15.</p>
  *
  * @NotThreadSafe
  */
@@ -83,8 +93,6 @@ public class TarArchiveOutputStream extends ArchiveOutputStream {
     private String currName;
     private long currBytes;
     private final byte[] recordBuf;
-    private int assemLen;
-    private final byte[] assemBuf;
     private int longFileMode = LONGFILE_ERROR;
     private int bigNumberMode = BIGNUMBER_ERROR;
     private int recordsWritten;
@@ -102,7 +110,8 @@ public class TarArchiveOutputStream extends ArchiveOutputStream {
      */
     private boolean finished = false;
 
-    private final OutputStream out;
+    private final FixedLengthBlockOutputStream out;
+    private final CountingOutputStream countingOut;
 
     private final ZipEncoding zipEncoding;
 
@@ -116,7 +125,9 @@ public class TarArchiveOutputStream extends ArchiveOutputStream {
     private static final int BLOCK_SIZE_UNSPECIFIED = -511;
 
     /**
-     * Constructor for TarInputStream.
+     * Constructor for TarArchiveOutputStream.
+     *
+     * <p>Uses a block size of 512 bytes.</p>
      *
      * @param os the output stream to use
      */
@@ -125,7 +136,9 @@ public class TarArchiveOutputStream extends ArchiveOutputStream {
     }
 
     /**
-     * Constructor for TarInputStream.
+     * Constructor for TarArchiveOutputStream.
+     *
+     * <p>Uses a block size of 512 bytes.</p>
      *
      * @param os the output stream to use
      * @param encoding name of the encoding to use for file names
@@ -136,7 +149,7 @@ public class TarArchiveOutputStream extends ArchiveOutputStream {
     }
 
     /**
-     * Constructor for TarInputStream.
+     * Constructor for TarArchiveOutputStream.
      *
      * @param os the output stream to use
      * @param blockSize the block size to use. Must be a multiple of 512 bytes.
@@ -147,7 +160,7 @@ public class TarArchiveOutputStream extends ArchiveOutputStream {
 
 
     /**
-     * Constructor for TarInputStream.
+     * Constructor for TarArchiveOutputStream.
      *
      * @param os the output stream to use
      * @param blockSize the block size to use
@@ -162,7 +175,7 @@ public class TarArchiveOutputStream extends ArchiveOutputStream {
     }
 
     /**
-     * Constructor for TarInputStream.
+     * Constructor for TarArchiveOutputStream.
      *
      * @param os the output stream to use
      * @param blockSize the block size to use . Must be a multiple of 512 bytes.
@@ -184,7 +197,7 @@ public class TarArchiveOutputStream extends ArchiveOutputStream {
     }
 
     /**
-     * Constructor for TarInputStream.
+     * Constructor for TarArchiveOutputStream.
      *
      * @param os the output stream to use
      * @param blockSize the block size to use. Must be a multiple of 512 bytes.
@@ -203,12 +216,11 @@ public class TarArchiveOutputStream extends ArchiveOutputStream {
         if (realBlockSize <=0 || realBlockSize % RECORD_SIZE != 0) {
             throw new IllegalArgumentException("Block size must be a multiple of 512 bytes. Attempt to use set size of " + blockSize);
         }
-        out = new CountingOutputStream(os);
+        out = new FixedLengthBlockOutputStream(countingOut = new CountingOutputStream(os),
+                                               RECORD_SIZE);
         this.encoding = encoding;
         this.zipEncoding = ZipEncodingHelper.getZipEncoding(encoding);
 
-        this.assemLen = 0;
-        this.assemBuf = new byte[RECORD_SIZE];
         this.recordBuf = new byte[RECORD_SIZE];
         this.recordsPerBlock = realBlockSize / RECORD_SIZE;
     }
@@ -255,7 +267,7 @@ public class TarArchiveOutputStream extends ArchiveOutputStream {
 
     @Override
     public long getBytesWritten() {
-        return ((CountingOutputStream) out).getBytesWritten();
+        return countingOut.getBytesWritten();
     }
 
     /**
@@ -274,7 +286,7 @@ public class TarArchiveOutputStream extends ArchiveOutputStream {
         }
 
         if (haveUnclosedEntry) {
-            throw new IOException("This archives contains unclosed entries.");
+            throw new IOException("This archive contains unclosed entries.");
         }
         writeEOFRecord();
         writeEOFRecord();
@@ -402,22 +414,16 @@ public class TarArchiveOutputStream extends ArchiveOutputStream {
         if (!haveUnclosedEntry) {
             throw new IOException("No current entry to close");
         }
-        if (assemLen > 0) {
-            for (int i = assemLen; i < assemBuf.length; ++i) {
-                assemBuf[i] = 0;
-            }
-
-            writeRecord(assemBuf);
-
-            currBytes += assemLen;
-            assemLen = 0;
-        }
-
+        out.flushBlock();
         if (currBytes < currSize) {
             throw new IOException("entry '" + currName + "' closed at '"
                 + currBytes
                 + "' before the '" + currSize
                 + "' bytes specified in the header were written");
+        }
+        recordsWritten += (currSize / RECORD_SIZE);
+        if (0 != currSize % RECORD_SIZE) {
+            recordsWritten++;
         }
         haveUnclosedEntry = false;
     }
@@ -425,9 +431,7 @@ public class TarArchiveOutputStream extends ArchiveOutputStream {
     /**
      * Writes bytes to the current tar archive entry. This method is aware of the current entry and
      * will throw an exception if you attempt to write bytes past the length specified for the
-     * current entry. The method is also (painfully) aware of the record buffering required by
-     * TarBuffer, and manages buffers that are not a multiple of recordsize in length, including
-     * assembling records from small buffers.
+     * current entry.
      *
      * @param wBuf The buffer to write to the archive.
      * @param wOffset The offset in the buffer from which to get bytes.
@@ -444,63 +448,9 @@ public class TarArchiveOutputStream extends ArchiveOutputStream {
                 + "' bytes exceeds size in header of '"
                 + currSize + "' bytes for entry '"
                 + currName + "'");
-
-            //
-            // We have to deal with assembly!!!
-            // The programmer can be writing little 32 byte chunks for all
-            // we know, and we must assemble complete records for writing.
-            // REVIEW Maybe this should be in TarBuffer? Could that help to
-            // eliminate some of the buffer copying.
-            //
         }
-
-        if (assemLen > 0) {
-            if (assemLen + numToWrite >= recordBuf.length) {
-                final int aLen = recordBuf.length - assemLen;
-
-                System.arraycopy(assemBuf, 0, recordBuf, 0,
-                    assemLen);
-                System.arraycopy(wBuf, wOffset, recordBuf,
-                    assemLen, aLen);
-                writeRecord(recordBuf);
-
-                currBytes += recordBuf.length;
-                wOffset += aLen;
-                numToWrite -= aLen;
-                assemLen = 0;
-            } else {
-                System.arraycopy(wBuf, wOffset, assemBuf, assemLen,
-                    numToWrite);
-
-                wOffset += numToWrite;
-                assemLen += numToWrite;
-                numToWrite = 0;
-            }
-        }
-
-        //
-        // When we get here we have EITHER:
-        // o An empty "assemble" buffer.
-        // o No bytes to write (numToWrite == 0)
-        //
-        while (numToWrite > 0) {
-            if (numToWrite < recordBuf.length) {
-                System.arraycopy(wBuf, wOffset, assemBuf, assemLen,
-                    numToWrite);
-
-                assemLen += numToWrite;
-
-                break;
-            }
-
-            writeRecord(wBuf, wOffset);
-
-            final int num = recordBuf.length;
-
-            currBytes += num;
-            numToWrite -= num;
-            wOffset += num;
-        }
+        out.write(wBuf, wOffset, numToWrite);
+        currBytes += numToWrite;
     }
 
     /**
@@ -617,27 +567,6 @@ public class TarArchiveOutputStream extends ArchiveOutputStream {
         recordsWritten++;
     }
 
-    /**
-     * Write an archive record to the archive, where the record may be inside of a larger array
-     * buffer. The buffer must be "offset plus record size" long.
-     *
-     * @param buf The buffer containing the record data to write.
-     * @param offset The offset of the record data within buf.
-     * @throws IOException on error
-     */
-    private void writeRecord(final byte[] buf, final int offset) throws IOException {
-
-        if (offset + RECORD_SIZE > buf.length) {
-            throw new IOException("record has length '" + buf.length
-                + "' with offset '" + offset
-                + "' which is less than the record size of '"
-                + RECORD_SIZE + "'");
-        }
-
-        out.write(buf, offset, RECORD_SIZE);
-        recordsWritten++;
-    }
-
     private void padAsNeeded() throws IOException {
         final int start = recordsWritten % recordsPerBlock;
         if (start != 0) {
@@ -742,7 +671,7 @@ public class TarArchiveOutputStream extends ArchiveOutputStream {
                 final TarArchiveEntry longLinkEntry = new TarArchiveEntry(TarConstants.GNU_LONGLINK,
                     linkType);
 
-                longLinkEntry.setSize(len + 1l); // +1 for NUL
+                longLinkEntry.setSize(len + 1L); // +1 for NUL
                 transferModTime(entry, longLinkEntry);
                 putArchiveEntry(longLinkEntry);
                 write(encodedName.array(), encodedName.arrayOffset(), len);

@@ -16,11 +16,12 @@ import java.util.Stack;
 import javax.swing.JOptionPane;
 
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.StructUtils;
 import org.openstreetmap.josm.data.osm.Filter.FilterPreferenceEntry;
 import org.openstreetmap.josm.data.osm.search.SearchParseError;
 import org.openstreetmap.josm.gui.MainApplication;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.widgets.OSDLabel;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -70,7 +71,8 @@ public class FilterModel {
      * @param prefEntry preference key
      */
     public void loadPrefs(String prefEntry) {
-        List<FilterPreferenceEntry> entries = Main.pref.getListOfStructs(prefEntry, null, FilterPreferenceEntry.class);
+        List<FilterPreferenceEntry> entries = StructUtils.getListOfStructs(
+                Config.getPref(), prefEntry, null, FilterPreferenceEntry.class);
         if (entries != null) {
             for (FilterPreferenceEntry e : entries) {
                 filters.add(new Filter(e));
@@ -88,14 +90,14 @@ public class FilterModel {
         for (Filter flt : filters) {
             entries.add(flt.getPreferenceEntry());
         }
-        Main.pref.putListOfStructs(prefEntry, entries, FilterPreferenceEntry.class);
+        StructUtils.putListOfStructs(Config.getPref(), prefEntry, entries, FilterPreferenceEntry.class);
     }
 
     /**
      * Runs the filters on the current edit data set.
      */
     public void executeFilters() {
-        DataSet ds = Main.main.getEditDataSet();
+        DataSet ds = Main.main.getActiveDataSet();
         changed = false;
         if (ds == null) {
             disabledAndHiddenCount = 0;
@@ -127,6 +129,9 @@ public class FilterModel {
                 }
                 disabledCount -= disabledAndHiddenCount;
             } finally {
+                if (changed) {
+                    ds.fireFilterChanged();
+                }
                 ds.endUpdate();
             }
 
@@ -196,10 +201,7 @@ public class FilterModel {
     }
 
     private static void updateMap() {
-        OsmDataLayer editLayer = MainApplication.getLayerManager().getEditLayer();
-        if (editLayer != null) {
-            editLayer.invalidate();
-        }
+        MainApplication.getLayerManager().invalidateEditLayer();
     }
 
     /**

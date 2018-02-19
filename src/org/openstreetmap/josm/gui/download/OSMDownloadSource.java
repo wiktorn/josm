@@ -18,7 +18,6 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.event.ChangeListener;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.downloadtasks.AbstractDownloadTask;
 import org.openstreetmap.josm.actions.downloadtasks.DownloadGpsTask;
 import org.openstreetmap.josm.actions.downloadtasks.DownloadNotesTask;
@@ -31,6 +30,7 @@ import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapFrame;
 import org.openstreetmap.josm.gui.util.GuiHelper;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Logging;
@@ -48,8 +48,8 @@ public class OSMDownloadSource implements DownloadSource<OSMDownloadSource.OSMDo
     public static final String SIMPLE_NAME = "osmdownloadpanel";
 
     @Override
-    public AbstractDownloadSourcePanel<OSMDownloadData> createPanel() {
-        return new OSMDownloadSourcePanel(this);
+    public AbstractDownloadSourcePanel<OSMDownloadData> createPanel(DownloadDialog dialog) {
+        return new OSMDownloadSourcePanel(this, dialog);
     }
 
     @Override
@@ -144,15 +144,17 @@ public class OSMDownloadSource implements DownloadSource<OSMDownloadSource.OSMDo
 
         /**
          * Creates a new {@link OSMDownloadSourcePanel}.
+         * @param dialog the parent download dialog, as {@code DownloadDialog.getInstance()} might not be initialized yet
          * @param ds The osm download source the panel is for.
+         * @since 12900
          */
-        public OSMDownloadSourcePanel(OSMDownloadSource ds) {
+        public OSMDownloadSourcePanel(OSMDownloadSource ds, DownloadDialog dialog) {
             super(ds);
             setLayout(new GridBagLayout());
 
             // size check depends on selected data source
             final ChangeListener checkboxChangeListener = e ->
-                    DownloadDialog.getInstance().getSelectedDownloadArea().ifPresent(this::updateSizeCheck);
+                    dialog.getSelectedDownloadArea().ifPresent(this::updateSizeCheck);
 
             // adding the download tasks
             add(new JLabel(tr("Data Sources and Types:")), GBC.std().insets(5, 5, 1, 5).anchor(GBC.CENTER));
@@ -297,10 +299,10 @@ public class OSMDownloadSource implements DownloadSource<OSMDownloadSource.OSMDo
                 isAreaTooLarge = false;
             } else if (isDownloadNotes() && !isDownloadOsmData() && !isDownloadGpxData()) {
                 // see max_note_request_area in https://github.com/openstreetmap/openstreetmap-website/blob/master/config/example.application.yml
-                isAreaTooLarge = bbox.getArea() > Main.pref.getDouble("osm-server.max-request-area-notes", 25);
+                isAreaTooLarge = bbox.getArea() > Config.getPref().getDouble("osm-server.max-request-area-notes", 25);
             } else {
                 // see max_request_area in https://github.com/openstreetmap/openstreetmap-website/blob/master/config/example.application.yml
-                isAreaTooLarge = bbox.getArea() > Main.pref.getDouble("osm-server.max-request-area", 0.25);
+                isAreaTooLarge = bbox.getArea() > Config.getPref().getDouble("osm-server.max-request-area", 0.25);
             }
 
             displaySizeCheckResult(isAreaTooLarge);

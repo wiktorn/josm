@@ -12,15 +12,14 @@ import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowEvent;
 import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 
-import javax.swing.AbstractAction;
 import javax.swing.Box;
-import javax.swing.ImageIcon;
 import javax.swing.JButton;
-import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JToggleButton;
 
+import org.openstreetmap.josm.actions.JosmAction;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.dialogs.DialogsPanel.Action;
 import org.openstreetmap.josm.gui.dialogs.ToggleDialog;
@@ -40,16 +39,16 @@ import org.openstreetmap.josm.tools.date.DateUtils;
  */
 public final class ImageViewerDialog extends ToggleDialog implements LayerChangeListener, ActiveLayerChangeListener {
 
-    private static final String COMMAND_ZOOM = "zoom";
-    private static final String COMMAND_CENTERVIEW = "centre";
-    private static final String COMMAND_NEXT = "next";
-    private static final String COMMAND_REMOVE = "remove";
-    private static final String COMMAND_REMOVE_FROM_DISK = "removefromdisk";
-    private static final String COMMAND_PREVIOUS = "previous";
-    private static final String COMMAND_COLLAPSE = "collapse";
-    private static final String COMMAND_FIRST = "first";
-    private static final String COMMAND_LAST = "last";
-    private static final String COMMAND_COPY_PATH = "copypath";
+    private final ImageZoomAction imageZoomAction = new ImageZoomAction();
+    private final ImageCenterViewAction imageCenterViewAction = new ImageCenterViewAction();
+    private final ImageNextAction imageNextAction = new ImageNextAction();
+    private final ImageRemoveAction imageRemoveAction = new ImageRemoveAction();
+    private final ImageRemoveFromDiskAction imageRemoveFromDiskAction = new ImageRemoveFromDiskAction();
+    private final ImagePreviousAction imagePreviousAction = new ImagePreviousAction();
+    private final ImageCollapseAction imageCollapseAction = new ImageCollapseAction();
+    private final ImageFirstAction imageFirstAction = new ImageFirstAction();
+    private final ImageLastAction imageLastAction = new ImageLastAction();
+    private final ImageCopyPathAction imageCopyPathAction = new ImageCopyPathAction();
 
     private final ImageDisplay imgDisplay = new ImageDisplay();
     private boolean centerView;
@@ -59,7 +58,9 @@ public final class ImageViewerDialog extends ToggleDialog implements LayerChange
 
     private boolean collapseButtonClicked;
 
-    static void newInstance() {
+    static void createInstance() {
+        if (dialog != null)
+            throw new IllegalStateException("ImageViewerDialog instance was already created");
         dialog = new ImageViewerDialog();
     }
 
@@ -93,80 +94,30 @@ public final class ImageViewerDialog extends ToggleDialog implements LayerChange
 
         Dimension buttonDim = new Dimension(26, 26);
 
-        ImageAction prevAction = new ImageAction(COMMAND_PREVIOUS, ImageProvider.get("dialogs", "previous"), tr("Previous"));
-        btnPrevious = new JButton(prevAction);
+        btnPrevious = new JButton(imagePreviousAction);
         btnPrevious.setPreferredSize(buttonDim);
-        Shortcut scPrev = Shortcut.registerShortcut(
-                "geoimage:previous", tr("Geoimage: {0}", tr("Show previous Image")), KeyEvent.VK_PAGE_UP, Shortcut.DIRECT);
-        final String previousImage = "Previous Image";
-        MainApplication.registerActionShortcut(prevAction, scPrev);
-        btnPrevious.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(scPrev.getKeyStroke(), previousImage);
-        btnPrevious.getActionMap().put(previousImage, prevAction);
         btnPrevious.setEnabled(false);
 
-        final String removePhoto = tr("Remove photo from layer");
-        ImageAction delAction = new ImageAction(COMMAND_REMOVE, ImageProvider.get("dialogs", "delete"), removePhoto);
-        JButton btnDelete = new JButton(delAction);
+        JButton btnDelete = new JButton(imageRemoveAction);
         btnDelete.setPreferredSize(buttonDim);
-        Shortcut scDelete = Shortcut.registerShortcut(
-                "geoimage:deleteimagefromlayer", tr("Geoimage: {0}", tr("Remove photo from layer")), KeyEvent.VK_DELETE, Shortcut.SHIFT);
-        MainApplication.registerActionShortcut(delAction, scDelete);
-        btnDelete.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(scDelete.getKeyStroke(), removePhoto);
-        btnDelete.getActionMap().put(removePhoto, delAction);
 
-        ImageAction delFromDiskAction = new ImageAction(COMMAND_REMOVE_FROM_DISK,
-                ImageProvider.get("dialogs", "geoimage/deletefromdisk"), tr("Delete image file from disk"));
-        JButton btnDeleteFromDisk = new JButton(delFromDiskAction);
+        JButton btnDeleteFromDisk = new JButton(imageRemoveFromDiskAction);
         btnDeleteFromDisk.setPreferredSize(buttonDim);
-        Shortcut scDeleteFromDisk = Shortcut.registerShortcut(
-                "geoimage:deletefilefromdisk", tr("Geoimage: {0}", tr("Delete File from disk")), KeyEvent.VK_DELETE, Shortcut.CTRL_SHIFT);
-        final String deleteImage = "Delete image file from disk";
-        MainApplication.registerActionShortcut(delFromDiskAction, scDeleteFromDisk);
-        btnDeleteFromDisk.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(scDeleteFromDisk.getKeyStroke(), deleteImage);
-        btnDeleteFromDisk.getActionMap().put(deleteImage, delFromDiskAction);
 
-        ImageAction copyPathAction = new ImageAction(COMMAND_COPY_PATH, ImageProvider.get("copy"), tr("Copy image path"));
-        JButton btnCopyPath = new JButton(copyPathAction);
+        JButton btnCopyPath = new JButton(imageCopyPathAction);
         btnCopyPath.setPreferredSize(buttonDim);
-        Shortcut scCopyPath = Shortcut.registerShortcut(
-                "geoimage:copypath", tr("Geoimage: {0}", tr("Copy image path")), KeyEvent.VK_C, Shortcut.ALT_CTRL_SHIFT);
-        final String copyImage = "Copy image path";
-        MainApplication.registerActionShortcut(copyPathAction, scCopyPath);
-        btnCopyPath.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(scCopyPath.getKeyStroke(), copyImage);
-        btnCopyPath.getActionMap().put(copyImage, copyPathAction);
 
-        ImageAction nextAction = new ImageAction(COMMAND_NEXT, ImageProvider.get("dialogs", "next"), tr("Next"));
-        btnNext = new JButton(nextAction);
+        btnNext = new JButton(imageNextAction);
         btnNext.setPreferredSize(buttonDim);
-        Shortcut scNext = Shortcut.registerShortcut(
-                "geoimage:next", tr("Geoimage: {0}", tr("Show next Image")), KeyEvent.VK_PAGE_DOWN, Shortcut.DIRECT);
-        final String nextImage = "Next Image";
-        MainApplication.registerActionShortcut(nextAction, scNext);
-        btnNext.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(scNext.getKeyStroke(), nextImage);
-        btnNext.getActionMap().put(nextImage, nextAction);
         btnNext.setEnabled(false);
 
-        MainApplication.registerActionShortcut(
-                new ImageAction(COMMAND_FIRST, null, null),
-                Shortcut.registerShortcut(
-                        "geoimage:first", tr("Geoimage: {0}", tr("Show first Image")), KeyEvent.VK_HOME, Shortcut.DIRECT)
-        );
-        MainApplication.registerActionShortcut(
-                new ImageAction(COMMAND_LAST, null, null),
-                Shortcut.registerShortcut(
-                        "geoimage:last", tr("Geoimage: {0}", tr("Show last Image")), KeyEvent.VK_END, Shortcut.DIRECT)
-        );
-
-        tbCentre = new JToggleButton(new ImageAction(COMMAND_CENTERVIEW,
-                ImageProvider.get("dialogs", "centreview"), tr("Center view")));
+        tbCentre = new JToggleButton(imageCenterViewAction);
         tbCentre.setPreferredSize(buttonDim);
 
-        JButton btnZoomBestFit = new JButton(new ImageAction(COMMAND_ZOOM,
-                ImageProvider.get("dialogs", "zoom-best-fit"), tr("Zoom best fit and 1:1")));
+        JButton btnZoomBestFit = new JButton(imageZoomAction);
         btnZoomBestFit.setPreferredSize(buttonDim);
 
-        btnCollapse = new JButton(new ImageAction(COMMAND_COLLAPSE,
-                ImageProvider.get("dialogs", "collapse"), tr("Move dialog to the side pane")));
+        btnCollapse = new JButton(imageCollapseAction);
         btnCollapse.setPreferredSize(new Dimension(20, 20));
         btnCollapse.setAlignmentY(Component.TOP_ALIGNMENT);
 
@@ -205,56 +156,165 @@ public final class ImageViewerDialog extends ToggleDialog implements LayerChange
     public void destroy() {
         MainApplication.getLayerManager().removeActiveLayerChangeListener(this);
         MainApplication.getLayerManager().removeLayerChangeListener(this);
+        // Manually destroy actions until JButtons are replaced by standard SideButtons
+        imageFirstAction.destroy();
+        imageLastAction.destroy();
+        imagePreviousAction.destroy();
+        imageNextAction.destroy();
+        imageCenterViewAction.destroy();
+        imageCollapseAction.destroy();
+        imageCopyPathAction.destroy();
+        imageRemoveAction.destroy();
+        imageRemoveFromDiskAction.destroy();
+        imageZoomAction.destroy();
         super.destroy();
+        dialog = null;
     }
 
-    class ImageAction extends AbstractAction {
-        private final String action;
-
-        ImageAction(String action, ImageIcon icon, String toolTipText) {
-            this.action = action;
-            putValue(SHORT_DESCRIPTION, toolTipText);
-            putValue(SMALL_ICON, icon);
+    private class ImageNextAction extends JosmAction {
+        ImageNextAction() {
+            super(null, new ImageProvider("dialogs", "next"), tr("Next"), Shortcut.registerShortcut(
+                    "geoimage:next", tr("Geoimage: {0}", tr("Show next Image")), KeyEvent.VK_PAGE_DOWN, Shortcut.DIRECT),
+                  false, null, false);
         }
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            if (COMMAND_NEXT.equals(action)) {
-                if (currentLayer != null) {
-                    currentLayer.showNextPhoto();
-                }
-            } else if (COMMAND_PREVIOUS.equals(action)) {
-                if (currentLayer != null) {
-                    currentLayer.showPreviousPhoto();
-                }
-            } else if (COMMAND_FIRST.equals(action) && currentLayer != null) {
-                currentLayer.showFirstPhoto();
-            } else if (COMMAND_LAST.equals(action) && currentLayer != null) {
-                currentLayer.showLastPhoto();
-            } else if (COMMAND_CENTERVIEW.equals(action)) {
-                final JToggleButton button = (JToggleButton) e.getSource();
-                centerView = button.isEnabled() && button.isSelected();
-                if (centerView && currentEntry != null && currentEntry.getPos() != null) {
-                    MainApplication.getMap().mapView.zoomTo(currentEntry.getPos());
-                }
-            } else if (COMMAND_ZOOM.equals(action)) {
-                imgDisplay.zoomBestFitOrOne();
-            } else if (COMMAND_REMOVE.equals(action)) {
-                if (currentLayer != null) {
-                    currentLayer.removeCurrentPhoto();
-                }
-            } else if (COMMAND_REMOVE_FROM_DISK.equals(action)) {
-                if (currentLayer != null) {
-                    currentLayer.removeCurrentPhotoFromDisk();
-                }
-            } else if (COMMAND_COPY_PATH.equals(action)) {
-                if (currentLayer != null) {
-                    currentLayer.copyCurrentPhotoPath();
-                }
-            } else if (COMMAND_COLLAPSE.equals(action)) {
-                collapseButtonClicked = true;
-                detachedDialog.getToolkit().getSystemEventQueue().postEvent(new WindowEvent(detachedDialog, WindowEvent.WINDOW_CLOSING));
+            if (currentLayer != null) {
+                currentLayer.showNextPhoto();
             }
+        }
+    }
+
+    private class ImagePreviousAction extends JosmAction {
+        ImagePreviousAction() {
+            super(null, new ImageProvider("dialogs", "previous"), tr("Previous"), Shortcut.registerShortcut(
+                    "geoimage:previous", tr("Geoimage: {0}", tr("Show previous Image")), KeyEvent.VK_PAGE_UP, Shortcut.DIRECT),
+                  false, null, false);
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            if (currentLayer != null) {
+                currentLayer.showPreviousPhoto();
+            }
+        }
+    }
+
+    private class ImageFirstAction extends JosmAction {
+        ImageFirstAction() {
+            super(null, (ImageProvider) null, null, Shortcut.registerShortcut(
+                    "geoimage:first", tr("Geoimage: {0}", tr("Show first Image")), KeyEvent.VK_HOME, Shortcut.DIRECT),
+                  false, null, false);
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            if (currentLayer != null) {
+                currentLayer.showFirstPhoto();
+            }
+        }
+    }
+
+    private class ImageLastAction extends JosmAction {
+        ImageLastAction() {
+            super(null, (ImageProvider) null, null, Shortcut.registerShortcut(
+                    "geoimage:last", tr("Geoimage: {0}", tr("Show last Image")), KeyEvent.VK_END, Shortcut.DIRECT),
+                  false, null, false);
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            if (currentLayer != null) {
+                currentLayer.showLastPhoto();
+            }
+        }
+    }
+
+    private class ImageCenterViewAction extends JosmAction {
+        ImageCenterViewAction() {
+            super(null, new ImageProvider("dialogs", "centreview"), tr("Center view"), null,
+                  false, null, false);
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            final JToggleButton button = (JToggleButton) e.getSource();
+            centerView = button.isEnabled() && button.isSelected();
+            if (centerView && currentEntry != null && currentEntry.getPos() != null) {
+                MainApplication.getMap().mapView.zoomTo(currentEntry.getPos());
+            }
+        }
+    }
+
+    private class ImageZoomAction extends JosmAction {
+        ImageZoomAction() {
+            super(null, new ImageProvider("dialogs", "zoom-best-fit"), tr("Zoom best fit and 1:1"), null,
+                  false, null, false);
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            imgDisplay.zoomBestFitOrOne();
+        }
+    }
+
+    private class ImageRemoveAction extends JosmAction {
+        ImageRemoveAction() {
+            super(null, new ImageProvider("dialogs", "delete"), tr("Remove photo from layer"), Shortcut.registerShortcut(
+                    "geoimage:deleteimagefromlayer", tr("Geoimage: {0}", tr("Remove photo from layer")), KeyEvent.VK_DELETE, Shortcut.SHIFT),
+                  false, null, false);
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            if (currentLayer != null) {
+                currentLayer.removeCurrentPhoto();
+            }
+        }
+    }
+
+    private class ImageRemoveFromDiskAction extends JosmAction {
+        ImageRemoveFromDiskAction() {
+            super(null, new ImageProvider("dialogs", "geoimage/deletefromdisk"), tr("Delete image file from disk"),
+                  Shortcut.registerShortcut(
+                    "geoimage:deletefilefromdisk", tr("Geoimage: {0}", tr("Delete File from disk")), KeyEvent.VK_DELETE, Shortcut.CTRL_SHIFT),
+                  false, null, false);
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            if (currentLayer != null) {
+                currentLayer.removeCurrentPhotoFromDisk();
+            }
+        }
+    }
+
+    private class ImageCopyPathAction extends JosmAction {
+        ImageCopyPathAction() {
+            super(null, new ImageProvider("copy"), tr("Copy image path"), Shortcut.registerShortcut(
+                    "geoimage:copypath", tr("Geoimage: {0}", tr("Copy image path")), KeyEvent.VK_C, Shortcut.ALT_CTRL_SHIFT),
+                  false, null, false);
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            if (currentLayer != null) {
+                currentLayer.copyCurrentPhotoPath();
+            }
+        }
+    }
+
+    private class ImageCollapseAction extends JosmAction {
+        ImageCollapseAction() {
+            super(null, new ImageProvider("dialogs", "collapse"), tr("Move dialog to the side pane"), null,
+                  false, null, false);
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            collapseButtonClicked = true;
+            detachedDialog.getToolkit().getSystemEventQueue().postEvent(new WindowEvent(detachedDialog, WindowEvent.WINDOW_CLOSING));
         }
     }
 
@@ -320,7 +380,7 @@ public final class ImageViewerDialog extends ToggleDialog implements LayerChange
             if (imageChanged) {
                 // Set only if the image is new to preserve zoom and position if the same image is redisplayed
                 // (e.g. to update the OSD).
-                imgDisplay.setImage(entry.getFile(), entry.getExifOrientation());
+                imgDisplay.setImage(entry);
             }
             setTitle(tr("Geotagged Images") + (entry.getFile() != null ? " - " + entry.getFile().getName() : ""));
             StringBuilder osd = new StringBuilder(entry.getFile() != null ? entry.getFile().getName() : "");
@@ -334,6 +394,13 @@ public final class ImageViewerDialog extends ToggleDialog implements LayerChange
                 osd.append(tr("\nDirection {0}\u00b0", Math.round(entry.getExifImgDir())));
             }
             DateFormat dtf = DateUtils.getDateTimeFormat(DateFormat.SHORT, DateFormat.MEDIUM);
+            // Make sure date/time format includes milliseconds
+            if (dtf instanceof SimpleDateFormat) {
+                String pattern = ((SimpleDateFormat) dtf).toPattern();
+                if (!pattern.contains(".SSS")) {
+                    dtf = new SimpleDateFormat(pattern.replace(":ss", ":ss.SSS"));
+                }
+            }
             if (entry.hasExifTime()) {
                 osd.append(tr("\nEXIF time: {0}", dtf.format(entry.getExifTime())));
             }
@@ -346,7 +413,7 @@ public final class ImageViewerDialog extends ToggleDialog implements LayerChange
             // if this method is called to reinitialize dialog content with a blank image,
             // do not actually show the dialog again with a blank image if currently hidden (fix #10672)
             setTitle(tr("Geotagged Images"));
-            imgDisplay.setImage(null, null);
+            imgDisplay.setImage(null);
             imgDisplay.setOsdText("");
             return;
         }
@@ -449,5 +516,4 @@ public final class ImageViewerDialog extends ToggleDialog implements LayerChange
             ((GeoImageLayer) newLayer).showFirstPhoto();
         }
     }
-
 }

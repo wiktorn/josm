@@ -68,8 +68,10 @@ import org.openstreetmap.josm.actions.ParameterizedActionDecorator;
 import org.openstreetmap.josm.data.imagery.ImageryInfo;
 import org.openstreetmap.josm.data.imagery.ImageryLayerInfo;
 import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPreset;
 import org.openstreetmap.josm.gui.util.GuiHelper;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Logging;
@@ -487,7 +489,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
 
         private void setActionAndAdapt(ActionDefinition action) {
             this.act = action;
-            doNotHide.setSelected(Main.pref.getBoolean("toolbar.always-visible", true));
+            doNotHide.setSelected(Config.getPref().getBoolean("toolbar.always-visible", true));
             remove.setVisible(act != null);
             shortcutEdit.setVisible(act != null);
         }
@@ -495,13 +497,13 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
         private final JMenuItem remove = new JMenuItem(new AbstractAction(tr("Remove from toolbar")) {
             @Override
             public void actionPerformed(ActionEvent e) {
-                Collection<String> t = new LinkedList<>(getToolString());
+                List<String> t = new LinkedList<>(getToolString());
                 ActionParser parser = new ActionParser(null);
                 // get text definition of current action
                 String res = parser.saveAction(act);
                 // remove the button from toolbar preferences
                 t.remove(res);
-                Main.pref.putCollection("toolbar", t);
+                Config.getPref().putList("toolbar", t);
                 MainApplication.getToolbar().refreshToolbarControl();
             }
         });
@@ -531,8 +533,8 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
             @Override
             public void actionPerformed(ActionEvent e) {
                 boolean sel = ((JCheckBoxMenuItem) e.getSource()).getState();
-                Main.pref.put("toolbar.always-visible", sel);
-                Main.pref.put("menu.always-visible", sel);
+                Config.getPref().putBoolean("toolbar.always-visible", sel);
+                Config.getPref().putBoolean("menu.always-visible", sel);
             }
         });
 
@@ -970,7 +972,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
 
         @Override
         public boolean ok() {
-            Collection<String> t = new LinkedList<>();
+            List<String> t = new LinkedList<>();
             ActionParser parser = new ActionParser(null);
             for (int i = 0; i < selected.size(); ++i) {
                 ActionDefinition action = selected.get(i);
@@ -986,11 +988,15 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
             if (t.isEmpty()) {
                 t = Collections.singletonList(EMPTY_TOOLBAR_MARKER);
             }
-            Main.pref.putCollection("toolbar", t);
+            Config.getPref().putList("toolbar", t);
             MainApplication.getToolbar().refreshToolbarControl();
             return false;
         }
 
+        @Override
+        public String getHelpContext() {
+            return HelpUtil.ht("/Preferences/Toolbar");
+        }
     }
 
     /**
@@ -1001,7 +1007,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
             control.setFloatable(false);
             control.setComponentPopupMenu(popupMenu);
         });
-        Main.pref.addPreferenceChangeListener(e -> {
+        Config.getPref().addPreferenceChangeListener(e -> {
             if ("toolbar.visible".equals(e.getKey())) {
                 refreshToolbarControl();
             }
@@ -1073,7 +1079,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
 
     public static Collection<String> getToolString() {
 
-        Collection<String> toolStr = Main.pref.getCollection("toolbar", Arrays.asList(deftoolbar));
+        Collection<String> toolStr = Config.getPref().getList("toolbar", Arrays.asList(deftoolbar));
         if (toolStr == null || toolStr.isEmpty()) {
             toolStr = Arrays.asList(deftoolbar);
         }
@@ -1187,7 +1193,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
             }
         }
 
-        boolean visible = Main.pref.getBoolean("toolbar.visible", true);
+        boolean visible = Config.getPref().getBoolean("toolbar.visible", true);
 
         control.setFocusTraversalKeysEnabled(!unregisterTab);
         control.setVisible(visible && control.getComponentCount() != 0);
@@ -1213,7 +1219,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
                 t.add(definitionText); // add to the end
             }
         }
-        Main.pref.putCollection("toolbar", t);
+        Config.getPref().putList("toolbar", t);
         MainApplication.getToolbar().refreshToolbarControl();
     }
 

@@ -10,10 +10,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.coor.LatLon;
+import org.openstreetmap.josm.data.osm.visitor.OsmPrimitiveVisitor;
 import org.openstreetmap.josm.data.osm.visitor.PrimitiveVisitor;
-import org.openstreetmap.josm.data.osm.visitor.Visitor;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.CopyList;
 import org.openstreetmap.josm.tools.Pair;
 import org.openstreetmap.josm.tools.Utils;
@@ -52,6 +52,7 @@ public final class Way extends OsmPrimitive implements IWay {
      * @since 1862
      */
     public void setNodes(List<Node> nodes) {
+        checkDatasetNotReadOnly();
         boolean locked = writeLock();
         try {
             for (Node node:this.nodes) {
@@ -62,7 +63,7 @@ public final class Way extends OsmPrimitive implements IWay {
             if (nodes == null) {
                 this.nodes = new Node[0];
             } else {
-                this.nodes = nodes.toArray(new Node[nodes.size()]);
+                this.nodes = nodes.toArray(new Node[0]);
             }
             for (Node node: this.nodes) {
                 node.addReferrer(this);
@@ -206,7 +207,7 @@ public final class Way extends OsmPrimitive implements IWay {
         return chunkSet;
     }
 
-    @Override public void accept(Visitor visitor) {
+    @Override public void accept(OsmPrimitiveVisitor visitor) {
         visitor.visit(this);
     }
 
@@ -360,6 +361,7 @@ public final class Way extends OsmPrimitive implements IWay {
      * @since 1463
      */
     public void removeNode(Node n) {
+        checkDatasetNotReadOnly();
         if (n == null || isIncomplete()) return;
         boolean locked = writeLock();
         try {
@@ -388,6 +390,7 @@ public final class Way extends OsmPrimitive implements IWay {
      * @since 5408
      */
     public void removeNodes(Set<? extends Node> selection) {
+        checkDatasetNotReadOnly();
         if (selection == null || isIncomplete()) return;
         boolean locked = writeLock();
         try {
@@ -424,6 +427,7 @@ public final class Way extends OsmPrimitive implements IWay {
      * @since 1313
      */
     public void addNode(Node n) {
+        checkDatasetNotReadOnly();
         if (n == null) return;
 
         boolean locked = writeLock();
@@ -451,6 +455,7 @@ public final class Way extends OsmPrimitive implements IWay {
      * @since 1313
      */
     public void addNode(int offs, Node n) {
+        checkDatasetNotReadOnly();
         if (n == null) return;
 
         boolean locked = writeLock();
@@ -600,7 +605,7 @@ public final class Way extends OsmPrimitive implements IWay {
                             "<html>" + tr("Deleted node referenced by {0}",
                                     DefaultNameFormatter.getInstance().formatAsHtmlUnorderedList(this)) + "</html>");
             }
-            if (Main.pref.getBoolean("debug.checkNullCoor", true)) {
+            if (Config.getPref().getBoolean("debug.checkNullCoor", true)) {
                 for (Node n: nodes) {
                     if (n.isVisible() && !n.isIncomplete() && !n.isLatLonKnown())
                         throw new DataIntegrityProblemException("Complete visible node with null coordinates: " + toString(),
@@ -659,6 +664,20 @@ public final class Way extends OsmPrimitive implements IWay {
         return false;
     }
 
+    /**
+     * Replies true if all nodes of the way have known lat/lon, false otherwise.
+     * @return true if all nodes of the way have known lat/lon, false otherwise
+     * @since 13033
+     */
+    public boolean hasOnlyLocatableNodes() {
+        Node[] nodes = this.nodes;
+        for (Node node : nodes) {
+            if (!node.isLatLonKnown())
+                return false;
+        }
+        return true;
+    }
+
     @Override
     public boolean isUsable() {
         return super.isUsable() && !hasIncompleteNodes();
@@ -666,7 +685,7 @@ public final class Way extends OsmPrimitive implements IWay {
 
     @Override
     public boolean isDrawable() {
-        return super.isDrawable() && !hasIncompleteNodes();
+        return super.isDrawable() && hasOnlyLocatableNodes();
     }
 
     /**

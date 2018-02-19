@@ -27,6 +27,7 @@ import org.openstreetmap.josm.command.DeleteCommand;
 import org.openstreetmap.josm.command.SequenceCommand;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
+import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
@@ -39,6 +40,7 @@ import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.Notification;
 import org.openstreetmap.josm.gui.conflict.tags.CombinePrimitiveResolverDialog;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Logging;
@@ -74,6 +76,7 @@ public class MergeNodesAction extends JosmAction {
             return;
         Collection<OsmPrimitive> selection = getLayerManager().getEditDataSet().getAllSelected();
         List<Node> selectedNodes = OsmPrimitive.getFilteredList(selection, Node.class);
+        selectedNodes.removeIf(n -> n.isDeleted() || n.isIncomplete());
 
         if (selectedNodes.size() == 1) {
             MapView mapView = MainApplication.getMap().mapView;
@@ -113,7 +116,7 @@ public class MergeNodesAction extends JosmAction {
         if (size == 1) // to avoid division by 0 in mode 2
             return candidates.get(0);
 
-        switch (Main.pref.getInteger("merge-nodes.mode", 0)) {
+        switch (Config.getPref().getInt("merge-nodes.mode", 0)) {
         case 0:
             return candidates.get(size - 1);
         case 1:
@@ -282,21 +285,6 @@ public class MergeNodesAction extends JosmAction {
     /**
      * Merges the nodes in {@code nodes} at the specified node's location.
      *
-     * @param layer unused
-     * @param nodes the collection of nodes. Ignored if null.
-     * @param targetLocationNode this node's location will be used for the targetNode.
-     * @return The command necessary to run in order to perform action, or {@code null} if there is nothing to do
-     * @throws IllegalArgumentException if {@code layer} is null
-     * @deprecated use {@link #mergeNodes(Collection, Node)} instead
-     */
-    @Deprecated
-    public static Command mergeNodes(OsmDataLayer layer, Collection<Node> nodes, Node targetLocationNode) {
-        return mergeNodes(nodes, targetLocationNode);
-    }
-
-    /**
-     * Merges the nodes in {@code nodes} at the specified node's location.
-     *
      * @param nodes the collection of nodes. Ignored if null.
      * @param targetLocationNode this node's location will be used for the targetNode.
      * @return The command necessary to run in order to perform action, or {@code null} if there is nothing to do
@@ -309,7 +297,11 @@ public class MergeNodesAction extends JosmAction {
         }
         Set<Node> allNodes = new HashSet<>(nodes);
         allNodes.add(targetLocationNode);
-        return mergeNodes(nodes, selectTargetNode(allNodes), targetLocationNode);
+        Node targetNode = selectTargetNode(allNodes);
+        if (targetNode == null) {
+            return null;
+        }
+        return mergeNodes(nodes, targetNode, targetLocationNode);
     }
 
     /**
@@ -372,7 +364,8 @@ public class MergeNodesAction extends JosmAction {
 
     @Override
     protected void updateEnabledState(Collection<? extends OsmPrimitive> selection) {
-        if (selection == null || selection.isEmpty()) {
+        if (selection == null || selection.isEmpty()
+                || selection.stream().map(OsmPrimitive::getDataSet).anyMatch(DataSet::isReadOnly)) {
             setEnabled(false);
             return;
         }

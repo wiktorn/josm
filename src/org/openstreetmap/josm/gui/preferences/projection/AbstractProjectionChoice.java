@@ -10,39 +10,35 @@ import org.openstreetmap.josm.data.projection.Projections;
 /**
  * Super class for ProjectionChoice implementations.
  * <p>
- * Handles common parameters <code>name</code>, <code>id</code> and <code>cacheDir</code>.
+ * Handles common parameters <code>name</code> and <code>id</code>.
  */
 public abstract class AbstractProjectionChoice implements ProjectionChoice {
 
     protected String name;
     protected String id;
-    protected String cacheDir;
 
     /**
      * Constructs a new {@code AbstractProjectionChoice}.
      *
      * @param name short name of the projection choice as shown in the GUI
      * @param id unique identifier for the projection choice
-     * @param cacheDir a cache directory name
+     * @param cacheDir unused
+     * @deprecated use {@link #AbstractProjectionChoice(String, String)} instead
      */
+    @Deprecated
     public AbstractProjectionChoice(String name, String id, String cacheDir) {
-        this.name = name;
-        this.id = id;
-        this.cacheDir = cacheDir;
+        this(name, id);
     }
 
     /**
      * Constructs a new {@code AbstractProjectionChoice}.
      *
-     * Only for core projection choices, where chacheDir is the same as
-     * the second part of the id.
      * @param name short name of the projection choice as shown in the GUI
      * @param id unique identifier for the projection choice
      */
     public AbstractProjectionChoice(String name, String id) {
-        this(name, id, null);
-        if (!id.startsWith("core:")) throw new IllegalArgumentException(id+" does not start with core:");
-        this.cacheDir = id.substring(5);
+        this.name = name;
+        this.id = id;
     }
 
     @Override
@@ -50,23 +46,21 @@ public abstract class AbstractProjectionChoice implements ProjectionChoice {
         return id;
     }
 
-    /**
-    * Get the cache directory name.
-    * @return the cache directory name (base name)
-    * @deprecated unused - remove in 2017-09
-    */
-    @Deprecated
-    public String getCacheDir() {
-        return cacheDir;
-    }
-
     @Override
     public String toString() {
         return name;
     }
 
+    /**
+     * Returns current projection code.
+     * @return current projection code
+     */
     public abstract String getCurrentCode();
 
+    /**
+     * Returns projection name.
+     * @return projection name
+     */
     public abstract String getProjectionName();
 
     @Override

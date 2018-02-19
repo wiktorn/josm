@@ -5,7 +5,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
@@ -17,6 +16,7 @@ import java.util.Collections;
 
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.openstreetmap.josm.TestUtils;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.DataSet;
@@ -52,7 +52,13 @@ public class SearchCompilerTest {
      */
     @Rule
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    public JOSMTestRules test = new JOSMTestRules().preferences();
+    public JOSMTestRules test = new JOSMTestRules().preferences().timeout(20000);
+
+    /**
+     * Rule to assert exception message.
+     */
+    @Rule
+    public ExpectedException expectedEx = ExpectedException.none();
 
     private static final class SearchContext {
         final DataSet ds = new DataSet();
@@ -401,15 +407,13 @@ public class SearchCompilerTest {
 
     /**
      * Compiles "foo type bar" and tests the parse error message
+     * @throws SearchParseError always
      */
     @Test
-    public void testFooTypeBar() {
-        try {
-            SearchCompiler.compile("foo type bar");
-            fail();
-        } catch (SearchParseError parseError) {
-            assertEquals("<html>Expecting <code>:</code> after <i>type</i>", parseError.getMessage());
-        }
+    public void testFooTypeBar() throws SearchParseError {
+        expectedEx.expect(SearchParseError.class);
+        expectedEx.expectMessage("<html>Expecting <code>:</code> after <i>type</i></html>");
+        SearchCompiler.compile("foo type bar");
     }
 
     /**
@@ -491,6 +495,18 @@ public class SearchCompilerTest {
     }
 
     /**
+     * Test empty values.
+     * @throws SearchParseError never
+     */
+    @Test
+    public void testEmptyValues15943() throws SearchParseError {
+        Match matcher = SearchCompiler.compile("access=");
+        assertTrue(matcher.match(new Tag("access", null)));
+        assertTrue(matcher.match(new Tag("access", "")));
+        assertFalse(matcher.match(new Tag("access", "private")));
+    }
+
+    /**
      * Unit test of {@link SearchCompiler.ExactKeyValue.Mode} enum.
      */
     @Test
@@ -556,7 +572,6 @@ public class SearchCompilerTest {
 
         SearchCompiler.compile(settings);
     }
-
 
     /**
      * Ensures that correct presets are stored in the {@link org.openstreetmap.josm.data.osm.search.SearchCompiler.Preset}

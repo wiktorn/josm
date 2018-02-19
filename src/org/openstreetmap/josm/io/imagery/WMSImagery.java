@@ -3,7 +3,9 @@ package org.openstreetmap.josm.io.imagery;
 
 import java.awt.HeadlessException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.StringReader;
+import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -15,6 +17,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -23,6 +26,11 @@ import java.util.stream.StreamSupport;
 import javax.imageio.ImageIO;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.TransformerFactoryConfigurationError;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.imagery.ImageryInfo;
@@ -39,7 +47,7 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 /**
- * This class represents the capabilites of a WMS imagery server.
+ * This class represents the capabilities of a WMS imagery server.
  */
 public class WMSImagery {
 
@@ -103,7 +111,7 @@ public class WMSImagery {
 
         /**
          * The data that caused this exception.
-         * @return The server response to the capabilites request.
+         * @return The server response to the capabilities request.
          */
         public String getIncomingData() {
             return incomingData;
@@ -113,6 +121,7 @@ public class WMSImagery {
     private List<LayerDetails> layers;
     private URL serviceUrl;
     private List<String> formats;
+    private String version = "1.1.1";
 
     /**
      * Returns the list of layers.
@@ -128,6 +137,15 @@ public class WMSImagery {
      */
     public URL getServiceUrl() {
         return serviceUrl;
+    }
+
+    /**
+     * Returns the WMS version used.
+     * @return the WMS version used (1.1.1 or 1.3.0)
+     * @since 13358
+     */
+    public String getVersion() {
+        return version;
     }
 
     /**
@@ -190,9 +208,9 @@ public class WMSImagery {
      */
     public String buildGetMapUrl(Collection<LayerDetails> selectedLayers, String format) {
         return buildRootUrl() + "FORMAT=" + format + (imageFormatHasTransparency(format) ? "&TRANSPARENT=TRUE" : "")
-                + "&VERSION=1.1.1&SERVICE=WMS&REQUEST=GetMap&LAYERS="
+                + "&VERSION=" + version + "&SERVICE=WMS&REQUEST=GetMap&LAYERS="
                 + selectedLayers.stream().map(x -> x.ident).collect(Collectors.joining(","))
-                + "&STYLES=&SRS={proj}&WIDTH={width}&HEIGHT={height}&BBOX={bbox}";
+                + "&STYLES=&" + ("1.3.0".equals(version) ? "CRS" : "SRS") + "={proj}&WIDTH={width}&HEIGHT={height}&BBOX={bbox}";
     }
 
     /**
@@ -220,29 +238,93 @@ public class WMSImagery {
                 // handling systems deal with problems
                 getCapabilitiesUrl = new URL(serviceUrlStr);
             }
-            serviceUrl = new URL(serviceUrlStr);
+            // Make sure we don't keep GetCapabilities request in service URL
+            serviceUrl = new URL(serviceUrlStr.replace("REQUEST=GetCapabilities", "").replace("&&", "&"));
         } catch (HeadlessException e) {
             Logging.warn(e);
             return;
         }
 
-        final Response response = HttpClient.create(getCapabilitiesUrl).connect();
-        final String incomingData = response.fetchContent();
-        Logging.debug("Server response to Capabilities request:");
-        Logging.debug(incomingData);
+        doAttemptGetCapabilities(serviceUrlStr, getCapabilitiesUrl);
+    }
 
+    /**
+     * Attempts WMS GetCapabilities with version 1.1.1 first, then 1.3.0 in case of specific errors.
+     * @param serviceUrlStr WMS service URL
+     * @param getCapabilitiesUrl GetCapabilities URL
+     * @throws IOException if any I/O error occurs
+     * @throws WMSGetCapabilitiesException if any HTTP or parsing error occurs
+     */
+    private void doAttemptGetCapabilities(String serviceUrlStr, URL getCapabilitiesUrl)
+            throws IOException, WMSGetCapabilitiesException {
+        final String url = getCapabilitiesUrl.toExternalForm();
+        final Response response = HttpClient.create(getCapabilitiesUrl).connect();
+
+        // Is the HTTP connection successul ?
         if (response.getResponseCode() >= 400) {
-            throw new WMSGetCapabilitiesException(response.getResponseMessage(), incomingData);
+            // HTTP error for servers handling only WMS 1.3.0 ?
+            String errorMessage = response.getResponseMessage();
+            String errorContent = response.fetchContent();
+            Matcher tomcat = HttpClient.getTomcatErrorMatcher(errorContent);
+            boolean messageAbout130 = errorMessage != null && errorMessage.contains("1.3.0");
+            boolean contentAbout130 = errorContent != null && tomcat != null && tomcat.matches() && tomcat.group(1).contains("1.3.0");
+            if (url.contains("VERSION=1.1.1") && (messageAbout130 || contentAbout130)) {
+                doAttemptGetCapabilities130(serviceUrlStr, url);
+                return;
+            }
+            throw new WMSGetCapabilitiesException(errorMessage, errorContent);
         }
 
+        try {
+            // Parse XML capabilities sent by the server
+            parseCapabilities(serviceUrlStr, response.getContent());
+        } catch (WMSGetCapabilitiesException e) {
+            // ServiceException for servers handling only WMS 1.3.0 ?
+            if (e.getCause() == null && url.contains("VERSION=1.1.1")) {
+                doAttemptGetCapabilities130(serviceUrlStr, url);
+            } else {
+                throw e;
+            }
+        }
+    }
+
+    /**
+     * Attempts WMS GetCapabilities with version 1.3.0.
+     * @param serviceUrlStr WMS service URL
+     * @param url GetCapabilities URL
+     * @throws IOException if any I/O error occurs
+     * @throws WMSGetCapabilitiesException if any HTTP or parsing error occurs
+     * @throws MalformedURLException in case of invalid URL
+     */
+    private void doAttemptGetCapabilities130(String serviceUrlStr, final String url)
+            throws IOException, WMSGetCapabilitiesException {
+        doAttemptGetCapabilities(serviceUrlStr, new URL(url.replace("VERSION=1.1.1", "VERSION=1.3.0")));
+        if (serviceUrl.toExternalForm().contains("VERSION=1.1.1")) {
+            serviceUrl = new URL(serviceUrl.toExternalForm().replace("VERSION=1.1.1", "VERSION=1.3.0"));
+        }
+        version = "1.3.0";
+    }
+
+    void parseCapabilities(String serviceUrlStr, InputStream contentStream) throws IOException, WMSGetCapabilitiesException {
+        String incomingData = null;
         try {
             DocumentBuilder builder = Utils.newSafeDOMBuilder();
             builder.setEntityResolver((publicId, systemId) -> {
                 Logging.info("Ignoring DTD " + publicId + ", " + systemId);
                 return new InputSource(new StringReader(""));
             });
-            Document document = builder.parse(new InputSource(new StringReader(incomingData)));
+            Document document = builder.parse(contentStream);
             Element root = document.getDocumentElement();
+
+            try {
+                StringWriter writer = new StringWriter();
+                TransformerFactory.newInstance().newTransformer().transform(new DOMSource(document), new StreamResult(writer));
+                incomingData = writer.getBuffer().toString();
+                Logging.debug("Server response to Capabilities request:");
+                Logging.debug(incomingData);
+            } catch (TransformerFactoryConfigurationError | TransformerException e) {
+                Logging.warn(e);
+            }
 
             // Check if the request resulted in ServiceException
             if ("ServiceException".equals(root.getTagName())) {
@@ -266,8 +348,11 @@ public class WMSImagery {
             if (child != null) {
                 String baseURL = child.getAttribute("xlink:href");
                 if (!baseURL.equals(serviceUrlStr)) {
-                    Logging.info("GetCapabilities specifies a different service URL: " + baseURL);
-                    serviceUrl = new URL(baseURL);
+                    URL newURL = new URL(baseURL);
+                    if (newURL.getAuthority() != null) {
+                        Logging.info("GetCapabilities specifies a different service URL: " + baseURL);
+                        serviceUrl = newURL;
+                    }
                 }
             }
 
@@ -339,6 +424,7 @@ public class WMSImagery {
     private LayerDetails parseLayer(Element element, Set<String> parentCrs) {
         String name = getChildContent(element, "Title", null, null);
         String ident = getChildContent(element, "Name", null, null);
+        String abstr = getChildContent(element, "Abstract", null, null);
 
         // The set of supported CRS/SRS for this layer
         Set<String> crsList = new HashSet<>();
@@ -349,7 +435,7 @@ public class WMSImagery {
         // I think CRS and SRS are the same at this point
         getChildrenStream(element)
             .filter(child -> "CRS".equals(child.getNodeName()) || "SRS".equals(child.getNodeName()))
-            .map(child -> (String) getContent(child))
+            .map(WMSImagery::getContent)
             .filter(crs -> !crs.isEmpty())
             .map(crs -> crs.trim().toUpperCase(Locale.ENGLISH))
             .forEach(crsList::add);
@@ -384,7 +470,7 @@ public class WMSImagery {
         List<Element> layerChildren = getChildren(element, "Layer");
         List<LayerDetails> childLayers = parseLayers(layerChildren, crsList);
 
-        return new LayerDetails(name, ident, crsList, josmSupportsThisLayer, bounds, childLayers);
+        return new LayerDetails(name, ident, abstr, crsList, josmSupportsThisLayer, bounds, childLayers);
     }
 
     private static double getDecimalDegree(Element elem, String attr) {
@@ -401,19 +487,20 @@ public class WMSImagery {
         if (child == null)
             return missing;
         else {
-            String content = (String) getContent(child);
+            String content = getContent(child);
             return (!content.isEmpty()) ? content : empty;
         }
     }
 
-    private static Object getContent(Element element) {
+    private static String getContent(Element element) {
         NodeList nl = element.getChildNodes();
         StringBuilder content = new StringBuilder();
         for (int i = 0; i < nl.getLength(); i++) {
             Node node = nl.item(i);
             switch (node.getNodeType()) {
                 case Node.ELEMENT_NODE:
-                    return node;
+                    content.append(getContent((Element) node));
+                    break;
                 case Node.CDATA_SECTION_NODE:
                 case Node.TEXT_NODE:
                     content.append(node.getNodeValue());
@@ -447,15 +534,23 @@ public class WMSImagery {
     }
 
     /**
-     * The details of a layer of this wms server.
+     * The details of a layer of this WMS server.
      */
     public static class LayerDetails {
 
         /**
-         * The layer name
+         * The layer name (WMS {@code Title})
          */
         public final String name;
+        /**
+         * The layer ident (WMS {@code Name})
+         */
         public final String ident;
+        /**
+         * The layer abstract (WMS {@code Abstract})
+         * @since 13199
+         */
+        public final String abstr;
         /**
          * The child layers of this layer
          */
@@ -464,33 +559,57 @@ public class WMSImagery {
          * The bounds this layer can be used for
          */
         public final Bounds bounds;
+        /**
+         * the CRS/SRS pulled out of this layer's XML element
+         */
         public final Set<String> crsList;
+        /**
+         * {@code true} if any of the specified projections are supported by JOSM
+         */
         public final boolean supported;
 
-        public LayerDetails(String name, String ident, Set<String> crsList, boolean supportedLayer, Bounds bounds,
+        /**
+         * Constructs a new {@code LayerDetails}.
+         * @param name The layer name (WMS {@code Title})
+         * @param ident The layer ident (WMS {@code Name})
+         * @param abstr The layer abstract (WMS {@code Abstract})
+         * @param crsList The CRS/SRS pulled out of this layer's XML element
+         * @param supportedLayer {@code true} if any of the specified projections are supported by JOSM
+         * @param bounds The bounds this layer can be used for
+         * @param childLayers The child layers of this layer
+         * @since 13199
+         */
+        public LayerDetails(String name, String ident, String abstr, Set<String> crsList, boolean supportedLayer, Bounds bounds,
                 List<LayerDetails> childLayers) {
             this.name = name;
             this.ident = ident;
+            this.abstr = abstr;
             this.supported = supportedLayer;
             this.children = childLayers;
             this.bounds = bounds;
             this.crsList = crsList;
         }
 
+        /**
+         * Determines if any of the specified projections are supported by JOSM.
+         * @return {@code true} if any of the specified projections are supported by JOSM
+         */
         public boolean isSupported() {
             return this.supported;
         }
 
+        /**
+         * Returns the CRS/SRS pulled out of this layer's XML element.
+         * @return the CRS/SRS pulled out of this layer's XML element
+         */
         public Set<String> getProjections() {
             return crsList;
         }
 
         @Override
         public String toString() {
-            if (this.name == null || this.name.isEmpty())
-                return this.ident;
-            else
-                return this.name;
+            String baseName = (name == null || name.isEmpty()) ? ident : name;
+            return abstr == null || abstr.equalsIgnoreCase(baseName) ? baseName : baseName + " (" + abstr + ')';
         }
     }
 }

@@ -27,7 +27,7 @@ import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.SystemOfMeasurement;
 import org.openstreetmap.josm.data.coor.conversion.CoordinateFormatManager;
 import org.openstreetmap.josm.data.coor.conversion.ICoordinateFormat;
-import org.openstreetmap.josm.data.preferences.CollectionProperty;
+import org.openstreetmap.josm.data.preferences.ListProperty;
 import org.openstreetmap.josm.data.preferences.StringProperty;
 import org.openstreetmap.josm.data.projection.CustomProjection;
 import org.openstreetmap.josm.data.projection.Projection;
@@ -40,6 +40,7 @@ import org.openstreetmap.josm.gui.preferences.SubPreferenceSetting;
 import org.openstreetmap.josm.gui.preferences.TabPreferenceSetting;
 import org.openstreetmap.josm.gui.widgets.JosmComboBox;
 import org.openstreetmap.josm.gui.widgets.VerticallyScrollablePanel;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.JosmRuntimeException;
 import org.openstreetmap.josm.tools.Logging;
@@ -78,7 +79,7 @@ public class ProjectionPreference implements SubPreferenceSetting {
     /**
      * WGS84: Directly use latitude / longitude values as x/y.
      */
-    public static final ProjectionChoice wgs84 = registerProjectionChoice(tr("WGS84 Geographic"), "core:wgs84", 4326, "epsg4326");
+    public static final ProjectionChoice wgs84 = registerProjectionChoice(tr("WGS84 Geographic"), "core:wgs84", 4326);
 
     /**
      * Mercator Projection.
@@ -270,12 +271,27 @@ public class ProjectionPreference implements SubPreferenceSetting {
         }
     }
 
+    /**
+     * Registers a new projection choice.
+     * @param name short name of the projection choice as shown in the GUI
+     * @param id short name of the projection choice as shown in the GUI
+     * @param epsg the unique numeric EPSG identifier for the projection
+     * @param cacheDir unused
+     * @return the registered {@link ProjectionChoice}
+     * @deprecated use {@link #registerProjectionChoice(String, String, Integer)} instead
+     */
+    @Deprecated
     public static ProjectionChoice registerProjectionChoice(String name, String id, Integer epsg, String cacheDir) {
-        ProjectionChoice pc = new SingleProjectionChoice(name, id, "EPSG:"+epsg, cacheDir);
-        registerProjectionChoice(pc);
-        return pc;
+        return registerProjectionChoice(name, id, epsg);
     }
 
+    /**
+     * Registers a new projection choice.
+     * @param name short name of the projection choice as shown in the GUI
+     * @param id short name of the projection choice as shown in the GUI
+     * @param epsg the unique numeric EPSG identifier for the projection
+     * @return the registered {@link ProjectionChoice}
+     */
     private static ProjectionChoice registerProjectionChoice(String name, String id, Integer epsg) {
         ProjectionChoice pc = new SingleProjectionChoice(name, id, "EPSG:"+epsg);
         registerProjectionChoice(pc);
@@ -290,7 +306,7 @@ public class ProjectionPreference implements SubPreferenceSetting {
 
     private static final StringProperty PROP_PROJECTION_DEFAULT = new StringProperty("projection.default", mercator.getId());
     private static final StringProperty PROP_COORDINATES = new StringProperty("coordinates", null);
-    private static final CollectionProperty PROP_SUB_PROJECTION_DEFAULT = new CollectionProperty("projection.default.sub", null);
+    private static final ListProperty PROP_SUB_PROJECTION_DEFAULT = new ListProperty("projection.default.sub", null);
     private static final String[] unitsValues = ALL_SYSTEMS.keySet().toArray(new String[ALL_SYSTEMS.size()]);
     private static final String[] unitsValuesTr = new String[unitsValues.length];
     static {
@@ -341,7 +357,7 @@ public class ProjectionPreference implements SubPreferenceSetting {
 
     public ProjectionPreference() {
         this.projectionCombo = new JosmComboBox<>(
-            projectionChoices.toArray(new ProjectionChoice[projectionChoices.size()]));
+            projectionChoices.toArray(new ProjectionChoice[0]));
         this.coordinatesCombo = new JosmComboBox<>(
                 CoordinateFormatManager.getCoordinateFormats().toArray(new ICoordinateFormat[0]));
     }
@@ -481,10 +497,10 @@ public class ProjectionPreference implements SubPreferenceSetting {
             pc = mercator;
         }
         id = pc.getId();
-        Main.pref.putCollection("projection.sub."+id, pref);
+        Config.getPref().putList("projection.sub."+id, pref == null ? null : new ArrayList<>(pref));
         if (makeDefault) {
             PROP_PROJECTION_DEFAULT.put(id);
-            PROP_SUB_PROJECTION_DEFAULT.put(pref);
+            PROP_SUB_PROJECTION_DEFAULT.put(pref == null ? null : new ArrayList<>(pref));
         } else {
             projectionChoice = id;
         }
@@ -559,7 +575,7 @@ public class ProjectionPreference implements SubPreferenceSetting {
      * the last time; null if user has never selected the given projection choice
      */
     public static Collection<String> getSubprojectionPreference(String pcId) {
-        return Main.pref.getCollection("projection.sub."+pcId, null);
+        return Config.getPref().getList("projection.sub."+pcId, null);
     }
 
     @Override

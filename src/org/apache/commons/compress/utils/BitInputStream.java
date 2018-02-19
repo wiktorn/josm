@@ -44,7 +44,7 @@ public class BitInputStream implements Closeable {
     private int bitsCachedSize = 0;
 
     /**
-     * Constructor taking an InputStream and its bit arrangement. 
+     * Constructor taking an InputStream and its bit arrangement.
      * @param in the InputStream
      * @param byteOrder the bit arrangement across byte boundaries,
      *      either BIG_ENDIAN (aaaaabbb bb000000) or LITTLE_ENDIAN (bbbaaaaa 000000bb)
@@ -67,7 +67,7 @@ public class BitInputStream implements Closeable {
         bitsCached = 0;
         bitsCachedSize = 0;
     }
-    
+
     /**
      * Returns at most 63 bits read from the underlying stream.
      *
@@ -89,25 +89,50 @@ public class BitInputStream implements Closeable {
         if (bitsCachedSize < count) {
             return processBitsGreater57(count);
         }
-        final long bitsOut;
-        if (byteOrder == ByteOrder.LITTLE_ENDIAN) {
-            bitsOut = (bitsCached & MASKS[count]);
-            bitsCached >>>= count;
-        } else {
-            bitsOut = (bitsCached >> (bitsCachedSize - count)) & MASKS[count];
+        return readCachedBits(count);
+    }
+
+    /**
+     * Returns the number of bits that can be read from this input
+     * stream without reading from the underlying input stream at all.
+     * @return estimate of the number of bits that can be read without reading from the underlying stream
+     * @since 1.16
+     */
+    public int bitsCached() {
+        return bitsCachedSize;
+    }
+
+    /**
+     * Returns an estimate of the number of bits that can be read from
+     * this input stream without blocking by the next invocation of a
+     * method for this input stream.
+     * @throws IOException if the underlying stream throws one when calling available
+     * @return estimate of the number of bits that can be read without blocking
+     * @since 1.16
+     */
+    public long bitsAvailable() throws IOException {
+        return bitsCachedSize + ((long) Byte.SIZE) * in.available();
+    }
+
+    /**
+     * Drops bits until the next bits will be read from a byte boundary.
+     * @since 1.16
+     */
+    public void alignWithByteBoundary() {
+        int toSkip = bitsCachedSize % Byte.SIZE;
+        if (toSkip > 0) {
+            readCachedBits(toSkip);
         }
-        bitsCachedSize -= count;
-        return bitsOut;
     }
 
     private long processBitsGreater57(final int count) throws IOException {
         final long bitsOut;
         int overflowBits = 0;
-        long overflow = 0l;
+        long overflow = 0L;
 
         // bitsCachedSize >= 57 and left-shifting it 8 bits would cause an overflow
         int bitsToAddCount = count - bitsCachedSize;
-        overflowBits = 8 - bitsToAddCount;
+        overflowBits = Byte.SIZE - bitsToAddCount;
         final long nextByte = in.read();
         if (nextByte < 0) {
             return nextByte;
@@ -128,6 +153,18 @@ public class BitInputStream implements Closeable {
         return bitsOut;
     }
 
+    private long readCachedBits(int count) {
+        final long bitsOut;
+        if (byteOrder == ByteOrder.LITTLE_ENDIAN) {
+            bitsOut = (bitsCached & MASKS[count]);
+            bitsCached >>>= count;
+        } else {
+            bitsOut = (bitsCached >> (bitsCachedSize - count)) & MASKS[count];
+        }
+        bitsCachedSize -= count;
+        return bitsOut;
+    }
+
     /**
      * Fills the cache up to 56 bits
      * @param count
@@ -143,10 +180,10 @@ public class BitInputStream implements Closeable {
             if (byteOrder == ByteOrder.LITTLE_ENDIAN) {
                 bitsCached |= (nextByte << bitsCachedSize);
             } else {
-                bitsCached <<= 8;
+                bitsCached <<= Byte.SIZE;
                 bitsCached |= nextByte;
             }
-            bitsCachedSize += 8;
+            bitsCachedSize += Byte.SIZE;
         }
         return false;
     }

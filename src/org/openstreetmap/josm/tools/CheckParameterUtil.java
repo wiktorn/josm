@@ -3,11 +3,7 @@ package org.openstreetmap.josm.tools;
 
 import java.text.MessageFormat;
 import java.util.function.Predicate;
-
-import org.openstreetmap.josm.data.coor.EastNorth;
-import org.openstreetmap.josm.data.coor.LatLon;
-import org.openstreetmap.josm.data.osm.OsmPrimitiveType;
-import org.openstreetmap.josm.data.osm.PrimitiveId;
+import java.util.function.Supplier;
 
 /**
  * This utility class provides a collection of static helper methods for checking
@@ -63,67 +59,6 @@ public final class CheckParameterUtil {
     }
 
     /**
-     * Ensures an OSM primitive ID is valid
-     * @param id The id to check
-     * @param parameterName The parameter name
-     * @throws IllegalArgumentException if the primitive ID is not valid (negative or zero)
-     * @deprecated use {@link #ensure(Object, String, String, Predicate)}
-     */
-    @Deprecated
-    public static void ensureValidPrimitiveId(PrimitiveId id, String parameterName) {
-        ensureParameterNotNull(id, parameterName);
-        if (id.getUniqueId() <= 0)
-            throw new IllegalArgumentException(
-                    MessageFormat.format("Expected unique id > 0 for primitive ''{1}'', got {0}", id.getUniqueId(), parameterName));
-    }
-
-    /**
-     * Ensures lat/lon coordinates are valid
-     * @param latlon The lat/lon to check
-     * @param parameterName The parameter name
-     * @throws IllegalArgumentException if the lat/lon are {@code null} or not valid
-     * @since 5980
-     * @deprecated use {@link #ensure(Object, String, Predicate)}
-     */
-    @Deprecated
-    public static void ensureValidCoordinates(LatLon latlon, String parameterName) {
-        ensureParameterNotNull(latlon, parameterName);
-        if (!latlon.isValid())
-            throw new IllegalArgumentException(
-                    MessageFormat.format("Expected valid lat/lon for parameter ''{0}'', got {1}", parameterName, latlon));
-    }
-
-    /**
-     * Ensures east/north coordinates are valid
-     * @param eastnorth The east/north to check
-     * @param parameterName The parameter name
-     * @throws IllegalArgumentException if the east/north are {@code null} or not valid
-     * @since 5980
-     * @deprecated use {@link #ensure(Object, String, Predicate)}
-     */
-    @Deprecated
-    public static void ensureValidCoordinates(EastNorth eastnorth, String parameterName) {
-        ensureParameterNotNull(eastnorth, parameterName);
-        if (!eastnorth.isValid())
-            throw new IllegalArgumentException(
-                    MessageFormat.format("Expected valid east/north for parameter ''{0}'', got {1}", parameterName, eastnorth));
-    }
-
-    /**
-     * Ensures a version number is valid
-     * @param version The version to check
-     * @param parameterName The parameter name
-     * @throws IllegalArgumentException if the version is not valid (negative)
-     * @deprecated use {@link #ensure(Object, String, String, Predicate)}
-     */
-    @Deprecated
-    public static void ensureValidVersion(long version, String parameterName) {
-        if (version < 0)
-            throw new IllegalArgumentException(
-                    MessageFormat.format("Expected value of type long > 0 for parameter ''{0}'', got {1}", parameterName, version));
-    }
-
-    /**
      * Ensures a parameter is not {@code null}
      * @param value The parameter to check
      * @param parameterName The parameter name
@@ -150,6 +85,7 @@ public final class CheckParameterUtil {
      * @param condition The condition to check
      * @param message error message
      * @throws IllegalArgumentException if the condition does not hold
+     * @see #ensureThat(boolean, Supplier)
      */
     public static void ensureThat(boolean condition, String message) {
         if (!condition)
@@ -157,19 +93,18 @@ public final class CheckParameterUtil {
     }
 
     /**
-     * Ensures that <code>id</code> is non-null primitive id of type {@link OsmPrimitiveType#NODE}
+     * Ensures that the condition {@code condition} holds.
      *
-     * @param id the primitive  id
-     * @param parameterName the name of the parameter to be checked
-     * @throws IllegalArgumentException if id is null
-     * @throws IllegalArgumentException if id.getType() != NODE
-     * @deprecated use {@link #ensure(Object, String, String, Predicate)}
+     * This method can be used when the message is not a plain string literal,
+     * but somehow constructed. Using a {@link Supplier} improves the performance,
+     * as the string construction is skipped when the condition holds.
+     * @param condition The condition to check
+     * @param messageSupplier supplier of the error message
+     * @throws IllegalArgumentException if the condition does not hold
+     * @since 12822
      */
-    @Deprecated
-    public static void ensureValidNodeId(PrimitiveId id, String parameterName) {
-        ensureParameterNotNull(id, parameterName);
-        if (!id.getType().equals(OsmPrimitiveType.NODE))
-            throw new IllegalArgumentException(
-                    MessageFormat.format("Parameter ''{0}'' of type node expected, got ''{1}''", parameterName, id.getType().getAPIName()));
+    public static void ensureThat(boolean condition, Supplier<String> messageSupplier) {
+        if (!condition)
+            throw new IllegalArgumentException(messageSupplier.get());
     }
 }

@@ -18,11 +18,13 @@
 package org.apache.commons.compress.archivers.zip;
 
 import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.Closeable;
 import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.SequenceInputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
@@ -42,6 +44,7 @@ import java.util.zip.InflaterInputStream;
 import java.util.zip.ZipException;
 
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
+import org.apache.commons.compress.compressors.deflate64.Deflate64CompressorInputStream;
 import org.apache.commons.compress.utils.IOUtils;
 
 import static org.apache.commons.compress.archivers.zip.ZipConstants.DWORD;
@@ -89,6 +92,7 @@ public class ZipFile implements Closeable {
     private static final int POS_1 = 1;
     private static final int POS_2 = 2;
     private static final int POS_3 = 3;
+    private static final byte[] ONE_ZERO_BYTE = new byte[1];
 
     /**
      * List of entries in the order they appear inside the central
@@ -466,31 +470,38 @@ public class ZipFile implements Closeable {
      * @param ze the entry to get the stream for.
      * @return a stream to read the entry from.
      * @throws IOException if unable to create an input stream from the zipentry
-     * @throws ZipException if the zipentry uses an unsupported feature
      */
     public InputStream getInputStream(final ZipArchiveEntry ze)
-        throws IOException, ZipException {
+        throws IOException {
         if (!(ze instanceof Entry)) {
             return null;
         }
-        // cast valididty is checked just above
+        // cast validity is checked just above
         ZipUtil.checkRequestedFeatures(ze);
         final long start = ze.getDataOffset();
-        // doesn't get closed if the method is not supported, but doesn't hold any resources either
-        final BoundedInputStream bis =
-            createBoundedInputStream(start, ze.getCompressedSize()); //NOSONAR
+
+        // doesn't get closed if the method is not supported - which
+        // should never happen because of the checkRequestedFeatures
+        // call above
+        final InputStream is =
+            new BufferedInputStream(createBoundedInputStream(start, ze.getCompressedSize())); //NOSONAR
         switch (ZipMethod.getMethodByCode(ze.getMethod())) {
             case STORED:
-                return bis;
+                return is;
             case UNSHRINKING:
-                return new UnshrinkingInputStream(bis);
+                return new UnshrinkingInputStream(is);
             case IMPLODING:
                 return new ExplodingInputStream(ze.getGeneralPurposeBit().getSlidingDictionarySize(),
-                        ze.getGeneralPurposeBit().getNumberOfShannonFanoTrees(), new BufferedInputStream(bis));
+                        ze.getGeneralPurposeBit().getNumberOfShannonFanoTrees(), is);
             case DEFLATED:
-                bis.addDummy();
                 final Inflater inflater = new Inflater(true);
-                return new InflaterInputStream(bis, inflater) {
+                // Inflater with nowrap=true has this odd contract for a zero padding
+                // byte following the data stream; this used to be zlib's requirement
+                // and has been fixed a long time ago, but the contract persists so
+                // we comply.
+                // https://docs.oracle.com/javase/7/docs/api/java/util/zip/Inflater.html#Inflater(boolean)
+                return new InflaterInputStream(new SequenceInputStream(is, new ByteArrayInputStream(ONE_ZERO_BYTE)),
+                    inflater) {
                     @Override
                     public void close() throws IOException {
                         try {
@@ -501,9 +512,10 @@ public class ZipFile implements Closeable {
                     }
                 };
             case BZIP2:
-                return new BZip2CompressorInputStream(bis);
-            case AES_ENCRYPTED:
+                return new BZip2CompressorInputStream(is);
             case ENHANCED_DEFLATED:
+                return new Deflate64CompressorInputStream(is);
+            case AES_ENCRYPTED:
             case EXPANDING_LEVEL_1:
             case EXPANDING_LEVEL_2:
             case EXPANDING_LEVEL_3:
@@ -515,6 +527,7 @@ public class ZipFile implements Closeable {
             case TOKENIZATION:
             case UNKNOWN:
             case WAVPACK:
+            case XZ:
             default:
                 throw new ZipException("Found unsupported compression method "
                                        + ze.getMethod());
@@ -652,6 +665,9 @@ public class ZipFile implements Closeable {
         final boolean hasUTF8Flag = gpFlag.usesUTF8ForNames();
         final ZipEncoding entryEncoding =
             hasUTF8Flag ? ZipEncodingHelper.UTF8_ZIP_ENCODING : zipEncoding;
+        if (hasUTF8Flag) {
+            ze.setNameSource(ZipArchiveEntry.NameSource.NAME_WITH_EFS_FLAG);
+        }
         ze.setGeneralPurposeBit(gpFlag);
         ze.setRawFlag(ZipShort.getValue(cfhBuf, off));
 
@@ -988,7 +1004,7 @@ public class ZipFile implements Closeable {
     /**
      * Skips the given number of bytes or throws an EOFException if
      * skipping failed.
-     */ 
+     */
     private void skipBytes(final int count) throws IOException {
         long currentPosition = archive.position();
         long newPosition = currentPosition + count;
@@ -1090,7 +1106,6 @@ public class ZipFile implements Closeable {
         private ByteBuffer singleByteBuffer;
         private final long end;
         private long loc;
-        private boolean addDummy = false;
 
         BoundedInputStream(final long start, final long remaining) {
             this.end = start+remaining;
@@ -1104,10 +1119,6 @@ public class ZipFile implements Closeable {
         @Override
         public synchronized int read() throws IOException {
             if (loc >= end) {
-                if (loc == end && addDummy) {
-                    addDummy = false;
-                    return 0;
-                }
                 return -1;
             }
             if (singleByteBuffer == null) {
@@ -1132,11 +1143,6 @@ public class ZipFile implements Closeable {
 
             if (len > end-loc) {
                 if (loc >= end) {
-                    if (loc == end && addDummy) {
-                        addDummy = false;
-                        b[off] = 0;
-                        return 1;
-                    }
                     return -1;
                 }
                 len = (int)(end-loc);
@@ -1160,10 +1166,6 @@ public class ZipFile implements Closeable {
             }
             buf.flip();
             return read;
-        }
-
-        synchronized void addDummy() {
-            this.addDummy = true;
         }
     }
 

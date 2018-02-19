@@ -15,6 +15,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 
+import org.openstreetmap.josm.data.projection.proj.TransverseMercator.Hemisphere;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.Logging;
 
@@ -24,14 +25,6 @@ import org.openstreetmap.josm.tools.Logging;
  * @see <a href="https://en.wikipedia.org/wiki/Universal_Transverse_Mercator_coordinate_system">UTM</a>
  */
 public class UTMProjectionChoice extends ListProjectionChoice {
-
-    /** Earth emispheres **/
-    public enum Hemisphere {
-        /** North emisphere */
-        North,
-        /** South emisphere */
-        South
-    }
 
     private static final Hemisphere DEFAULT_HEMISPHERE = Hemisphere.North;
 
@@ -48,7 +41,7 @@ public class UTMProjectionChoice extends ListProjectionChoice {
      * Constructs a new {@code UTMProjectionChoice}.
      */
     public UTMProjectionChoice() {
-        super(tr("UTM"), /* NO-ICON */ "core:utm", cbEntries.toArray(new String[cbEntries.size()]), tr("UTM Zone"));
+        super(tr("UTM"), /* NO-ICON */ "core:utm", cbEntries.toArray(new String[0]), tr("UTM Zone"));
     }
 
     private class UTMPanel extends CBPanel {
@@ -124,7 +117,7 @@ public class UTMProjectionChoice extends ListProjectionChoice {
                 projections.add("EPSG:" + (32600 + zone + (hem == Hemisphere.South ? 100 : 0)));
             }
         }
-        return projections.toArray(new String[projections.size()]);
+        return projections.toArray(new String[0]);
     }
 
     @Override
@@ -150,7 +143,7 @@ public class UTMProjectionChoice extends ListProjectionChoice {
         Hemisphere hem = DEFAULT_HEMISPHERE;
 
         if (args != null) {
-            String[] array = args.toArray(new String[args.size()]);
+            String[] array = args.toArray(new String[0]);
 
             if (array.length > 1) {
                 hem = Hemisphere.valueOf(array[1]);

@@ -3,6 +3,7 @@ package org.openstreetmap.josm.data.preferences.sources;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -11,7 +12,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.TreeSet;
 
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -29,7 +30,7 @@ public class MapPaintPrefHelper extends SourcePrefHelper {
      * Constructs a new {@code MapPaintPrefHelper}.
      */
     public MapPaintPrefHelper() {
-        super("mappaint.style.entries");
+        super("mappaint.style.entries", SourceType.MAP_PAINT_STYLE);
     }
 
     @Override
@@ -51,7 +52,7 @@ public class MapPaintPrefHelper extends SourcePrefHelper {
     private boolean insertNewDefaults(List<SourceEntry> list) {
         boolean changed = false;
 
-        Collection<String> knownDefaults = new TreeSet<>(Main.pref.getCollection("mappaint.style.known-defaults"));
+        Collection<String> knownDefaults = new TreeSet<>(Config.getPref().getList("mappaint.style.known-defaults"));
 
         Collection<ExtendedSourceEntry> defaults = getDefault();
         int insertionIdx = 0;
@@ -69,7 +70,7 @@ public class MapPaintPrefHelper extends SourcePrefHelper {
             }
             knownDefaults.add(def.url);
         }
-        Main.pref.putCollection("mappaint.style.known-defaults", knownDefaults);
+        Config.getPref().putList("mappaint.style.known-defaults", new ArrayList<>(knownDefaults));
 
         // XML style is not bundled anymore
         list.remove(Utils.find(list, se -> "resource://styles/standard/elemstyles.xml".equals(se.url)));
@@ -79,12 +80,12 @@ public class MapPaintPrefHelper extends SourcePrefHelper {
 
     @Override
     public Collection<ExtendedSourceEntry> getDefault() {
-        ExtendedSourceEntry defJosmMapcss = new ExtendedSourceEntry("elemstyles.mapcss", "resource://styles/standard/elemstyles.mapcss");
+        ExtendedSourceEntry defJosmMapcss = new ExtendedSourceEntry(type, "elemstyles.mapcss", "resource://styles/standard/elemstyles.mapcss");
         defJosmMapcss.active = true;
         defJosmMapcss.name = "standard";
         defJosmMapcss.title = tr("JOSM default (MapCSS)");
         defJosmMapcss.description = tr("Internal style to be used as base for runtime switchable overlay styles");
-        ExtendedSourceEntry defPL2 = new ExtendedSourceEntry("potlatch2.mapcss", "resource://styles/standard/potlatch2.mapcss");
+        ExtendedSourceEntry defPL2 = new ExtendedSourceEntry(type, "potlatch2.mapcss", "resource://styles/standard/potlatch2.mapcss");
         defPL2.active = false;
         defPL2.name = "standard";
         defPL2.title = tr("Potlatch 2");
@@ -107,6 +108,6 @@ public class MapPaintPrefHelper extends SourcePrefHelper {
 
     @Override
     public SourceEntry deserialize(Map<String, String> s) {
-        return new SourceEntry(s.get("url"), s.get("ptoken"), s.get("title"), Boolean.parseBoolean(s.get("active")));
+        return new SourceEntry(type, s.get("url"), s.get("ptoken"), s.get("title"), Boolean.parseBoolean(s.get("active")));
     }
 }

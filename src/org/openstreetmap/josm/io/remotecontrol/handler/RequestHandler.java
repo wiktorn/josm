@@ -19,7 +19,9 @@ import javax.swing.JOptionPane;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.io.remotecontrol.PermissionPrefWithDefault;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.Logging;
+import org.openstreetmap.josm.tools.Pair;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -33,6 +35,9 @@ public abstract class RequestHandler {
     public static final boolean globalConfirmationDefault = false;
     public static final String loadInNewLayerKey = "remotecontrol.new-layer";
     public static final boolean loadInNewLayerDefault = false;
+
+    /** past confirmations */
+    protected static final PermissionCache PERMISSIONS = new PermissionCache();
 
     /** The GET request arguments */
     protected Map<String, String> args;
@@ -146,16 +151,25 @@ public abstract class RequestHandler {
          * older versions of WMSPlugin.
          */
         PermissionPrefWithDefault permissionPref = getPermissionPref();
-        if (permissionPref != null && permissionPref.pref != null && !Main.pref.getBoolean(permissionPref.pref, permissionPref.defaultVal)) {
+        if (permissionPref != null && permissionPref.pref != null &&
+                !Config.getPref().getBoolean(permissionPref.pref, permissionPref.defaultVal)) {
             String err = MessageFormat.format("RemoteControl: ''{0}'' forbidden by preferences", myCommand);
             Logging.info(err);
             throw new RequestHandlerForbiddenException(err);
         }
 
+        /*
+         * Did the user confirm this action previously?
+         * If yes, skip the global confirmation dialog.
+         */
+        if (PERMISSIONS.isAllowed(myCommand, sender)) {
+            return;
+        }
+
         /* Does the user want to confirm everything?
          * If yes, display specific confirmation message.
          */
-        if (Main.pref.getBoolean(globalConfirmationKey, globalConfirmationDefault)) {
+        if (Config.getPref().getBoolean(globalConfirmationKey, globalConfirmationDefault)) {
             // Ensure dialog box does not exceed main window size
             Integer maxWidth = (int) Math.max(200, Main.parent.getWidth()*0.6);
             String message = "<html><div>" + getPermissionMessage() +
@@ -164,11 +178,14 @@ public abstract class RequestHandler {
             if (label.getPreferredSize().width > maxWidth) {
                 label.setText(message.replaceFirst("<div>", "<div style=\"width:" + maxWidth + "px;\">"));
             }
-            if (JOptionPane.showConfirmDialog(Main.parent, label,
-                tr("Confirm Remote Control action"),
-                JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) {
-                    String err = MessageFormat.format("RemoteControl: ''{0}'' forbidden by user''s choice", myCommand);
-                    throw new RequestHandlerForbiddenException(err);
+            Object[] choices = new Object[] {tr("Yes, always"), tr("Yes, once"), tr("No")};
+            int choice = JOptionPane.showOptionDialog(Main.parent, label, tr("Confirm Remote Control action"),
+                    JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE, null, choices, choices[1]);
+            if (choice != JOptionPane.YES_OPTION && choice != JOptionPane.NO_OPTION) { // Yes/no refer to always/once
+                String err = MessageFormat.format("RemoteControl: ''{0}'' forbidden by user''s choice", myCommand);
+                throw new RequestHandlerForbiddenException(err);
+            } else if (choice == JOptionPane.YES_OPTION) {
+                PERMISSIONS.allow(myCommand, sender);
             }
         }
     }
@@ -275,7 +292,7 @@ public abstract class RequestHandler {
     protected boolean isLoadInNewLayer() {
         return args.get("new_layer") != null && !args.get("new_layer").isEmpty()
                 ? Boolean.parseBoolean(args.get("new_layer"))
-                : Main.pref.getBoolean(loadInNewLayerKey, loadInNewLayerDefault);
+                : Config.getPref().getBoolean(loadInNewLayerKey, loadInNewLayerDefault);
     }
 
     public void setSender(String sender) {
@@ -386,6 +403,22 @@ public abstract class RequestHandler {
                 }
             }
             this.args = args;
+        }
+    }
+
+    static class PermissionCache {
+        private final Set<Pair<String, String>> allowed = new HashSet<>();
+
+        public void allow(String command, String sender) {
+            allowed.add(Pair.create(command, sender));
+        }
+
+        public boolean isAllowed(String command, String sender) {
+            return allowed.contains(Pair.create(command, sender));
+        }
+
+        public void clear() {
+            allowed.clear();
         }
     }
 }

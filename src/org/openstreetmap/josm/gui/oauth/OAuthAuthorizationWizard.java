@@ -20,7 +20,10 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.lang.reflect.InvocationTargetException;
+import java.net.URL;
 import java.util.concurrent.Executor;
+import java.util.concurrent.FutureTask;
 
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
@@ -29,13 +32,11 @@ import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
-import javax.swing.event.HyperlinkEvent;
-import javax.swing.event.HyperlinkListener;
 import javax.swing.text.html.HTMLEditorKit;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.data.Preferences;
 import org.openstreetmap.josm.data.oauth.OAuthAccessTokenHolder;
 import org.openstreetmap.josm.data.oauth.OAuthParameters;
 import org.openstreetmap.josm.data.oauth.OAuthToken;
@@ -48,8 +49,8 @@ import org.openstreetmap.josm.io.OsmApi;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.InputMapUtils;
-import org.openstreetmap.josm.tools.OpenBrowser;
 import org.openstreetmap.josm.tools.UserCancelException;
+import org.openstreetmap.josm.tools.Utils;
 
 /**
  * This wizard walks the user to the necessary steps to retrieve an OAuth Access Token which
@@ -132,7 +133,7 @@ public class OAuthAuthorizationWizard extends JDialog {
                         + "on your behalf (<a href=\"{0}\">more info...</a>).", "http://oauth.net/")
                         + "</body></html>"
         );
-        pnlMessage.getEditorPane().addHyperlinkListener(new ExternalBrowserLauncher());
+        pnlMessage.enableClickableHyperlinks();
         pnl.add(pnlMessage, gc);
 
         // the authorisation procedure
@@ -303,12 +304,9 @@ public class OAuthAuthorizationWizard extends JDialog {
      *
      */
     public void initFromPreferences() {
-        // Copy current JOSM preferences to update API url with the one used in this wizard
-        Preferences copyPref = new Preferences(Main.pref);
-        copyPref.put("osm-server.url", apiUrl);
-        pnlFullyAutomaticAuthorisationUI.initFromPreferences(copyPref);
-        pnlSemiAutomaticAuthorisationUI.initFromPreferences(copyPref);
-        pnlManualAuthorisationUI.initFromPreferences(copyPref);
+        pnlFullyAutomaticAuthorisationUI.initialize(apiUrl);
+        pnlSemiAutomaticAuthorisationUI.initialize(apiUrl);
+        pnlManualAuthorisationUI.initialize(apiUrl);
     }
 
     @Override
@@ -330,6 +328,30 @@ public class OAuthAuthorizationWizard extends JDialog {
 
     protected void setCanceled(boolean canceled) {
         this.canceled = canceled;
+    }
+
+    /**
+     * Obtains an OAuth access token for the connection. Afterwards, the token is accessible via {@link OAuthAccessTokenHolder}.
+     * @param serverUrl the URL to OSM server
+     * @throws InterruptedException if we're interrupted while waiting for the event dispatching thread to finish OAuth authorization task
+     * @throws InvocationTargetException if an exception is thrown while running OAuth authorization task
+     * @since 12803
+     */
+    public static void obtainAccessToken(final URL serverUrl) throws InvocationTargetException, InterruptedException {
+        final Runnable authTask = new FutureTask<>(() -> {
+            // Concerning Utils.newDirectExecutor: Main worker cannot be used since this connection is already
+            // executed via main worker. The OAuth connections would block otherwise.
+            final OAuthAuthorizationWizard wizard = new OAuthAuthorizationWizard(
+                    Main.parent, serverUrl.toExternalForm(), Utils.newDirectExecutor());
+            wizard.showDialog();
+            return wizard;
+        });
+        // exception handling differs from implementation at GuiHelper.runInEDTAndWait()
+        if (SwingUtilities.isEventDispatchThread()) {
+            authTask.run();
+        } else {
+            SwingUtilities.invokeAndWait(authTask);
+        }
     }
 
     class AuthorisationProcedureChangeListener implements ItemListener {
@@ -395,15 +417,6 @@ public class OAuthAuthorizationWizard extends JDialog {
         @Override
         public void windowClosing(WindowEvent e) {
             new CancelAction().cancel();
-        }
-    }
-
-    static class ExternalBrowserLauncher implements HyperlinkListener {
-        @Override
-        public void hyperlinkUpdate(HyperlinkEvent e) {
-            if (e.getEventType().equals(HyperlinkEvent.EventType.ACTIVATED)) {
-                OpenBrowser.displayUrl(e.getDescription());
-            }
         }
     }
 }

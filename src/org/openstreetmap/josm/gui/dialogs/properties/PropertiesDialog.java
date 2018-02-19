@@ -62,8 +62,8 @@ import org.openstreetmap.josm.actions.relation.SelectRelationAction;
 import org.openstreetmap.josm.command.ChangeCommand;
 import org.openstreetmap.josm.command.ChangePropertyCommand;
 import org.openstreetmap.josm.command.Command;
-import org.openstreetmap.josm.data.Preferences.PreferenceChangedListener;
 import org.openstreetmap.josm.data.SelectionChangedListener;
+import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
 import org.openstreetmap.josm.data.osm.IRelation;
 import org.openstreetmap.josm.data.osm.Node;
@@ -91,6 +91,7 @@ import org.openstreetmap.josm.gui.dialogs.relation.RelationEditor;
 import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeEvent;
 import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeListener;
+import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPreset;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetHandler;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetType;
@@ -99,6 +100,8 @@ import org.openstreetmap.josm.gui.widgets.CompileSearchTextDecorator;
 import org.openstreetmap.josm.gui.widgets.DisableShortcutsOnFocusGainedTextField;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
 import org.openstreetmap.josm.gui.widgets.PopupMenuLauncher;
+import org.openstreetmap.josm.spi.preferences.Config;
+import org.openstreetmap.josm.spi.preferences.PreferenceChangedListener;
 import org.openstreetmap.josm.tools.AlphanumComparator;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.HttpClient;
@@ -229,7 +232,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
             + tr("Select objects for which to change tags.") + "</p></html>");
 
     private final PreferenceChangedListener preferenceListener = e -> {
-                if (MainApplication.getLayerManager().getEditDataSet() != null) {
+                if (MainApplication.getLayerManager().getActiveDataSet() != null) {
                     // Re-load data when display preference change
                     updateSelection();
                 }
@@ -256,7 +259,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
         tagTableFilter = setupFilter();
 
         // combine both tables and wrap them in a scrollPane
-        boolean top = Main.pref.getBoolean("properties.presets.top", true);
+        boolean top = Config.getPref().getBoolean("properties.presets.top", true);
         if (top) {
             bothTables.add(presets, GBC.std().fill(GBC.HORIZONTAL).insets(5, 2, 5, 2).anchor(GBC.NORTHWEST));
             double epsilon = Double.MIN_VALUE; // need to set a weight or else anchor value is ignored
@@ -294,7 +297,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
 
         editHelper.loadTagsIfNeeded();
 
-        Main.pref.addKeyPreferenceChangeListener("display.discardable-keys", preferenceListener);
+        Config.getPref().addKeyPreferenceChangeListener("display.discardable-keys", preferenceListener);
     }
 
     private void buildTagsTable() {
@@ -340,7 +343,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
      * Creates the popup menu @field blankSpaceMenu and its launcher on main panel.
      */
     private void setupBlankSpaceMenu() {
-        if (Main.pref.getBoolean("properties.menu.add_edit_delete", true)) {
+        if (Config.getPref().getBoolean("properties.menu.add_edit_delete", true)) {
             blankSpaceMenuHandler.addAction(addAction);
             PopupMenuLauncher launcher = new BlankSpaceMenuLauncher(blankSpaceMenu);
             bothTables.addMouseListener(launcher);
@@ -353,7 +356,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
      */
     private void setupMembershipMenu() {
         // setting up the membership table
-        if (Main.pref.getBoolean("properties.menu.add_edit_delete", true)) {
+        if (Config.getPref().getBoolean("properties.menu.add_edit_delete", true)) {
             membershipMenuHandler.addAction(editAction);
             membershipMenuHandler.addAction(deleteAction);
             membershipMenu.addSeparator();
@@ -405,7 +408,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
      * Creates the popup menu @field tagMenu and its launcher on tag table.
      */
     private void setupTagsMenu() {
-        if (Main.pref.getBoolean("properties.menu.add_edit_delete", true)) {
+        if (Config.getPref().getBoolean("properties.menu.add_edit_delete", true)) {
             tagMenu.add(addAction);
             tagMenu.add(editAction);
             tagMenu.add(deleteAction);
@@ -485,11 +488,11 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
     private void editMembership(int row) {
         Relation relation = (Relation) membershipData.getValueAt(row, 0);
         MainApplication.getMap().relationListDialog.selectRelation(relation);
-        RelationEditor.getEditor(
-                MainApplication.getLayerManager().getEditLayer(),
-                relation,
-                ((MemberInfo) membershipData.getValueAt(row, 1)).role
-        ).setVisible(true);
+        OsmDataLayer layer = MainApplication.getLayerManager().getActiveDataLayer();
+        if (!layer.isReadOnly()) {
+            RelationEditor.getEditor(
+                    layer, relation, ((MemberInfo) membershipData.getValueAt(row, 1)).role).setVisible(true);
+        }
     }
 
     private static int findViewRow(JTable table, TableModel model, Object value) {
@@ -532,7 +535,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
     @Override
     public void setVisible(boolean b) {
         super.setVisible(b);
-        if (b && MainApplication.getLayerManager().getEditDataSet() != null) {
+        if (b && MainApplication.getLayerManager().getActiveDataSet() != null) {
             updateSelection();
         }
     }
@@ -540,7 +543,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
     @Override
     public void destroy() {
         super.destroy();
-        Main.pref.removeKeyPreferenceChangeListener("display.discardable-keys", preferenceListener);
+        Config.getPref().removeKeyPreferenceChangeListener("display.discardable-keys", preferenceListener);
         Container parent = pluginHook.getParent();
         if (parent != null) {
             parent.remove(pluginHook);
@@ -572,7 +575,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
         // re-load tag data
         tagData.setRowCount(0);
 
-        final boolean displayDiscardableKeys = Main.pref.getBoolean("display.discardable-keys", false);
+        final boolean displayDiscardableKeys = Config.getPref().getBoolean("display.discardable-keys", false);
         final Map<String, Integer> keyCount = new HashMap<>();
         final Map<String, String> tags = new HashMap<>();
         valueCount.clear();
@@ -642,12 +645,14 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
         membershipTable.getTableHeader().setVisible(membershipData.getRowCount() > 0);
         membershipTable.setVisible(membershipData.getRowCount() > 0);
 
+        DataSet ds = Main.main.getActiveDataSet();
+        boolean isReadOnly = ds != null && ds.isReadOnly();
         boolean hasSelection = !newSel.isEmpty();
         boolean hasTags = hasSelection && tagData.getRowCount() > 0;
         boolean hasMemberships = hasSelection && membershipData.getRowCount() > 0;
-        addAction.setEnabled(hasSelection);
-        editAction.setEnabled(hasTags || hasMemberships);
-        deleteAction.setEnabled(hasTags || hasMemberships);
+        addAction.setEnabled(!isReadOnly && hasSelection);
+        editAction.setEnabled(!isReadOnly && (hasTags || hasMemberships));
+        deleteAction.setEnabled(!isReadOnly && (hasTags || hasMemberships));
         tagTable.setVisible(hasTags);
         tagTable.getTableHeader().setVisible(hasTags);
         tagTableFilter.setVisible(hasTags);
@@ -1053,10 +1058,11 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
 
         @Override
         protected final void updateEnabledState() {
-            setEnabled(
-                    (tagTable != null && tagTable.getSelectedRowCount() >= 1)
+            DataSet ds = Main.main.getActiveDataSet();
+            setEnabled(ds != null && !ds.isReadOnly() &&
+                    ((tagTable != null && tagTable.getSelectedRowCount() >= 1)
                     || (membershipTable != null && membershipTable.getSelectedRowCount() > 0)
-                    );
+                    ));
         }
 
         @Override
@@ -1108,10 +1114,11 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
 
         @Override
         protected void updateEnabledState() {
-            setEnabled(
-                    (tagTable != null && tagTable.getSelectedRowCount() == 1)
+            DataSet ds = Main.main.getActiveDataSet();
+            setEnabled(ds != null && !ds.isReadOnly() &&
+                    ((tagTable != null && tagTable.getSelectedRowCount() == 1)
                     ^ (membershipTable != null && membershipTable.getSelectedRowCount() == 1)
-                    );
+                    ));
         }
 
         @Override
@@ -1124,7 +1131,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
         HelpAction() {
             putValue(NAME, tr("Go to OSM wiki for tag help"));
             putValue(SHORT_DESCRIPTION, tr("Launch browser with wiki help for selected object"));
-            putValue(SMALL_ICON, ImageProvider.get("dialogs", "search"));
+            new ImageProvider("dialogs", "search").getResource().attachImageIcon(this, true);
             putValue(ACCELERATOR_KEY, getKeyStroke());
         }
 
@@ -1135,7 +1142,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
         @Override
         public void actionPerformed(ActionEvent e) {
             try {
-                String base = Main.pref.get("url.openstreetmap-wiki", "https://wiki.openstreetmap.org/wiki/");
+                String base = Config.getPref().get("url.openstreetmap-wiki", "https://wiki.openstreetmap.org/wiki/");
                 String lang = LanguageInfo.getWikiLanguagePrefix();
                 final List<URI> uris = new ArrayList<>();
                 int row;
@@ -1263,7 +1270,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
             String key = editHelper.getDataKey(tagTable.getSelectedRow());
             Collection<OsmPrimitive> sel = Main.main.getInProgressSelection();
             String clipboard = ClipboardUtils.getClipboardStringContent();
-            if (sel.isEmpty() || clipboard == null)
+            if (sel.isEmpty() || clipboard == null || sel.iterator().next().getDataSet().isReadOnly())
                 return;
             MainApplication.undoRedo.add(new ChangePropertyCommand(sel, key, Utils.strip(clipboard)));
         }

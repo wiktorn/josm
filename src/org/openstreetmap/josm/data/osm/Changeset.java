@@ -13,7 +13,6 @@ import java.util.Optional;
 
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.coor.LatLon;
-import org.openstreetmap.josm.data.osm.visitor.Visitor;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.date.DateUtils;
 
@@ -25,7 +24,7 @@ import org.openstreetmap.josm.tools.date.DateUtils;
 public final class Changeset implements Tagged, Comparable<Changeset> {
 
     /** The maximum changeset tag length allowed by API 0.6 **/
-    public static final int MAX_CHANGESET_TAG_LENGTH = 255;
+    public static final int MAX_CHANGESET_TAG_LENGTH = MAX_TAG_LENGTH;
 
     /** the changeset id */
     private int id;
@@ -102,14 +101,6 @@ public final class Changeset implements Tagged, Comparable<Changeset> {
         changeset.setUser(primitive.getUser());
         changeset.setCreatedAt(primitive.getTimestamp()); // not accurate in all cases
         return changeset;
-    }
-
-    /**
-     * Visitor pattern.
-     * @param v visitor
-     */
-    public void visit(Visitor v) {
-        v.visit(this);
     }
 
     /**

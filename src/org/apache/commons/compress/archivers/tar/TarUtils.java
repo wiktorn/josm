@@ -147,7 +147,7 @@ public class TarUtils {
         return result;
     }
 
-    /** 
+    /**
      * Compute the value contained in a byte buffer.  If the most
      * significant bit of the first byte in the buffer is set, this
      * bit is ignored and the rest of the buffer is interpreted as a
@@ -245,8 +245,7 @@ public class TarUtils {
         String string = new String(buffer, offset, length);
 
         string=string.replaceAll("\0", "{NUL}"); // Replace NULs to allow string to be printed
-        final String s = "Invalid byte "+currentByte+" at offset "+(current-offset)+" in '"+string+"' len="+length;
-        return s;
+        return "Invalid byte "+currentByte+" at offset "+(current-offset)+" in '"+string+"' len="+length;
     }
 
     /**
@@ -290,11 +289,9 @@ public class TarUtils {
                                    final ZipEncoding encoding)
         throws IOException {
 
-        int len = length;
-        for (; len > 0; len--) {
-            if (buffer[offset + len - 1] != 0) {
-                break;
-            }
+        int len = 0;
+        for (int i = offset; len < length && buffer[i] != 0; i++) {
+            len++;
         }
         if (len > 0) {
             final byte[] b = new byte[len];
@@ -307,7 +304,7 @@ public class TarUtils {
     /**
      * Copy a name into a buffer.
      * Copies characters from the name into the buffer
-     * starting at the specified offset. 
+     * starting at the specified offset.
      * If the buffer is longer than the name, the buffer
      * is filled with trailing NULs.
      * If the name is longer than the buffer,
@@ -336,7 +333,7 @@ public class TarUtils {
     /**
      * Copy a name into a buffer.
      * Copies characters from the name into the buffer
-     * starting at the specified offset. 
+     * starting at the specified offset.
      * If the buffer is longer than the name, the buffer
      * is filled with trailing NULs.
      * If the name is longer than the buffer,
@@ -373,7 +370,7 @@ public class TarUtils {
 
     /**
      * Fill buffer with unsigned octal number, padded with leading zeroes.
-     * 
+     *
      * @param value number to convert to octal - treated as unsigned
      * @param buffer destination buffer
      * @param offset starting offset in buffer
@@ -411,7 +408,7 @@ public class TarUtils {
      * Uses {@link #formatUnsignedOctalString} to format
      * the value as an octal string with leading zeros.
      * The converted number is followed by space and NUL
-     * 
+     *
      * @param value The value to write
      * @param buf The buffer to receive the output
      * @param offset The starting offset into the buffer
@@ -432,11 +429,11 @@ public class TarUtils {
 
     /**
      * Write an octal long integer into a buffer.
-     * 
+     *
      * Uses {@link #formatUnsignedOctalString} to format
      * the value as an octal string with leading zeros.
      * The converted number is followed by a space.
-     * 
+     *
      * @param value The value to write as octal
      * @param buf The destinationbuffer.
      * @param offset The starting offset into the buffer.
@@ -457,11 +454,11 @@ public class TarUtils {
     /**
      * Write an long integer into a buffer as an octal string if this
      * will fit, or as a binary number otherwise.
-     * 
+     *
      * Uses {@link #formatUnsignedOctalString} to format
      * the value as an octal string with leading zeros.
      * The converted number is followed by a space.
-     * 
+     *
      * @param value The value to write into the buffer.
      * @param buf The destination buffer.
      * @param offset The starting offset into the buffer.
@@ -496,7 +493,7 @@ public class TarUtils {
                                          final int offset, final int length,
                                          final boolean negative) {
         final int bits = (length - 1) * 8;
-        final long max = 1l << bits;
+        final long max = 1L << bits;
         long val = Math.abs(value); // Long.MIN_VALUE stays Long.MIN_VALUE
         if (val < 0 || val >= max) {
             throw new IllegalArgumentException("Value " + value +
@@ -505,7 +502,7 @@ public class TarUtils {
         if (negative) {
             val ^= max - 1;
             val++;
-            val |= 0xffl << bits;
+            val |= 0xffL << bits;
         }
         for (int i = offset + length - 1; i >= offset; i--) {
             buf[i] = (byte) val;
@@ -534,7 +531,7 @@ public class TarUtils {
 
     /**
      * Writes an octal value into a buffer.
-     * 
+     *
      * Uses {@link #formatUnsignedOctalString} to format
      * the value as an octal string with leading zeros.
      * The converted number is followed by NUL and then space.

@@ -7,16 +7,16 @@ import javax.swing.event.ListSelectionListener;
 import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
 
+import org.openstreetmap.josm.gui.dialogs.relation.IRelationEditor;
 import org.openstreetmap.josm.gui.dialogs.relation.MemberTable;
 import org.openstreetmap.josm.gui.dialogs.relation.MemberTableModel;
-import org.openstreetmap.josm.gui.dialogs.relation.IRelationEditor;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 
 /**
  * Abstract superclass of relation editor actions.
  * @since 9496
  */
-abstract class AbstractRelationEditorAction extends AbstractAction implements TableModelListener, ListSelectionListener {
+public abstract class AbstractRelationEditorAction extends AbstractAction implements TableModelListener, ListSelectionListener {
     protected final MemberTable memberTable;
     protected final MemberTableModel memberTableModel;
     protected final transient OsmDataLayer layer;

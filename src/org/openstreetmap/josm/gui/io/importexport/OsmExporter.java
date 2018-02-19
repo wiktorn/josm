@@ -21,6 +21,7 @@ import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.io.Compression;
 import org.openstreetmap.josm.io.OsmWriter;
 import org.openstreetmap.josm.io.OsmWriterFactory;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -89,7 +90,7 @@ public class OsmExporter extends FileExporter {
             }
 
             doSave(file, layer);
-            if ((noBackup || !Main.pref.getBoolean("save.keepbackup", false)) && tmpFile != null) {
+            if ((noBackup || !Config.getPref().getBoolean("save.keepbackup", false)) && tmpFile != null) {
                 Utils.deleteFile(tmpFile);
             }
             layer.onPostSaveToFile();
@@ -122,7 +123,7 @@ public class OsmExporter extends FileExporter {
     }
 
     protected void doSave(File file, OsmDataLayer layer) throws IOException {
-        // create outputstream and wrap it with gzip or bzip, if necessary
+        // create outputstream and wrap it with gzip, xz or bzip, if necessary
         try (
             OutputStream out = getOutputStream(file);
             Writer writer = new OutputStreamWriter(out, StandardCharsets.UTF_8);
@@ -130,7 +131,7 @@ public class OsmExporter extends FileExporter {
         ) {
             layer.data.getReadLock().lock();
             try {
-                w.writeLayer(layer);
+                w.write(layer.data);
             } finally {
                 layer.data.getReadLock().unlock();
             }

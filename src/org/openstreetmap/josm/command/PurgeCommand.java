@@ -15,7 +15,6 @@ import java.util.Set;
 
 import javax.swing.Icon;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.conflict.Conflict;
 import org.openstreetmap.josm.data.conflict.ConflictCollection;
 import org.openstreetmap.josm.data.osm.DataSet;
@@ -30,7 +29,7 @@ import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.Storage;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.osm.WayData;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.ImageProvider;
 
 /**
@@ -43,23 +42,6 @@ public class PurgeCommand extends Command {
     protected Map<PrimitiveId, PrimitiveData> makeIncompleteDataByPrimId;
 
     protected final ConflictCollection purgedConflicts = new ConflictCollection();
-
-    /**
-     * Constructs a new {@code PurgeCommand} (handles conflicts).
-     * This command relies on a number of consistency conditions:
-     *  - makeIncomplete must be a subset of toPurge.
-     *  - Each primitive, that is in toPurge but not in makeIncomplete, must have all its referrers in toPurge.
-     *  - Each element of makeIncomplete must not be new and must have only referrers that are either a relation or included in toPurge.
-     * @param layer OSM data layer
-     * @param toPurge primitives to purge
-     * @param makeIncomplete primitives to make incomplete
-     * @deprecated to be removed end of 2017. Use {@link #PurgeCommand(DataSet, Collection, Collection)} instead
-     */
-    @Deprecated
-    public PurgeCommand(OsmDataLayer layer, Collection<OsmPrimitive> toPurge, Collection<OsmPrimitive> makeIncomplete) {
-        super(layer);
-        init(toPurge, makeIncomplete);
-    }
 
     /**
      * Constructs a new {@code PurgeCommand} (does not handle conflicts).
@@ -132,6 +114,7 @@ public class PurgeCommand extends Command {
                     }
                 }
             }
+            getAffectedDataSet().clearMappaintCache();
         } finally {
             getAffectedDataSet().endUpdate();
         }
@@ -143,22 +126,28 @@ public class PurgeCommand extends Command {
         if (getAffectedDataSet() == null)
             return;
 
-        for (OsmPrimitive osm : toPurge) {
-            PrimitiveData data = makeIncompleteDataByPrimId.get(osm);
-            if (data != null) {
-                if (getAffectedDataSet().getPrimitiveById(osm) != osm)
-                    throw new AssertionError(
-                            String.format("Primitive %s has been made incomplete when purging, but it cannot be found on undo.", osm));
-                osm.load(data);
-            } else {
-                if (getAffectedDataSet().getPrimitiveById(osm) != null)
-                    throw new AssertionError(String.format("Primitive %s was removed when purging, but is still there on undo", osm));
-                getAffectedDataSet().addPrimitive(osm);
+        getAffectedDataSet().beginUpdate();
+        try {
+            for (OsmPrimitive osm : toPurge) {
+                PrimitiveData data = makeIncompleteDataByPrimId.get(osm);
+                if (data != null) {
+                    if (getAffectedDataSet().getPrimitiveById(osm) != osm)
+                        throw new AssertionError(
+                                String.format("Primitive %s has been made incomplete when purging, but it cannot be found on undo.", osm));
+                    osm.load(data);
+                } else {
+                    if (getAffectedDataSet().getPrimitiveById(osm) != null)
+                        throw new AssertionError(String.format("Primitive %s was removed when purging, but is still there on undo", osm));
+                    getAffectedDataSet().addPrimitive(osm);
+                }
             }
-        }
 
-        for (Conflict<?> conflict : purgedConflicts) {
-            getAffectedDataSet().getConflicts().add(conflict);
+            for (Conflict<?> conflict : purgedConflicts) {
+                getAffectedDataSet().getConflicts().add(conflict);
+            }
+            getAffectedDataSet().clearMappaintCache();
+        } finally {
+            getAffectedDataSet().endUpdate();
         }
     }
 
@@ -315,20 +304,6 @@ public class PurgeCommand extends Command {
 
     /**
      * Creates a new {@code PurgeCommand} to purge selected OSM primitives.
-     * @param layer optional osm data layer, can be null
-     * @param sel selected OSM primitives
-     * @param toPurgeAdditionally optional list that will be filled with primitives to be purged that have not been in the selection
-     * @return command to purge selected OSM primitives
-     * @since 12688
-     * @deprecated to be removed end of 2017. Use {@link #build(Collection, List)} instead
-     */
-    @Deprecated
-    public static PurgeCommand build(OsmDataLayer layer, Collection<OsmPrimitive> sel, List<OsmPrimitive> toPurgeAdditionally) {
-        return build(sel, toPurgeAdditionally);
-    }
-
-    /**
-     * Creates a new {@code PurgeCommand} to purge selected OSM primitives.
      * @param sel selected OSM primitives
      * @param toPurgeAdditionally optional list that will be filled with primitives to be purged that have not been in the selection
      * @return command to purge selected OSM primitives
@@ -383,7 +358,7 @@ public class PurgeCommand extends Command {
             }
 
         // Add untagged way nodes. Do not add nodes that have other referrers not yet to-be-purged.
-        if (Main.pref.getBoolean("purge.add_untagged_waynodes", true)) {
+        if (Config.getPref().getBoolean("purge.add_untagged_waynodes", true)) {
             Set<OsmPrimitive> wayNodes = new HashSet<>();
             for (OsmPrimitive osm : toPurgeChecked) {
                 if (osm instanceof Way) {
@@ -408,7 +383,7 @@ public class PurgeCommand extends Command {
             }
         }
 
-        if (Main.pref.getBoolean("purge.add_relations_with_only_incomplete_members", true)) {
+        if (Config.getPref().getBoolean("purge.add_relations_with_only_incomplete_members", true)) {
             Set<Relation> relSet = new HashSet<>();
             for (OsmPrimitive osm : toPurgeChecked) {
                 for (OsmPrimitive parent : osm.getReferrers()) {

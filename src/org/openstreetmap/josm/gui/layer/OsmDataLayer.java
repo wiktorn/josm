@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
@@ -75,13 +76,13 @@ import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.osm.event.AbstractDatasetChangedEvent;
 import org.openstreetmap.josm.data.osm.event.DataSetListenerAdapter;
 import org.openstreetmap.josm.data.osm.event.DataSetListenerAdapter.Listener;
-import org.openstreetmap.josm.data.osm.visitor.AbstractVisitor;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
+import org.openstreetmap.josm.data.osm.visitor.OsmPrimitiveVisitor;
 import org.openstreetmap.josm.data.osm.visitor.paint.MapRendererFactory;
 import org.openstreetmap.josm.data.osm.visitor.paint.Rendering;
 import org.openstreetmap.josm.data.osm.visitor.paint.relations.MultipolygonCache;
-import org.openstreetmap.josm.data.preferences.ColorProperty;
 import org.openstreetmap.josm.data.preferences.IntegerProperty;
+import org.openstreetmap.josm.data.preferences.NamedColorProperty;
 import org.openstreetmap.josm.data.preferences.StringProperty;
 import org.openstreetmap.josm.data.projection.Projection;
 import org.openstreetmap.josm.data.validation.TestError;
@@ -103,6 +104,7 @@ import org.openstreetmap.josm.gui.progress.swing.PleaseWaitProgressMonitor;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.FileChooserManager;
 import org.openstreetmap.josm.gui.widgets.JosmTextArea;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.AlphanumComparator;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.GBC;
@@ -128,6 +130,8 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, D
 
     private boolean requiresSaveToFile;
     private boolean requiresUploadToServer;
+    /** Flag used to know if the layer is being uploaded */
+    private final AtomicBoolean isUploadInProgress = new AtomicBoolean(false);
 
     /**
      * List of validation errors in this layer.
@@ -151,8 +155,8 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, D
      */
     public static final StringProperty PROPERTY_SAVE_EXTENSION = new StringProperty("save.extension.osm", "osm");
 
-    private static final ColorProperty PROPERTY_BACKGROUND_COLOR = new ColorProperty(marktr("background"), Color.BLACK);
-    private static final ColorProperty PROPERTY_OUTSIDE_COLOR = new ColorProperty(marktr("outside downloaded area"), Color.YELLOW);
+    private static final NamedColorProperty PROPERTY_BACKGROUND_COLOR = new NamedColorProperty(marktr("background"), Color.BLACK);
+    private static final NamedColorProperty PROPERTY_OUTSIDE_COLOR = new NamedColorProperty(marktr("outside downloaded area"), Color.YELLOW);
 
     /** List of recent relations */
     private final Map<Relation, Void> recentRelations = new LruCache(PROPERTY_RECENT_RELATIONS_NUMBER.get()+1);
@@ -242,7 +246,7 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, D
     /**
      * A listener that counts the number of primitives it encounters
      */
-    public static final class DataCountVisitor extends AbstractVisitor {
+    public static final class DataCountVisitor implements OsmPrimitiveVisitor {
         /**
          * Nodes that have been visited
          */
@@ -419,6 +423,14 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, D
         if (isUploadDiscouraged() || data.getUploadPolicy() == UploadPolicy.BLOCKED) {
             base.addOverlay(new ImageOverlay(new ImageProvider("warning-small"), 0.5, 0.5, 1.0, 1.0));
         }
+
+        if (isUploadInProgress()) {
+            // If the layer is being uploaded then change the default icon to a clock
+            base = new ImageProvider("clock").setMaxSize(ImageSizes.LAYER);
+        } else if (isReadOnly()) {
+            // If the layer is read only then change the default icon to a lock
+            base = new ImageProvider("lock").setMaxSize(ImageSizes.LAYER);
+        }
         return base.get();
     }
 
@@ -429,12 +441,12 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, D
      */
     @Override public void paint(final Graphics2D g, final MapView mv, Bounds box) {
         boolean active = mv.getLayerManager().getActiveLayer() == this;
-        boolean inactive = !active && Main.pref.getBoolean("draw.data.inactive_color", true);
+        boolean inactive = !active && Config.getPref().getBoolean("draw.data.inactive_color", true);
         boolean virtual = !inactive && mv.isVirtualNodesEnabled();
 
         // draw the hatched area for non-downloaded region. only draw if we're the active
         // and bounds are defined; don't draw for inactive layers or loaded GPX files etc
-        if (active && Main.pref.getBoolean("draw.data.downloaded_area", true) && !data.getDataSources().isEmpty()) {
+        if (active && Config.getPref().getBoolean("draw.data.downloaded_area", true) && !data.getDataSources().isEmpty()) {
             // initialize area with current viewport
             Rectangle b = mv.getBounds();
             // on some platforms viewport bounds seem to be offset from the left,
@@ -671,7 +683,7 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, D
                 new ConsistencyTestAction(),
                 SeparatorLayerAction.INSTANCE,
                 new LayerListPopup.InfoAction(this)));
-        return actions.toArray(new Action[actions.size()]);
+        return actions.toArray(new Action[0]);
     }
 
     /**
@@ -730,14 +742,31 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, D
         });
     }
 
-    private static WayPoint nodeToWayPoint(Node n) {
+    /**
+     * @param n the {@code Node} to convert
+     * @return {@code WayPoint} object
+     * @since 13210
+     */
+    public static WayPoint nodeToWayPoint(Node n) {
+        return nodeToWayPoint(n, 0);
+    }
+
+    /**
+     * @param n the {@code Node} to convert
+     * @param time a time value in milliseconds from the epoch.
+     * @return {@code WayPoint} object
+     * @since 13210
+     */
+    public static WayPoint nodeToWayPoint(Node n, long time) {
         WayPoint wpt = new WayPoint(n.getCoor());
 
         // Position info
 
         addDoubleIfPresent(wpt, n, GpxConstants.PT_ELE);
 
-        if (!n.isTimestampEmpty()) {
+        if (time > 0) {
+            wpt.setTime(time);
+        } else if (!n.isTimestampEmpty()) {
             wpt.put("time", DateUtils.fromTimestamp(n.getRawTimestamp()));
             wpt.setTime();
         }
@@ -858,7 +887,8 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, D
          * Constructs a new {@code ConvertToGpxLayerAction}.
          */
         public ConvertToGpxLayerAction() {
-            super(tr("Convert to GPX layer"), ImageProvider.get("converttogpx"));
+            super(tr("Convert to GPX layer"));
+            new ImageProvider("converttogpx").getResource().attachImageIcon(this, true);
             putValue("help", ht("/Action/ConvertToGpxLayer"));
         }
 
@@ -871,7 +901,7 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, D
                 gpxLayer.setAssociatedFile(new File(getAssociatedFile().getParentFile(), filename));
             }
             MainApplication.getLayerManager().addLayer(gpxLayer);
-            if (Main.pref.getBoolean("marker.makeautomarkers", true) && !gpxData.waypoints.isEmpty()) {
+            if (Config.getPref().getBoolean("marker.makeautomarkers", true) && !gpxData.waypoints.isEmpty()) {
                 MainApplication.getLayerManager().addLayer(new MarkerLayer(gpxData, tr("Converted from: {0}", getName()), null, gpxLayer));
             }
             MainApplication.getLayerManager().removeLayer(OsmDataLayer.this);
@@ -986,7 +1016,7 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, D
     public void processDatasetEvent(AbstractDatasetChangedEvent event) {
         invalidate();
         setRequiresSaveToFile(true);
-        setRequiresUploadToServer(true);
+        setRequiresUploadToServer(event.getDataset().requiresUploadToServer());
     }
 
     @Override
@@ -1088,7 +1118,7 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, D
         String extension = PROPERTY_SAVE_EXTENSION.get();
         File file = getAssociatedFile();
         if (file == null && isRenamed()) {
-            StringBuilder filename = new StringBuilder(Main.pref.get("lastDirectory")).append('/').append(getName());
+            StringBuilder filename = new StringBuilder(Config.getPref().get("lastDirectory")).append('/').append(getName());
             if (!OsmImporter.FILE_FILTER.acceptName(filename.toString())) {
                 filename.append('.').append(extension);
             }
@@ -1140,5 +1170,45 @@ public class OsmDataLayer extends AbstractModifiableLayer implements Listener, D
             data.setName(name);
         }
         super.setName(name);
+    }
+
+    @Override
+    public void setReadOnly() {
+        data.setReadOnly();
+    }
+
+    @Override
+    public void unsetReadOnly() {
+        data.unsetReadOnly();
+    }
+
+    @Override
+    public boolean isReadOnly() {
+        return data.isReadOnly();
+    }
+
+    /**
+     * Sets the "upload in progress" flag, which will result in displaying a new icon and forbid to remove the layer.
+     * @since 13434
+     */
+    public void setUploadInProgress() {
+        if (!isUploadInProgress.compareAndSet(false, true)) {
+            Logging.warn("Trying to set uploadInProgress flag on layer already being uploaded ", getName());
+        }
+    }
+
+    /**
+     * Unsets the "upload in progress" flag, which will result in displaying the standard icon and allow to remove the layer.
+     * @since 13434
+     */
+    public void unsetUploadInProgress() {
+        if (!isUploadInProgress.compareAndSet(true, false)) {
+            Logging.warn("Trying to unset uploadInProgress flag on layer not being uploaded ", getName());
+        }
+    }
+
+    @Override
+    public boolean isUploadInProgress() {
+        return isUploadInProgress.get();
     }
 }

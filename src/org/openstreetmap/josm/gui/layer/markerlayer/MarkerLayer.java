@@ -37,7 +37,7 @@ import org.openstreetmap.josm.data.gpx.GpxData;
 import org.openstreetmap.josm.data.gpx.GpxLink;
 import org.openstreetmap.josm.data.gpx.WayPoint;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
-import org.openstreetmap.josm.data.preferences.ColorProperty;
+import org.openstreetmap.josm.data.preferences.NamedColorProperty;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.dialogs.LayerListDialog;
@@ -50,6 +50,7 @@ import org.openstreetmap.josm.gui.layer.JumpToMarkerActions.JumpToPreviousMarker
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.layer.gpx.ConvertToDataLayerAction;
 import org.openstreetmap.josm.io.audio.AudioPlayer;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
@@ -77,7 +78,7 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
     public AudioMarker syncAudioMarker;
 
     private static final Color DEFAULT_COLOR = Color.magenta;
-    private static final ColorProperty COLOR_PROPERTY = new ColorProperty(marktr("gps marker"), DEFAULT_COLOR);
+    private static final NamedColorProperty COLOR_PROPERTY = new NamedColorProperty(marktr("gps marker"), DEFAULT_COLOR);
 
     /**
      * Constructs a new {@code MarkerLayer}.
@@ -142,6 +143,18 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
     }
 
     @Override
+    public synchronized void destroy() {
+        if (data.contains(AudioMarker.recentlyPlayedMarker())) {
+            AudioMarker.resetRecentlyPlayedMarker();
+        }
+        syncAudioMarker = null;
+        currentMarker = null;
+        fromLayer = null;
+        data.clear();
+        super.destroy();
+    }
+
+    @Override
     public LayerPainter attachToMapView(MapViewEvent event) {
         event.getMapView().addMouseListener(new MarkerMouseAdapter());
 
@@ -161,7 +174,7 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
     }
 
     @Override
-    protected ColorProperty getBaseColorProperty() {
+    protected NamedColorProperty getBaseColorProperty() {
         return COLOR_PROPERTY;
     }
 
@@ -229,7 +242,7 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
         components.add(new CustomizeColor(this));
         components.add(SeparatorLayerAction.INSTANCE);
         components.add(new SynchronizeAudio());
-        if (Main.pref.getBoolean("marker.traceaudio", true)) {
+        if (Config.getPref().getBoolean("marker.traceaudio", true)) {
             components.add(new MoveAudio());
         }
         components.add(new JumpToNextMarker(this));
@@ -238,7 +251,7 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
         components.add(new RenameLayerAction(getAssociatedFile(), this));
         components.add(SeparatorLayerAction.INSTANCE);
         components.add(new LayerListPopup.InfoAction(this));
-        return components.toArray(new Action[components.size()]);
+        return components.toArray(new Action[0]);
     }
 
     public boolean synchronizeAudioMarkers(final AudioMarker startMarker) {
@@ -438,7 +451,7 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
      * @return <code>true</code> if text should be shown, <code>false</code> otherwise.
      */
     private boolean isTextOrIconShown() {
-        String current = Main.pref.get("marker.show "+getName(), "show");
+        String current = Config.getPref().get("marker.show "+getName(), "show");
         return "show".equalsIgnoreCase(current);
     }
 
@@ -482,7 +495,8 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
         private final transient MarkerLayer layer;
 
         public ShowHideMarkerText(MarkerLayer layer) {
-            super(tr("Show Text/Icons"), ImageProvider.get("dialogs", "showhide"));
+            super(tr("Show Text/Icons"));
+            new ImageProvider("dialogs", "showhide").getResource().attachImageIcon(this, true);
             putValue(SHORT_DESCRIPTION, tr("Toggle visible state of the marker text and icons."));
             putValue("help", ht("/Action/ShowHideTextIcons"));
             this.layer = layer;
@@ -490,7 +504,7 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            Main.pref.put("marker.show "+layer.getName(), layer.isTextOrIconShown() ? "hide" : "show");
+            Config.getPref().put("marker.show "+layer.getName(), layer.isTextOrIconShown() ? "hide" : "show");
             layer.invalidate();
         }
 
@@ -513,7 +527,8 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
          * Constructs a new {@code SynchronizeAudio} action.
          */
         SynchronizeAudio() {
-            super(tr("Synchronize Audio"), ImageProvider.get("audio-sync"));
+            super(tr("Synchronize Audio"));
+            new ImageProvider("audio-sync").getResource().attachImageIcon(this, true);
             putValue("help", ht("/Action/SynchronizeAudio"));
         }
 
@@ -550,7 +565,8 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
     private class MoveAudio extends AbstractAction {
 
         MoveAudio() {
-            super(tr("Make Audio Marker at Play Head"), ImageProvider.get("addmarkers"));
+            super(tr("Make Audio Marker at Play Head"));
+            new ImageProvider("addmarkers").getResource().attachImageIcon(this, true);
             putValue("help", ht("/Action/MakeAudioMarkerAtPlayHead"));
         }
 

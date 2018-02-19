@@ -3,9 +3,9 @@ package org.openstreetmap.josm.data.oauth;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
 
-import org.openstreetmap.josm.data.Preferences;
 import org.openstreetmap.josm.io.auth.CredentialsAgent;
 import org.openstreetmap.josm.io.auth.CredentialsAgentException;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.Logging;
 
@@ -142,12 +142,10 @@ public class OAuthAccessTokenHolder {
      * Initializes the content of this holder from the Access Token managed by the
      * credential manager.
      *
-     * @param pref the preferences. Must not be null.
      * @param cm the credential manager. Must not be null.
      * @throws IllegalArgumentException if cm is null
      */
-    public void init(Preferences pref, CredentialsAgent cm) {
-        CheckParameterUtil.ensureParameterNotNull(pref, "pref");
+    public void init(CredentialsAgent cm) {
         CheckParameterUtil.ensureParameterNotNull(cm, "cm");
         OAuthToken token = null;
         try {
@@ -157,7 +155,7 @@ public class OAuthAccessTokenHolder {
             Logging.warn(tr("Failed to retrieve OAuth Access Token from credential manager"));
             Logging.warn(tr("Current credential manager is of type ''{0}''", cm.getClass().getName()));
         }
-        saveToPreferences = pref.getBoolean("oauth.access-token.save-to-preferences", true);
+        saveToPreferences = Config.getPref().getBoolean("oauth.access-token.save-to-preferences", true);
         if (token != null) {
             accessTokenKey = token.getKey();
             accessTokenSecret = token.getSecret();
@@ -168,15 +166,12 @@ public class OAuthAccessTokenHolder {
      * Saves the content of this holder to the preferences and a credential store managed
      * by a credential manager.
      *
-     * @param preferences the preferences. Must not be null.
      * @param cm the credentials manager. Must not be null.
-     * @throws IllegalArgumentException if preferences is null
      * @throws IllegalArgumentException if cm is null
      */
-    public void save(Preferences preferences, CredentialsAgent cm) {
-        CheckParameterUtil.ensureParameterNotNull(preferences, "preferences");
+    public void save(CredentialsAgent cm) {
         CheckParameterUtil.ensureParameterNotNull(cm, "cm");
-        preferences.put("oauth.access-token.save-to-preferences", saveToPreferences);
+        Config.getPref().putBoolean("oauth.access-token.save-to-preferences", saveToPreferences);
         try {
             if (!saveToPreferences) {
                 cm.storeOAuthAccessToken(null);

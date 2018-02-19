@@ -12,7 +12,6 @@ import javax.swing.Icon;
 
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
-import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -42,7 +41,7 @@ public class SequenceCommand extends Command {
     public SequenceCommand(DataSet ds, String name, Collection<Command> sequenz, boolean continueOnError) {
         super(ds);
         this.name = name;
-        this.sequence = sequenz.toArray(new Command[sequenz.size()]);
+        this.sequence = sequenz.toArray(new Command[0]);
         this.continueOnError = continueOnError;
     }
 
@@ -148,20 +147,6 @@ public class SequenceCommand extends Command {
 
     protected final void setSequenceComplete(boolean sequenceComplete) {
         this.sequenceComplete = sequenceComplete;
-    }
-
-    /**
-     * Invalidate all layers that were affected by this command.
-     * @see Layer#invalidate()
-     * @deprecated to be removed end of 2017.
-     */
-    @Override
-    @Deprecated
-    public void invalidateAffectedLayers() {
-        super.invalidateAffectedLayers();
-        for (Command c : sequence) {
-            c.invalidateAffectedLayers();
-        }
     }
 
     @Override

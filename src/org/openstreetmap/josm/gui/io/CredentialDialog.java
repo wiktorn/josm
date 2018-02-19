@@ -17,10 +17,12 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.net.Authenticator.RequestorType;
 import java.util.Objects;
 
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
+import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
@@ -28,15 +30,18 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.gui.SideButton;
 import org.openstreetmap.josm.gui.help.ContextSensitiveHelpAction;
 import org.openstreetmap.josm.gui.help.HelpUtil;
-import org.openstreetmap.josm.gui.preferences.server.ProxyPreferencesPanel;
+import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.util.WindowGeometry;
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel;
 import org.openstreetmap.josm.gui.widgets.JosmPasswordField;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
+import org.openstreetmap.josm.io.DefaultProxySelector;
 import org.openstreetmap.josm.io.OsmApi;
+import org.openstreetmap.josm.io.auth.AbstractCredentialsAgent;
+import org.openstreetmap.josm.io.auth.CredentialsAgentResponse;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.InputMapUtils;
 import org.openstreetmap.josm.tools.Logging;
@@ -69,6 +74,36 @@ public class CredentialDialog extends JDialog {
         return dialog;
     }
 
+    /**
+     * Prompts the user (in the EDT) for credentials and fills the given response with what has been entered.
+     * @param requestorType type of the entity requesting authentication
+     * @param agent the credentials agent requesting credentials
+     * @param response authentication response to fill
+     * @param username the known username, if any. Likely to be empty
+     * @param password the known password, if any. Likely to be empty
+     * @param host the host against authentication will be performed
+     * @since 12821
+     */
+    public static void promptCredentials(RequestorType requestorType, AbstractCredentialsAgent agent, CredentialsAgentResponse response,
+            String username, String password, String host) {
+        GuiHelper.runInEDTAndWait(() -> {
+            CredentialDialog dialog;
+            if (requestorType.equals(RequestorType.PROXY))
+                dialog = getHttpProxyCredentialDialog(
+                        username, password, host, agent.getSaveUsernameAndPasswordCheckboxText());
+            else
+                dialog = getOsmApiCredentialDialog(
+                        username, password, host, agent.getSaveUsernameAndPasswordCheckboxText());
+            dialog.setVisible(true);
+            response.setCanceled(dialog.isCanceled());
+            if (dialog.isCanceled())
+                return;
+            response.setUsername(dialog.getUsername());
+            response.setPassword(dialog.getPassword());
+            response.setSaveCredentials(dialog.isSaveCredentials());
+        });
+    }
+
     private boolean canceled;
     protected CredentialPanel pnlCredentials;
     private final String saveUsernameAndPasswordCheckboxText;
@@ -91,9 +126,9 @@ public class CredentialDialog extends JDialog {
 
     protected JPanel createButtonPanel() {
         JPanel pnl = new JPanel(new FlowLayout());
-        pnl.add(new SideButton(new OKAction()));
-        pnl.add(new SideButton(new CancelAction()));
-        pnl.add(new SideButton(new ContextSensitiveHelpAction(HelpUtil.ht("/Dialog/Password"))));
+        pnl.add(new JButton(new OKAction()));
+        pnl.add(new JButton(new CancelAction()));
+        pnl.add(new JButton(new ContextSensitiveHelpAction(HelpUtil.ht("/Dialog/Password"))));
         return pnl;
     }
 
@@ -230,7 +265,6 @@ public class CredentialDialog extends JDialog {
             gc.gridy = 5;
             gc.weighty = 1.0;
             add(new JPanel(), gc);
-
         }
 
         public CredentialPanel(CredentialDialog owner) {
@@ -320,10 +354,10 @@ public class CredentialDialog extends JDialog {
             super.build();
             tfUserName.setToolTipText(tr("Please enter the user name for authenticating at your proxy server"));
             tfPassword.setToolTipText(tr("Please enter the password for authenticating at your proxy server"));
-            lblHeading.setText(
-                    "<html>" + tr("Authenticating at the HTTP proxy ''{0}'' failed. Please enter a valid username and a valid password.",
-                            Main.pref.get(ProxyPreferencesPanel.PROXY_HTTP_HOST) + ':' +
-                            Main.pref.get(ProxyPreferencesPanel.PROXY_HTTP_PORT)) + "</html>");
+            lblHeading.setText("<html>" +
+                    tr("Authenticating at the HTTP proxy ''{0}'' failed. Please enter a valid username and a valid password.",
+                            Config.getPref().get(DefaultProxySelector.PROXY_HTTP_HOST) + ':' +
+                            Config.getPref().get(DefaultProxySelector.PROXY_HTTP_PORT)) + "</html>");
             lblWarning.setText("<html>" +
                     tr("Warning: depending on the authentication method the proxy server uses the password may be transferred unencrypted.")
                     + "</html>");
@@ -339,8 +373,7 @@ public class CredentialDialog extends JDialog {
         @Override
         public void focusGained(FocusEvent e) {
             if (e.getSource() instanceof JTextField) {
-                JTextField tf = (JTextField) e.getSource();
-                tf.selectAll();
+                ((JTextField) e.getSource()).selectAll();
             }
         }
     }
@@ -374,8 +407,7 @@ public class CredentialDialog extends JDialog {
                     nextTF.selectAll();
                     return;
                 } else {
-                    OKAction okAction = owner.new OKAction();
-                    okAction.actionPerformed(null);
+                    owner.new OKAction().actionPerformed(null);
                 }
             }
         }
@@ -385,11 +417,11 @@ public class CredentialDialog extends JDialog {
         OKAction() {
             putValue(NAME, tr("Authenticate"));
             putValue(SHORT_DESCRIPTION, tr("Authenticate with the supplied username and password"));
-            putValue(SMALL_ICON, ImageProvider.get("ok"));
+            new ImageProvider("ok").getResource().attachImageIcon(this);
         }
 
         @Override
-        public void actionPerformed(ActionEvent arg0) {
+        public void actionPerformed(ActionEvent e) {
             setCanceled(false);
             setVisible(false);
         }
@@ -399,7 +431,7 @@ public class CredentialDialog extends JDialog {
         CancelAction() {
             putValue(NAME, tr("Cancel"));
             putValue(SHORT_DESCRIPTION, tr("Cancel authentication"));
-            putValue(SMALL_ICON, ImageProvider.get("cancel"));
+            new ImageProvider("cancel").getResource().attachImageIcon(this);
         }
 
         public void cancel() {
@@ -408,7 +440,7 @@ public class CredentialDialog extends JDialog {
         }
 
         @Override
-        public void actionPerformed(ActionEvent arg0) {
+        public void actionPerformed(ActionEvent e) {
             cancel();
         }
     }

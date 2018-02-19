@@ -241,14 +241,16 @@ public class ParallelScatterZipCreator {
         }
 
         es.shutdown();
-        es.awaitTermination(1000 * 60l, TimeUnit.SECONDS);  // == Infinity. We really *must* wait for this to complete
+        es.awaitTermination(1000 * 60L, TimeUnit.SECONDS);  // == Infinity. We really *must* wait for this to complete
 
         // It is important that all threads terminate before we go on, ensure happens-before relationship
         compressionDoneAt = System.currentTimeMillis();
 
-        for (final ScatterZipOutputStream scatterStream : streams) {
-            scatterStream.writeTo(targetStream);
-            scatterStream.close();
+        synchronized (streams) {
+            for (final ScatterZipOutputStream scatterStream : streams) {
+                scatterStream.writeTo(targetStream);
+                scatterStream.close();
+            }
         }
 
         scatterDoneAt = System.currentTimeMillis();

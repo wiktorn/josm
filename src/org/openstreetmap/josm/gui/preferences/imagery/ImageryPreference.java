@@ -38,7 +38,6 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JToolBar;
 import javax.swing.UIManager;
-import javax.swing.event.HyperlinkEvent.EventType;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -59,9 +58,10 @@ import org.openstreetmap.josm.data.imagery.ImageryInfo.ImageryBounds;
 import org.openstreetmap.josm.data.imagery.ImageryLayerInfo;
 import org.openstreetmap.josm.data.imagery.OffsetBookmark;
 import org.openstreetmap.josm.data.imagery.Shape;
-import org.openstreetmap.josm.data.preferences.ColorProperty;
+import org.openstreetmap.josm.data.preferences.NamedColorProperty;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.download.DownloadDialog;
+import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.preferences.DefaultTabPreferenceSetting;
 import org.openstreetmap.josm.gui.preferences.PreferenceSetting;
 import org.openstreetmap.josm.gui.preferences.PreferenceSettingFactory;
@@ -73,7 +73,6 @@ import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.LanguageInfo;
 import org.openstreetmap.josm.tools.Logging;
-import org.openstreetmap.josm.tools.OpenBrowser;
 
 /**
  * Imagery preferences, including imagery providers, settings and offsets.
@@ -247,7 +246,7 @@ public final class ImageryPreference extends DefaultTabPreferenceSetting {
          */
         private static class ImageryURLTableCellRenderer extends DefaultTableCellRenderer {
 
-            private static final ColorProperty IMAGERY_BACKGROUND_COLOR = new ColorProperty(
+            private static final NamedColorProperty IMAGERY_BACKGROUND_COLOR = new NamedColorProperty(
                     marktr("Imagery Background: Default"),
                     new Color(200, 255, 200));
 
@@ -337,7 +336,9 @@ public final class ImageryPreference extends DefaultTabPreferenceSetting {
             RemoveEntryAction remove = new RemoveEntryAction();
             activeTable.getSelectionModel().addListSelectionListener(remove);
 
-            add(new JLabel(tr("Available default entries:")), GBC.eol().insets(5, 5, 0, 0));
+            add(new JLabel(tr("Available default entries:")), GBC.std().insets(5, 5, 0, 0));
+            add(new JLabel(tr("Boundaries of selected imagery entries:")), GBC.eol().insets(5, 5, 0, 0));
+
             // Add default item list
             JScrollPane scrolldef = new JScrollPane(defaultTable);
             scrolldef.setPreferredSize(new Dimension(200, 200));
@@ -354,7 +355,7 @@ public final class ImageryPreference extends DefaultTabPreferenceSetting {
                     }
                 }
             });
-            defaultMap.setZoomContolsVisible(false);
+            defaultMap.setZoomControlsVisible(false);
             defaultMap.setMinimumSize(new Dimension(100, 200));
             add(defaultMap, GBC.std().insets(5, 5, 0, 0).fill(GridBagConstraints.BOTH).weight(0.33, 0.6).insets(5, 0, 0, 0));
 
@@ -370,12 +371,8 @@ public final class ImageryPreference extends DefaultTabPreferenceSetting {
 
             HtmlPanel help = new HtmlPanel(tr("New default entries can be added in the <a href=\"{0}\">Wiki</a>.",
                 Main.getJOSMWebsite()+"/wiki/Maps"));
-            help.getEditorPane().addHyperlinkListener(e -> {
-                if (e.getEventType() == EventType.ACTIVATED) {
-                    OpenBrowser.displayUrl(e.getURL().toString());
-                }
-            });
-            add(help, GBC.eol().insets(10, 0, 0, 10).fill(GBC.HORIZONTAL));
+            help.enableClickableHyperlinks();
+            add(help, GBC.eol().insets(10, 0, 0, 0).fill(GBC.HORIZONTAL));
 
             ActivateAction activate = new ActivateAction();
             defaultTable.getSelectionModel().addListSelectionListener(activate);
@@ -386,7 +383,7 @@ public final class ImageryPreference extends DefaultTabPreferenceSetting {
             middleToolbar.setBorderPainted(false);
             middleToolbar.setOpaque(false);
             middleToolbar.add(btnActivate);
-            add(middleToolbar, GBC.eol().anchor(GBC.CENTER).insets(5, 15, 5, 0));
+            add(middleToolbar, GBC.eol().anchor(GBC.CENTER).insets(5, 5, 5, 0));
 
             add(Box.createHorizontalGlue(), GBC.eol().fill(GridBagConstraints.HORIZONTAL));
 
@@ -508,7 +505,7 @@ public final class ImageryPreference extends DefaultTabPreferenceSetting {
                 default:
                     break;
                 }
-                putValue(SMALL_ICON, ImageProvider.get("dialogs", icon));
+                new ImageProvider("dialogs", icon).getResource().attachImageIcon(this, true);
                 this.type = type;
             }
 
@@ -556,7 +553,7 @@ public final class ImageryPreference extends DefaultTabPreferenceSetting {
             RemoveEntryAction() {
                 putValue(NAME, tr("Remove"));
                 putValue(SHORT_DESCRIPTION, tr("Remove entry"));
-                putValue(SMALL_ICON, ImageProvider.get("dialogs", "delete"));
+                new ImageProvider("dialogs", "delete").getResource().attachImageIcon(this, true);
                 updateEnabledState();
             }
 
@@ -585,8 +582,8 @@ public final class ImageryPreference extends DefaultTabPreferenceSetting {
              */
             ActivateAction() {
                 putValue(NAME, tr("Activate"));
-                putValue(SHORT_DESCRIPTION, tr("copy selected defaults"));
-                putValue(SMALL_ICON, ImageProvider.get("preferences", "activate-down"));
+                putValue(SHORT_DESCRIPTION, tr("Copy selected default entries from the list above into the list below."));
+                new ImageProvider("preferences", "activate-down").getResource().attachImageIcon(this, true);
             }
 
             protected void updateEnabledState() {
@@ -652,7 +649,7 @@ public final class ImageryPreference extends DefaultTabPreferenceSetting {
              */
             ReloadAction() {
                 putValue(SHORT_DESCRIPTION, tr("Update default entries"));
-                putValue(SMALL_ICON, ImageProvider.get("dialogs", "refresh"));
+                new ImageProvider("dialogs", "refresh").getResource().attachImageIcon(this, true);
             }
 
             @Override
@@ -959,5 +956,10 @@ public final class ImageryPreference extends DefaultTabPreferenceSetting {
         OffsetBookmark.loadBookmarks();
         MainApplication.getMenu().imageryMenu.refreshImageryMenu();
         MainApplication.getMenu().imageryMenu.refreshOffsetMenu();
+    }
+
+    @Override
+    public String getHelpContext() {
+        return HelpUtil.ht("/Preferences/Imagery");
     }
 }

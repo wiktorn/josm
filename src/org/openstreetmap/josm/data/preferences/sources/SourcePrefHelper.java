@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.spi.preferences.Config;
 
 /**
  * Helper class for specialized extensions preferences.
@@ -18,13 +18,17 @@ import org.openstreetmap.josm.Main;
 public abstract class SourcePrefHelper {
 
     private final String pref;
+    protected final SourceType type;
 
     /**
      * Constructs a new {@code SourcePrefHelper} for the given preference key.
      * @param pref The preference key
+     * @param type The source type
+     * @since 12825
      */
-    public SourcePrefHelper(String pref) {
+    public SourcePrefHelper(String pref, SourceType type) {
         this.pref = pref;
+        this.type = type;
     }
 
     /**
@@ -53,7 +57,7 @@ public abstract class SourcePrefHelper {
      */
     public List<SourceEntry> get() {
 
-        Collection<Map<String, String>> src = Main.pref.getListOfStructs(pref, (Collection<Map<String, String>>) null);
+        List<Map<String, String>> src = Config.getPref().getListOfMaps(pref, null);
         if (src == null)
             return new ArrayList<>(getDefault());
 
@@ -73,18 +77,18 @@ public abstract class SourcePrefHelper {
      * @return {@code true}, if something has changed (i.e. value is different than before)
      */
     public boolean put(Collection<? extends SourceEntry> entries) {
-        Collection<Map<String, String>> setting = serializeList(entries);
-        boolean unset = Main.pref.getListOfStructs(pref, (Collection<Map<String, String>>) null) == null;
+        List<Map<String, String>> setting = serializeList(entries);
+        boolean unset = Config.getPref().getListOfMaps(pref, null) == null;
         if (unset) {
             Collection<Map<String, String>> def = serializeList(getDefault());
             if (setting.equals(def))
                 return false;
         }
-        return Main.pref.putListOfStructs(pref, setting);
+        return Config.getPref().putListOfMaps(pref, setting);
     }
 
-    private Collection<Map<String, String>> serializeList(Collection<? extends SourceEntry> entries) {
-        Collection<Map<String, String>> setting = new ArrayList<>(entries.size());
+    private List<Map<String, String>> serializeList(Collection<? extends SourceEntry> entries) {
+        List<Map<String, String>> setting = new ArrayList<>(entries.size());
         for (SourceEntry e : entries) {
             setting.add(serialize(e));
         }

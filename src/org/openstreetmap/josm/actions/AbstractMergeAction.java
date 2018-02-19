@@ -84,7 +84,7 @@ public abstract class AbstractMergeAction extends JosmAction {
      * @return the chosen layer
      */
     protected static Layer askTargetLayer(List<Layer> targetLayers) {
-        return askTargetLayer(targetLayers.toArray(new Layer[targetLayers.size()]),
+        return askTargetLayer(targetLayers.toArray(new Layer[0]),
                 tr("Please select the target layer."),
                 tr("Select target layer"),
                 tr("Merge"), "dialogs/mergedown");
@@ -108,7 +108,7 @@ public abstract class AbstractMergeAction extends JosmAction {
 
         JPanel pnl = new JPanel(new GridBagLayout());
         pnl.add(new JLabel(label), GBC.eol());
-        pnl.add(layerList, GBC.eol());
+        pnl.add(layerList, GBC.eol().fill(GBC.HORIZONTAL));
         if (GraphicsEnvironment.isHeadless()) {
             // return first layer in headless mode, for unit tests
             return targetLayers[0];

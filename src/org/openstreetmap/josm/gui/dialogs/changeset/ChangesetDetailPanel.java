@@ -22,6 +22,7 @@ import java.util.Set;
 
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
+import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -33,13 +34,14 @@ import org.openstreetmap.josm.actions.downloadtasks.ChangesetHeaderDownloadTask;
 import org.openstreetmap.josm.actions.downloadtasks.PostDownloadHandler;
 import org.openstreetmap.josm.data.osm.Changeset;
 import org.openstreetmap.josm.data.osm.ChangesetCache;
+import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.help.HelpUtil;
+import org.openstreetmap.josm.gui.history.OpenChangesetPopupMenu;
 import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeEvent;
 import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeListener;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.widgets.JosmTextArea;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
 import org.openstreetmap.josm.io.OnlineResource;
@@ -62,12 +64,15 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
     private final JosmTextField tfCreatedOn = new JosmTextField(20);
     private final JosmTextField tfClosedOn  = new JosmTextField(20);
 
+    private final OpenChangesetPopupMenuAction   actOpenChangesetPopupMenu   = new OpenChangesetPopupMenuAction();
     private final DownloadChangesetContentAction actDownloadChangesetContent = new DownloadChangesetContentAction(this);
     private final UpdateChangesetAction          actUpdateChangesets         = new UpdateChangesetAction();
     private final RemoveFromCacheAction          actRemoveFromCache          = new RemoveFromCacheAction();
     private final SelectInCurrentLayerAction     actSelectInCurrentLayer     = new SelectInCurrentLayerAction();
     private final ZoomInCurrentLayerAction       actZoomInCurrentLayerAction = new ZoomInCurrentLayerAction();
     // CHECKSTYLE.ON: SingleSpaceSeparator
+
+    private JButton btnOpenChangesetPopupMenu;
 
     private transient Changeset currentChangeset;
 
@@ -76,6 +81,10 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
 
         JToolBar tb = new JToolBar(JToolBar.VERTICAL);
         tb.setFloatable(false);
+
+        // -- display changeset
+        btnOpenChangesetPopupMenu = tb.add(actOpenChangesetPopupMenu);
+        actOpenChangesetPopupMenu.initProperties(currentChangeset);
 
         // -- remove from cache action
         tb.add(actRemoveFromCache);
@@ -258,6 +267,7 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
         } else {
             updateView(cs);
         }
+        actOpenChangesetPopupMenu.initProperties(currentChangeset);
         actDownloadChangesetContent.initProperties();
         actUpdateChangesets.initProperties(currentChangeset);
         actRemoveFromCache.initProperties(currentChangeset);
@@ -325,6 +335,26 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
     }
 
     /**
+     * The action for opening {@link OpenChangesetPopupMenu}
+     */
+    class OpenChangesetPopupMenuAction extends AbstractAction {
+        OpenChangesetPopupMenuAction() {
+            putValue(NAME, tr("View changeset"));
+            new ImageProvider("help/internet").getResource().attachImageIcon(this);
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent evt) {
+            if (currentChangeset != null)
+                new OpenChangesetPopupMenu(currentChangeset.getId()).show(btnOpenChangesetPopupMenu);
+        }
+
+        void initProperties(Changeset cs) {
+            setEnabled(cs != null);
+        }
+    }
+
+    /**
      * Selects the primitives in the content of this changeset in the current data layer.
      *
      */
@@ -343,7 +373,7 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
                     tr("<html>None of the objects in the content of changeset {0} is available in the current<br>"
                             + "edit layer ''{1}''.</html>",
                             currentChangeset.getId(),
-                            Utils.escapeReservedCharactersHTML(MainApplication.getLayerManager().getEditLayer().getName())
+                            Utils.escapeReservedCharactersHTML(MainApplication.getLayerManager().getActiveDataSet().getName())
                     ),
                     tr("Nothing to select"),
                     JOptionPane.WARNING_MESSAGE,
@@ -352,15 +382,15 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
         }
 
         @Override
-        public void actionPerformed(ActionEvent arg0) {
+        public void actionPerformed(ActionEvent e) {
             if (!isEnabled())
                 return;
-            OsmDataLayer layer = MainApplication.getLayerManager().getEditLayer();
-            if (layer == null) {
+            DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
+            if (ds == null) {
                 return;
             }
             Set<OsmPrimitive> target = new HashSet<>();
-            for (OsmPrimitive p: layer.data.allPrimitives()) {
+            for (OsmPrimitive p: ds.allPrimitives()) {
                 if (p.isUsable() && p.getChangesetId() == currentChangeset.getId()) {
                     target.add(p);
                 }
@@ -369,11 +399,11 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
                 alertNoPrimitivesToSelect();
                 return;
             }
-            layer.data.setSelected(target);
+            ds.setSelected(target);
         }
 
         public void updateEnabledState() {
-            setEnabled(MainApplication.getLayerManager().getEditLayer() != null && currentChangeset != null);
+            setEnabled(MainApplication.getLayerManager().getActiveDataSet() != null && currentChangeset != null);
         }
 
         @Override
@@ -402,7 +432,7 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
                     tr("<html>None of the objects in the content of changeset {0} is available in the current<br>"
                             + "edit layer ''{1}''.</html>",
                             currentChangeset.getId(),
-                            MainApplication.getLayerManager().getEditLayer().getName()
+                            MainApplication.getLayerManager().getActiveDataSet().getName()
                     ),
                     tr("Nothing to zoom to"),
                     JOptionPane.WARNING_MESSAGE,
@@ -411,15 +441,15 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
         }
 
         @Override
-        public void actionPerformed(ActionEvent arg0) {
+        public void actionPerformed(ActionEvent e) {
             if (!isEnabled())
                 return;
-            OsmDataLayer layer = MainApplication.getLayerManager().getEditLayer();
-            if (layer == null) {
+            DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
+            if (ds == null) {
                 return;
             }
             Set<OsmPrimitive> target = new HashSet<>();
-            for (OsmPrimitive p: layer.data.allPrimitives()) {
+            for (OsmPrimitive p: ds.allPrimitives()) {
                 if (p.isUsable() && p.getChangesetId() == currentChangeset.getId()) {
                     target.add(p);
                 }
@@ -428,12 +458,12 @@ public class ChangesetDetailPanel extends JPanel implements PropertyChangeListen
                 alertNoPrimitivesToZoomTo();
                 return;
             }
-            layer.data.setSelected(target);
+            ds.setSelected(target);
             AutoScaleAction.zoomToSelection();
         }
 
         public void updateEnabledState() {
-            setEnabled(MainApplication.getLayerManager().getEditLayer() != null && currentChangeset != null);
+            setEnabled(MainApplication.getLayerManager().getActiveDataSet() != null && currentChangeset != null);
         }
 
         @Override
