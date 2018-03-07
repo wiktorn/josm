@@ -58,11 +58,13 @@ import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
 
 import javax.swing.JOptionPane;
 
@@ -70,7 +72,7 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.StructUtils;
 import org.openstreetmap.josm.data.StructUtils.StructEntry;
 import org.openstreetmap.josm.data.StructUtils.WriteExplicitly;
-import org.openstreetmap.josm.io.CertificateAmendment.CertAmend;
+import org.openstreetmap.josm.io.CertificateAmendment.NativeCertAmend;
 import org.openstreetmap.josm.spi.preferences.Config;
 
 /**
@@ -438,11 +440,17 @@ public class PlatformHookWindows implements PlatformHook {
     }
 
     @Override
-    public X509Certificate getX509Certificate(CertAmend certAmend)
+    public X509Certificate getX509Certificate(NativeCertAmend certAmend)
             throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
+        // Make a web request to target site to force Windows to update if needed its trust root store from its certificate trust list
+        // A better, but a lot more complex method might be to get certificate list from Windows Registry with PowerShell
+        // using (Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\SystemCertificates\\AuthRoot\\AutoUpdate').EncodedCtl)
+        // then decode it using CertUtil -dump or calling CertCreateCTLContext API using JNI, and finally find and decode the certificate
+        Logging.trace(webRequest(certAmend.getWebSite()));
+        // Get Windows Trust Root Store
         KeyStore ks = getRootKeystore();
         // Search by alias (fast)
-        Certificate result = ks.getCertificate(certAmend.getId());
+        Certificate result = ks.getCertificate(certAmend.getWinAlias());
         if (result instanceof X509Certificate) {
             return (X509Certificate) result;
         }
@@ -679,5 +687,31 @@ public class PlatformHookWindows implements PlatformHook {
         def.add(new FontEntry("arialuni", "Arial Unicode MS", "ARIALUNI.TTF"));
 
         return def;
+    }
+
+    /**
+     * Performs a web request using Windows CryptoAPI (through PowerShell).
+     * This is useful to ensure Windows trust store will contain a specific root CA.
+     * @param uri the web URI to request
+     * @return HTTP response from the given URI
+     * @throws IOException if any I/O error occurs
+     * @since 13458
+     */
+    public static String webRequest(String uri) throws IOException {
+        // With PS 6.0 (not yet released in Windows) we could simply use:
+        // Invoke-WebRequest -SSlProtocol Tsl12 $uri
+        // With PS 3.0 (Windows 8+) we can use (https://stackoverflow.com/a/41618979/2257172):
+        // [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 ; Invoke-WebRequest $uri
+        // Unfortunately there are still a lot of users with Windows 7 (PS 2.0) and Invoke-WebRequest is not available:
+        try {
+            // https://stackoverflow.com/a/25121601/2257172
+            return Utils.execOutput(Arrays.asList("powershell", "-Command",
+                    "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12;"+
+                    "[System.Net.WebRequest]::Create('"+uri+"').GetResponse()"
+                    ));
+        } catch (ExecutionException | InterruptedException e) {
+            Logging.error(e);
+            return null;
+        }
     }
 }
