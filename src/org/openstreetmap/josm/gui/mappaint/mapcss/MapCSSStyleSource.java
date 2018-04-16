@@ -29,11 +29,11 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import org.openstreetmap.josm.data.Version;
-import org.openstreetmap.josm.data.osm.AbstractPrimitive;
-import org.openstreetmap.josm.data.osm.AbstractPrimitive.KeyValueVisitor;
+import org.openstreetmap.josm.data.osm.KeyValueVisitor;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
+import org.openstreetmap.josm.data.osm.Tagged;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.preferences.sources.SourceEntry;
 import org.openstreetmap.josm.gui.mappaint.Cascade;
@@ -48,7 +48,9 @@ import org.openstreetmap.josm.gui.mappaint.mapcss.ConditionFactory.KeyCondition;
 import org.openstreetmap.josm.gui.mappaint.mapcss.ConditionFactory.KeyMatchType;
 import org.openstreetmap.josm.gui.mappaint.mapcss.ConditionFactory.KeyValueCondition;
 import org.openstreetmap.josm.gui.mappaint.mapcss.ConditionFactory.Op;
+import org.openstreetmap.josm.gui.mappaint.mapcss.ConditionFactory.PseudoClassCondition;
 import org.openstreetmap.josm.gui.mappaint.mapcss.ConditionFactory.SimpleKeyValueCondition;
+import org.openstreetmap.josm.gui.mappaint.mapcss.Selector.AbstractSelector;
 import org.openstreetmap.josm.gui.mappaint.mapcss.Selector.ChildOrParentSelector;
 import org.openstreetmap.josm.gui.mappaint.mapcss.Selector.GeneralSelector;
 import org.openstreetmap.josm.gui.mappaint.mapcss.Selector.OptimizedGeneralSelector;
@@ -58,6 +60,7 @@ import org.openstreetmap.josm.gui.mappaint.mapcss.parsergen.TokenMgrError;
 import org.openstreetmap.josm.gui.mappaint.styleelement.LineElement;
 import org.openstreetmap.josm.io.CachedFile;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
+import org.openstreetmap.josm.tools.I18n;
 import org.openstreetmap.josm.tools.JosmRuntimeException;
 import org.openstreetmap.josm.tools.LanguageInfo;
 import org.openstreetmap.josm.tools.Logging;
@@ -195,7 +198,7 @@ public class MapCSSStyleSource extends StyleSource {
             }
 
             @Override
-            public void visitKeyValue(AbstractPrimitive p, String key, String value) {
+            public void visitKeyValue(Tagged p, String key, String value) {
                 MapCSSKeyRules v = index.get(key);
                 if (v != null) {
                     BitSet rs = v.get(value);
@@ -432,6 +435,8 @@ public class MapCSSStyleSource extends StyleSource {
                     loadMeta();
                     loadCanvas();
                     loadSettings();
+                    // remove "areaStyle" pseudo classes intended only for validator (causes StackOverflowError otherwise)
+                    removeAreaStyleClasses();
                 } finally {
                     closeSourceInputStream(in);
                 }
@@ -514,6 +519,7 @@ public class MapCSSStyleSource extends StyleSource {
             File file = cf.getFile();
             zipFile = new ZipFile(file, StandardCharsets.UTF_8);
             zipIcons = file;
+            I18n.addTexts(zipIcons);
             ZipEntry zipEntry = zipFile.getEntry(zipEntryPath);
             return zipFile.getInputStream(zipEntry);
         } else {
@@ -709,6 +715,60 @@ public class MapCSSStyleSource extends StyleSource {
                 return max != null && Math.round(max) >= Version.getInstance().getVersion();
             default:
                 return false;
+        }
+    }
+
+    /**
+     * Removes "meta" rules. Not needed for validator.
+     * @since 13633
+     */
+    public void removeMetaRules() {
+        for (Iterator<MapCSSRule> it = rules.iterator(); it.hasNext();) {
+            MapCSSRule x = it.next();
+            if (x.selector instanceof GeneralSelector) {
+                GeneralSelector gs = (GeneralSelector) x.selector;
+                if ("meta".equals(gs.base)) {
+                    it.remove();
+                }
+            }
+        }
+    }
+
+    /**
+     * Removes "areaStyle" pseudo-classes. Only needed for validator.
+     * @since 13633
+     */
+    public void removeAreaStyleClasses() {
+        for (Iterator<MapCSSRule> it = rules.iterator(); it.hasNext();) {
+            removeAreaStyleClasses(it.next().selector);
+        }
+    }
+
+    private static void removeAreaStyleClasses(Selector sel) {
+        if (sel instanceof ChildOrParentSelector) {
+            removeAreaStyleClasses((ChildOrParentSelector) sel);
+        } else if (sel instanceof AbstractSelector) {
+            removeAreaStyleClasses((AbstractSelector) sel);
+        }
+    }
+
+    private static void removeAreaStyleClasses(ChildOrParentSelector sel) {
+        removeAreaStyleClasses(sel.left);
+        removeAreaStyleClasses(sel.right);
+    }
+
+    private static void removeAreaStyleClasses(AbstractSelector sel) {
+        if (sel.conds != null) {
+            for (Iterator<Condition> it = sel.conds.iterator(); it.hasNext();) {
+                Condition c = it.next();
+                if (c instanceof PseudoClassCondition) {
+                    PseudoClassCondition cc = (PseudoClassCondition) c;
+                    if ("areaStyle".equals(cc.method.getName())) {
+                        Logging.warn("Removing 'areaStyle' pseudo-class from "+sel+". This class is only meant for validator");
+                        it.remove();
+                    }
+                }
+            }
         }
     }
 

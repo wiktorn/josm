@@ -25,6 +25,7 @@ import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.PseudoCommand;
 import org.openstreetmap.josm.command.SequenceCommand;
 import org.openstreetmap.josm.data.osm.DataSet;
+import org.openstreetmap.josm.data.osm.IPrimitive;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.OsmUtils;
 import org.openstreetmap.josm.data.validation.Severity;
@@ -101,13 +102,12 @@ public class MapCSSTagCheckerTest {
      */
     @Test
     public void testTicket10913() throws ParseException {
-        final OsmPrimitive p = OsmUtils.createPrimitive("way highway=tertiary construction=yes");
+        final OsmPrimitive p = TestUtils.addFakeDataSet(TestUtils.newWay("highway=tertiary construction=yes"));
         final TagCheck check = TagCheck.readMapCSS(new StringReader("way {" +
                 "throwError: \"error\";" +
                 "fixChangeKey: \"highway => construction\";\n" +
                 "fixAdd: \"highway=construction\";\n" +
                 "}")).parseChecks.get(0);
-        new DataSet(p);
         final Command command = check.fixPrimitive(p);
         assertTrue(command instanceof SequenceCommand);
         final Iterator<PseudoCommand> it = command.getChildren().iterator();
@@ -233,7 +233,7 @@ public class MapCSSTagCheckerTest {
             test.visit(OsmReader.parseDataSet(is, null).allPrimitives());
             List<TestError> errors = test.getErrors();
             assertEquals(errorsCount, errors.size());
-            Set<Set<OsmPrimitive>> primitives = new HashSet<>();
+            Set<Set<IPrimitive>> primitives = new HashSet<>();
             for (TestError e : errors) {
                 primitives.add(new HashSet<>(e.getPrimitives()));
             }

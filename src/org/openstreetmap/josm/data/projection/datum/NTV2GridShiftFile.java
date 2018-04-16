@@ -33,7 +33,7 @@ import org.openstreetmap.josm.tools.Logging;
 /**
  * Models the NTv2 format Grid Shift File and exposes methods to shift
  * coordinate values using the Sub Grids contained in the file.
- * <p>The principal reference for the alogrithms used is the
+ * <p>The principal reference for the algorithms used is the
  * 'GDAit Software Architecture Manual' produced by the <a
  * href='http://www.sli.unimelb.edu.au/gda94'>Geomatics
  * Department of the University of Melbourne</a>
@@ -62,6 +62,7 @@ import org.openstreetmap.josm.tools.Logging;
  * @author Peter Yuill
  * Modified for JOSM :
  * - removed the RandomAccessFile mode (Pieren)
+ * @since 2507
  */
 public class NTV2GridShiftFile implements Serializable {
 
@@ -298,10 +299,18 @@ public class NTV2GridShiftFile implements Serializable {
             .toString();
     }
 
+    /**
+     * Returns "from" ellipsoid identifier.
+     * @return "from" ellipsoid identifier
+     */
     public String getFromEllipsoid() {
         return fromEllipsoid;
     }
 
+    /**
+     * Returns "to" ellipsoid identifier.
+     * @return "to" ellipsoid identifier
+     */
     public String getToEllipsoid() {
         return toEllipsoid;
     }

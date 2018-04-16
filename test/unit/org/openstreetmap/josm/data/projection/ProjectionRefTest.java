@@ -64,6 +64,8 @@ public class ProjectionRefTest {
     private static final String REFERENCE_DATA_FILE = "data_nodist/projection/projection-reference-data";
     private static final String PROJ_LIB_DIR = "data_nodist/projection";
 
+    private static final int MAX_LENGTH = 524288;
+
     private static class RefEntry {
         String code;
         String def;
@@ -78,12 +80,14 @@ public class ProjectionRefTest {
 
     static Random rand = new SecureRandom();
 
+    static boolean debug;
+
     /**
      * Setup test.
      */
     @Rule
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    public JOSMTestRules test = new JOSMTestRules().platform().projectionNadGrids().timeout(30_000);
+    public JOSMTestRules test = new JOSMTestRules().platform().projectionNadGrids().timeout(90_000);
 
     /**
      * Program entry point.
@@ -91,6 +95,7 @@ public class ProjectionRefTest {
      * @throws IOException in case of I/O error
      */
     public static void main(String[] args) throws IOException {
+        debug = args.length > 0 && "debug".equals(args[0]);
         Collection<RefEntry> refs = readData();
         refs = updateData(refs);
         writeData(refs);
@@ -235,16 +240,35 @@ public class ProjectionRefTest {
         ProcessBuilder pb = new ProcessBuilder(args);
         pb.environment().put("PROJ_LIB", new File(PROJ_LIB_DIR).getAbsolutePath());
 
-        String output;
+        String output = "";
         try {
             Process process = pb.start();
             OutputStream stdin = process.getOutputStream();
             InputStream stdout = process.getInputStream();
+            InputStream stderr = process.getErrorStream();
             try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(stdin, StandardCharsets.UTF_8))) {
-                writer.write(String.format("%.9f %.9f%n", ll.lon(), ll.lat()));
+                String s = String.format("%s %s%n",
+                        LatLon.cDdHighPecisionFormatter.format(ll.lon()),
+                        LatLon.cDdHighPecisionFormatter.format(ll.lat()));
+                if (debug) {
+                    System.out.println("\n" + String.join(" ", args) + "\n" + s);
+                }
+                writer.write(s);
             }
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(stdout, StandardCharsets.UTF_8))) {
-                output = reader.readLine();
+                String line;
+                while (null != (line = reader.readLine())) {
+                    if (debug) {
+                        System.out.println("> " + line);
+                    }
+                    output = line;
+                }
+            }
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(stderr, StandardCharsets.UTF_8))) {
+                String line;
+                while (null != (line = reader.readLine())) {
+                    System.err.println("! " + line);
+                }
             }
         } catch (IOException e) {
             System.err.println("Error: Running external command failed: " + e + "\nCommand was: "+Utils.join(" ", args));
@@ -307,7 +331,7 @@ public class ProjectionRefTest {
         for (RefEntry ref : refs) {
             String def0 = Projections.getInit(ref.code);
             if (def0 == null) {
-                Assert.fail("unkown code: "+ref.code);
+                Assert.fail("unknown code: "+ref.code);
             }
             if (!ref.def.equals(def0)) {
                 fail.append("definitions for ").append(ref.code).append(" do not match\n");
@@ -340,8 +364,13 @@ public class ProjectionRefTest {
             Assert.fail("no reference data for following projections: "+allCodes);
         }
         if (fail.length() > 0) {
-            System.err.println(fail.toString());
-            throw new AssertionError(fail.toString());
+            String s = fail.toString();
+            if (s.length() > MAX_LENGTH) {
+                // SonarQube/Surefire can't parse XML attributes longer than 524288 characters
+                s = s.substring(0, MAX_LENGTH - 4) + "...";
+            }
+            System.err.println(s);
+            throw new AssertionError(s);
         }
     }
 

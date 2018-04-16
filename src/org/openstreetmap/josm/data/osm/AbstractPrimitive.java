@@ -20,31 +20,11 @@ import org.openstreetmap.josm.tools.LanguageInfo;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
-* Abstract class to represent common features of the datatypes primitives.
-*
-* @since 4099
-*/
+ * Abstract class to represent common features of the datatypes primitives.
+ *
+ * @since 4099
+ */
 public abstract class AbstractPrimitive implements IPrimitive {
-
-    /**
-     * This is a visitor that can be used to loop over the keys/values of this primitive.
-     *
-     * @author Michael Zangl
-     * @since 8742
-     * @since 10600 (functional interface)
-     */
-    @FunctionalInterface
-    public interface KeyValueVisitor {
-
-        /**
-         * This method gets called for every tag received.
-         *
-         * @param primitive This primitive
-         * @param key   The key
-         * @param value The value
-         */
-        void visitKeyValue(AbstractPrimitive primitive, String key, String value);
-    }
 
     private static final AtomicLong idCounter = new AtomicLong(0);
 
@@ -335,14 +315,6 @@ public abstract class AbstractPrimitive implements IPrimitive {
     @Override
     public PrimitiveId getPrimitiveId() {
         return new SimplePrimitiveId(getUniqueId(), getType());
-    }
-
-    /**
-     * Gets the type this primitive is displayed at
-     * @return A {@link OsmPrimitiveType}
-     */
-    public OsmPrimitiveType getDisplayType() {
-        return getType();
     }
 
     @Override
@@ -720,10 +692,7 @@ public abstract class AbstractPrimitive implements IPrimitive {
         return null;
     }
 
-    /**
-     * Gets the number of keys
-     * @return The number of keys set for this primitive.
-     */
+    @Override
     public final int getNumKeys() {
         String[] keys = this.keys;
         return keys == null ? 0 : keys.length / 2;

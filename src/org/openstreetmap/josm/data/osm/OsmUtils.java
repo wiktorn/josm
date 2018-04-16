@@ -2,9 +2,11 @@
 package org.openstreetmap.josm.data.osm;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import org.openstreetmap.josm.data.coor.LatLon;
@@ -144,12 +146,24 @@ public final class OsmUtils {
      * @param w OSM primitive
      * @return the value of "layer" key, or null if absent or set to 0 (default value)
      * @since 12986
+     * @since 13637 (signature)
      */
-    public static String getLayer(OsmPrimitive w) {
+    public static String getLayer(IPrimitive w) {
         String layer1 = w.get("layer");
         if ("0".equals(layer1)) {
             layer1 = null; // 0 is default value for layer.
         }
         return layer1;
+    }
+
+    /**
+     * Determines if the given collection contains primitives, and that none of them belong to a locked layer.
+     * @param collection collection of OSM primitives
+     * @return {@code true} if the given collection is not empty and does not contain any primitive in a locked layer.
+     * @since 13611
+     */
+    public static boolean isOsmCollectionEditable(Collection<? extends OsmPrimitive> collection) {
+        return collection != null && !collection.isEmpty()
+            && collection.stream().map(OsmPrimitive::getDataSet).filter(Objects::nonNull).noneMatch(DataSet::isLocked);
     }
 }

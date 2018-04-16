@@ -10,7 +10,7 @@ import org.openstreetmap.josm.tools.LanguageInfo;
  * IPrimitive captures the common functions of {@link OsmPrimitive} and {@link PrimitiveData}.
  * @since 4098
  */
-public interface IPrimitive extends Tagged, PrimitiveId {
+public interface IPrimitive extends Tagged, PrimitiveId, Stylable {
 
     /**
      * Replies <code>true</code> if the object has been modified since it was loaded from
@@ -218,7 +218,7 @@ public interface IPrimitive extends Tagged, PrimitiveId {
 
     /**
      * Replies the name of this primitive. The default implementation replies the value
-     * of the tag <tt>name</tt> or null, if this tag is not present.
+     * of the tag <code>name</code> or null, if this tag is not present.
      *
      * @return the name of this primitive
      */
@@ -232,4 +232,22 @@ public interface IPrimitive extends Tagged, PrimitiveId {
      * @see LanguageInfo#getLanguageCodes
      */
     String getLocalName();
+
+    /**
+     * Replies the display name of a primitive formatted by <code>formatter</code>
+     * @param formatter formatter to use
+     *
+     * @return the display name
+     * @since 13564
+     */
+    String getDisplayName(NameFormatter formatter);
+
+    /**
+     * Gets the type this primitive is displayed at
+     * @return A {@link OsmPrimitiveType}
+     * @since 13564
+     */
+    default OsmPrimitiveType getDisplayType() {
+        return getType();
+    }
 }

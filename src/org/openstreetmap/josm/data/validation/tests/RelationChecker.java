@@ -177,7 +177,7 @@ public class RelationChecker extends Test {
      * @param allroles containing list of possible role presets of the member
      * @param member to be verified
      * @param n relation to be verified
-     * @return <tt>true</tt> if member passed any of definition within preset
+     * @return <code>true</code> if member passed any of definition within preset
      *
      */
     private boolean checkMemberExpressionAndType(Map<Role, String> allroles, RelationMember member, Relation n) {
@@ -338,8 +338,9 @@ public class RelationChecker extends Test {
 
     @Override
     public Command fixError(TestError testError) {
-        if (isFixable(testError) && !testError.getPrimitives().iterator().next().isDeleted()) {
-            return new DeleteCommand(testError.getPrimitives());
+        Collection<? extends OsmPrimitive> primitives = testError.getPrimitives();
+        if (isFixable(testError) && !primitives.iterator().next().isDeleted()) {
+            return new DeleteCommand(primitives);
         }
         return null;
     }

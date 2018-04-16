@@ -19,6 +19,7 @@ import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.data.SelectionChangedListener;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
+import org.openstreetmap.josm.data.osm.OsmUtils;
 import org.openstreetmap.josm.data.osm.event.DatasetEventManager.FireMode;
 import org.openstreetmap.josm.data.osm.event.SelectionEventManager;
 import org.openstreetmap.josm.gui.ConditionalOptionPaneUtil;
@@ -358,14 +359,13 @@ public abstract class JosmAction extends AbstractAction implements Destroyable {
 
     /**
      * Updates enabled state according to selected primitives, if any.
-     * Enables action if the colleciton is not empty and references primitives in a modifiable data layer.
+     * Enables action if the collection is not empty and references primitives in a modifiable data layer.
      * Can be called in {@link #updateEnabledState(Collection)} implementations.
      * @param selection the collection of selected primitives
      * @since 13434
      */
     protected final void updateEnabledStateOnModifiableSelection(Collection<? extends OsmPrimitive> selection) {
-        setEnabled(selection != null && !selection.isEmpty()
-                && selection.stream().map(OsmPrimitive::getDataSet).noneMatch(DataSet::isLocked));
+        setEnabled(OsmUtils.isOsmCollectionEditable(selection));
     }
 
     /**

@@ -1,6 +1,6 @@
 #################################################################################
 # StdUtils plug-in for NSIS
-# Copyright (C) 2004-2016 LoRd_MuldeR <MuldeR2@GMX.de>
+# Copyright (C) 2004-2017 LoRd_MuldeR <MuldeR2@GMX.de>
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -27,6 +27,9 @@
 #################################################################################
 # FUNCTION DECLARTIONS
 #################################################################################
+
+!ifndef ___STDUTILS__NSH___
+!define ___STDUTILS__NSH___
 
 !define StdUtils.Time             '!insertmacro _StdUtils_Time'          #time(), as in C standard library
 !define StdUtils.GetMinutes       '!insertmacro _StdUtils_GetMinutes'    #GetSystemTimeAsFileTime(), returns the number of minutes
@@ -64,10 +67,18 @@
 !define StdUtils.GetRealOSBuildNo '!insertmacro _StdUtils_GetRealOSBld'  #Get the *real* Windows build number, even on Windows 8.1+
 !define StdUtils.GetRealOSName    '!insertmacro _StdUtils_GetRealOSStr'  #Get the *real* Windows version, as a "friendly" name
 !define StdUtils.GetOSEdition     '!insertmacro _StdUtils_GetOSEdition'  #Get the Windows edition, i.e. "workstation" or "server"
+!define StdUtils.GetOSReleaseId   '!insertmacro _StdUtils_GetOSRelIdNo'  #Get the Windows release identifier (on Windows 10)
 !define StdUtils.VerifyOSVersion  '!insertmacro _StdUtils_VrfyRealOSVer' #Compare *real* operating system to an expected version number
 !define StdUtils.VerifyOSBuildNo  '!insertmacro _StdUtils_VrfyRealOSBld' #Compare *real* operating system to an expected build number
 !define StdUtils.HashText         '!insertmacro _StdUtils_HashText'      #Compute hash from text string (CRC32, MD5, SHA1/2/3, BLAKE2)
 !define StdUtils.HashFile         '!insertmacro _StdUtils_HashFile'      #Compute hash from file (CRC32, MD5, SHA1/2/3, BLAKE2)
+!define StdUtils.NormalizePath    '!insertmacro _StdUtils_NormalizePath' #Simplifies the path to produce a direct, well-formed path
+!define StdUtils.GetParentPath    '!insertmacro _StdUtils_GetParentPath' #Get parent path by removing the last component from the path
+!define StdUtils.SplitPath        '!insertmacro _StdUtils_SplitPath'     #Split the components of the given path
+!define StdUtils.GetDrivePart     '!insertmacro _StdUtils_GetDrivePart'  #Get drive component of path
+!define StdUtils.GetDirectoryPart '!insertmacro _StdUtils_GetDirPart'    #Get directory component of path
+!define StdUtils.GetFileNamePart  '!insertmacro _StdUtils_GetFNamePart'  #Get file name component of path
+!define StdUtils.GetExtensionPart '!insertmacro _StdUtils_GetExtnPart'   #Get file extension component of path
 !define StdUtils.TimerCreate      '!insertmacro _StdUtils_TimerCreate'   #Create a new event-timer that will be triggered periodically
 !define StdUtils.TimerDestroy     '!insertmacro _StdUtils_TimerDestroy'  #Destroy a running timer created with TimerCreate()
 !define StdUtils.GetLibVersion    '!insertmacro _StdUtils_GetLibVersion' #Get the current StdUtils library version (for debugging)
@@ -334,6 +345,12 @@
 	pop ${out}
 !macroend
 
+
+!macro _StdUtils_GetOSRelIdNo out
+	StdUtils::GetOsReleaseId /NOUNLOAD
+	pop ${out}
+!macroend
+
 !macro _StdUtils_HashText out type text
 	push '${type}'
 	push '${text}'
@@ -345,6 +362,51 @@
 	push '${type}'
 	push '${file}'
 	StdUtils::HashFile /NOUNLOAD
+	pop ${out}
+!macroend
+
+!macro _StdUtils_NormalizePath out path
+	push '${path}'
+	StdUtils::NormalizePath /NOUNLOAD
+	pop ${out}
+!macroend
+
+!macro _StdUtils_GetParentPath out path
+	push '${path}'
+	StdUtils::GetParentPath /NOUNLOAD
+	pop ${out}
+!macroend
+
+!macro _StdUtils_SplitPath out_drive out_dir out_fname out_ext path
+	push '${path}'
+	StdUtils::SplitPath /NOUNLOAD
+	pop ${out_drive}
+	pop ${out_dir}
+	pop ${out_fname}
+	pop ${out_ext}
+!macroend
+
+!macro _StdUtils_GetDrivePart out path
+	push '${path}'
+	StdUtils::GetDrivePart /NOUNLOAD
+	pop ${out}
+!macroend
+
+!macro _StdUtils_GetDirPart out path
+	push '${path}'
+	StdUtils::GetDirectoryPart /NOUNLOAD
+	pop ${out}
+!macroend
+
+!macro _StdUtils_GetFNamePart out path
+	push '${path}'
+	StdUtils::GetFileNamePart /NOUNLOAD
+	pop ${out}
+!macroend
+
+!macro _StdUtils_GetExtnPart out path
+	push '${path}'
+	StdUtils::GetExtensionPart /NOUNLOAD
 	pop ${out}
 !macroend
 
@@ -385,3 +447,5 @@
 !define StdUtils.Const.ShellVerb.UnpinFromTaskbar 1
 !define StdUtils.Const.ShellVerb.PinToStart       2
 !define StdUtils.Const.ShellVerb.UnpinFromStart   3
+
+!endif # !___STDUTILS__NSH___

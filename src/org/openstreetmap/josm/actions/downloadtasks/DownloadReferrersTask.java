@@ -61,6 +61,9 @@ public class DownloadReferrersTask extends PleaseWaitRunnable {
     public DownloadReferrersTask(OsmDataLayer targetLayer, Collection<OsmPrimitive> children) {
         super("Download referrers", false /* don't ignore exception*/);
         CheckParameterUtil.ensureParameterNotNull(targetLayer, "targetLayer");
+        if (!targetLayer.isDownloadable()) {
+            throw new IllegalArgumentException("Non-downloadable layer: " + targetLayer);
+        }
         canceled = false;
         this.children = new HashMap<>();
         if (children != null) {
@@ -116,7 +119,7 @@ public class DownloadReferrersTask extends PleaseWaitRunnable {
             return;
         }
 
-        DataSetMerger visitor = new DataSetMerger(targetLayer.data, parents);
+        DataSetMerger visitor = new DataSetMerger(targetLayer.getDataSet(), parents);
         visitor.merge();
         SwingUtilities.invokeLater(targetLayer::onPostDownloadFromServer);
         if (visitor.getConflicts().isEmpty())
