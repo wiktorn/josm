@@ -255,8 +255,19 @@ public class ImageProvider {
     public static final String PROP_TRANSPARENCY_COLOR = "josm.transparency.color";
 
     /** set of class loaders to take images from */
-    protected static final Set<ClassLoader> classLoaders = new HashSet<>(Arrays.asList(
-            ClassLoader.getSystemClassLoader(), ImageProvider.class.getClassLoader()));
+    protected static final Set<ClassLoader> classLoaders = new HashSet<>();
+    static {
+        try {
+            classLoaders.add(ClassLoader.getSystemClassLoader());
+        } catch (SecurityException e) {
+            Logging.log(Logging.LEVEL_ERROR, "Unable to get system classloader", e);
+        }
+        try {
+            classLoaders.add(ImageProvider.class.getClassLoader());
+        } catch (SecurityException e) {
+            Logging.log(Logging.LEVEL_ERROR, "Unable to get application classloader", e);
+        }
+    }
 
     /** directories in which images are searched */
     protected Collection<String> dirs;
@@ -653,6 +664,8 @@ public class ImageProvider {
 
         if (ir == null) {
             return null;
+        } else if (Logging.isTraceEnabled()) {
+            Logging.trace("get {0} from {1}", this, Thread.currentThread());
         }
         if (virtualMaxWidth != -1 || virtualMaxHeight != -1)
             return ir.getImageIconBounded(new Dimension(virtualMaxWidth, virtualMaxHeight), multiResolution);
@@ -671,7 +684,7 @@ public class ImageProvider {
      */
     public CompletableFuture<Void> getAsync(Consumer<? super ImageIcon> action) {
         return isRemote()
-                ? CompletableFuture.supplyAsync(this::get, IMAGE_FETCHER).thenAcceptAsync(action)
+                ? CompletableFuture.supplyAsync(this::get, IMAGE_FETCHER).thenAcceptAsync(action, IMAGE_FETCHER)
                 : CompletableFuture.completedFuture(get()).thenAccept(action);
     }
 
@@ -716,7 +729,7 @@ public class ImageProvider {
      */
     public CompletableFuture<Void> getResourceAsync(Consumer<? super ImageResource> action) {
         return isRemote()
-                ? CompletableFuture.supplyAsync(this::getResource, IMAGE_FETCHER).thenAcceptAsync(action)
+                ? CompletableFuture.supplyAsync(this::getResource, IMAGE_FETCHER).thenAcceptAsync(action, IMAGE_FETCHER)
                 : CompletableFuture.completedFuture(getResource()).thenAccept(action);
     }
 
@@ -1131,10 +1144,14 @@ public class ImageProvider {
     private static ImageResource getIfAvailableLocalURL(URL path, ImageType type) {
         switch (type) {
         case SVG:
-            SVGDiagram svg;
+            SVGDiagram svg = null;
             synchronized (getSvgUniverse()) {
-                URI uri = getSvgUniverse().loadSVG(path);
-                svg = getSvgUniverse().getDiagram(uri);
+                try {
+                    URI uri = getSvgUniverse().loadSVG(path);
+                    svg = getSvgUniverse().getDiagram(uri);
+                } catch (SecurityException e) {
+                    Logging.log(Logging.LEVEL_WARN, "Unable to read SVG", e);
+                }
             }
             return svg == null ? null : new ImageResource(svg);
         case OTHER:
@@ -1148,7 +1165,8 @@ public class ImageProvider {
                     Logging.debug("Transparency has been forced for image {0}", path);
                 }
             } catch (IOException e) {
-                Logging.warn(e);
+                Logging.log(Logging.LEVEL_WARN, "Unable to read image", e);
+                Logging.debug(e);
             }
             return img == null ? null : new ImageResource(img);
         default:
@@ -1166,8 +1184,12 @@ public class ImageProvider {
             }
         } else {
             File f = new File(path, name);
-            if ((path != null || f.isAbsolute()) && f.exists())
-                return Utils.fileToURL(f);
+            try {
+                if ((path != null || f.isAbsolute()) && f.exists())
+                    return Utils.fileToURL(f);
+            } catch (SecurityException e) {
+                Logging.log(Logging.LEVEL_ERROR, "Unable to access image", e);
+            }
         }
         return null;
     }
@@ -1192,7 +1214,13 @@ public class ImageProvider {
         }
         // Try user-data directory
         if (Config.getDirs() != null) {
-            String dir = new File(Config.getDirs().getUserDataDirectory(false), "images").getAbsolutePath();
+            File file = new File(Config.getDirs().getUserDataDirectory(false), "images");
+            String dir = file.getPath();
+            try {
+                dir = file.getAbsolutePath();
+            } catch (SecurityException e) {
+                Logging.debug(e);
+            }
             try {
                 u = getImageUrl(dir, imageName);
                 if (u != null)
@@ -1629,7 +1657,7 @@ public class ImageProvider {
             throw new IIOException("Can't read input file!");
         }
 
-        ImageInputStream stream = ImageIO.createImageInputStream(input);
+        ImageInputStream stream = createImageInputStream(input);
         if (stream == null) {
             throw new IIOException("Can't create an ImageInputStream!");
         }
@@ -1679,7 +1707,7 @@ public class ImageProvider {
     public static BufferedImage read(InputStream input, boolean readMetadata, boolean enforceTransparency) throws IOException {
         CheckParameterUtil.ensureParameterNotNull(input, "input");
 
-        ImageInputStream stream = ImageIO.createImageInputStream(input);
+        ImageInputStream stream = createImageInputStream(input);
         BufferedImage bi = read(stream, readMetadata, enforceTransparency);
         if (bi == null) {
             stream.close();
@@ -1723,14 +1751,14 @@ public class ImageProvider {
         CheckParameterUtil.ensureParameterNotNull(input, "input");
 
         try (InputStream istream = Utils.openStream(input)) {
-            ImageInputStream stream = ImageIO.createImageInputStream(istream);
+            ImageInputStream stream = createImageInputStream(istream);
             BufferedImage bi = read(stream, readMetadata, enforceTransparency);
             if (bi == null) {
                 stream.close();
             }
             return bi;
-        } catch (IOException e) {
-            throw new IIOException("Can't get input stream from URL!", e);
+        } catch (SecurityException e) {
+            throw new IOException(e);
         }
     }
 
@@ -1941,10 +1969,14 @@ public class ImageProvider {
      * @since 8412
      */
     public static void shutdown(boolean now) {
-        if (now) {
-            IMAGE_FETCHER.shutdownNow();
-        } else {
-            IMAGE_FETCHER.shutdown();
+        try {
+            if (now) {
+                IMAGE_FETCHER.shutdownNow();
+            } else {
+                IMAGE_FETCHER.shutdown();
+            }
+        } catch (SecurityException ex) {
+            Logging.log(Logging.LEVEL_ERROR, "Failed to shutdown background image fetcher.", ex);
         }
     }
 
@@ -1984,5 +2016,26 @@ public class ImageProvider {
             g2.dispose();
         }
         return buffImage;
+    }
+
+    private static ImageInputStream createImageInputStream(Object input) throws IOException {
+        try {
+            return ImageIO.createImageInputStream(input);
+        } catch (SecurityException e) {
+            if (ImageIO.getUseCache()) {
+                ImageIO.setUseCache(false);
+                return ImageIO.createImageInputStream(input);
+            }
+            throw new IOException(e);
+        }
+    }
+
+    @Override
+    public String toString() {
+        return ("ImageProvider ["
+                + (dirs != null && !dirs.isEmpty() ? "dirs=" + dirs + ", " : "") + (id != null ? "id=" + id + ", " : "")
+                + (subdir != null && !subdir.isEmpty() ? "subdir=" + subdir + ", " : "") + (name != null ? "name=" + name + ", " : "")
+                + (archive != null ? "archive=" + archive + ", " : "")
+                + (inArchiveDir != null && !inArchiveDir.isEmpty() ? "inArchiveDir=" + inArchiveDir : "") + ']').replaceAll(", \\]", "]");
     }
 }

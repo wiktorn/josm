@@ -15,6 +15,7 @@ import org.openstreetmap.josm.data.osm.visitor.OsmPrimitiveVisitor;
 import org.openstreetmap.josm.data.osm.visitor.PrimitiveVisitor;
 import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.CopyList;
+import org.openstreetmap.josm.tools.Geometry;
 import org.openstreetmap.josm.tools.Pair;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -332,13 +333,6 @@ public final class Way extends OsmPrimitive implements IWay {
                 return false;
         }
         return true;
-    }
-
-    @Override
-    public int compareTo(OsmPrimitive o) {
-        if (o instanceof Relation)
-            return 1;
-        return o instanceof Way ? Long.compare(getUniqueId(), o.getUniqueId()) : -1;
     }
 
     /**
@@ -785,5 +779,31 @@ public final class Way extends OsmPrimitive implements IWay {
         for (final Node n : nodes) {
             n.clearCachedStyle();
         }
+    }
+
+    /**
+     * Returns angles of vertices.
+     * @return angles of the way
+     * @since 13670
+     */
+    public synchronized List<Pair<Double, Node>> getAngles() {
+        List<Pair<Double, Node>> angles = new ArrayList<>();
+
+        for (int i = 1; i < nodes.length - 1; i++) {
+            Node n0 = nodes[i - 1];
+            Node n1 = nodes[i];
+            Node n2 = nodes[i + 1];
+
+            double angle = Geometry.getNormalizedAngleInDegrees(Geometry.getCornerAngle(
+                    n0.getEastNorth(), n1.getEastNorth(), n2.getEastNorth()));
+            angles.add(new Pair<>(angle, n1));
+        }
+
+        angles.add(new Pair<>(Geometry.getNormalizedAngleInDegrees(Geometry.getCornerAngle(
+                nodes[nodes.length - 2].getEastNorth(),
+                nodes[0].getEastNorth(),
+                nodes[1].getEastNorth())), nodes[0]));
+
+        return angles;
     }
 }

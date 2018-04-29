@@ -46,6 +46,8 @@ import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.osm.BBox;
 import org.openstreetmap.josm.data.osm.DataSet;
+import org.openstreetmap.josm.data.osm.INode;
+import org.openstreetmap.josm.data.osm.IPrimitive;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.OsmUtils;
@@ -93,8 +95,17 @@ import org.openstreetmap.josm.tools.bugreport.BugReport;
  */
 public class StyledMapRenderer extends AbstractMapRenderer {
 
-    private static final ForkJoinPool THREAD_POOL =
-            Utils.newForkJoinPool("mappaint.StyledMapRenderer.style_creation.numberOfThreads", "styled-map-renderer-%d", Thread.NORM_PRIORITY);
+    private static final ForkJoinPool THREAD_POOL = newForkJoinPool();
+
+    private static ForkJoinPool newForkJoinPool() {
+        try {
+            return Utils.newForkJoinPool(
+                    "mappaint.StyledMapRenderer.style_creation.numberOfThreads", "styled-map-renderer-%d", Thread.NORM_PRIORITY);
+        } catch (SecurityException e) {
+            Logging.log(Logging.LEVEL_ERROR, "Unable to create new ForkJoinPool", e);
+            return null;
+        }
+    }
 
     /**
      * This stores a style and a primitive that should be painted with that style.
@@ -430,13 +441,14 @@ public class StyledMapRenderer extends AbstractMapRenderer {
                     g.setStroke(new BasicStroke());
                 }
             } else {
-                Image img = fillImage.getImage(disabled);
-                // TexturePaint requires BufferedImage -> get base image from
-                // possible multi-resolution image
-                img = HiDPISupport.getBaseImage(img);
-                TexturePaint texture = new TexturePaint((BufferedImage) img,
-                        new Rectangle(0, 0, fillImage.getWidth(), fillImage.getHeight()));
-                g.setPaint(texture);
+                // TexturePaint requires BufferedImage -> get base image from possible multi-resolution image
+                Image img = HiDPISupport.getBaseImage(fillImage.getImage(disabled));
+                if (img != null) {
+                    g.setPaint(new TexturePaint((BufferedImage) img,
+                            new Rectangle(0, 0, fillImage.getWidth(), fillImage.getHeight())));
+                } else {
+                    Logging.warn("Unable to get image from " + fillImage);
+                }
                 Float alpha = fillImage.getAlphaFloat();
                 if (!Utils.equalsEpsilon(alpha, 1f)) {
                     g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
@@ -679,7 +691,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
     }
 
     @Override
-    public void drawNode(Node n, Color color, int size, boolean fill) {
+    public void drawNode(INode n, Color color, int size, boolean fill) {
         if (size <= 0 && !n.isHighlighted())
             return;
 
@@ -743,7 +755,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
      * @param iconPosition Where to place the icon.
      * @since 11670
      */
-    public void drawAreaIcon(OsmPrimitive osm, MapImage img, boolean disabled, boolean selected, boolean member, double theta,
+    public void drawAreaIcon(IPrimitive osm, MapImage img, boolean disabled, boolean selected, boolean member, double theta,
             PositionForAreaStrategy iconPosition) {
         Rectangle2D.Double iconRect = new Rectangle2D.Double(-img.getWidth() / 2.0, -img.getHeight() / 2.0, img.getWidth(), img.getHeight());
 
@@ -886,15 +898,25 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         }
     }
 
-    public void drawRestriction(Image img, Point pVia, double vx, double vx2, double vy, double vy2, double angle, boolean selected) {
+    /**
+     * Draws a restriction.
+     * @param img symbol image
+     * @param pVia "via" node
+     * @param vx X offset
+     * @param vy Y offset
+     * @param angle the rotated angle, in degree, clockwise
+     * @param selected if true, draws a selection rectangle
+     * @since 13676
+     */
+    public void drawRestriction(Image img, Point pVia, double vx, double vy, double angle, boolean selected) {
         // rotate image with direction last node in from to, and scale down image to 16*16 pixels
         Image smallImg = ImageProvider.createRotatedImage(img, angle, new Dimension(16, 16));
         int w = smallImg.getWidth(null), h = smallImg.getHeight(null);
-        g.drawImage(smallImg, (int) (pVia.x+vx+vx2)-w/2, (int) (pVia.y+vy+vy2)-h/2, nc);
+        g.drawImage(smallImg, (int) (pVia.x+vx)-w/2, (int) (pVia.y+vy)-h/2, nc);
 
         if (selected) {
             g.setColor(isInactiveMode ? inactiveColor : relationSelectedColor);
-            g.drawRect((int) (pVia.x+vx+vx2)-w/2-2, (int) (pVia.y+vy+vy2)-h/2-2, w+4, h+4);
+            g.drawRect((int) (pVia.x+vx)-w/2-2, (int) (pVia.y+vy)-h/2-2, w+4, h+4);
         }
     }
 
@@ -1069,7 +1091,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         }
 
         drawRestriction(icon.getImage(disabled),
-                pVia, vx, vx2, vy, vy2, iconAngle, r.isSelected());
+                pVia, vx+vx2, vy+vy2, iconAngle, r.isSelected());
     }
 
     /**
@@ -1079,7 +1101,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
      * @param labelPositionStrategy The position of the text
      * @since 11722
      */
-    public void drawText(OsmPrimitive osm, TextLabel text, PositionForAreaStrategy labelPositionStrategy) {
+    public void drawText(IPrimitive osm, TextLabel text, PositionForAreaStrategy labelPositionStrategy) {
         if (!isShowNames()) {
             return;
         }
@@ -1115,7 +1137,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
         g.setFont(defaultFont);
     }
 
-    private void displayText(OsmPrimitive osm, TextLabel text, String name, Rectangle2D nb,
+    private void displayText(IPrimitive osm, TextLabel text, String name, Rectangle2D nb,
             MapViewPositionAndRotation center) {
         AffineTransform at = new AffineTransform();
         if (Math.abs(center.getRotation()) < .01) {
@@ -1171,7 +1193,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
      * @param osm A way or a multipolygon
      * @param consumer The consumer to call.
      */
-    private void forEachPolygon(OsmPrimitive osm, Consumer<MapViewPath> consumer) {
+    private void forEachPolygon(IPrimitive osm, Consumer<MapViewPath> consumer) {
         if (osm instanceof Way) {
             consumer.accept(getPath((Way) osm));
         } else if (osm instanceof Relation) {
@@ -1538,8 +1560,9 @@ public class StyledMapRenderer extends AbstractMapRenderer {
      * @param primitive The primititve to compute the flags for.
      * @param checkOuterMember <code>true</code> if we should also add {@link #FLAG_OUTERMEMBER_OF_SELECTED}
      * @return The flag.
+     * @since 13676 (signature)
      */
-    public static int computeFlags(OsmPrimitive primitive, boolean checkOuterMember) {
+    public static int computeFlags(IPrimitive primitive, boolean checkOuterMember) {
         if (primitive.isDisabled()) {
             return FLAG_DISABLED;
         } else if (primitive.isSelected()) {
@@ -1599,10 +1622,15 @@ public class StyledMapRenderer extends AbstractMapRenderer {
             // Need to process all relations first.
             // Reason: Make sure, ElemStyles.getStyleCacheWithRange is not called for the same primitive in parallel threads.
             // (Could be synchronized, but try to avoid this for performance reasons.)
-            THREAD_POOL.invoke(new ComputeStyleListWorker(circum, nc, relations, allStyleElems,
-                    Math.max(20, relations.size() / THREAD_POOL.getParallelism() / 3), styles));
-            THREAD_POOL.invoke(new ComputeStyleListWorker(circum, nc, new CompositeList<>(nodes, ways), allStyleElems,
-                    Math.max(100, (nodes.size() + ways.size()) / THREAD_POOL.getParallelism() / 3), styles));
+            if (THREAD_POOL != null) {
+                THREAD_POOL.invoke(new ComputeStyleListWorker(circum, nc, relations, allStyleElems,
+                        Math.max(20, relations.size() / THREAD_POOL.getParallelism() / 3), styles));
+                THREAD_POOL.invoke(new ComputeStyleListWorker(circum, nc, new CompositeList<>(nodes, ways), allStyleElems,
+                        Math.max(100, (nodes.size() + ways.size()) / THREAD_POOL.getParallelism() / 3), styles));
+            } else {
+                new ComputeStyleListWorker(circum, nc, relations, allStyleElems, 0, styles).computeDirectly();
+                new ComputeStyleListWorker(circum, nc, new CompositeList<>(nodes, ways), allStyleElems, 0, styles).computeDirectly();
+            }
 
             if (!benchmark.renderSort()) {
                 return;

@@ -10,7 +10,7 @@ import org.openstreetmap.josm.tools.LanguageInfo;
  * IPrimitive captures the common functions of {@link OsmPrimitive} and {@link PrimitiveData}.
  * @since 4098
  */
-public interface IPrimitive extends Tagged, PrimitiveId, Stylable {
+public interface IPrimitive extends Tagged, PrimitiveId, Stylable, Comparable<IPrimitive> {
 
     /**
      * Replies <code>true</code> if the object has been modified since it was loaded from
@@ -98,6 +98,86 @@ public interface IPrimitive extends Tagged, PrimitiveId, Stylable {
      * @see #isUndeleted()
      */
     boolean isNewOrUndeleted();
+
+    /**
+     * Replies true, if this primitive is disabled. (E.g. a filter applies)
+     * @return {@code true} if this object has the "disabled" flag enabled
+     * @since 13662
+     */
+    default boolean isDisabled() {
+        return false;
+    }
+
+    /**
+     * Replies true, if this primitive is disabled and marked as completely hidden on the map.
+     * @return {@code true} if this object has both the "disabled" and "hide if disabled" flags enabled
+     * @since 13662
+     */
+    default boolean isDisabledAndHidden() {
+        return false;
+    }
+
+    /**
+     * Determines if this object is selectable.
+     * <p>
+     * A primitive can be selected if all conditions are met:
+     * <ul>
+     * <li>it is drawable
+     * <li>it is not disabled (greyed out) by a filter.
+     * </ul>
+     * @return {@code true} if this object is selectable
+     * @since 13664
+     */
+    default boolean isSelectable() {
+        return true;
+    }
+
+    /**
+     * Determines if this object is drawable.
+     * <p>
+     * A primitive is complete if all conditions are met:
+     * <ul>
+     * <li>type and id is known
+     * <li>tags are known
+     * <li>it is not deleted
+     * <li>it is not hidden by a filter
+     * <li>for nodes: lat/lon are known
+     * <li>for ways: all nodes are known and complete
+     * <li>for relations: all members are known and complete
+     * </ul>
+     * @return {@code true} if this object is drawable
+     * @since 13664
+     */
+    default boolean isDrawable() {
+        return true;
+    }
+
+    /**
+     * Determines whether the primitive is selected
+     * @return whether the primitive is selected
+     * @since 13664
+     */
+    default boolean isSelected() {
+        return false;
+    }
+
+    /**
+     * Determines if this primitive is a member of a selected relation.
+     * @return {@code true} if this primitive is a member of a selected relation, {@code false} otherwise
+     * @since 13664
+     */
+    default boolean isMemberOfSelected() {
+        return false;
+    }
+
+    /**
+     * Determines if this primitive is an outer member of a selected multipolygon relation.
+     * @return {@code true} if this primitive is an outer member of a selected multipolygon relation, {@code false} otherwise
+     * @since 13664
+     */
+    default boolean isOuterMemberOfSelected() {
+        return false;
+    }
 
     /**
      * Replies the id of this primitive.
@@ -250,4 +330,58 @@ public interface IPrimitive extends Tagged, PrimitiveId, Stylable {
     default OsmPrimitiveType getDisplayType() {
         return getType();
     }
+
+    /**
+     * Updates the highlight flag for this primitive.
+     * @param highlighted The new highlight flag.
+     * @since 13664
+     */
+    void setHighlighted(boolean highlighted);
+
+    /**
+     * Checks if the highlight flag for this primitive was set
+     * @return The highlight flag.
+     * @since 13664
+     */
+    boolean isHighlighted();
+
+    /**
+     * Determines if this object is considered "tagged". To be "tagged", an object
+     * must have one or more "interesting" tags. "created_by" and "source"
+     * are typically considered "uninteresting" and do not make an object "tagged".
+     * @return true if this object is considered "tagged"
+     * @since 13662
+     */
+    boolean isTagged();
+
+    /**
+     * Determines if this object is considered "annotated". To be "annotated", an object
+     * must have one or more "work in progress" tags, such as "note" or "fixme".
+     * @return true if this object is considered "annotated"
+     * @since 13662
+     */
+    boolean isAnnotated();
+
+    /**
+     * Determines if this object is a relation and behaves as a multipolygon.
+     * @return {@code true} if it is a real multipolygon or a boundary relation
+     * @since 13667
+     */
+    default boolean isMultipolygon() {
+        return false;
+    }
+
+    /**
+     * true if this object has direction dependent tags (e.g. oneway)
+     * @return {@code true} if this object has direction dependent tags
+     * @since 13662
+     */
+    boolean hasDirectionKeys();
+
+    /**
+     * true if this object has the "reversed direction" flag enabled
+     * @return {@code true} if this object has the "reversed direction" flag enabled
+     * @since 13662
+     */
+    boolean reversedDirection();
 }

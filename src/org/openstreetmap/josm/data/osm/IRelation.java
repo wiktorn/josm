@@ -45,7 +45,25 @@ public interface IRelation extends IPrimitive {
     }
 
     @Override
+    default int compareTo(IPrimitive o) {
+        return o instanceof IRelation ? Long.compare(getUniqueId(), o.getUniqueId()) : -1;
+    }
+
+    @Override
     default String getDisplayName(NameFormatter formatter) {
         return formatter.format(this);
+    }
+
+    /**
+     * Determines if this relation is a boundary.
+     * @return {@code true} if a boundary relation
+     */
+    default boolean isBoundary() {
+        return "boundary".equals(get("type"));
+    }
+
+    @Override
+    default boolean isMultipolygon() {
+        return "multipolygon".equals(get("type")) || isBoundary();
     }
 }

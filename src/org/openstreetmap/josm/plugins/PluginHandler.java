@@ -766,7 +766,7 @@ public final class PluginHandler {
      * @param pluginClassLoader the plugin class loader
      */
     private static void loadPlugin(Component parent, PluginInformation plugin, PluginClassLoader pluginClassLoader) {
-        String msg = tr("Could not load plugin {0}. Delete from preferences?", plugin.name);
+        String msg = tr("Could not load plugin {0}. Delete from preferences?", "'"+plugin.name+"'");
         try {
             Class<?> klass = plugin.loadClass(pluginClassLoader);
             if (klass != null) {
@@ -781,7 +781,7 @@ public final class PluginHandler {
             Logging.error(e);
             if (e.getCause() instanceof ClassNotFoundException) {
                 msg = tr("<html>Could not load plugin {0} because the plugin<br>main class ''{1}'' was not found.<br>"
-                        + "Delete from preferences?</html>", Utils.escapeReservedCharactersHTML(plugin.name), plugin.className);
+                        + "Delete from preferences?</html>", "'"+Utils.escapeReservedCharactersHTML(plugin.name)+"'", plugin.className);
             }
         } catch (RuntimeException e) { // NOPMD
             pluginLoadingExceptions.put(plugin.name, e);
@@ -964,7 +964,7 @@ public final class PluginHandler {
             monitor.beginTask(tr("Determining plugins to load..."));
             Set<String> plugins = new HashSet<>(Config.getPref().getList("plugins", new LinkedList<String>()));
             Logging.debug("Plugins list initialized to {0}", plugins);
-            String systemProp = System.getProperty("josm.plugins");
+            String systemProp = Utils.getSystemProperty("josm.plugins");
             if (systemProp != null) {
                 plugins.addAll(Arrays.asList(systemProp.split(",")));
                 Logging.debug("josm.plugins system property set to '{0}'. Plugins list is now {1}", systemProp, plugins);

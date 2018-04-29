@@ -41,7 +41,7 @@ import org.openstreetmap.josm.tools.template_engine.TemplateEngineDataProvider;
  *
  * @author imi
  */
-public abstract class OsmPrimitive extends AbstractPrimitive implements Comparable<OsmPrimitive>, TemplateEngineDataProvider {
+public abstract class OsmPrimitive extends AbstractPrimitive implements TemplateEngineDataProvider {
     private static final String SPECIAL_VALUE_ID = "id";
     private static final String SPECIAL_VALUE_LOCAL_NAME = "localname";
 
@@ -444,18 +444,12 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
         updateFlags(FLAG_PRESERVED, isPreserved);
     }
 
-    /**
-     * Replies true, if this primitive is disabled. (E.g. a filter applies)
-     * @return {@code true} if this object has the "disabled" flag enabled
-     */
+    @Override
     public boolean isDisabled() {
         return (flags & FLAG_DISABLED) != 0;
     }
 
-    /**
-     * Replies true, if this primitive is disabled and marked as completely hidden on the map.
-     * @return {@code true} if this object has both the "disabled" and "hide if disabled" flags enabled
-     */
+    @Override
     public boolean isDisabledAndHidden() {
         return ((flags & FLAG_DISABLED) != 0) && ((flags & FLAG_HIDE_IF_DISABLED) != 0);
     }
@@ -485,36 +479,13 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
         return (flags & FLAG_PRESERVED) != 0;
     }
 
-    /**
-     * Determines if this object is selectable.
-     * <p>
-     * A primitive can be selected if all conditions are met:
-     * <ul>
-     * <li>it is drawable
-     * <li>it is not disabled (greyed out) by a filter.
-     * </ul>
-     * @return {@code true} if this object is selectable
-     */
+    @Override
     public boolean isSelectable() {
         // not synchronized -> check disabled twice just to be sure we did not have a race condition.
         return !isDisabled() && isDrawable() && !isDisabled();
     }
 
-    /**
-     * Determines if this object is drawable.
-     * <p>
-     * A primitive is complete if all conditions are met:
-     * <ul>
-     * <li>type and id is known
-     * <li>tags are known
-     * <li>it is not deleted
-     * <li>it is not hidden by a filter
-     * <li>for nodes: lat/lon are known
-     * <li>for ways: all nodes are known and complete
-     * <li>for relations: all members are known and complete
-     * </ul>
-     * @return {@code true} if this object is drawable
-     */
+    @Override
     public boolean isDrawable() {
         return (flags & (FLAG_DELETED + FLAG_INCOMPLETE + FLAG_HIDE_IF_DISABLED)) == 0;
     }
@@ -583,19 +554,12 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
         }
     }
 
-    /**
-     * Determines whether the primitive is selected
-     * @return whether the primitive is selected
-     * @see DataSet#isSelected(OsmPrimitive)
-     */
+    @Override
     public boolean isSelected() {
         return dataSet != null && dataSet.isSelected(this);
     }
 
-    /**
-     * Determines if this primitive is a member of a selected relation.
-     * @return {@code true} if this primitive is a member of a selected relation, {@code false} otherwise
-     */
+    @Override
     public boolean isMemberOfSelected() {
         if (referrers == null)
             return false;
@@ -608,11 +572,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
         return false;
     }
 
-    /**
-     * Determines if this primitive is an outer member of a selected multipolygon relation.
-     * @return {@code true} if this primitive is an outer member of a selected multipolygon relation, {@code false} otherwise
-     * @since 7621
-     */
+    @Override
     public boolean isOuterMemberOfSelected() {
         if (referrers == null)
             return false;
@@ -637,10 +597,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
         return false;
     }
 
-    /**
-     * Updates the highlight flag for this primitive.
-     * @param highlighted The new highlight flag.
-     */
+    @Override
     public void setHighlighted(boolean highlighted) {
         if (isHighlighted() != highlighted) {
             updateFlags(FLAG_HIGHLIGHTED, highlighted);
@@ -650,10 +607,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
         }
     }
 
-    /**
-     * Checks if the highlight flag for this primitive was set
-     * @return The highlight flag.
-     */
+    @Override
     public boolean isHighlighted() {
         return (flags & FLAG_HIGHLIGHTED) != 0;
     }
@@ -824,23 +778,12 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
         updateFlagsNoLock(FLAG_ANNOTATED, false);
     }
 
-    /**
-     * Determines if this object is considered "tagged". To be "tagged", an object
-     * must have one or more "interesting" tags. "created_by" and "source"
-     * are typically considered "uninteresting" and do not make an object
-     * "tagged".
-     * @return true if this object is considered "tagged"
-     */
+    @Override
     public boolean isTagged() {
         return (flags & FLAG_TAGGED) != 0;
     }
 
-    /**
-     * Determines if this object is considered "annotated". To be "annotated", an object
-     * must have one or more "work in progress" tags, such as "note" or "fixme".
-     * @return true if this object is considered "annotated"
-     * @since 5754
-     */
+    @Override
     public boolean isAnnotated() {
         return (flags & FLAG_ANNOTATED) != 0;
     }
@@ -860,18 +803,12 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
         updateFlagsNoLock(FLAG_HAS_DIRECTIONS, hasDirections);
     }
 
-    /**
-     * true if this object has direction dependent tags (e.g. oneway)
-     * @return {@code true} if this object has direction dependent tags
-     */
+    @Override
     public boolean hasDirectionKeys() {
         return (flags & FLAG_HAS_DIRECTIONS) != 0;
     }
 
-    /**
-     * true if this object has the "reversed diretion" flag enabled
-     * @return {@code true} if this object has the "reversed diretion" flag enabled
-     */
+    @Override
     public boolean reversedDirection() {
         return (flags & FLAG_DIRECTION_REVERSED) != 0;
     }
@@ -1086,11 +1023,11 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
     }
 
     /**
-      Return true, if this primitive is referred by at least n ways
-      @param n Minimal number of ways to return true. Must be positive
+     * Return true, if this primitive is a node referred by at least n ways
+     * @param n Minimal number of ways to return true. Must be positive
      * @return {@code true} if this primitive is referred by at least n ways
      */
-    public final boolean isReferredByWays(int n) {
+    protected final boolean isNodeReferredByWays(int n) {
         // Count only referrers that are members of the same dataset (primitive can have some fake references, for example
         // when way is cloned
         Object referrers = this.referrers;
@@ -1411,15 +1348,6 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Comparab
      * @return {@code true} if this primitive lies outside of the downloaded area
      */
     public abstract boolean isOutsideDownloadArea();
-
-    /**
-     * Determines if this object is a relation and behaves as a multipolygon.
-     * @return {@code true} if it is a real mutlipolygon or a boundary relation
-     * @since 10716
-     */
-    public boolean isMultipolygon() {
-        return false;
-    }
 
     /**
      * If necessary, extend the bbox to contain this primitive

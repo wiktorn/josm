@@ -61,38 +61,42 @@ public final class JCSCacheManager {
         // raising logging level gives ~500x performance gain
         // http://westsworld.dk/blog/2008/01/jcs-and-performance/
         jcsLog = Logger.getLogger("org.apache.commons.jcs");
-        jcsLog.setLevel(Level.INFO);
-        jcsLog.setUseParentHandlers(false);
-        // we need a separate handler from Main's, as we downgrade LEVEL.INFO to DEBUG level
-        Arrays.stream(jcsLog.getHandlers()).forEach(jcsLog::removeHandler);
-        jcsLog.addHandler(new Handler() {
-            final SimpleFormatter formatter = new SimpleFormatter();
+        try {
+            jcsLog.setLevel(Level.INFO);
+            jcsLog.setUseParentHandlers(false);
+            // we need a separate handler from Main's, as we downgrade LEVEL.INFO to DEBUG level
+            Arrays.stream(jcsLog.getHandlers()).forEach(jcsLog::removeHandler);
+            jcsLog.addHandler(new Handler() {
+                final SimpleFormatter formatter = new SimpleFormatter();
 
-            @Override
-            public void publish(LogRecord record) {
-                String msg = formatter.formatMessage(record);
-                if (record.getLevel().intValue() >= Level.SEVERE.intValue()) {
-                    Logging.error(msg);
-                } else if (record.getLevel().intValue() >= Level.WARNING.intValue()) {
-                    Logging.warn(msg);
-                    // downgrade INFO level to debug, as JCS is too verbose at INFO level
-                } else if (record.getLevel().intValue() >= Level.INFO.intValue()) {
-                    Logging.debug(msg);
-                } else {
-                    Logging.trace(msg);
+                @Override
+                public void publish(LogRecord record) {
+                    String msg = formatter.formatMessage(record);
+                    if (record.getLevel().intValue() >= Level.SEVERE.intValue()) {
+                        Logging.error(msg);
+                    } else if (record.getLevel().intValue() >= Level.WARNING.intValue()) {
+                        Logging.warn(msg);
+                        // downgrade INFO level to debug, as JCS is too verbose at INFO level
+                    } else if (record.getLevel().intValue() >= Level.INFO.intValue()) {
+                        Logging.debug(msg);
+                    } else {
+                        Logging.trace(msg);
+                    }
                 }
-            }
 
-            @Override
-            public void flush() {
-                // nothing to be done on flush
-            }
+                @Override
+                public void flush() {
+                    // nothing to be done on flush
+                }
 
-            @Override
-            public void close() {
-                // nothing to be done on close
-            }
-        });
+                @Override
+                public void close() {
+                    // nothing to be done on close
+                }
+            });
+        } catch (SecurityException e) {
+            Logging.log(Logging.LEVEL_ERROR, "Unable to configure JCS logs", e);
+        }
     }
 
     private JCSCacheManager() {
@@ -100,25 +104,35 @@ public final class JCSCacheManager {
     }
 
     @SuppressWarnings("resource")
-    private static void initialize() throws IOException {
+    private static void initialize() {
         File cacheDir = new File(Config.getDirs().getCacheDirectory(true), "jcs");
 
-        if (!cacheDir.exists() && !cacheDir.mkdirs())
-            throw new IOException("Cannot access cache directory");
+        try {
+            if (!cacheDir.exists() && !cacheDir.mkdirs()) {
+                Logging.warn("Cache directory " + cacheDir.toString() + " does not exists and could not create it");
+            } else {
+                File cacheDirLockPath = new File(cacheDir, ".lock");
+                try {
+                    if (!cacheDirLockPath.exists() && !cacheDirLockPath.createNewFile()) {
+                        Logging.warn("Cannot create cache dir lock file");
+                    }
+                    cacheDirLock = FileChannel.open(cacheDirLockPath.toPath(), StandardOpenOption.WRITE).tryLock();
 
-        File cacheDirLockPath = new File(cacheDir, ".lock");
-        if (!cacheDirLockPath.exists() && !cacheDirLockPath.createNewFile()) {
-            Logging.warn("Cannot create cache dir lock file");
+                    if (cacheDirLock == null)
+                        Logging.warn("Cannot lock cache directory. Will not use disk cache");
+                } catch (IOException e) {
+                    Logging.log(Logging.LEVEL_WARN, "Cannot create cache dir \"" + cacheDirLockPath + "\" lock file:", e);
+                    Logging.warn("Will not use disk cache");
+                }
+            }
+        } catch (SecurityException e) {
+            Logging.log(Logging.LEVEL_WARN, "Unable to configure disk cache. Will not use it", e);
         }
-        cacheDirLock = FileChannel.open(cacheDirLockPath.toPath(), StandardOpenOption.WRITE).tryLock();
-
-        if (cacheDirLock == null)
-            Logging.warn("Cannot lock cache directory. Will not use disk cache");
 
         // this could be moved to external file
         Properties props = new Properties();
         // these are default common to all cache regions
-        // use of auxiliary cache and sizing of the caches is done with giving proper geCache(...) params
+        // use of auxiliary cache and sizing of the caches is done with giving proper getCache(...) params
         // CHECKSTYLE.OFF: SingleSpaceSeparator
         props.setProperty("jcs.default.cacheattributes",                      CompositeCacheAttributes.class.getCanonicalName());
         props.setProperty("jcs.default.cacheattributes.MaxObjects",           DEFAULT_MAX_OBJECTS_IN_MEMORY.get().toString());
@@ -130,9 +144,13 @@ public final class JCSCacheManager {
         props.setProperty("jcs.default.elementattributes.IdleTime",           Long.toString(maxObjectTTL));
         props.setProperty("jcs.default.elementattributes.IsSpool",            "true");
         // CHECKSTYLE.ON: SingleSpaceSeparator
-        CompositeCacheManager cm = CompositeCacheManager.getUnconfiguredInstance();
-        cm.configure(props);
-        cacheManager = cm;
+        try {
+            CompositeCacheManager cm = CompositeCacheManager.getUnconfiguredInstance();
+            cm.configure(props);
+            cacheManager = cm;
+        } catch (SecurityException e) {
+            Logging.log(Logging.LEVEL_WARN, "Unable to initialize JCS", e);
+        }
     }
 
     /**
@@ -141,9 +159,8 @@ public final class JCSCacheManager {
      * @param <V> value type
      * @param cacheName region name
      * @return cache access object
-     * @throws IOException if directory is not found
      */
-    public static <K, V> CacheAccess<K, V> getCache(String cacheName) throws IOException {
+    public static <K, V> CacheAccess<K, V> getCache(String cacheName) {
         return getCache(cacheName, DEFAULT_MAX_OBJECTS_IN_MEMORY.get().intValue(), 0, null);
     }
 
@@ -156,23 +173,20 @@ public final class JCSCacheManager {
      * @param maxDiskObjects    maximum size of the objects stored on disk in kB
      * @param cachePath         path to disk cache. if null, no disk cache will be created
      * @return cache access object
-     * @throws IOException if directory is not found
      */
-    public static <K, V> CacheAccess<K, V> getCache(String cacheName, int maxMemoryObjects, int maxDiskObjects, String cachePath)
-            throws IOException {
+    public static <K, V> CacheAccess<K, V> getCache(String cacheName, int maxMemoryObjects, int maxDiskObjects, String cachePath) {
         if (cacheManager != null)
             return getCacheInner(cacheName, maxMemoryObjects, maxDiskObjects, cachePath);
 
         synchronized (JCSCacheManager.class) {
             if (cacheManager == null)
                 initialize();
-            return getCacheInner(cacheName, maxMemoryObjects, maxDiskObjects, cachePath);
+            return cacheManager != null ? getCacheInner(cacheName, maxMemoryObjects, maxDiskObjects, cachePath) : null;
         }
     }
 
     @SuppressWarnings("unchecked")
-    private static <K, V> CacheAccess<K, V> getCacheInner(String cacheName, int maxMemoryObjects, int maxDiskObjects, String cachePath)
-            throws IOException {
+    private static <K, V> CacheAccess<K, V> getCacheInner(String cacheName, int maxMemoryObjects, int maxDiskObjects, String cachePath) {
         CompositeCache<K, V> cc = cacheManager.getCache(cacheName, getCacheAttributes(maxMemoryObjects));
 
         if (cachePath != null && cacheDirLock != null) {
@@ -182,10 +196,10 @@ public final class JCSCacheManager {
                     cc.setAuxCaches(new AuxiliaryCache[]{DISK_CACHE_FACTORY.createCache(
                             diskAttributes, cacheManager, null, new StandardSerializer())});
                 }
-            } catch (IOException e) {
-                throw e;
             } catch (Exception e) { // NOPMD
-                throw new IOException(e);
+                // in case any error in setting auxiliary cache, do not use disk cache at all - only memory
+                cc.setAuxCaches(new AuxiliaryCache[0]);
+                Logging.debug(e);
             }
         }
         return new CacheAccess<>(cc);

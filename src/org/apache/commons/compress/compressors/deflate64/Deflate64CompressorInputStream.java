@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import org.apache.commons.compress.compressors.CompressorInputStream;
+import org.apache.commons.compress.utils.InputStreamStatistics;
+
 import static org.apache.commons.compress.utils.IOUtils.closeQuietly;
 
 /**
@@ -29,9 +31,10 @@ import static org.apache.commons.compress.utils.IOUtils.closeQuietly;
  * @since 1.16
  * @NotThreadSafe
  */
-public class Deflate64CompressorInputStream extends CompressorInputStream {
+public class Deflate64CompressorInputStream extends CompressorInputStream implements InputStreamStatistics {
     private InputStream originalStream;
     private HuffmanDecoder decoder;
+    private long compressedBytesRead;
     private final byte[] oneByte = new byte[1];
 
     /**
@@ -76,6 +79,7 @@ public class Deflate64CompressorInputStream extends CompressorInputStream {
         int read = -1;
         if (decoder != null) {
             read = decoder.decode(b, off, len);
+            compressedBytesRead = decoder.getBytesRead();
             count(read);
             if (read == -1) {
                 closeDecoder();
@@ -96,6 +100,22 @@ public class Deflate64CompressorInputStream extends CompressorInputStream {
             originalStream.close();
             originalStream = null;
         }
+    }
+
+    /**
+     * @since 1.17
+     */
+    @Override
+    public long getCompressedCount() {
+        return compressedBytesRead;
+    }
+
+    /**
+     * @since 1.17
+     */
+    @Override
+    public long getUncompressedCount() {
+        return getBytesRead();
     }
 
     private void closeDecoder() {
