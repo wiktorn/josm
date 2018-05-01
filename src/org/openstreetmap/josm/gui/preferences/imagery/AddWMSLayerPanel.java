@@ -3,10 +3,12 @@ package org.openstreetmap.josm.gui.preferences.imagery;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
 
+import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
@@ -16,6 +18,7 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JScrollPane;
 
+import org.openstreetmap.josm.data.imagery.DefaultLayer;
 import org.openstreetmap.josm.data.imagery.ImageryInfo;
 import org.openstreetmap.josm.data.imagery.ImageryInfo.ImageryType;
 import org.openstreetmap.josm.gui.bbox.SlippyMapBBoxChooser;
@@ -34,11 +37,15 @@ public class AddWMSLayerPanel extends AddImageryPanel {
 
     private transient WMSImagery wms;
     private final JCheckBox endpoint = new JCheckBox(tr("Store WMS endpoint only, select layers at usage"));
+    private final JCheckBox setDefaultLayers = new JCheckBox(tr("Use selected layers as default"));
     private final transient WMSLayerTree tree = new WMSLayerTree();
     private final JComboBox<String> formats = new JComboBox<>();
     private final JLabel wmsInstruction;
     private final JosmTextArea wmsUrl = new JosmTextArea(3, 40).transferFocusOnTab();
     private final JButton showBounds = new JButton(tr("Show bounds"));
+    private final JCheckBox validGeoreference= new JCheckBox(tr("Is layer properly georeferenced?"));
+    private HeadersTable headersTable;
+
 
     /**
      * Constructs a new {@code AddWMSLayerPanel}.
@@ -53,7 +60,10 @@ public class AddWMSLayerPanel extends AddImageryPanel {
         add(getLayers, GBC.eop().fill());
 
         add(new JLabel(tr("{0} Select layers", "4.")), GBC.eol());
+
         add(endpoint, GBC.eol().fill());
+        setDefaultLayers.setEnabled(false);
+        add(setDefaultLayers, GBC.eol().fill());
         add(new JScrollPane(tree.getLayerTree()), GBC.eol().fill().weight(1, 100));
 
         showBounds.setEnabled(false);
@@ -61,6 +71,13 @@ public class AddWMSLayerPanel extends AddImageryPanel {
 
         add(new JLabel(tr("{0} Select image format", "5.")), GBC.eol());
         add(formats, GBC.eol().fill());
+
+        add(validGeoreference, GBC.eol().fill());
+
+        headersTable = new HeadersTable();
+
+        add(new JLabel(tr("Set custom HTTP headers (if needed):")), GBC.eop());
+        add(headersTable, GBC.eol().fill().weight(1, 30));
 
         wmsInstruction = new JLabel(tr("{0} Edit generated {1} URL (optional)", "6.", "WMS"));
         add(wmsInstruction, GBC.eol());
@@ -73,7 +90,7 @@ public class AddWMSLayerPanel extends AddImageryPanel {
 
         getLayers.addActionListener(e -> {
             try {
-                wms = new WMSImagery(rawUrl.getText());
+                wms = new WMSImagery(rawUrl.getText(), headersTable.getHeaders());
                 tree.updateTree(wms);
                 Collection<String> wmsFormats = wms.getFormats();
                 formats.setModel(new DefaultComboBoxModel<>(wmsFormats.toArray(new String[wmsFormats.size()])));
@@ -103,18 +120,22 @@ public class AddWMSLayerPanel extends AddImageryPanel {
             }
         });
 
-        endpoint.addItemListener(e -> {
-            tree.getLayerTree().setEnabled(!endpoint.isSelected());
-            showBounds.setEnabled(!endpoint.isSelected());
-            wmsInstruction.setEnabled(!endpoint.isSelected());
-            formats.setEnabled(!endpoint.isSelected());
-            wmsUrl.setEnabled(!endpoint.isSelected());
-            if (endpoint.isSelected()) {
+        ActionListener availabilityManagerAction = a -> {
+            setDefaultLayers.setEnabled(endpoint.isSelected());
+            boolean enabled = !endpoint.isSelected() || setDefaultLayers.isSelected();
+            tree.getLayerTree().setEnabled(enabled);
+            showBounds.setEnabled(enabled);
+            wmsInstruction.setEnabled(enabled);
+            formats.setEnabled(enabled);
+            wmsUrl.setEnabled(enabled);
+            if (endpoint.isSelected() && !setDefaultLayers.isSelected() && wms != null) {
                 name.setText(wms.getHost());
-            } else {
-                onLayerSelectionChanged();
             }
-        });
+            onLayerSelectionChanged();
+        };
+
+        endpoint.addActionListener(availabilityManagerAction);
+        setDefaultLayers.addActionListener(availabilityManagerAction);
 
         tree.getLayerTree().addPropertyChangeListener("selectedLayers", evt -> onLayerSelectionChanged());
 
@@ -137,7 +158,7 @@ public class AddWMSLayerPanel extends AddImageryPanel {
     }
 
     protected final void onLayerSelectionChanged() {
-        if (wms.buildRootUrl() != null) {
+        if (wms != null && wms.buildRootUrl() != null) {
             wmsUrl.setText(wms.buildGetMapUrl(
                     tree.getSelectedLayers().stream().map(x -> x.getName()).collect(Collectors.toList()),
                     (List<String>) null,
@@ -156,11 +177,23 @@ public class AddWMSLayerPanel extends AddImageryPanel {
         if (endpoint.isSelected()) {
             info = new ImageryInfo(getImageryName(), getImageryRawUrl());
             info.setImageryType(ImageryInfo.ImageryType.WMS_ENDPOINT);
+            if (setDefaultLayers.isSelected()) {
+                info.setDefaultLayers(tree.getSelectedLayers().stream()
+                        .map(x -> new DefaultLayer(
+                                ImageryInfo.ImageryType.WMS_ENDPOINT,
+                                x.getName(),
+                                "", // TODO: allow selection of styles
+                                ""))
+                        .collect(Collectors.toList()));
+                info.setServerProjections(wms.getServerProjections(tree.getSelectedLayers()));
+            }
         } else {
             info = wms.toImageryInfo(getImageryName(), tree.getSelectedLayers(), (List<String>) null, true); // TODO: ask user about transparency
             info.setUrl(getWmsUrl());
             info.setImageryType(ImageryType.WMS);
         }
+        info.setGeoreferenceValid(validGeoreference.isSelected());
+        info.setCustomHttpHeaders(headersTable.getHeaders());
         return info;
     }
 
