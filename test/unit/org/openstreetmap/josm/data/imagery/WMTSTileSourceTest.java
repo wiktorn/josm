@@ -18,6 +18,7 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.TestUtils;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.coor.LatLon;
+import org.openstreetmap.josm.data.imagery.WMTSTileSource.WMTSGetCapabilitiesException;
 import org.openstreetmap.josm.data.projection.Projections;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
 
@@ -48,7 +49,7 @@ public class WMTSTileSourceTest {
      */
     @Rule
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    public JOSMTestRules test = new JOSMTestRules();
+    public JOSMTestRules test = new JOSMTestRules().preferences().platform();
 
     private static ImageryInfo getImagery(String path) {
         try {
@@ -63,7 +64,7 @@ public class WMTSTileSourceTest {
     }
 
     @Test
-    public void testPseudoMercator() throws IOException {
+    public void testPseudoMercator() throws IOException, WMTSGetCapabilitiesException {
         Main.setProjection(Projections.getProjectionByCode("EPSG:3857"));
         WMTSTileSource testSource = new WMTSTileSource(testImageryPSEUDO_MERCATOR);
         testSource.initProjection(Main.getProjection());
@@ -93,7 +94,7 @@ public class WMTSTileSourceTest {
     }
 
     @Test
-    public void testWALLONIE() throws IOException {
+    public void testWALLONIE() throws IOException, WMTSGetCapabilitiesException {
         Main.setProjection(Projections.getProjectionByCode("EPSG:31370"));
         WMTSTileSource testSource = new WMTSTileSource(testImageryWALLONIE);
         testSource.initProjection(Main.getProjection());
@@ -113,7 +114,7 @@ public class WMTSTileSourceTest {
 
     @Test
     @Ignore("disable this test, needs further working") // XXX
-    public void testWALLONIENoMatrixDimension() throws IOException {
+    public void testWALLONIENoMatrixDimension() throws IOException, WMTSGetCapabilitiesException {
         Main.setProjection(Projections.getProjectionByCode("EPSG:31370"));
         WMTSTileSource testSource = new WMTSTileSource(getImagery("test/data/wmts/WMTSCapabilities-Wallonie-nomatrixdimension.xml"));
         testSource.initProjection(Main.getProjection());
@@ -137,7 +138,7 @@ public class WMTSTileSourceTest {
     }
 
     @Test
-    public void testWIEN() throws IOException {
+    public void testWIEN() throws IOException, WMTSGetCapabilitiesException {
         Main.setProjection(Projections.getProjectionByCode("EPSG:3857"));
         WMTSTileSource testSource = new WMTSTileSource(testImageryWIEN);
         testSource.initProjection(Main.getProjection());
@@ -179,7 +180,7 @@ public class WMTSTileSourceTest {
     }
 
     @Test
-    public void testGeoportalTOPOPL() throws IOException {
+    public void testGeoportalTOPOPL() throws IOException, WMTSGetCapabilitiesException {
         Main.setProjection(Projections.getProjectionByCode("EPSG:4326"));
         WMTSTileSource testSource = new WMTSTileSource(testImageryTOPO_PL);
         testSource.initProjection(Main.getProjection());
@@ -201,7 +202,7 @@ public class WMTSTileSourceTest {
     }
 
     @Test
-    public void testGeoportalORTOPL4326() throws IOException {
+    public void testGeoportalORTOPL4326() throws IOException, WMTSGetCapabilitiesException {
         Main.setProjection(Projections.getProjectionByCode("EPSG:4326"));
         WMTSTileSource testSource = new WMTSTileSource(testImageryORTO_PL);
         testSource.initProjection(Main.getProjection());
@@ -210,7 +211,7 @@ public class WMTSTileSourceTest {
     }
 
     @Test
-    public void testGeoportalORTOPL2180() throws IOException {
+    public void testGeoportalORTOPL2180() throws IOException, WMTSGetCapabilitiesException {
         Main.setProjection(Projections.getProjectionByCode("EPSG:2180"));
         WMTSTileSource testSource = new WMTSTileSource(testImageryORTO_PL);
         testSource.initProjection(Main.getProjection());
@@ -220,7 +221,7 @@ public class WMTSTileSourceTest {
     }
 
     @Test
-    public void testTicket12168() throws IOException {
+    public void testTicket12168() throws IOException, WMTSGetCapabilitiesException {
         Main.setProjection(Projections.getProjectionByCode("EPSG:3857"));
         WMTSTileSource testSource = new WMTSTileSource(testImagery12168);
         testSource.initProjection(Main.getProjection());
@@ -285,9 +286,10 @@ public class WMTSTileSourceTest {
     /**
      * Test WMTS dimension.
      * @throws IOException if any I/O error occurs
+     * @throws WMTSGetCapabilitiesException
      */
     @Test
-    public void testDimension() throws IOException {
+    public void testDimension() throws IOException, WMTSGetCapabilitiesException {
         Main.setProjection(Projections.getProjectionByCode("EPSG:21781"));
         ImageryInfo info = new ImageryInfo(testImageryGeoAdminCh);
         Collection<DefaultLayer> defaultLayers = new ArrayList<>(1);

@@ -50,6 +50,7 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.ProjectionBounds;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
+import org.openstreetmap.josm.data.imagery.ImageryInfo.ImageryType;
 import org.openstreetmap.josm.data.projection.Projection;
 import org.openstreetmap.josm.data.projection.Projections;
 import org.openstreetmap.josm.gui.ExtendedDialog;
@@ -125,7 +126,7 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
         }
     }
 
-    private static class TileMatrixSet {
+    public static class TileMatrixSet {
 
         private final List<TileMatrix> tileMatrix;
         private final String crs;
@@ -153,6 +154,10 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
         public String toString() {
             return "TileMatrixSet [crs=" + crs + ", identifier=" + identifier + ']';
         }
+
+        public String getIdentifier() {
+            return identifier;
+        }
     }
 
     private static class Dimension {
@@ -161,7 +166,11 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
         private final List<String> values = new ArrayList<>();
     }
 
-    private static class Layer {
+    /**
+     * Class representing WMTS Layer information
+     *
+     */
+    public static class Layer {
         private String format;
         private String identifier;
         private String title;
@@ -201,6 +210,32 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
             return "Layer [identifier=" + identifier + ", title=" + title + ", tileMatrixSet="
                     + tileMatrixSet + ", baseUrl=" + baseUrl + ", style=" + style + ']';
         }
+
+        public String getIdentifier() {
+            return identifier;
+        }
+
+        public String getStyle() {
+            return style;
+        }
+
+        public TileMatrixSet getTileMatrixSet() {
+            return tileMatrixSet;
+        }
+    }
+
+    /**
+     * Exception thrown when praser doesn't find expected information in GetCapabilities document
+     *
+     */
+    public static class WMTSGetCapabilitiesException extends Exception {
+
+        /**
+         * @param cause description of cause
+         */
+        public WMTSGetCapabilitiesException(String cause) {
+            super(cause);
+        }
     }
 
     private static final class SelectLayerDialog extends ExtendedDialog {
@@ -236,7 +271,7 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
 
     private ScaleList nativeScaleList;
 
-    private final WMTSDefaultLayer defaultLayer;
+    private final DefaultLayer defaultLayer;
 
     private Projection tileProjection;
 
@@ -244,29 +279,28 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
      * Creates a tile source based on imagery info
      * @param info imagery info
      * @throws IOException if any I/O error occurs
+     * @throws WMTSGetCapabilitiesException
      * @throws IllegalArgumentException if any other error happens for the given imagery info
      */
-    public WMTSTileSource(ImageryInfo info) throws IOException {
+    public WMTSTileSource(ImageryInfo info) throws IOException, WMTSGetCapabilitiesException {
         super(info);
         CheckParameterUtil.ensureThat(info.getDefaultLayers().size() < 2, "At most 1 default layer for WMTS is supported");
-
+        this.headers.putAll(info.getCustomHttpHeaders());
         this.baseUrl = GetCapabilitiesParseHelper.normalizeCapabilitiesUrl(handleTemplate(info.getUrl()));
-        this.layers = getCapabilities();
+        WMTSCapabilities capabilities = getCapabilities(baseUrl, headers);
+        this.layers =  capabilities.getLayers();
+        this.baseUrl = capabilities.getBaseUrl();
+        this.transferMode = capabilities.getTransferMode();
         if (info.getDefaultLayers().isEmpty()) {
             Logging.warn(tr("No default layer selected, choosing first layer."));
             if (!layers.isEmpty()) {
                 Layer first = layers.iterator().next();
-                this.defaultLayer = new WMTSDefaultLayer(first.identifier, first.tileMatrixSet.identifier);
+                this.defaultLayer = new DefaultLayer(info.getImageryType(), first.identifier, first.style, first.tileMatrixSet.identifier);
             } else {
                 this.defaultLayer = null;
             }
         } else {
-            DefaultLayer defLayer = info.getDefaultLayers().iterator().next();
-            if (defLayer instanceof WMTSDefaultLayer) {
-                this.defaultLayer = (WMTSDefaultLayer) defLayer;
-            } else {
-                this.defaultLayer = null;
-            }
+            this.defaultLayer = info.getDefaultLayers().iterator().next();
         }
         if (this.layers.isEmpty())
             throw new IllegalArgumentException(tr("No layers defined by getCapabilities document: {0}", info.getUrl()));
@@ -287,7 +321,7 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
             if (ls.size() == 1) {
                 // only one tile matrix set with matching projection - no point in asking
                 Layer selectedLayer = ls.get(0);
-                return new WMTSDefaultLayer(selectedLayer.identifier, selectedLayer.tileMatrixSet.identifier);
+                return new DefaultLayer(ImageryType.WMTS, selectedLayer.identifier, selectedLayer.style, selectedLayer.tileMatrixSet.identifier);
             }
         }
 
@@ -310,36 +344,48 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
         return output.toString();
     }
 
+
     /**
+     * @param url of the getCapabilities document
+     * @param headers HTTP headers to set when calling getCapabilities url
      * @return capabilities
      * @throws IOException in case of any I/O error
+     * @throws WMTSGetCapabilitiesException
      * @throws IllegalArgumentException in case of any other error
      */
-    private Collection<Layer> getCapabilities() throws IOException {
-        try (CachedFile cf = new CachedFile(baseUrl); InputStream in = cf.setHttpHeaders(headers).
+    public static WMTSCapabilities getCapabilities(String url, Map<String, String> headers) throws IOException, WMTSGetCapabilitiesException {
+        try (CachedFile cf = new CachedFile(url); InputStream in = cf.setHttpHeaders(headers).
                 setMaxAge(Config.getPref().getLong("wmts.capabilities.cache.max_age", 7 * CachedFile.DAYS)).
                 setCachingStrategy(CachedFile.CachingStrategy.IfModifiedSince).
                 getInputStream()) {
             byte[] data = Utils.readBytesFromStream(in);
             if (data.length == 0) {
                 cf.clear();
-                throw new IllegalArgumentException("Could not read data from: " + baseUrl);
+                throw new IllegalArgumentException("Could not read data from: " + url);
             }
 
             try {
                 XMLStreamReader reader = GetCapabilitiesParseHelper.getReader(new ByteArrayInputStream(data));
-                Collection<Layer> ret = new ArrayList<>();
+                WMTSCapabilities ret = null;
+                Collection<Layer> layers = null;
                 for (int event = reader.getEventType(); reader.hasNext(); event = reader.next()) {
                     if (event == XMLStreamReader.START_ELEMENT) {
                         if (GetCapabilitiesParseHelper.QN_OWS_OPERATIONS_METADATA.equals(reader.getName())) {
-                            parseOperationMetadata(reader);
+                            ret = parseOperationMetadata(reader);
                         }
 
                         if (QN_CONTENTS.equals(reader.getName())) {
-                            ret = parseContents(reader);
+                            layers = parseContents(reader);
                         }
                     }
                 }
+                if (ret == null) {
+                    throw new WMTSGetCapabilitiesException(tr("WMTS Capabilties document did not contain operation metadata in url:  {0}", url)) ;
+                }
+                if (layers == null) {
+                    throw new WMTSGetCapabilitiesException(tr("WMTS Capabilties document did not contain layers in url:  {0}", url));
+                }
+                ret.addLayers(layers);
                 return ret;
             } catch (XMLStreamException e) {
                 cf.clear();
@@ -586,12 +632,13 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
 
     /**
      * Parses OperationMetadata section. Returns when reader is on OperationsMetadata closing tag.
-     * Sets this.baseUrl and this.transferMode
+     * return WMTSCapabilities with baseUrl and transferMode
      *
      * @param reader StAX reader instance
+     * @return WMTSCapabilities with baseUrl and transferMode set
      * @throws XMLStreamException See {@link XMLStreamReader}
      */
-    private void parseOperationMetadata(XMLStreamReader reader) throws XMLStreamException {
+    private static WMTSCapabilities parseOperationMetadata(XMLStreamReader reader) throws XMLStreamException {
         for (int event = reader.getEventType();
                 reader.hasNext() && !(event == XMLStreamReader.END_ELEMENT &&
                         GetCapabilitiesParseHelper.QN_OWS_OPERATIONS_METADATA.equals(reader.getName()));
@@ -604,10 +651,13 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
                             GetCapabilitiesParseHelper.QN_OWS_HTTP,
                             GetCapabilitiesParseHelper.QN_OWS_GET
                     )) {
-                this.baseUrl = reader.getAttributeValue(GetCapabilitiesParseHelper.XLINK_NS_URL, "href");
-                this.transferMode = GetCapabilitiesParseHelper.getTransferMode(reader);
+                return new WMTSCapabilities(
+                        reader.getAttributeValue(GetCapabilitiesParseHelper.XLINK_NS_URL, "href"),
+                        GetCapabilitiesParseHelper.getTransferMode(reader)
+                        );
             }
         }
+        return null;
     }
 
     /**
@@ -618,7 +668,7 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
         if (proj.equals(tileProjection))
             return;
         List<Layer> matchingLayers = layers.stream().filter(
-                l -> l.identifier.equals(defaultLayer.layerName) && l.tileMatrixSet.crs.equals(proj.toCode()))
+                l -> l.identifier.equals(defaultLayer.getLayerName()) && l.tileMatrixSet.crs.equals(proj.toCode()))
                 .collect(Collectors.toList());
         if (matchingLayers.size() > 1) {
             this.currentLayer = matchingLayers.stream().filter(
@@ -633,7 +683,7 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
             if (this.currentLayer == null) {
                 this.tileProjection = null;
                 for (Layer layer : layers) {
-                    if (!layer.identifier.equals(defaultLayer.layerName)) {
+                    if (!layer.identifier.equals(defaultLayer.getLayerName())) {
                         continue;
                     }
                     Projection pr = Projections.getProjectionByCode(layer.tileMatrixSet.crs);

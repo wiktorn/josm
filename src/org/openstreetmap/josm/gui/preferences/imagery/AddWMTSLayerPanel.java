@@ -10,7 +10,9 @@ import javax.swing.JLabel;
 import org.openstreetmap.josm.data.imagery.ImageryInfo;
 import org.openstreetmap.josm.data.imagery.ImageryInfo.ImageryType;
 import org.openstreetmap.josm.data.imagery.WMTSTileSource;
+import org.openstreetmap.josm.data.imagery.WMTSTileSource.WMTSGetCapabilitiesException;
 import org.openstreetmap.josm.tools.GBC;
+import org.openstreetmap.josm.tools.Logging;
 
 /**
  * Panel for adding WMTS imagery sources
@@ -39,7 +41,8 @@ public class AddWMTSLayerPanel extends AddImageryPanel {
         ret.setImageryType(ImageryType.WMTS);
         try {
             new WMTSTileSource(ret); // check if constructor throws an error
-        } catch (IOException e) {
+        } catch (IOException | WMTSGetCapabilitiesException e) {
+            Logging.warn(e);
             throw new IllegalArgumentException(e); // if so, wrap exception, so proper message will be shown to the user
         }
         return ret;
