@@ -100,16 +100,19 @@ public class AddImageryLayerAction extends JosmAction implements AdaptableAction
                 return getWMSLayerInfo(info);
             case WMTS:
                 // specify which layer to use
-                DefaultLayer layerId = new WMTSTileSource(info).userSelectLayer();
-                if (layerId != null) {
-                    ImageryInfo copy = new ImageryInfo(info);
-                    Collection<DefaultLayer> defaultLayers = new ArrayList<>(1);
-                    defaultLayers.add(layerId);
-                    copy.setDefaultLayers(defaultLayers);
-                    return copy;
+                if (info.getDefaultLayers() == null || info.getDefaultLayers().isEmpty()) {
+                    DefaultLayer layerId = new WMTSTileSource(info).userSelectLayer();
+                    if (layerId != null) {
+                        ImageryInfo copy = new ImageryInfo(info);
+                        List<DefaultLayer> defaultLayers = new ArrayList<>(1);
+                        defaultLayers.add(layerId);
+                        copy.setDefaultLayers(defaultLayers);
+                        return copy;
+                    }
+                    return null;
+                } else {
+                    return info;
                 }
-                // layer not selected - refuse to add
-                return null;
             default:
                 return info;
             }

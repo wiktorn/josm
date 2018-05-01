@@ -127,14 +127,15 @@ public class WMSImagery {
     private List<String> formats = new ArrayList<>();
     private List<LayerDetails> layers = new ArrayList<>();
 
+    public WMSImagery(String url) throws IOException, WMSGetCapabilitiesException {
+        this(url, null);
+    }
+
     public WMSImagery(String url, Map<String, String> headers) throws IOException, WMSGetCapabilitiesException {
-        this(url);
         if (headers != null) {
             this.headers.putAll(headers);
         }
-    }
 
-    public WMSImagery(String url) throws IOException, WMSGetCapabilitiesException {
         IOException savedExc = null;
         String workingAddress = null;
         url_search:

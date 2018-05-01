@@ -58,6 +58,7 @@ public class TemplatedWMSTileSource extends AbstractWMSTileSource implements Tem
     public TemplatedWMSTileSource(ImageryInfo info, Projection tileProjection) {
         super(info, tileProjection);
         this.serverProjections = new TreeSet<>(info.getServerProjections());
+        this.headers.putAll(info.getCustomHttpHeaders());
         handleTemplate();
         initProjection();
     }
