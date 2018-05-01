@@ -97,7 +97,11 @@ public class AddImageryLayerAction extends JosmAction implements AdaptableAction
             switch(info.getImageryType()) {
             case WMS_ENDPOINT:
                 // convert to WMS type
-                return getWMSLayerInfo(info);
+                if (info.getDefaultLayers() == null || info.getDefaultLayers().isEmpty()) {
+                    return getWMSLayerInfo(info);
+                } else {
+                    return info;
+                }
             case WMTS:
                 // specify which layer to use
                 if (info.getDefaultLayers() == null || info.getDefaultLayers().isEmpty()) {
