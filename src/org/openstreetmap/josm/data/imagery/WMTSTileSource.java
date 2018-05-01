@@ -210,57 +210,7 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
         SelectLayerDialog(Collection<Layer> layers) {
             super(Main.parent, tr("Select WMTS layer"), tr("Add layers"), tr("Cancel"));
             this.layers = groupLayersByNameAndTileMatrixSet(layers);
-            //getLayersTable(layers, Main.getProjection())
-            this.list = new JTable(
-                    new AbstractTableModel() {
-                        @Override
-                        public Object getValueAt(int rowIndex, int columnIndex) {
-                            switch (columnIndex) {
-                            case 0:
-                                return SelectLayerDialog.this.layers.get(rowIndex).getValue()
-                                        .stream()
-                                        .map(Layer::getUserTitle)
-                                        .collect(Collectors.joining(", ")); //this should be only one
-                            case 1:
-                                return SelectLayerDialog.this.layers.get(rowIndex).getValue()
-                                        .stream()
-                                        .map(x -> x.tileMatrixSet.crs)
-                                        .collect(Collectors.joining(", "));
-                            case 2:
-                                return SelectLayerDialog.this.layers.get(rowIndex).getValue()
-                                        .stream()
-                                        .map(x -> x.tileMatrixSet.identifier)
-                                        .collect(Collectors.joining(", ")); //this should be only one
-                            default:
-                                throw new IllegalArgumentException();
-                            }
-                        }
-
-                        @Override
-                        public int getRowCount() {
-                            return SelectLayerDialog.this.layers.size();
-                        }
-
-                        @Override
-                        public int getColumnCount() {
-                            return 3;
-                        }
-
-                        @Override
-                        public String getColumnName(int column) {
-                            switch (column) {
-                            case 0: return tr("Layer name");
-                            case 1: return tr("Projection");
-                            case 2: return tr("Matrix set identifier");
-                            default:
-                                throw new IllegalArgumentException();
-                            }
-                        }
-                    });
-            this.list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-            this.list.setAutoCreateRowSorter(true);
-            this.list.setRowSelectionAllowed(true);
-            this.list.setColumnSelectionAllowed(false);
+            this.list = getLayerSelectionPanel(this.layers);
             JPanel panel = new JPanel(new GridBagLayout());
             panel.add(new JScrollPane(this.list), GBC.eol().fill());
             setContent(panel);
@@ -272,14 +222,9 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
                 return null; //nothing selected
             }
             Layer selectedLayer = layers.get(list.convertRowIndexToModel(index)).getValue().get(0);
-            return new WMTSDefaultLayer(selectedLayer.identifier, selectedLayer.tileMatrixSet.identifier);
+            return new DefaultLayer(ImageryType.WMTS, selectedLayer.identifier, selectedLayer.style, selectedLayer.tileMatrixSet.identifier);
         }
 
-        private static List<Entry<String, List<Layer>>> groupLayersByNameAndTileMatrixSet(Collection<Layer> layers) {
-            Map<String, List<Layer>> layerByName = layers.stream().collect(
-                    Collectors.groupingBy(x -> x.identifier + '\u001c' + x.tileMatrixSet.identifier));
-            return layerByName.entrySet().stream().sorted(Map.Entry.comparingByKey()).collect(Collectors.toList());
-        }
     }
 
     private final Map<String, String> headers = new ConcurrentHashMap<>();
@@ -455,6 +400,9 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
         List<String> supportedMimeTypes = new ArrayList<>(Arrays.asList(ImageIO.getReaderMIMETypes()));
         supportedMimeTypes.add("image/jpgpng");         // used by ESRI
         supportedMimeTypes.add("image/png8");           // used by geoserver
+        if (supportedMimeTypes.contains("image/jpeg")) {
+            supportedMimeTypes.add("image/jpg"); // sometimes mispelled by Arcgis
+        }
         Collection<String> unsupportedFormats = new ArrayList<>();
 
         for (int event = reader.getEventType();
@@ -920,6 +868,67 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
             }
         }
     }
+
+    public static JTable getLayerSelectionPanel(List<Entry<String, List<Layer>>> layers) {
+        JTable list = new JTable(
+                new AbstractTableModel() {
+                    @Override
+                    public Object getValueAt(int rowIndex, int columnIndex) {
+                        switch (columnIndex) {
+                        case 0:
+                            return layers.get(rowIndex).getValue()
+                                    .stream()
+                                    .map(Layer::getUserTitle)
+                                    .collect(Collectors.joining(", ")); //this should be only one
+                        case 1:
+                            return layers.get(rowIndex).getValue()
+                                    .stream()
+                                    .map(x -> x.tileMatrixSet.crs)
+                                    .collect(Collectors.joining(", "));
+                        case 2:
+                            return layers.get(rowIndex).getValue()
+                                    .stream()
+                                    .map(x -> x.tileMatrixSet.identifier)
+                                    .collect(Collectors.joining(", ")); //this should be only one
+                        default:
+                            throw new IllegalArgumentException();
+                        }
+                    }
+
+                    @Override
+                    public int getRowCount() {
+                        return layers.size();
+                    }
+
+                    @Override
+                    public int getColumnCount() {
+                        return 3;
+                    }
+
+                    @Override
+                    public String getColumnName(int column) {
+                        switch (column) {
+                        case 0: return tr("Layer name");
+                        case 1: return tr("Projection");
+                        case 2: return tr("Matrix set identifier");
+                        default:
+                            throw new IllegalArgumentException();
+                        }
+                    }
+                });
+        list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        list.setAutoCreateRowSorter(true);
+        list.setRowSelectionAllowed(true);
+        list.setColumnSelectionAllowed(false);
+        return list;
+    }
+
+    public static List<Entry<String, List<Layer>>> groupLayersByNameAndTileMatrixSet(Collection<Layer> layers) {
+        Map<String, List<Layer>> layerByName = layers.stream().collect(
+                Collectors.groupingBy(x -> x.identifier + '\u001c' + x.tileMatrixSet.identifier));
+        return layerByName.entrySet().stream().sorted(Map.Entry.comparingByKey()).collect(Collectors.toList());
+    }
+
 
     /**
      * @return set of projection codes that this TileSource supports
