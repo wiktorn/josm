@@ -59,6 +59,7 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -765,5 +766,17 @@ public class PlatformHookWindows implements PlatformHook {
             }
         }
         return null;
+    }
+
+    @Override
+    public File resolveFileLink(File file) {
+        if (file.getName().endsWith(".lnk")) {
+            try {
+                return new File(new WindowsShortcut(file).getRealFilename());
+            } catch (IOException | ParseException e) {
+                Logging.error(e);
+            }
+        }
+        return file;
     }
 }

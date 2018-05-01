@@ -160,6 +160,12 @@ public class PlatformHookUnixoid implements PlatformHook {
             return getPackageDetails("openjdk-8-jre", "java-1_8_0-openjdk", "java-1.8.0-openjdk");
         } else if (home.contains("java-9-openjdk") || home.contains("java-1.9.0-openjdk")) {
             return getPackageDetails("openjdk-9-jre", "java-1_9_0-openjdk", "java-1.9.0-openjdk", "java-9-openjdk");
+        } else if (home.contains("java-10-openjdk")) {
+            return getPackageDetails("openjdk-10-jre", "java-10-openjdk");
+        } else if (home.contains("java-11-openjdk")) {
+            return getPackageDetails("openjdk-11-jre", "java-11-openjdk");
+        } else if (home.contains("java-openjdk")) {
+            return getPackageDetails("java-openjdk");
         } else if (home.contains("icedtea")) {
             return getPackageDetails("icedtea-bin");
         } else if (home.contains("oracle")) {
@@ -401,11 +407,13 @@ public class PlatformHookUnixoid implements PlatformHook {
     @Override
     public X509Certificate getX509Certificate(NativeCertAmend certAmend)
             throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
-        File f = new File("/usr/share/ca-certificates/mozilla", certAmend.getFilename());
-        if (f.exists()) {
-            CertificateFactory fact = CertificateFactory.getInstance("X.509");
-            try (InputStream is = Files.newInputStream(f.toPath())) {
-                return (X509Certificate) fact.generateCertificate(is);
+        for (String dir : new String[] {"/etc/ssl/certs", "/usr/share/ca-certificates/mozilla"}) {
+            File f = new File(dir, certAmend.getFilename());
+            if (f.exists()) {
+                CertificateFactory fact = CertificateFactory.getInstance("X.509");
+                try (InputStream is = Files.newInputStream(f.toPath())) {
+                    return (X509Certificate) fact.generateCertificate(is);
+                }
             }
         }
         return null;
