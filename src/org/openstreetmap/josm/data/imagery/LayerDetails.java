@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 
 import org.openstreetmap.josm.data.Bounds;
 
@@ -115,5 +116,12 @@ public class LayerDetails {
 
     public void setAbstract(String abstr) {
         this.abstr = abstr;
+    }
+
+    public Stream<LayerDetails> flattened() {
+        return Stream.concat(
+                Stream.of(this),
+                getChildren().stream().flatMap(LayerDetails::flattened)
+                );
     }
 }

@@ -5,7 +5,7 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.net.URL;
+import java.util.Collection;
 import java.util.List;
 
 import javax.swing.DefaultComboBoxModel;
@@ -32,7 +32,7 @@ import org.openstreetmap.josm.tools.Utils;
  */
 public class AddWMSLayerPanel extends AddImageryPanel {
 
-    private final transient WMSImagery wms = new WMSImagery();
+    private transient WMSImagery wms;
     private final JCheckBox endpoint = new JCheckBox(tr("Store WMS endpoint only, select layers at usage"));
     private final transient WMSLayerTree tree = new WMSLayerTree();
     private final JComboBox<String> formats = new JComboBox<>();
@@ -73,11 +73,11 @@ public class AddWMSLayerPanel extends AddImageryPanel {
 
         getLayers.addActionListener(e -> {
             try {
-                wms.attemptGetCapabilities(rawUrl.getText());
+                wms = new WMSImagery(rawUrl.getText());
                 tree.updateTree(wms);
-                List<String> wmsFormats = wms.getFormats();
-                formats.setModel(new DefaultComboBoxModel<>(wmsFormats.toArray(new String[0])));
-                formats.setSelectedItem(wms.getPreferredFormats());
+                Collection<String> wmsFormats = wms.getFormats();
+                formats.setModel(new DefaultComboBoxModel<>(wmsFormats.toArray(new String[wmsFormats.size()])));
+                formats.setSelectedItem(wms.getPreferredFormat());
             } catch (MalformedURLException ex1) {
                 Logging.log(Logging.LEVEL_ERROR, ex1);
                 JOptionPane.showMessageDialog(getParent(), tr("Invalid service URL."),
@@ -110,10 +110,7 @@ public class AddWMSLayerPanel extends AddImageryPanel {
             formats.setEnabled(!endpoint.isSelected());
             wmsUrl.setEnabled(!endpoint.isSelected());
             if (endpoint.isSelected()) {
-                URL url = wms.getServiceUrl();
-                if (url != null) {
-                    name.setText(url.getHost());
-                }
+                name.setText(wms.getHost());
             } else {
                 onLayerSelectionChanged();
             }
@@ -124,9 +121,9 @@ public class AddWMSLayerPanel extends AddImageryPanel {
         formats.addActionListener(e -> onLayerSelectionChanged());
 
         showBounds.addActionListener(e -> {
-            if (tree.getSelectedLayers().get(0).bounds != null) {
+            if (tree.getSelectedLayers().get(0).getBounds() != null) {
                 SlippyMapBBoxChooser mapPanel = new SlippyMapBBoxChooser();
-                mapPanel.setBoundingBox(tree.getSelectedLayers().get(0).bounds);
+                mapPanel.setBoundingBox(tree.getSelectedLayers().get(0).getBounds());
                 JOptionPane.showMessageDialog(null, mapPanel, tr("Show Bounds"), JOptionPane.PLAIN_MESSAGE);
             } else {
                 JOptionPane.showMessageDialog(null, tr("No bounding box was found for this layer."),
@@ -140,21 +137,27 @@ public class AddWMSLayerPanel extends AddImageryPanel {
     }
 
     protected final void onLayerSelectionChanged() {
-        if (wms.getServiceUrl() != null) {
-            wmsUrl.setText(wms.buildGetMapUrl(tree.getSelectedLayers(), (String) formats.getSelectedItem()));
-            name.setText(wms.getServiceUrl().getHost() + ": " + Utils.join(", ", tree.getSelectedLayers()));
+        if (wms.buildRootUrl() != null) {
+            wmsUrl.setText(wms.buildGetMapUrl(
+                    tree.getSelectedLayers().stream().map(x -> x.getName()).collect(Collectors.toList()),
+                    (List<String>) null,
+                    (String) formats.getSelectedItem(),
+                    true // TODO: ask user about transparency
+                )
+            );
+            name.setText(wms.getHost() + ": " + Utils.join(", ", tree.getSelectedLayers()));
         }
         showBounds.setEnabled(tree.getSelectedLayers().size() == 1);
     }
 
     @Override
     public ImageryInfo getImageryInfo() {
-        final ImageryInfo info;
+        ImageryInfo info = null;
         if (endpoint.isSelected()) {
             info = new ImageryInfo(getImageryName(), getImageryRawUrl());
             info.setImageryType(ImageryInfo.ImageryType.WMS_ENDPOINT);
         } else {
-            info = wms.toImageryInfo(getImageryName(), tree.getSelectedLayers());
+            info = wms.toImageryInfo(getImageryName(), tree.getSelectedLayers(), (List<String>) null, true); // TODO: ask user about transparency
             info.setUrl(getWmsUrl());
             info.setImageryType(ImageryType.WMS);
         }
