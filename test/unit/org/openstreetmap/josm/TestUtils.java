@@ -38,6 +38,9 @@ import org.openstreetmap.josm.testutils.FakeGraphics;
 import org.openstreetmap.josm.tools.JosmRuntimeException;
 import org.openstreetmap.josm.tools.Utils;
 
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
@@ -379,4 +382,29 @@ public final class TestUtils {
             Assume.assumeNoException(e);
         }
     }
+
+    /**
+     * Return WireMock server serving files under ticker directory
+     * @param ticketid Ticket numeric identifier
+     * @return WireMock HTTP server on dynamic port
+     */
+    public static WireMockServer getWireMockServer(int ticketId) {
+            return new WireMockServer(
+                    WireMockConfiguration.options()
+                        .dynamicPort()
+                        .usingFilesUnderDirectory(getRegressionDataDir(ticketId))
+                    );
+    }
+
+    /**
+     * Return WireMock server serving files under ticker directory
+     * @return WireMock HTTP server on dynamic port
+     */
+    public static WireMockServer getWireMockServer() {
+            return new WireMockServer(
+                    WireMockConfiguration.options()
+                        .dynamicPort()
+                    );
+    }
+
 }
