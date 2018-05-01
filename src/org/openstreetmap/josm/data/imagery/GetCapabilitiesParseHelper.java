@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Locale;
+import java.util.function.BiFunction;
 
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLInputFactory;
@@ -110,6 +111,33 @@ public final class GetCapabilitiesParseHelper {
         throw new IllegalStateException("WMTS Parser error - moveReaderToEndCurrentTag failed to find closing tag");
     }
 
+    public static String getElementTextWithSubtags(XMLStreamReader reader) throws XMLStreamException {
+        StringBuilder ret = new StringBuilder();
+        int level = 0;
+        QName tag = reader.getName();
+        for (int event = reader.getEventType(); reader.hasNext(); event = reader.next()) {
+            if (XMLStreamReader.START_ELEMENT == event) {
+                if (level > 0) {
+                    ret.append("<" + reader.getLocalName() +">");
+                }
+                level += 1;
+            } else if (XMLStreamReader.END_ELEMENT == event) {
+                level -= 1;
+                if (level == 0 && tag.equals(reader.getName())) {
+                    return ret.toString();
+                }
+                ret.append("</" + reader.getLocalName() +">");
+            } else if (XMLStreamReader.CHARACTERS == event) {
+                ret.append(reader.getText());
+            }
+            if (level < 0) {
+                throw new IllegalStateException("WMTS Parser error - moveReaderToEndCurrentTag failed to find closing tag");
+            }
+        }
+        throw new IllegalStateException("WMTS Parser error - moveReaderToEndCurrentTag failed to find closing tag");
+    }
+
+
     /**
      * Moves reader to first occurrence of the structure equivalent of Xpath tags[0]/tags[1]../tags[n]. If fails to find
      * moves the reader to the closing tag of current tag
@@ -120,6 +148,21 @@ public final class GetCapabilitiesParseHelper {
      * @throws XMLStreamException See {@link XMLStreamReader}
      */
     public static boolean moveReaderToTag(XMLStreamReader reader, QName... tags) throws XMLStreamException {
+        return moveReaderToTag(reader, QName::equals, tags);
+    }
+
+    /**
+     * Moves reader to first occurrence of the structure equivalent of Xpath tags[0]/tags[1]../tags[n]. If fails to find
+     * moves the reader to the closing tag of current tag
+     *
+     * @param tags array of tags
+     * @param reader XMLStreamReader which should be moved
+     * @param equalsFunc function to check equality of the tags
+     * @return true if tag was found, false otherwise
+     * @throws XMLStreamException See {@link XMLStreamReader}
+     */
+    public static boolean moveReaderToTag(XMLStreamReader reader,
+            BiFunction<QName, QName, Boolean> equalsFunc, QName... tags) throws XMLStreamException {
         QName stopTag = reader.getName();
         int currentLevel = 0;
         QName searchTag = tags[currentLevel];
@@ -127,14 +170,14 @@ public final class GetCapabilitiesParseHelper {
         QName skipTag = null;
 
         for (int event = 0; //skip current element, so we will not skip it as a whole
-                reader.hasNext() && !(event == XMLStreamReader.END_ELEMENT && stopTag.equals(reader.getName()));
+                reader.hasNext() && !(event == XMLStreamReader.END_ELEMENT && equalsFunc.apply(stopTag, reader.getName()));
                 event = reader.next()) {
-            if (event == XMLStreamReader.END_ELEMENT && skipTag != null && skipTag.equals(reader.getName())) {
+            if (event == XMLStreamReader.END_ELEMENT && skipTag != null && equalsFunc.apply(skipTag, reader.getName())) {
                 skipTag = null;
             }
             if (skipTag == null) {
                 if (event == XMLStreamReader.START_ELEMENT) {
-                    if (searchTag.equals(reader.getName())) {
+                    if (equalsFunc.apply(searchTag, reader.getName())) {
                         currentLevel += 1;
                         if (currentLevel >= tags.length) {
                             return true; // found!
@@ -146,7 +189,7 @@ public final class GetCapabilitiesParseHelper {
                     }
                 }
 
-                if (event == XMLStreamReader.END_ELEMENT && parentTag != null && parentTag.equals(reader.getName())) {
+                if (event == XMLStreamReader.END_ELEMENT && parentTag != null && equalsFunc.apply(parentTag, reader.getName())) {
                     currentLevel -= 1;
                     searchTag = parentTag;
                     if (currentLevel >= 0) {
@@ -208,5 +251,4 @@ public final class GetCapabilitiesParseHelper {
         }
         return crsIdentifier;
     }
-
 }
