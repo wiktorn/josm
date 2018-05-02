@@ -438,7 +438,7 @@ public class CachedFile implements Closeable {
         if (parameter != null)
             urlStr = urlStr.replaceAll("%<(.*)>", "");
         long age = 0L;
-        long maxAgeMillis = maxAge;
+        long maxAgeMillis = TimeUnit.SECONDS.toMillis(maxAge);
         Long ifModifiedSince = null;
         File localFile = null;
         List<String> localPathEntry = new ArrayList<>(Config.getPref().getList(prefKey));
