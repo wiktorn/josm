@@ -111,6 +111,13 @@ public final class GetCapabilitiesParseHelper {
         throw new IllegalStateException("WMTS Parser error - moveReaderToEndCurrentTag failed to find closing tag");
     }
 
+    /**
+     * Returns whole content of the element that reader is pointing at, including other XML elements within (with their tags).
+     *
+     * @param reader XMLStreamReader that should point to start of element
+     * @return content of current tag
+     * @throws XMLStreamException
+     */
     public static String getElementTextWithSubtags(XMLStreamReader reader) throws XMLStreamException {
         StringBuilder ret = new StringBuilder();
         int level = 0;

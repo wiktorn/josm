@@ -10,22 +10,37 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.openstreetmap.gui.jmapviewer.interfaces.TemplatedTileSource;
+import org.openstreetmap.josm.data.imagery.ImageryInfo.ImageryType;
 import org.openstreetmap.josm.data.projection.Projection;
 import org.openstreetmap.josm.gui.layer.WMSLayer;
 import org.openstreetmap.josm.io.imagery.WMSImagery;
 import org.openstreetmap.josm.io.imagery.WMSImagery.WMSGetCapabilitiesException;
+import org.openstreetmap.josm.tools.CheckParameterUtil;
 
+/**
+ * Class representing ImageryType.WMS_ENDPOINT tile source.
+ * It differs from standard WMS tile source that this tile source fetches GetCapabilities from server and
+ * uses most of the parameters from there
+ *
+ * @author Wiktor Niesiobedzki
+ *
+ */
 public class WMSEndpointTileSource extends AbstractWMSTileSource implements TemplatedTileSource {
 
     private final WMSImagery wmsi;
-    private String rootUrl;
     private List<DefaultLayer> layers;
     private String urlPattern;
     private static final Pattern PATTERN_PARAM  = Pattern.compile("\\{([^}]+)\\}");
     private final Map<String, String> headers = new ConcurrentHashMap<>();
 
+    /**
+     * Create WMSEndpointTileSource tile source
+     * @param info WMS_ENDPOINT ImageryInfo
+     * @param tileProjection server projection that should be used by this tile source
+     */
     public WMSEndpointTileSource(ImageryInfo info, Projection tileProjection) {
         super(info, tileProjection);
+        CheckParameterUtil.ensure(info, "imageryType", x -> ImageryType.WMS_ENDPOINT.equals(x.getImageryType()));
         try {
             wmsi = new WMSImagery(info.getUrl());
         } catch (IOException | WMSGetCapabilitiesException e) {
@@ -71,6 +86,10 @@ public class WMSEndpointTileSource extends AbstractWMSTileSource implements Temp
         return url.toString();
     }
 
+    /**
+     *
+     * @return list of EPSG codes that current layer selection supports (this may differ from layer to layer)
+     */
     public List<String> getServerProjections() {
         return wmsi.getLayers(layers).stream().flatMap(x -> x.getCrs().stream()).distinct().collect(Collectors.toList());
     }

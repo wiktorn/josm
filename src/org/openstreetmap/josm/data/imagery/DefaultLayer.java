@@ -25,7 +25,10 @@ public class DefaultLayer {
 
     /**
      * Constructor
-     * @param layerName that is the DefaultLayer
+     * @param imageryType for which this layer is defined
+     * @param layerName as returned by getIdentifier for WMTS and getName for WMS
+     * @param style of the layer
+     * @param tileMatrixSet only for WMTS - tileMatrixSet to use
      */
     public DefaultLayer(ImageryType imageryType, String layerName, String style, String tileMatrixSet) {
         this.layerName = layerName == null ? "" : layerName;
@@ -43,14 +46,23 @@ public class DefaultLayer {
         return layerName;
     }
 
+    /**
+     * @return default tileMatrixSet. Only usable for WMTS
+     */
     public String getTileMatrixSet() {
         return tileMatrixSet;
     }
 
+    /**
+     * @return style for this WMS / WMTS layer to use
+     */
     public String getStyle() {
         return style;
     }
 
+    /**
+     * @return JSON representation of the default layer object
+     */
     public JsonObject toJson() {
         JsonObjectBuilder ret = Json.createObjectBuilder();
         ret.add("layerName", layerName);
@@ -59,6 +71,12 @@ public class DefaultLayer {
         return ret.build();
     }
 
+    /**
+     * Factory method creating DefaultLayer from JSON objects
+     * @param o serialized DefaultLayer object
+     * @param type of ImageryType serialized
+     * @return DefaultLayer instance based on JSON object
+     */
     public static DefaultLayer fromJson(JsonObject o, ImageryType type) {
         return new DefaultLayer(type, o.getString("layerName"), o.getString("style"), o.getString("tileMatrixSet"));
     }

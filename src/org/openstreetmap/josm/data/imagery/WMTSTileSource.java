@@ -126,6 +126,12 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
         }
     }
 
+    /**
+     *
+     * class representing WMTS TileMatrixSet
+     * This connects projection and TileMatrix (how the map is divided in tiles)
+     *
+     */
     public static class TileMatrixSet {
 
         private final List<TileMatrix> tileMatrix;
@@ -155,6 +161,10 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
             return "TileMatrixSet [crs=" + crs + ", identifier=" + identifier + ']';
         }
 
+        /**
+         *
+         * @return identifier of this TileMatrixSet
+         */
         public String getIdentifier() {
             return identifier;
         }
@@ -211,14 +221,26 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
                     + tileMatrixSet + ", baseUrl=" + baseUrl + ", style=" + style + ']';
         }
 
+        /**
+         *
+         * @return identifier of this layer
+         */
         public String getIdentifier() {
             return identifier;
         }
 
+        /**
+         *
+         * @return style of this layer
+         */
         public String getStyle() {
             return style;
         }
 
+        /**
+         *
+         * @return
+         */
         public TileMatrixSet getTileMatrixSet() {
             return tileMatrixSet;
         }

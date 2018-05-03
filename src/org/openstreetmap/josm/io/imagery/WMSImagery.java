@@ -112,7 +112,7 @@ public class WMSImagery {
 
         /**
          * The data that caused this exception.
-         * @return The server response to the capabilites request.
+         * @return The server response to the capabilities request.
          */
         public String getIncomingData() {
             return incomingData;

@@ -17,6 +17,11 @@ import javax.swing.table.AbstractTableModel;
 
 import org.openstreetmap.josm.tools.GBC;
 
+/**
+ * Simple table for editing HTTP headers
+ * @author Wiktor Niesiobedzki
+ *
+ */
 public class HeadersTable extends JPanel {
 
     private final class HeaderTableModel extends AbstractTableModel {
@@ -78,10 +83,17 @@ public class HeadersTable extends JPanel {
     private final JTable table;
     private List<String[]> headers;
 
+    /**
+     * Creates empty table
+     */
     public HeadersTable() {
         this(new ConcurrentHashMap<>());
     }
 
+    /**
+     * Create table prefilled with headers
+     * @param headers
+     */
     public HeadersTable(Map<String, String> headers) {
         super(new GridBagLayout());
         this.headers = getHeadersAsVector(headers);
@@ -98,6 +110,9 @@ public class HeadersTable extends JPanel {
                 .map(e -> new String[] { e.getKey(), e.getValue() }).collect(Collectors.toList());
     }
 
+    /**
+     * @return headers provided by user
+     */
     public Map<String, String> getHeaders() {
         return headers.stream().distinct().collect(Collectors.toMap(x -> x[0], x -> x[1]));
     }
