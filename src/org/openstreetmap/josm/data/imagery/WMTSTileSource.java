@@ -50,6 +50,7 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.ProjectionBounds;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
+import org.openstreetmap.josm.data.imagery.GetCapabilitiesParseHelper.TransferMode;
 import org.openstreetmap.josm.data.imagery.ImageryInfo.ImageryType;
 import org.openstreetmap.josm.data.projection.Projection;
 import org.openstreetmap.josm.data.projection.Projections;
@@ -402,7 +403,15 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
                     }
                 }
                 if (ret == null) {
-                    throw new WMTSGetCapabilitiesException(tr("WMTS Capabilties document did not contain operation metadata in url:  {0}", url)) ;
+                    /*
+                     *  see #12168 - create dummy operation metadata - not all WMTS services provide this information
+                     *
+                     *  WMTS Standard:
+                     *  > Resource oriented architecture style HTTP encodings SHALL not be described in the OperationsMetadata section.
+                     *
+                     *  And OperationMetada is not mandatory element. So REST mode is justifiable
+                     */
+                    ret = new WMTSCapabilities(url, TransferMode.REST);
                 }
                 if (layers == null) {
                     throw new WMTSGetCapabilitiesException(tr("WMTS Capabilties document did not contain layers in url:  {0}", url));
