@@ -18,6 +18,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 
+import org.openstreetmap.josm.actions.ExpertToggleAction;
 import org.openstreetmap.josm.data.imagery.DefaultLayer;
 import org.openstreetmap.josm.data.imagery.ImageryInfo;
 import org.openstreetmap.josm.data.imagery.ImageryInfo.ImageryType;
@@ -63,10 +64,12 @@ public class AddWMTSLayerPanel extends AddImageryPanel {
 
         headersTable = new HeadersTable();
         headersTable.setPreferredSize(new Dimension(100, 100));
-        add(new JLabel(tr("Set custom HTTP headers (if needed):")), GBC.eop());
-        add(headersTable, GBC.eol().fill());
 
-        add(validGeoreference, GBC.eop().fill());
+        if (ExpertToggleAction.isExpert()) {
+            add(new JLabel(tr("Set custom HTTP headers (if needed):")), GBC.eop());
+            add(headersTable, GBC.eol().fill());
+            add(validGeoreference, GBC.eop().fill());
+        }
 
         add(new JLabel(tr("{0} Enter name for this layer", "3.")), GBC.eol());
         add(name, GBC.eol().fill(GBC.HORIZONTAL));

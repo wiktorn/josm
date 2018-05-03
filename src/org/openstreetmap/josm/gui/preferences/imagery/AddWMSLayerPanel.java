@@ -18,6 +18,7 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JScrollPane;
 
+import org.openstreetmap.josm.actions.ExpertToggleAction;
 import org.openstreetmap.josm.data.imagery.DefaultLayer;
 import org.openstreetmap.josm.data.imagery.ImageryInfo;
 import org.openstreetmap.josm.data.imagery.ImageryInfo.ImageryType;
@@ -72,12 +73,13 @@ public class AddWMSLayerPanel extends AddImageryPanel {
         add(new JLabel(tr("{0} Select image format", "5.")), GBC.eol());
         add(formats, GBC.eol().fill());
 
-        add(validGeoreference, GBC.eol().fill());
-
         headersTable = new HeadersTable();
 
-        add(new JLabel(tr("Set custom HTTP headers (if needed):")), GBC.eop());
-        add(headersTable, GBC.eol().fill().weight(1, 30));
+        if (ExpertToggleAction.isExpert()) {
+            add(validGeoreference, GBC.eol().fill());
+            add(new JLabel(tr("Set custom HTTP headers (if needed):")), GBC.eop());
+            add(headersTable, GBC.eol().fill().weight(1, 30));
+        }
 
         wmsInstruction = new JLabel(tr("{0} Edit generated {1} URL (optional)", "6.", "WMS"));
         add(wmsInstruction, GBC.eol());
