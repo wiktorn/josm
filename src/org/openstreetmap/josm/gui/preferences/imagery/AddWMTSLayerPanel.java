@@ -59,7 +59,6 @@ public class AddWMTSLayerPanel extends AddImageryPanel {
         add(getLayers, GBC.eop().fill());
         add(new JLabel(tr("Choose default layer")), GBC.eol().fill());
         layerPanel.setPreferredSize(new Dimension(250, 100));
-        layerPanel.add(new JLabel("Placeholder"));
         add(layerPanel, GBC.eol().fill());
 
         headersTable = new HeadersTable();
