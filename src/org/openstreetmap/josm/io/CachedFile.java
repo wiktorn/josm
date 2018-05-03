@@ -554,7 +554,7 @@ public class CachedFile implements Closeable {
         if (directory.length() + fileName.length() > 255) {
             // Windows doesn't support paths longer than 260, leave 5 chars as safe buffer, 4 will be used by ".tmp"
             // TODO: what about filename size on other systems? 255?
-            if (directory.length() > 191 && System.getProperty("os.name").toLowerCase().indexOf("win") >= 0) {
+            if (directory.length() > 191 && Main.isPlatformWindows()) {
                 // digest length + name prefix == 64
                 // 255 - 64 = 191
                 // TODO: use this check only on Windows?
@@ -570,7 +570,7 @@ public class CachedFile implements Closeable {
             } catch (NoSuchAlgorithmException e) {
                 Logging.error(e);
                 // TODO: what better can we do here?
-                throw new IllegalArgumentException("Missing digest algorithm SHA-256");
+                throw new IllegalArgumentException("Missing digest algorithm SHA-256", e);
             }
         }
         return fileName;

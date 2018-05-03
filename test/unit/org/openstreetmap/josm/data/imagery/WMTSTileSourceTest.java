@@ -273,7 +273,6 @@ public class WMTSTileSourceTest {
     }
 
     @Test
-    //@Ignore("disabled as this needs user action") // XXX
     public void testManyLayersScrollbars() throws Exception {
         Main.setProjection(Projections.getProjectionByCode("EPSG:3857"));
         WMTSTileSource testSource = new WMTSTileSource(testLotsOfLayers);
@@ -360,7 +359,6 @@ public class WMTSTileSourceTest {
                 "</imagery>"
                 )));
         mapsMock.start();
-//        Main.pref.set
         Config.getPref().put("josm.url", mapsMock.url("/"));
 
         ImageryLayerInfo.instance.loadDefaults(true, null, false);

@@ -61,9 +61,6 @@ public class WMSImageryTest {
        wm.shutdown();
     }
 
-
-
-
     @Test
     public void testNestedLayers() throws Exception {
         WireMockServer getCapabilitiesMock = TestUtils.getWireMockServer();
