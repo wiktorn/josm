@@ -14,6 +14,10 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.Temporal;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
@@ -385,7 +389,7 @@ public final class TestUtils {
 
     /**
      * Return WireMock server serving files under ticker directory
-     * @param ticketid Ticket numeric identifier
+     * @param ticketId Ticket numeric identifier
      * @return WireMock HTTP server on dynamic port
      */
     public static WireMockServer getWireMockServer(int ticketId) {
@@ -406,5 +410,23 @@ public final class TestUtils {
                         .dynamicPort()
                     );
     }
+    /**
+     * Renders Temporal to RFC 1123 Date Time
+     * @param time
+     * @return string representation according to RFC1123 of time
+     */
+    public static String getHTTPDate(Temporal time) {
+        return DateTimeFormatter.RFC_1123_DATE_TIME.withZone(ZoneOffset.UTC).format(time);
+    }
+
+    /**
+     * Renders java time stamp to RFC 1123 Date Time
+     * @param time
+     * @return string representation according to RFC1123 of time
+     */
+    public static String getHTTPDate(long time) {
+        return getHTTPDate(Instant.ofEpochMilli(time));
+    }
+
 
 }
