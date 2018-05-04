@@ -224,7 +224,8 @@ public class ImageryReader implements Closeable {
                         TILE_SIZE,
                         "valid-georeference",
                         "mod-tile-features",
-                        "transparent"
+                        "transparent",
+                        "minimum-tile-expire"
                 ).contains(qName)) {
                     newState = State.ENTRY_ATTRIBUTE;
                     lang = atts.getValue("lang");
@@ -515,6 +516,9 @@ public class ImageryReader implements Closeable {
                     break;
                 case "transparent":
                     entry.setTransparent(Boolean.parseBoolean(accumulator.toString()));
+                    break;
+                case "minimum-tile-expire":
+                    entry.setMinimumTileExpire(Integer.valueOf(accumulator.toString()));
                     break;
                 default: // Do nothing
                 }

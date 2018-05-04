@@ -18,7 +18,6 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 
-import org.openstreetmap.josm.actions.ExpertToggleAction;
 import org.openstreetmap.josm.data.imagery.DefaultLayer;
 import org.openstreetmap.josm.data.imagery.ImageryInfo;
 import org.openstreetmap.josm.data.imagery.ImageryInfo.ImageryType;
@@ -39,8 +38,6 @@ public class AddWMTSLayerPanel extends AddImageryPanel {
     private transient JTable layerTable = null;
     private final JCheckBox setDefaultLayer = new JCheckBox(tr("Set default layer?"));
     private List<Entry<String, List<Layer>>> layers;
-    private final JCheckBox validGeoreference= new JCheckBox(tr("Is layer properly georeferenced?"));
-    private HeadersTable headersTable;
 
     /**
      * default constructor
@@ -62,14 +59,7 @@ public class AddWMTSLayerPanel extends AddImageryPanel {
         layerPanel.setPreferredSize(new Dimension(250, 100));
         add(layerPanel, GBC.eol().fill());
 
-        headersTable = new HeadersTable();
-        headersTable.setPreferredSize(new Dimension(100, 100));
-
-        if (ExpertToggleAction.isExpert()) {
-            add(new JLabel(tr("Set custom HTTP headers (if needed):")), GBC.eop());
-            add(headersTable, GBC.eol().fill());
-            add(validGeoreference, GBC.eop().fill());
-        }
+        addCommonSettings();
 
         add(new JLabel(tr("{0} Enter name for this layer", "3.")), GBC.eol());
         add(name, GBC.eol().fill(GBC.HORIZONTAL));
@@ -77,7 +67,7 @@ public class AddWMTSLayerPanel extends AddImageryPanel {
 
         getLayers.addActionListener(e -> {
             try {
-                WMTSCapabilities capabilities = WMTSTileSource.getCapabilities(rawUrl.getText(), headersTable.getHeaders());
+                WMTSCapabilities capabilities = WMTSTileSource.getCapabilities(rawUrl.getText(), getCommonHeaders());
                 layers = WMTSTileSource.groupLayersByNameAndTileMatrixSet(capabilities.getLayers());
                 layerTable = WMTSTileSource.getLayerSelectionPanel(layers);
                 layerPanel.removeAll();
@@ -119,8 +109,8 @@ public class AddWMTSLayerPanel extends AddImageryPanel {
                             )
                     );
         }
-        ret.setCustomHttpHeaders(headersTable.getHeaders());
-        ret.setGeoreferenceValid(validGeoreference.isSelected());
+        ret.setCustomHttpHeaders(getCommonHeaders());
+        ret.setGeoreferenceValid(getCommonIsValidGeoreference());
         ret.setImageryType(ImageryType.WMTS);
         try {
             new WMTSTileSource(ret); // check if constructor throws an error

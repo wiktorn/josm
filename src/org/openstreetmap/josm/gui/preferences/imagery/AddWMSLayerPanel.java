@@ -18,7 +18,6 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JScrollPane;
 
-import org.openstreetmap.josm.actions.ExpertToggleAction;
 import org.openstreetmap.josm.data.imagery.DefaultLayer;
 import org.openstreetmap.josm.data.imagery.ImageryInfo;
 import org.openstreetmap.josm.data.imagery.ImageryInfo.ImageryType;
@@ -44,9 +43,6 @@ public class AddWMSLayerPanel extends AddImageryPanel {
     private final JLabel wmsInstruction;
     private final JosmTextArea wmsUrl = new JosmTextArea(3, 40).transferFocusOnTab();
     private final JButton showBounds = new JButton(tr("Show bounds"));
-    private final JCheckBox validGeoreference= new JCheckBox(tr("Is layer properly georeferenced?"));
-    private HeadersTable headersTable;
-
 
     /**
      * Constructs a new {@code AddWMSLayerPanel}.
@@ -73,13 +69,7 @@ public class AddWMSLayerPanel extends AddImageryPanel {
         add(new JLabel(tr("{0} Select image format", "5.")), GBC.eol());
         add(formats, GBC.eol().fill());
 
-        headersTable = new HeadersTable();
-
-        if (ExpertToggleAction.isExpert()) {
-            add(validGeoreference, GBC.eol().fill());
-            add(new JLabel(tr("Set custom HTTP headers (if needed):")), GBC.eop());
-            add(headersTable, GBC.eol().fill().weight(1, 30));
-        }
+        addCommonSettings();
 
         wmsInstruction = new JLabel(tr("{0} Edit generated {1} URL (optional)", "6.", "WMS"));
         add(wmsInstruction, GBC.eol());
@@ -92,7 +82,7 @@ public class AddWMSLayerPanel extends AddImageryPanel {
 
         getLayers.addActionListener(e -> {
             try {
-                wms = new WMSImagery(rawUrl.getText(), headersTable.getHeaders());
+                wms = new WMSImagery(rawUrl.getText(), getCommonHeaders());
                 tree.updateTree(wms);
                 Collection<String> wmsFormats = wms.getFormats();
                 formats.setModel(new DefaultComboBoxModel<>(wmsFormats.toArray(new String[wmsFormats.size()])));
@@ -194,8 +184,8 @@ public class AddWMSLayerPanel extends AddImageryPanel {
             info.setUrl(getWmsUrl());
             info.setImageryType(ImageryType.WMS);
         }
-        info.setGeoreferenceValid(validGeoreference.isSelected());
-        info.setCustomHttpHeaders(headersTable.getHeaders());
+        info.setGeoreferenceValid(getCommonIsValidGeoreference());
+        info.setCustomHttpHeaders(getCommonHeaders());
         return info;
     }
 

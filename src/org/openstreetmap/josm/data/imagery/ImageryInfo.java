@@ -16,6 +16,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -227,6 +228,7 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
     private Map<String, String> customHttpHeaders = new ConcurrentHashMap<>();
     /** Should this map be transparent **/
     private boolean transparent = false;
+    private int minimumTileExpire = (int) TimeUnit.MILLISECONDS.toSeconds(TMSCachedTileLoaderJob.MINIMUM_EXPIRES.get());
     /** when adding a field, also adapt the:
      * {@link #ImageryPreferenceEntry ImageryPreferenceEntry object}
      * {@link #ImageryPreferenceEntry#ImageryPreferenceEntry(ImageryInfo) ImageryPreferenceEntry constructor}
@@ -274,6 +276,7 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
         @StructEntry String default_layers;
         @StructEntry Map<String, String> customHttpHeaders;
         @StructEntry boolean transparent;
+        @StructEntry int minimumTileExpire;
 
         /**
          * Constructs a new empty WMS {@code ImageryPreferenceEntry}.
@@ -346,6 +349,7 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
             }
             customHttpHeaders = i.customHttpHeaders;
             transparent = i.isTransparent();
+            minimumTileExpire = i.minimumTileExpire;
         }
 
         @Override
@@ -496,6 +500,7 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
         }
         customHttpHeaders = e.customHttpHeaders;
         transparent = e.transparent;
+        minimumTileExpire = e.minimumTileExpire;
     }
 
     /**
@@ -542,6 +547,7 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
         this.defaultLayers = i.defaultLayers;
         this.customHttpHeaders = i.customHttpHeaders;
         this.transparent = i.transparent;
+        this.minimumTileExpire = i.minimumTileExpire;
     }
 
     @Override
@@ -595,7 +601,8 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
                 Objects.equals(this.metadataHeaders, other.metadataHeaders) &&
                 Objects.equals(this.defaultLayers, other.defaultLayers) &&
                 Objects.equals(this.customHttpHeaders, other.customHttpHeaders) &&
-                Objects.equals(this.transparent, other.transparent);
+                Objects.equals(this.transparent, other.transparent) &&
+                Objects.equals(this.minimumTileExpire, other.minimumTileExpire);
         // CHECKSTYLE.ON: BooleanExpressionComplexity
     }
 
@@ -1443,5 +1450,21 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
      */
     public void setTransparent(boolean transparent) {
         this.transparent = transparent;
+    }
+
+    /**
+     * @return minimum tile expiration in seconds
+     */
+    public int getMinimumTileExpire() {
+        return minimumTileExpire;
+    }
+
+    /**
+     * Sets minimum tile expiration in seconds
+     * @param minimumTileExpire
+     */
+    public void setMinimumTileExpire(int minimumTileExpire) {
+        this.minimumTileExpire = minimumTileExpire;
+
     }
 }

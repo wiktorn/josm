@@ -14,6 +14,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.openstreetmap.josm.data.cache.ICachedLoaderListener.LoadResult;
+import org.openstreetmap.josm.data.imagery.TileJobOptions;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
 import org.openstreetmap.josm.tools.Logging;
 
@@ -28,8 +29,8 @@ public class JCSCachedTileLoaderJobTest {
         private String url;
         private String key;
 
-        TestCachedTileLoaderJob(String url, String key) throws IOException {
-            super(getCache(), 30000, 30000, null);
+        TestCachedTileLoaderJob(String url, String key)  {
+            super(getCache(), new TileJobOptions(30000, 30000, null, 120));
 
             this.url = url;
             this.key = key;
@@ -167,7 +168,7 @@ public class JCSCachedTileLoaderJobTest {
         return new TestCachedTileLoaderJob("http://httpstat.us/" + responseCode, "key_" + responseCode);
     }
 
-    private static ICacheAccess<String, CacheEntry> getCache() throws IOException {
+    private static ICacheAccess<String, CacheEntry> getCache() {
         return JCSCacheManager.getCache("test");
     }
 }
