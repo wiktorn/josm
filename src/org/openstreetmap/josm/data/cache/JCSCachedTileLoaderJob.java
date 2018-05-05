@@ -325,6 +325,9 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
                 // If isModifiedSince or If-None-Match has been set
                 // and the server answers with a HTTP 304 = "Not Modified"
                 Logging.debug("JCS - If-Modified-Since/ETag test: local version is up to date: {0}", getUrl());
+                // update cache attributes
+                attributes = parseHeaders(urlConn);
+                cache.put(getCacheKey(), cacheData, attributes);
                 return true;
             } else if (isObjectLoadable() // we have an object in cache, but we haven't received 304 response code
                     && (
@@ -448,6 +451,9 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
                 // ignore malformed Cache-Control headers
                 Logging.trace(e);
             }
+            if (lng.equals(0L)) {
+                lng = System.currentTimeMillis() + DEFAULT_EXPIRE_TIME;
+            }
         }
 
         ret.setExpirationTime(Math.max(minimumExpiryTime + System.currentTimeMillis(), lng));
@@ -475,8 +481,14 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
     private boolean isCacheValidUsingHead() throws IOException {
         final HttpClient.Response urlConn = getRequest("HEAD", false).connect();
         long lastModified = urlConn.getLastModified();
-        return (attributes.getEtag() != null && attributes.getEtag().equals(urlConn.getHeaderField("ETag"))) ||
+        boolean ret = (attributes.getEtag() != null && attributes.getEtag().equals(urlConn.getHeaderField("ETag"))) ||
                 (lastModified != 0 && lastModified <= attributes.getLastModification());
+        if (ret) {
+            // update attributes
+            attributes = parseHeaders(urlConn);
+            cache.put(getCacheKey(), cacheData, attributes);
+        }
+        return ret;
     }
 
     /**
