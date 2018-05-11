@@ -3,7 +3,7 @@ package org.openstreetmap.josm.data.validation.tests;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
 
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 
 import org.openstreetmap.josm.actions.OrthogonalizeAction;
@@ -51,17 +51,14 @@ public class RightAngleBuildingTest extends Test {
                                                      .message(tr("Building with an almost square angle"))
                                                      .primitives(w)
                                                      .highlight(pair.b);
-                if (angles.stream().noneMatch(
-                        p -> Math.abs(p.a - 90) >= maxAngleDelta && Math.abs(p.a - 180) >= minAngleDelta)) {
-                    builder.fix(() -> {
-                        try {
-                            return OrthogonalizeAction.orthogonalize(Collections.singleton(w));
-                        } catch (InvalidUserInputException e) {
-                            Logging.warn(e);
-                            return null;
-                        }
-                    });
-                }
+                builder.fix(() -> {
+                    try {
+                        return OrthogonalizeAction.orthogonalize(Arrays.asList(w, pair.b));
+                    } catch (InvalidUserInputException e) {
+                        Logging.warn(e);
+                        return null;
+                    }
+                });
                 errors.add(builder.build());
                 return;
             }
@@ -72,7 +69,7 @@ public class RightAngleBuildingTest extends Test {
     public void startTest(ProgressMonitor monitor) {
         super.startTest(monitor);
         maxAngleDelta = Config.getPref().getDouble("validator.RightAngleBuilding.maximumDelta", 10.0);
-        minAngleDelta = Config.getPref().getDouble("validator.RightAngleBuilding.minimumDelta", 0.25);
+        minAngleDelta = Config.getPref().getDouble("validator.RightAngleBuilding.minimumDelta", 1.0);
     }
 
     private boolean checkAngle(double angle) {
