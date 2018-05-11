@@ -491,7 +491,7 @@ public class CachedFile implements Closeable {
             if (parameter.isEmpty()) {
                 uc = u.replaceAll("%<(.*)>", "");
             } else {
-                uc = u.replaceAll("%<(.*)>", "$1"+parameter);
+                uc = u.replaceAll("%<(.*)>", "$1" + Utils.encodeUrl(parameter));
             }
             if (!uc.equals(u))
                 url = new URL(uc);

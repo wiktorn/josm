@@ -72,4 +72,18 @@ public class WMSImageryTest {
         assertEquals("Server WMS m.st. Warszawy", wmsi.getLayers().get(0).toString());
         assertEquals(202, wmsi.getLayers().get(0).getChildren().size());
     }
+
+    /**
+     * Non-regression test for bug #16248.
+     * @throws IOException if any I/O error occurs
+     * @throws WMSGetCapabilitiesException never
+     */
+    @Test
+    public void testTicket16248() throws IOException, WMSGetCapabilitiesException {
+        try (InputStream is = TestUtils.getRegressionDataStream(16248, "capabilities.xml")) {
+            WMSImagery wms = new WMSImagery();
+            wms.parseCapabilities(null, is);
+            assertEquals("http://wms.hgis.cartomatic.pl/topo/3857/m25k", wms.getServiceUrl().toExternalForm());
+        }
+    }
 }
