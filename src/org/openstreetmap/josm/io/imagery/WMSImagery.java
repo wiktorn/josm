@@ -121,16 +121,30 @@ public class WMSImagery {
 
     private Map<String, String> headers = new ConcurrentHashMap<>();
     private String version = "1.1.1"; // default version
-    private String title;
     private String getMapUrl;
     private URL capabilitiesUrl;
     private List<String> formats = new ArrayList<>();
     private List<LayerDetails> layers = new ArrayList<>();
 
+    private String title;
+
+    /**
+     * Make getCapabilities request towards given URL
+     * @param url service url
+     * @throws IOException
+     * @throws WMSGetCapabilitiesException
+     */
     public WMSImagery(String url) throws IOException, WMSGetCapabilitiesException {
         this(url, null);
     }
 
+    /**
+     * Make getCapabilities request towards given URL using headers
+     * @param url service url
+     * @param headers HTTP headers to be sent with request
+     * @throws IOException
+     * @throws WMSGetCapabilitiesException
+     */
     public WMSImagery(String url, Map<String, String> headers) throws IOException, WMSGetCapabilitiesException {
         if (headers != null) {
             this.headers.putAll(headers);
@@ -222,6 +236,9 @@ public class WMSImagery {
         }
     }
 
+    /**
+     * @return root URL of services in this GetCapabilities
+     */
     public String buildRootUrl() {
         if (getMapUrl == null && capabilitiesUrl == null) {
             return null;
@@ -246,16 +263,35 @@ public class WMSImagery {
         return a.toString();
     }
 
+    /**
+     * Returns URL for accessing GetMap service. String will contain following parameters:
+     * * {proj} - that needs to be replaced with projection (one of {@link #getServerProjections(List)})
+     * * {width} - that needs to be replaced with width of the tile
+     * * {height} - that needs to be replaces with height of the tile
+     * * {bbox} - that needs to be replaced with area that should be fetched (in {proj} coordinates)
+     *
+     * Format of the response will be calculated using {@link #getPreferredFormat()}
+     *
+     * @param selectedLayers list of DefaultLayer selection of layers to be shown
+     * @param transparent whether returned images should contain transparent pixels (if supported by format)
+     * @return URL template for GetMap service containing
+     */
     public String buildGetMapUrl(List<DefaultLayer> selectedLayers, boolean transparent) {
-
         return buildGetMapUrl(
-                selectedLayers.stream().map(x -> x.getLayerName()).collect(Collectors.toList()),
+                getLayers(selectedLayers),
                 selectedLayers.stream().map(x -> x.getStyle()).collect(Collectors.toList()),
-                getPreferredFormat(),
                 transparent);
     }
 
-    public String buildGetMapUrl(List<LayerDetails> selectedLayers, Collection<String> selectedStyles, boolean transparent) {
+    /**
+     * @see #buildGetMapUrl(List, boolean)
+     *
+     * @param selectedLayers selected layers as subset of the tree returned by {@link #getLayers()}
+     * @param selectedStyles selected styles for all selectedLayers
+     * @param transparent whether returned images should contain transparent pixels (if supported by format)
+     * @return URL template for GetMap service
+     */
+    public String buildGetMapUrl(List<LayerDetails> selectedLayers, List<String> selectedStyles, boolean transparent) {
         return buildGetMapUrl(
                 selectedLayers.stream().map(x -> x.getName()).collect(Collectors.toList()),
                 selectedStyles,
@@ -263,6 +299,15 @@ public class WMSImagery {
                 transparent);
     }
 
+    /**
+     * @see #buildGetMapUrl(List, boolean)
+     *
+     * @param selectedLayers selected layers as list of strings
+     * @param selectedStyles selected styles of layers as list of strings
+     * @param format format of the response - one of {@link #getFormats()}
+     * @param transparent whether returned images should contain transparent pixels (if supported by format)
+     * @return URL template for GetMap service
+     */
     public String buildGetMapUrl(List<String> selectedLayers,
             Collection<String> selectedStyles,
             String format,
@@ -451,6 +496,9 @@ public class WMSImagery {
         this.layers.add(ret);
     }
 
+    /**
+     * @return if this service operates at protocol level below 1.3.0
+     */
     public boolean belowWMS130() {
         return this.version.equals("1.1.1") || this.version.equals("1.1") || this.version.equals("1.0");
     }
@@ -596,16 +644,30 @@ public class WMSImagery {
                 || format.startsWith("image/svg") || format.startsWith("image/tiff"));
     }
 
+    /**
+     * Creates ImageryInfo object from this GetCapabilities document
+     *
+     * @param name name of imagery layer
+     * @param selectedLayers layers which are to be used by this imagery layer
+     * @param selectedStyles styles that should be used for selectedLayers
+     * @param transparent if layer should be transparent
+     * @return ImageryInfo object
+     */
     public ImageryInfo toImageryInfo(String name, List<LayerDetails> selectedLayers, List<String> selectedStyles, boolean transparent) {
-        // TODO: needs rework
         ImageryInfo i = new ImageryInfo(name, buildGetMapUrl(selectedLayers, selectedStyles, transparent));
         if (selectedLayers != null && !selectedLayers.isEmpty()) {
-            // init with first element
             i.setServerProjections(getServerProjections(selectedLayers));
         }
         return i;
     }
 
+    /**
+     * Returns projections that server supports for provided list of layers. This will be intersection of projections
+     * defined for each layer
+     *
+     * @param selectedLayers list of layers
+     * @return projection code
+     */
     public Collection<String> getServerProjections(List<LayerDetails> selectedLayers) {
         Set<String> proj = new HashSet<>(selectedLayers.iterator().next().getCrs());
 
@@ -616,15 +678,23 @@ public class WMSImagery {
         return proj;
     }
 
-    public String getHost() {
-        return capabilitiesUrl.getHost();
-    }
 
-    public Collection<LayerDetails> getLayers(List<DefaultLayer> defaultLayers) {
+    /**
+     * @param defaultLayers
+     * @return collection of LayerDetails specified by DefaultLayers
+     */
+    public List<LayerDetails> getLayers(List<DefaultLayer> defaultLayers) {
         Collection<String> layerNames = defaultLayers.stream().map(x -> x.getLayerName()).collect(Collectors.toList());
         return layers.stream()
                 .flatMap(LayerDetails::flattened)
                 .filter(x -> layerNames.contains(x.getName()))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * @return title of this service
+     */
+    public String getTitle() {
+        return title;
     }
 }

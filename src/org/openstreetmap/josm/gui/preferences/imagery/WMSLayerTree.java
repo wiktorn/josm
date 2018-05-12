@@ -79,7 +79,7 @@ public class WMSLayerTree {
         while (treeRootNode.getChildCount() > 0) {
             treeRootNode.remove(0);
         }
-        treeRootNode.setUserObject(wms.getHost());
+        treeRootNode.setUserObject(wms.buildRootUrl());
         updateTreeList(wms.getLayers());
     }
 

@@ -8,7 +8,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collection;
+import java.util.List;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -93,7 +93,7 @@ public class WMSImageryTest {
         assertEquals("wms.hgis.cartomatic.pl", wms.getLayers().get(0).getName());
         assertEquals("http://wms.hgis.cartomatic.pl/topo/3857/m25kFORMAT=image/png&TRANSPARENT=TRUE&VERSION=1.1.1&SERVICE=WMS&REQUEST=GetMap&"
                 + "LAYERS=wms.hgis.cartomatic.pl&STYLES=&SRS={proj}&WIDTH={width}&HEIGHT={height}&BBOX={bbox}",
-                wms.buildGetMapUrl(wms.getLayers(), (Collection<String>)null, true));
+                wms.buildGetMapUrl(wms.getLayers(), (List<String>)null, true));
     }
 }
 
