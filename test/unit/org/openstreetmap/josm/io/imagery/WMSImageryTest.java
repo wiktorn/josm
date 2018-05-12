@@ -6,7 +6,9 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collection;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -80,10 +82,18 @@ public class WMSImageryTest {
      */
     @Test
     public void testTicket16248() throws IOException, WMSGetCapabilitiesException {
-        try (InputStream is = TestUtils.getRegressionDataStream(16248, "capabilities.xml")) {
-            WMSImagery wms = new WMSImagery();
-            wms.parseCapabilities(null, is);
-            assertEquals("http://wms.hgis.cartomatic.pl/topo/3857/m25k", wms.getServiceUrl().toExternalForm());
-        }
+        Path capabilitiesPath = Paths.get(TestUtils.getRegressionDataFile(16248, "capabilities.xml"));
+        WireMockServer getCapabilitiesMock = TestUtils.getWireMockServer();
+        getCapabilitiesMock.stubFor(
+                WireMock.get(WireMock.anyUrl())
+                .willReturn(WireMock.aResponse().withBody(Files.readAllBytes(capabilitiesPath))));
+        getCapabilitiesMock.start();
+        WMSImagery wms = new WMSImagery(getCapabilitiesMock.url("any"));
+        assertEquals("http://wms.hgis.cartomatic.pl/topo/3857/m25k", wms.buildRootUrl());
+        assertEquals("wms.hgis.cartomatic.pl", wms.getLayers().get(0).getName());
+        assertEquals("http://wms.hgis.cartomatic.pl/topo/3857/m25kFORMAT=image/png&TRANSPARENT=TRUE&VERSION=1.1.1&SERVICE=WMS&REQUEST=GetMap&"
+                + "LAYERS=wms.hgis.cartomatic.pl&STYLES=&SRS={proj}&WIDTH={width}&HEIGHT={height}&BBOX={bbox}",
+                wms.buildGetMapUrl(wms.getLayers(), (Collection<String>)null, true));
     }
 }
+
