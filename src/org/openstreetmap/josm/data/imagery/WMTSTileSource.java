@@ -3,12 +3,12 @@ package org.openstreetmap.josm.data.imagery;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
 
-import java.awt.GridBagLayout;
 import java.awt.Point;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.InvalidPathException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -28,11 +28,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTable;
-import javax.swing.ListSelectionModel;
-import javax.swing.table.AbstractTableModel;
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
@@ -56,10 +51,10 @@ import org.openstreetmap.josm.data.projection.Projection;
 import org.openstreetmap.josm.data.projection.Projections;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.layer.NativeScaleLayer.ScaleList;
+import org.openstreetmap.josm.gui.layer.imagery.WMTSLayerSelection;
 import org.openstreetmap.josm.io.CachedFile;
 import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
-import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -169,6 +164,14 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
         public String getIdentifier() {
             return identifier;
         }
+
+        /**
+         *
+         * @return projection of this tileMatrix
+         */
+        public String getCrs() {
+            return crs;
+        }
     }
 
     private static class Dimension {
@@ -240,7 +243,7 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
 
         /**
          *
-         * @return
+         * @return tileMatrixSet of this layer
          */
         public TileMatrixSet getTileMatrixSet() {
             return tileMatrixSet;
@@ -259,27 +262,29 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
         public WMTSGetCapabilitiesException(String cause) {
             super(cause);
         }
+
+        /**
+         * @param cause description of cause
+         * @param t nested exception
+         */
+        public WMTSGetCapabilitiesException(String cause, Throwable t) {
+            super(cause, t);
+        }
     }
 
     private static final class SelectLayerDialog extends ExtendedDialog {
         private final transient List<Entry<String, List<Layer>>> layers;
-        private final JTable list;
+        private final WMTSLayerSelection list;
 
         SelectLayerDialog(Collection<Layer> layers) {
             super(Main.parent, tr("Select WMTS layer"), tr("Add layers"), tr("Cancel"));
             this.layers = groupLayersByNameAndTileMatrixSet(layers);
-            this.list = getLayerSelectionPanel(this.layers);
-            JPanel panel = new JPanel(new GridBagLayout());
-            panel.add(new JScrollPane(this.list), GBC.eol().fill());
-            setContent(panel);
+            this.list = new WMTSLayerSelection(this.layers);
+            setContent(list);
         }
 
         public DefaultLayer getSelectedLayer() {
-            int index = list.getSelectedRow();
-            if (index < 0) {
-                return null; //nothing selected
-            }
-            Layer selectedLayer = layers.get(list.convertRowIndexToModel(index)).getValue().get(0);
+            Layer selectedLayer = list.getSelectedLayer();
             return new DefaultLayer(ImageryType.WMTS, selectedLayer.identifier, selectedLayer.style, selectedLayer.tileMatrixSet.identifier);
         }
 
@@ -302,7 +307,7 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
      * Creates a tile source based on imagery info
      * @param info imagery info
      * @throws IOException if any I/O error occurs
-     * @throws WMTSGetCapabilitiesException
+     * @throws WMTSGetCapabilitiesException when document didn't contain any layers
      * @throws IllegalArgumentException if any other error happens for the given imagery info
      */
     public WMTSTileSource(ImageryInfo info) throws IOException, WMTSGetCapabilitiesException {
@@ -311,7 +316,7 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
         this.headers.putAll(info.getCustomHttpHeaders());
         this.baseUrl = GetCapabilitiesParseHelper.normalizeCapabilitiesUrl(handleTemplate(info.getUrl()));
         WMTSCapabilities capabilities = getCapabilities(baseUrl, headers);
-        this.layers =  capabilities.getLayers();
+        this.layers = capabilities.getLayers();
         this.baseUrl = capabilities.getBaseUrl();
         this.transferMode = capabilities.getTransferMode();
         if (info.getDefaultLayers().isEmpty()) {
@@ -373,7 +378,7 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
      * @param headers HTTP headers to set when calling getCapabilities url
      * @return capabilities
      * @throws IOException in case of any I/O error
-     * @throws WMTSGetCapabilitiesException
+     * @throws WMTSGetCapabilitiesException when document didn't contain any layers
      * @throws IllegalArgumentException in case of any other error
      */
     public static WMTSCapabilities getCapabilities(String url, Map<String, String> headers) throws IOException, WMTSGetCapabilitiesException {
@@ -421,8 +426,10 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
             } catch (XMLStreamException e) {
                 cf.clear();
                 Logging.warn(new String(data, StandardCharsets.UTF_8));
-                throw new IllegalArgumentException(e);
+                throw new WMTSGetCapabilitiesException(tr("Error during parsing of WMTS Capabilities document: {0}", e.getMessage()), e);
             }
+        } catch (InvalidPathException e) {
+            throw new WMTSGetCapabilitiesException(tr("Invalid path for GetCapabilities document: {0}", e.getMessage()), e);
         }
     }
 
@@ -950,60 +957,10 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
         }
     }
 
-    public static JTable getLayerSelectionPanel(List<Entry<String, List<Layer>>> layers) {
-        JTable list = new JTable(
-                new AbstractTableModel() {
-                    @Override
-                    public Object getValueAt(int rowIndex, int columnIndex) {
-                        switch (columnIndex) {
-                        case 0:
-                            return layers.get(rowIndex).getValue()
-                                    .stream()
-                                    .map(Layer::getUserTitle)
-                                    .collect(Collectors.joining(", ")); //this should be only one
-                        case 1:
-                            return layers.get(rowIndex).getValue()
-                                    .stream()
-                                    .map(x -> x.tileMatrixSet.crs)
-                                    .collect(Collectors.joining(", "));
-                        case 2:
-                            return layers.get(rowIndex).getValue()
-                                    .stream()
-                                    .map(x -> x.tileMatrixSet.identifier)
-                                    .collect(Collectors.joining(", ")); //this should be only one
-                        default:
-                            throw new IllegalArgumentException();
-                        }
-                    }
-
-                    @Override
-                    public int getRowCount() {
-                        return layers.size();
-                    }
-
-                    @Override
-                    public int getColumnCount() {
-                        return 3;
-                    }
-
-                    @Override
-                    public String getColumnName(int column) {
-                        switch (column) {
-                        case 0: return tr("Layer name");
-                        case 1: return tr("Projection");
-                        case 2: return tr("Matrix set identifier");
-                        default:
-                            throw new IllegalArgumentException();
-                        }
-                    }
-                });
-        list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        list.setAutoCreateRowSorter(true);
-        list.setRowSelectionAllowed(true);
-        list.setColumnSelectionAllowed(false);
-        return list;
-    }
-
+    /**
+     * @param layers to be grouped
+     * @return list with entries - grouping identifier + list of layers
+     */
     public static List<Entry<String, List<Layer>>> groupLayersByNameAndTileMatrixSet(Collection<Layer> layers) {
         Map<String, List<Layer>> layerByName = layers.stream().collect(
                 Collectors.groupingBy(x -> x.identifier + '\u001c' + x.tileMatrixSet.identifier));
