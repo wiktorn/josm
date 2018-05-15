@@ -1828,7 +1828,7 @@
                   ru.href="https://wiki.openstreetmap.org/wiki/RU:Tag:barrier=fence" />
             <key key="barrier" value="fence" />
             <optional>
-                <combo key="fence_type" text="Type" values="barbed_wire,chain_link,electric,metal,pole,split_rail,wire,wood" />
+                <combo key="fence_type" text="Type" values="barbed_wire,bars,chain_link,concrete,electric,metal,pole,railing,split_rail,wire,wood" />
                 <text key="height" text="Height (meters)" length="7" />
             </optional>
         </item> <!-- Fence -->
@@ -3642,7 +3642,7 @@
             <key key="amenity" value="vending_machine" />
             <key key="vending" value="public_transport_tickets" />
             <reference ref="name_operator" />
-            <text key="ref" text="Reference Number" />
+            <text key="ref" text="Reference number" />
             <preset_link preset_name="Payment Methods" />
         </item> <!-- Ticket Machine -->
     </group> <!-- Public Transport -->
@@ -5537,7 +5537,7 @@
             <reference ref="oh_wheelchair" />
             <text key="operator" text="Operator" />
             <text key="defibrillator:location" text="Location description" />
-            <text key="phone" text="Phone Number" />
+            <text key="phone" text="Phone number" />
             <combo key="access" text="Access" values="yes,private,customers,permissive,no" />
             <check key="indoor" text="Located inside a building?" />
             <!-- lastcheck is in use for aed devices, but not yet well discussed or documented
@@ -5879,6 +5879,7 @@
             <optional>
                 <combo key="display" text="Display" values="analog,digital,sundial,unorthodox" />
                 <reference ref="support" />
+                <combo key="faces" text="Faces" text_context="clock" values="1,2,3,4" />
                 <combo key="visibility" text="Visibility/readability" values="house,street,area" display_values="house (up to 5m),street (up to 20m),area (more than 20m)" />
                 <check key="date" text="Shows current date" />
                 <check key="thermometer" text="Shows temperature" />
@@ -11277,7 +11278,7 @@
             <text key="website" text="Website" match="key" />
             <text key="email" text="Email Address" match="key" />
             <space />
-            <text key="phone" text="Phone Number" match="key" />
+            <text key="phone" text="Phone number" match="key" />
             <text key="fax" text="Fax Number" match="key" />
             <space />
             <text key="wikipedia" text="Wikipedia" />
@@ -11297,7 +11298,7 @@
             <text key="contact:website" text="Website" match="key" />
             <text key="contact:email" text="Email Address" match="key" />
             <space />
-            <text key="contact:phone" text="Phone Number" match="key" />
+            <text key="contact:phone" text="Phone number" match="key" />
             <text key="contact:fax" text="Fax Number" match="key" />
             <space />
             <text key="wikipedia" text="Wikipedia" />
