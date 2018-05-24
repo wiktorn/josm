@@ -19,8 +19,13 @@
         <dirname property="base.dir" file="${ant.file.josm}"/>
         <property name="test.dir" location="${base.dir}/test"/>
         <property name="src.dir" location="${base.dir}/src"/>
-        <condition property="noJavaFX" value="${env.JOSM_NOJAVAFX}" else="0">
+        <condition property="noJavaFX">
+            <or>
                 <isset property="env.JOSM_NOJAVAFX"/>
+                <not>
+                    <available classname="javafx.scene.media.Media"/>
+                </not>
+            </or>
         </condition>
         <property name="build.dir" location="${base.dir}/build"/>
         <property name="dist.dir" location="${base.dir}/dist"/>
@@ -369,7 +374,7 @@ Build-Date: ${build.tstamp}
             <compilerarg value="-Xep:StringSplitter:OFF" compiler="com.google.errorprone.ErrorProneAntCompilerAdapter"/>
             <compilerarg value="-Xep:JdkObsolete:OFF" compiler="com.google.errorprone.ErrorProneAntCompilerAdapter"/>
             <compilerarg line="-Xmaxwarns 1000"/>
-            <exclude name="org/openstreetmap/josm/io/audio/JavaFxMediaPlayer.java" if:set="noJavaFX"/>
+            <exclude name="org/openstreetmap/josm/io/audio/fx/*.java" if:set="noJavaFX"/>
         </javac>
 
         <copy todir="build" failonerror="no" includeemptydirs="no">
@@ -402,8 +407,9 @@ Build-Date: ${build.tstamp}
             <arg value="java.base/sun.security.util=ALL-UNNAMED" if:set="isJava9" />
             <arg value="--add-exports" if:set="isJava9" />
             <arg value="java.base/sun.security.x509=ALL-UNNAMED" if:set="isJava9" />
-            <arg value="--add-exports" if:set="isJava9" />
-            <arg value="javafx.graphics/com.sun.javafx.application=ALL-UNNAMED" if:set="isJava9" />
+            <arg value="--add-exports" if:set="isJava9" unless:set="noJavaFX" />
+            <arg value="javafx.graphics/com.sun.javafx.application=ALL-UNNAMED" if:set="isJava9" unless:set="noJavaFX" />
+            <excludepackage name="org/openstreetmap/josm/io/audio/fx" if:set="noJavaFX" />
         </javadoc>
     </target>
     <target name="clean" depends="init-properties">
@@ -496,10 +502,10 @@ Build-Date: ${build.tstamp}
                     <jvmarg value="java.base/sun.security.util=ALL-UNNAMED" if:set="isJava9" />
                     <jvmarg value="--add-exports" if:set="isJava9" />
                     <jvmarg value="java.base/sun.security.x509=ALL-UNNAMED" if:set="isJava9" />
-                    <jvmarg value="--add-exports" if:set="isJava9" />
-                    <jvmarg value="javafx.graphics/com.sun.javafx.application=ALL-UNNAMED" if:set="isJava9" />
-                    <jvmarg value="--add-exports" if:set="isJava9" />
-                    <jvmarg value="jdk.deploy/com.sun.deploy.config=ALL-UNNAMED" if:set="isJava9" />
+                    <jvmarg value="--add-exports" if:set="isJava9" unless:set="noJavaFX" />
+                    <jvmarg value="javafx.graphics/com.sun.javafx.application=ALL-UNNAMED" if:set="isJava9" unless:set="noJavaFX" />
+                    <jvmarg value="--add-exports" if:set="isJava9" unless:set="isJava11" />
+                    <jvmarg value="jdk.deploy/com.sun.deploy.config=ALL-UNNAMED" if:set="isJava9" unless:set="isJava11" />
                     <jvmarg value="--add-opens" if:set="isJava9" />
                     <jvmarg value="java.base/java.io=ALL-UNNAMED" if:set="isJava9" />
                     <jvmarg value="--add-opens" if:set="isJava9" />
@@ -914,7 +920,7 @@ Build-Date: ${build.tstamp}
     <target name="epsg-compile" depends="init-properties">
         <property name="proj-classpath" location="${build.dir}"/>
         <mkdir dir="${proj-build.dir}"/>
-        <javac sourcepath="" srcdir="${base.dir}/scripts" failonerror="true"
+        <javac sourcepath="" srcdir="${base.dir}/scripts" failonerror="true" includes="BuildProjectionDefinitions.java"
             destdir="${proj-build.dir}" target="${java.lang.version}" source="${java.lang.version}" debug="on"
             includeantruntime="false" createMissingPackageInfoClass="false"
             encoding="UTF-8" classpath="${proj-classpath}">

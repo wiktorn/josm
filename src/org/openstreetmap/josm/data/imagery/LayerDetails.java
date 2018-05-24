@@ -14,8 +14,8 @@ import org.openstreetmap.josm.data.Bounds;
  * The details of a layer of this WMS server.
  */
 public class LayerDetails {
-    private Map<String, String> styles = new ConcurrentHashMap<>(); // name -> title
-    private Collection<String> crs = new ArrayList<>();
+    private final Map<String, String> styles = new ConcurrentHashMap<>(); // name -> title
+    private final Collection<String> crs = new ArrayList<>();
     /**
      * The layer name (WMS {@code Title})
      */
@@ -29,7 +29,7 @@ public class LayerDetails {
      * @since 13199
      */
     private String abstr;
-    private LayerDetails parentLayer;
+    private final LayerDetails parentLayer;
     private Bounds bounds;
     private List<LayerDetails> children = new ArrayList<>();
 
@@ -86,16 +86,16 @@ public class LayerDetails {
 
     /**
      *
-     * Citation from OGC WMS specification (WMS 1.3.0):
-     * > A number of elements have both a {@literal <Name>} and a {@literal <Title>}. The Name is a text string used for machine-to-machine
-     * > communication while the Title is for the benefit of humans. For example, a dataset might have the descriptive Title
-     * > “Maximum Atmospheric Temperature” and be requested using the abbreviated Name “ATMAX”.
+     * Citation from OGC WMS specification (WMS 1.3.0):<p><i>
+     * A number of elements have both a {@literal <Name>} and a {@literal <Title>}. The Name is a text string used for machine-to-machine
+     * communication while the Title is for the benefit of humans. For example, a dataset might have the descriptive Title
+     * “Maximum Atmospheric Temperature” and be requested using the abbreviated Name “ATMAX”.</i></p>
      *
-     * And second citation:
-     * > If, and only if, a layer has a {@literal <Name>}, then it is a map layer that can be requested by using that Name in the
-     * > LAYERS parameter of a GetMap request. A Layer that contains a {@literal <Name>} element is referred to as a “named
-     * > layer” in this International Standard. If the layer has a Title but no Name, then that layer is only a category title for
-     * > all the layers nested within.
+     * And second citation:<p><i>
+     * If, and only if, a layer has a {@literal <Name>}, then it is a map layer that can be requested by using that Name in the
+     * LAYERS parameter of a GetMap request. A Layer that contains a {@literal <Name>} element is referred to as a “named
+     * layer” in this International Standard. If the layer has a Title but no Name, then that layer is only a category title for
+     * all the layers nested within.</i></p>
      * @return name of this layer
      */
     public String getName() {

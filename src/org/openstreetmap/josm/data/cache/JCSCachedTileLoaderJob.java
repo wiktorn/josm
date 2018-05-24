@@ -276,7 +276,7 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
             expires = Math.min(expires, attributes.getCreateTime() + Math.max(EXPIRE_TIME_SERVER_LIMIT, minimumExpiryTime));
             if (now > expires) {
                 Logging.debug("JCS - Object {0} has expired -> valid to {1}, now is: {2}",
-                        new Object[]{getUrlNoException(), Long.toString(expires), Long.toString(now)});
+                        getUrlNoException(), Long.toString(expires), Long.toString(now));
                 return false;
             }
         } else if (attributes.getLastModification() > 0 &&
@@ -375,7 +375,7 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
                     cacheData = createCacheEntry(raw);
                     cache.put(getCacheKey(), cacheData, attributes);
                     Logging.debug("JCS - downloaded key: {0}, length: {1}, url: {2}",
-                            new Object[] {getCacheKey(), raw.length, getUrl()});
+                            getCacheKey(), raw.length, getUrl());
                     return true;
                 } else if (cacheAsEmpty()) {
                     cacheData = createCacheEntry(new byte[]{});
@@ -436,27 +436,44 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
     protected CacheEntryAttributes parseHeaders(HttpClient.Response urlConn) {
         CacheEntryAttributes ret = new CacheEntryAttributes();
 
-        Long lng = urlConn.getExpiration();
-        if (lng.equals(0L)) {
-            try {
-                String str = urlConn.getHeaderField("Cache-Control");
-                if (str != null) {
-                    for (String token: str.split(",")) {
-                        if (token.startsWith("max-age=")) {
-                            lng = TimeUnit.SECONDS.toMillis(Long.parseLong(token.substring(8))) + System.currentTimeMillis();
-                        }
+        /*
+         * according to https://www.ietf.org/rfc/rfc2616.txt Cache-Control takes precedence over max-age
+         * max-age is for private caches, s-max-age is for shared caches. We take any value that is larger
+         */
+        Long expiration = 0L;
+        String cacheControl = urlConn.getHeaderField("Cache-Control");
+        if (cacheControl != null) {
+            for (String token: cacheControl.split(",")) {
+                try {
+                    if (token.startsWith("max-age=")) {
+                        expiration = Math.max(expiration,
+                                TimeUnit.SECONDS.toMillis(Long.parseLong(token.substring("max-age=".length())))
+                                + System.currentTimeMillis()
+                                );
                     }
+                    if (token.startsWith("s-max-age=")) {
+                        expiration = Math.max(expiration,
+                                TimeUnit.SECONDS.toMillis(Long.parseLong(token.substring("s-max-age=".length())))
+                                + System.currentTimeMillis()
+                                );
+                    }
+                } catch (NumberFormatException e) {
+                    // ignore malformed Cache-Control headers
+                    Logging.trace(e);
                 }
-            } catch (NumberFormatException e) {
-                // ignore malformed Cache-Control headers
-                Logging.trace(e);
-            }
-            if (lng.equals(0L)) {
-                lng = System.currentTimeMillis() + DEFAULT_EXPIRE_TIME;
             }
         }
 
-        ret.setExpirationTime(Math.max(minimumExpiryTime + System.currentTimeMillis(), lng));
+        if (expiration.equals(0L)) {
+            expiration = urlConn.getExpiration();
+        }
+
+        // if nothing is found - set default
+        if (expiration.equals(0L)) {
+            expiration = System.currentTimeMillis() + DEFAULT_EXPIRE_TIME;
+        }
+
+        ret.setExpirationTime(Math.max(minimumExpiryTime + System.currentTimeMillis(), expiration));
         ret.setLastModification(now);
         ret.setEtag(urlConn.getHeaderField("ETag"));
 

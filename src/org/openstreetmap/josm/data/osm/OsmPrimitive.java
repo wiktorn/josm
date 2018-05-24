@@ -5,11 +5,9 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
@@ -18,11 +16,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Consumer;
 
 import org.openstreetmap.josm.data.osm.search.SearchCompiler;
 import org.openstreetmap.josm.data.osm.search.SearchCompiler.Match;
 import org.openstreetmap.josm.data.osm.search.SearchParseError;
 import org.openstreetmap.josm.data.osm.visitor.OsmPrimitiveVisitor;
+import org.openstreetmap.josm.data.osm.visitor.PrimitiveVisitor;
 import org.openstreetmap.josm.gui.mappaint.StyleCache;
 import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
@@ -234,10 +234,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Template
         this.dataSet = dataSet;
     }
 
-    /**
-     *
-     * @return DataSet this primitive is part of.
-     */
+    @Override
     public DataSet getDataSet() {
         return dataSet;
     }
@@ -608,135 +605,9 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Template
         return (flags & FLAG_HIGHLIGHTED) != 0;
     }
 
-    /*---------------------------------------------------
-     * WORK IN PROGRESS, UNINTERESTING AND DIRECTION KEYS
-     *--------------------------------------------------*/
-
-    private static volatile Collection<String> workinprogress;
-    private static volatile Collection<String> uninteresting;
-    private static volatile Collection<String> discardable;
-
-    /**
-     * Returns a list of "uninteresting" keys that do not make an object
-     * "tagged".  Entries that end with ':' are causing a whole namespace to be considered
-     * "uninteresting".  Only the first level namespace is considered.
-     * Initialized by isUninterestingKey()
-     * @return The list of uninteresting keys.
-     */
-    public static Collection<String> getUninterestingKeys() {
-        if (uninteresting == null) {
-            List<String> l = new LinkedList<>(Arrays.asList(
-                "source", "source_ref", "source:", "comment",
-                "watch", "watch:", "description", "attribution"));
-            l.addAll(getDiscardableKeys());
-            l.addAll(getWorkInProgressKeys());
-            uninteresting = new HashSet<>(Config.getPref().getList("tags.uninteresting", l));
-        }
-        return uninteresting;
-    }
-
-    /**
-     * Returns a list of keys which have been deemed uninteresting to the point
-     * that they can be silently removed from data which is being edited.
-     * @return The list of discardable keys.
-     */
-    public static Collection<String> getDiscardableKeys() {
-        if (discardable == null) {
-            discardable = new HashSet<>(Config.getPref().getList("tags.discardable",
-                    Arrays.asList(
-                            "created_by",
-                            "converted_by",
-                            "geobase:datasetName",
-                            "geobase:uuid",
-                            "KSJ2:ADS",
-                            "KSJ2:ARE",
-                            "KSJ2:AdminArea",
-                            "KSJ2:COP_label",
-                            "KSJ2:DFD",
-                            "KSJ2:INT",
-                            "KSJ2:INT_label",
-                            "KSJ2:LOC",
-                            "KSJ2:LPN",
-                            "KSJ2:OPC",
-                            "KSJ2:PubFacAdmin",
-                            "KSJ2:RAC",
-                            "KSJ2:RAC_label",
-                            "KSJ2:RIC",
-                            "KSJ2:RIN",
-                            "KSJ2:WSC",
-                            "KSJ2:coordinate",
-                            "KSJ2:curve_id",
-                            "KSJ2:curve_type",
-                            "KSJ2:filename",
-                            "KSJ2:lake_id",
-                            "KSJ2:lat",
-                            "KSJ2:long",
-                            "KSJ2:river_id",
-                            "odbl",
-                            "odbl:note",
-                            "SK53_bulk:load",
-                            "sub_sea:type",
-                            "tiger:source",
-                            "tiger:separated",
-                            "tiger:tlid",
-                            "tiger:upload_uuid",
-                            "yh:LINE_NAME",
-                            "yh:LINE_NUM",
-                            "yh:STRUCTURE",
-                            "yh:TOTYUMONO",
-                            "yh:TYPE",
-                            "yh:WIDTH",
-                            "yh:WIDTH_RANK"
-                        )));
-        }
-        return discardable;
-    }
-
-    /**
-     * Returns a list of "work in progress" keys that do not make an object
-     * "tagged" but "annotated".
-     * @return The list of work in progress keys.
-     * @since 5754
-     */
-    public static Collection<String> getWorkInProgressKeys() {
-        if (workinprogress == null) {
-            workinprogress = new HashSet<>(Config.getPref().getList("tags.workinprogress",
-                    Arrays.asList("note", "fixme", "FIXME")));
-        }
-        return workinprogress;
-    }
-
-    /**
-     * Determines if key is considered "uninteresting".
-     * @param key The key to check
-     * @return true if key is considered "uninteresting".
-     */
-    public static boolean isUninterestingKey(String key) {
-        getUninterestingKeys();
-        if (uninteresting.contains(key))
-            return true;
-        int pos = key.indexOf(':');
-        if (pos > 0)
-            return uninteresting.contains(key.substring(0, pos + 1));
-        return false;
-    }
-
-    /**
-     * Returns {@link #getKeys()} for which {@code key} does not fulfill {@link #isUninterestingKey}.
-     * @return A map of interesting tags
-     */
-    public Map<String, String> getInterestingTags() {
-        Map<String, String> result = new HashMap<>();
-        String[] keys = this.keys;
-        if (keys != null) {
-            for (int i = 0; i < keys.length; i += 2) {
-                if (!isUninterestingKey(keys[i])) {
-                    result.put(keys[i], keys[i + 1]);
-                }
-            }
-        }
-        return result;
-    }
+    /*---------------
+     * DIRECTION KEYS
+     *---------------*/
 
     private static Match compileDirectionKeys(String prefName, String defaultValue) throws AssertionError {
         try {
@@ -944,20 +815,7 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Template
         }
     }
 
-    /**
-     * Find primitives that reference this primitive. Returns only primitives that are included in the same
-     * dataset as this primitive. <br>
-     *
-     * For example following code will add wnew as referer to all nodes of existingWay, but this method will
-     * not return wnew because it's not part of the dataset <br>
-     *
-     * <code>Way wnew = new Way(existingWay)</code>
-     *
-     * @param allowWithoutDataset If true, method will return empty list if primitive is not part of the dataset. If false,
-     * exception will be thrown in this case
-     *
-     * @return a collection of all primitives that reference this primitive.
-     */
+    @Override
     public final List<OsmPrimitive> getReferrers(boolean allowWithoutDataset) {
         // Returns only referrers that are members of the same dataset (primitive can have some fake references, for example
         // when way is cloned
@@ -997,19 +855,29 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Template
      * @since 12809
      */
     public void visitReferrers(OsmPrimitiveVisitor visitor) {
-        if (visitor == null) return;
+        if (visitor != null)
+            doVisitReferrers(o -> o.accept(visitor));
+    }
+
+    @Override
+    public void visitReferrers(PrimitiveVisitor visitor) {
+        if (visitor != null)
+            doVisitReferrers(o -> o.accept(visitor));
+    }
+
+    private void doVisitReferrers(Consumer<OsmPrimitive> visitor) {
         if (this.referrers == null)
             return;
         else if (this.referrers instanceof OsmPrimitive) {
             OsmPrimitive ref = (OsmPrimitive) this.referrers;
             if (ref.dataSet == dataSet) {
-                ref.accept(visitor);
+                visitor.accept(ref);
             }
         } else if (this.referrers instanceof OsmPrimitive[]) {
             OsmPrimitive[] refs = (OsmPrimitive[]) this.referrers;
             for (OsmPrimitive ref: refs) {
                 if (ref.dataSet == dataSet) {
-                    ref.accept(visitor);
+                    visitor.accept(ref);
                 }
             }
         }
@@ -1097,17 +965,6 @@ public abstract class OsmPrimitive extends AbstractPrimitive implements Template
         } finally {
             writeUnlock(locked);
         }
-    }
-
-    /**
-     * Replies true if other isn't null and has the same interesting tags (key/value-pairs) as this.
-     *
-     * @param other the other object primitive
-     * @return true if other isn't null and has the same interesting tags (key/value-pairs) as this.
-     */
-    public boolean hasSameInterestingTags(OsmPrimitive other) {
-        return (keys == null && other.keys == null)
-                || getInterestingTags().equals(other.getInterestingTags());
     }
 
     /**

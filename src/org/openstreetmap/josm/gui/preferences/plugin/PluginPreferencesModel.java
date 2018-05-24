@@ -28,6 +28,7 @@ public class PluginPreferencesModel extends ChangeNotifier {
     // remember the initial list of active plugins
     private final Set<String> currentActivePlugins;
     private final List<PluginInformation> availablePlugins = new ArrayList<>();
+    private PluginInstallation filterStatus;
     private String filterExpression;
     private final List<PluginInformation> displayedPlugins = new ArrayList<>();
     private final Map<PluginInformation, Boolean> selectedPluginsMap = new HashMap<>();
@@ -43,24 +44,40 @@ public class PluginPreferencesModel extends ChangeNotifier {
     }
 
     /**
-     * Filters the list of displayed plugins.
+     * Filters the list of displayed plugins by installation status.
+     * @param status The filter used against installation status
+     * @since 13799
+     */
+    public void filterDisplayedPlugins(PluginInstallation status) {
+        filterStatus = status;
+        doFilter();
+    }
+
+    /**
+     * Filters the list of displayed plugins by text.
      * @param filter The filter used against plugin name, description or version
      */
     public void filterDisplayedPlugins(String filter) {
-        if (filter == null) {
-            displayedPlugins.clear();
-            displayedPlugins.addAll(availablePlugins);
-            this.filterExpression = null;
-            return;
-        }
+        filterExpression = filter;
+        doFilter();
+    }
+
+    private void doFilter() {
         displayedPlugins.clear();
         for (PluginInformation pi: availablePlugins) {
-            if (pi.matches(filter)) {
+            if ((filterStatus == null || matchesInstallationStatus(pi))
+             && (filterExpression == null || pi.matches(filterExpression))) {
                 displayedPlugins.add(pi);
             }
         }
-        filterExpression = filter;
         fireStateChanged();
+    }
+
+    private boolean matchesInstallationStatus(PluginInformation pi) {
+        boolean installed = currentActivePlugins.contains(pi.getName());
+        return PluginInstallation.ALL == filterStatus
+           || (PluginInstallation.INSTALLED == filterStatus && installed)
+           || (PluginInstallation.AVAILABLE == filterStatus && !installed);
     }
 
     /**
@@ -77,6 +94,7 @@ public class PluginPreferencesModel extends ChangeNotifier {
 
     protected final void availablePluginsModified() {
         sort();
+        filterDisplayedPlugins(filterStatus);
         filterDisplayedPlugins(filterExpression);
         Set<String> activePlugins = new HashSet<>();
         activePlugins.addAll(Config.getPref().getList("plugins"));

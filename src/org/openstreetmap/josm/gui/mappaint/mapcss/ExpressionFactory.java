@@ -26,7 +26,6 @@ import java.util.zip.CRC32;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.IPrimitive;
 import org.openstreetmap.josm.data.osm.Node;
-import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.osm.search.SearchCompiler;
 import org.openstreetmap.josm.data.osm.search.SearchCompiler.Match;
@@ -459,7 +458,7 @@ public final class ExpressionFactory {
             if (env.parent == null) {
                 if (env.osm != null) {
                     // we don't have a matched parent, so just search all referrers
-                    for (OsmPrimitive parent : env.osm.getReferrers()) {
+                    for (IPrimitive parent : env.osm.getReferrers()) {
                         String value = parent.get(key);
                         if (value != null) {
                             return value;
@@ -484,7 +483,7 @@ public final class ExpressionFactory {
                 if (env.osm != null) {
                     final Collection<String> tags = new TreeSet<>(AlphanumComparator.getInstance());
                     // we don't have a matched parent, so just search all referrers
-                    for (OsmPrimitive parent : env.osm.getReferrers()) {
+                    for (IPrimitive parent : env.osm.getReferrers()) {
                         String value = parent.get(key);
                         if (value != null) {
                             tags.add(value);
@@ -513,7 +512,7 @@ public final class ExpressionFactory {
          * Parent must be matched by child selector.
          * @param env the environment
          * @return the OSM id of the object's parent, if available, or {@code null}
-         * @see OsmPrimitive#getUniqueId()
+         * @see IPrimitive#getUniqueId()
          */
         public static Long parent_osm_id(final Environment env) { // NO_UCD (unused code)
             return env.parent == null ? null : env.parent.getUniqueId();
@@ -788,7 +787,7 @@ public final class ExpressionFactory {
          * Returns the OSM id of the current object.
          * @param env the environment
          * @return the OSM id of the current object
-         * @see OsmPrimitive#getUniqueId()
+         * @see IPrimitive#getUniqueId()
          */
         public static long osm_id(final Environment env) { // NO_UCD (unused code)
             return env.osm.getUniqueId();

@@ -34,8 +34,8 @@ import org.openstreetmap.josm.spi.preferences.Config
 
 class SyncEditorLayerIndex {
 
-    List<ImageryInfo> josmEntries;
-    JsonArray eliEntries;
+    List<ImageryInfo> josmEntries
+    JsonArray eliEntries
 
     def eliUrls = new HashMap<String, JsonObject>()
     def josmUrls = new HashMap<String, ImageryInfo>()
@@ -56,12 +56,12 @@ class SyncEditorLayerIndex {
      * Main method.
      */
     static main(def args) {
-        Locale.setDefault(Locale.ROOT);
+        Locale.setDefault(Locale.ROOT)
         parse_command_line_arguments(args)
         Main.determinePlatformHook()
         def pref = new Preferences(JosmBaseDirectories.getInstance())
-        pref.init(false)
         Config.setPreferencesInstance(pref)
+        pref.init(false)
         def script = new SyncEditorLayerIndex()
         script.setupProj()
         script.loadSkip()
@@ -71,25 +71,25 @@ class SyncEditorLayerIndex {
             def file = new FileOutputStream(options.josmxml)
             def stream = new OutputStreamWriter(file, "UTF-8")
             script.printentries(script.josmEntries, stream)
-            stream.close();
-            file.close();
+            stream.close()
+            file.close()
         }
         script.loadELIEntries()
         if(options.elixml) {
             def file = new FileOutputStream(options.elixml)
             def stream = new OutputStreamWriter(file, "UTF-8")
             script.printentries(script.eliEntries, stream)
-            stream.close();
-            file.close();
+            stream.close()
+            file.close()
         }
         script.checkInOneButNotTheOther()
         script.checkCommonEntries()
         script.end()
         if(outputStream != null) {
-            outputStream.close();
+            outputStream.close()
         }
         if(outputFile != null) {
-            outputFile.close();
+            outputFile.close()
         }
     }
 
@@ -327,22 +327,25 @@ class SyncEditorLayerIndex {
             def maxlon = -1000
             def shapes = ""
             def sep = "\n            "
-            for(def s: getShapes(e)) {
-                shapes += "            <shape>"
-                def i = 0
-                for(def p: s.getPoints()) {
-                    def lat = p.getLat()
-                    def lon = p.getLon()
-                    if(lat > maxlat) maxlat = lat
-                    if(lon > maxlon) maxlon = lon
-                    if(lat < minlat) minlat = lat
-                    if(lon < minlon) minlon = lon
-                    if(!(i++%3)) {
-                        shapes += sep + "    "
+            try {
+                for(def s: getShapes(e)) {
+                    shapes += "            <shape>"
+                    def i = 0
+                    for(def p: s.getPoints()) {
+                        def lat = p.getLat()
+                        def lon = p.getLon()
+                        if(lat > maxlat) maxlat = lat
+                        if(lon > maxlon) maxlon = lon
+                        if(lat < minlat) minlat = lat
+                        if(lon < minlon) minlon = lon
+                        if(!(i++%3)) {
+                            shapes += sep + "    "
+                        }
+                        shapes += "<point lat='${df.format(lat)}' lon='${df.format(lon)}'/>"
                     }
-                    shapes += "<point lat='${df.format(lat)}' lon='${df.format(lon)}'/>"
+                    shapes += sep + "</shape>\n"
                 }
-                shapes += sep + "</shape>\n"
+            } catch(IllegalArgumentException) {
             }
             if(shapes) {
                 stream.write "        <bounds min-lat='${df.format(minlat)}' min-lon='${df.format(minlon)}' max-lat='${df.format(maxlat)}' max-lon='${df.format(maxlon)}'>\n"
@@ -421,7 +424,7 @@ class SyncEditorLayerIndex {
                             /* replace key for this entry with JOSM URL */
                             eliUrls.remove(e)
                             eliUrls.put(urlj,e)
-                            break;
+                            break
                         }
                     }
                 }
@@ -695,20 +698,26 @@ class SyncEditorLayerIndex {
         for (def url : eliUrls.keySet()) {
             def e = eliUrls.get(url)
             def num = 1
-            def s = getShapes(e)
-            for (def shape : s) {
-                def p = shape.getPoints()
-                if(!p[0].equals(p[p.size()-1]) && !options.nomissingeli) {
-                    myprintln "+++ ELI shape $num unclosed: ${getDescription(e)}"
-                }
-                for (def nump = 1; nump < p.size(); ++nump) {
-                    if (p[nump-1] == p[nump]) {
-                        myprintln "+++ ELI shape $num double point at ${nump-1}: ${getDescription(e)}"
+            def s
+            try {
+                s = getShapes(e)
+                for (def shape : s) {
+                    def p = shape.getPoints()
+                    if(!p[0].equals(p[p.size()-1]) && !options.nomissingeli) {
+                        myprintln "+++ ELI shape $num unclosed: ${getDescription(e)}"
                     }
+                    for (def nump = 1; nump < p.size(); ++nump) {
+                        if (p[nump-1] == p[nump]) {
+                            myprintln "+++ ELI shape $num double point at ${nump-1}: ${getDescription(e)}"
+                        }
+                    }
+                    ++num
                 }
-                ++num
+            } catch(IllegalArgumentException err) {
+                def desc = getDescription(e)
+                myprintln("* Invalid data in ELI geometry for $desc: ${err.getMessage()}") 
             }
-            if (!josmUrls.containsKey(url)) {
+            if (s == null || !josmUrls.containsKey(url)) {
                 continue
             }
             def j = josmUrls.get(url)
@@ -734,7 +743,7 @@ class SyncEditorLayerIndex {
                         for(def nump = 0; nump < ep.size(); ++nump) {
                             def ept = ep[nump]
                             def jpt = jp[nump]
-                            if(Math.abs(ept.getLat()-jpt.getLat()) > 0.000001 || Math.abs(ept.getLon()-jpt.getLon()) > 0.000001) {
+                            if(Math.abs(ept.getLat()-jpt.getLat()) > 0.00001 || Math.abs(ept.getLon()-jpt.getLon()) > 0.00001) {
                                 myprintln "* Different coordinate for point ${nump+1} of shape ${nums+1}: ${getDescription(j)}"
                                 nump = ep.size()
                                 num = s.size()
@@ -820,7 +829,7 @@ class SyncEditorLayerIndex {
               urls += jt
             for(def u : urls) {
                 def m = u =~ /^https?:\/\/([^\/]+?)(:\d+)?\//
-                if(!m)
+                if(!m || u =~ /[ \t]+$/)
                     myprintln "* Strange URL '${u}': ${getDescription(j)}"
                 else {
                     def domain = m[0][1].replaceAll("\\{switch:.*\\}","x")
@@ -890,6 +899,10 @@ class SyncEditorLayerIndex {
                 if(b.getMinLat() != minlat || b.getMinLon() != minlon || b.getMaxLat() != maxlat || b.getMaxLon() != maxlon) {
                     myprintln "* Bounds do not match shape (is ${b.getMinLat()},${b.getMinLon()},${b.getMaxLat()},${b.getMaxLon()}, calculated <bounds min-lat='${minlat}' min-lon='${minlon}' max-lat='${maxlat}' max-lon='${maxlon}'>): ${getDescription(j)}"
                 }
+            }
+            def cat = getCategory(j)
+            if(cat != null && cat != "photo" && cat != "map" && cat != "historicmap" && cat != "osmbasedmap" && cat != "historicphoto" && cat != "other") {
+                myprintln "* Strange category ${cat}: ${getDescription(j)}"
             }
         }
     }
@@ -1001,7 +1014,7 @@ class SyncEditorLayerIndex {
     static Integer getMinZoom(Object e) {
         if (e instanceof ImageryInfo) {
             if("wms".equals(getType(e)) && e.getName() =~ / mirror/)
-                return null;
+                return null
             int mz = e.getMinZoom()
             return mz == 0 ? null : mz
         } else {
@@ -1013,7 +1026,7 @@ class SyncEditorLayerIndex {
     static Integer getMaxZoom(Object e) {
         if (e instanceof ImageryInfo) {
             if("wms".equals(getType(e)) && e.getName() =~ / mirror/)
-                return null;
+                return null
             int mz = e.getMaxZoom()
             return mz == 0 ? null : mz
         } else {
@@ -1054,6 +1067,12 @@ class SyncEditorLayerIndex {
     }
     static String getTermsOfUseUrl(Object e) {
         if (e instanceof ImageryInfo) return e.getTermsOfUseURL()
+        return null
+    }
+    static String getCategory(Object e) {
+        if (e instanceof ImageryInfo) {
+            return e.getImageryCategoryOriginalString()
+        }
         return null
     }
     static String getLogoImage(Object e) {

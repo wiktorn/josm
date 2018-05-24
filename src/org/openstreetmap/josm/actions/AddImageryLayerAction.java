@@ -24,6 +24,7 @@ import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.imagery.DefaultLayer;
 import org.openstreetmap.josm.data.imagery.ImageryInfo;
 import org.openstreetmap.josm.data.imagery.ImageryInfo.ImageryType;
+import org.openstreetmap.josm.data.imagery.LayerDetails;
 import org.openstreetmap.josm.data.imagery.WMTSTileSource;
 import org.openstreetmap.josm.data.imagery.WMTSTileSource.WMTSGetCapabilitiesException;
 import org.openstreetmap.josm.gui.ExtendedDialog;
@@ -190,7 +191,7 @@ public class AddImageryLayerAction extends JosmAction implements AdaptableAction
             formats.setToolTipText(tr("Select image format for WMS layer"));
 
             if (!GraphicsEnvironment.isHeadless()) {
-                if (1 != new ExtendedDialog(Main.parent, tr("Select WMS layers"), new String[]{tr("Add layers"), tr("Cancel")}) { {
+                if (1 != new ExtendedDialog(Main.parent, tr("Select WMS layers"), tr("Add layers"), tr("Cancel")) { {
                     final JScrollPane scrollPane = new JScrollPane(tree.getLayerTree());
                     scrollPane.setPreferredSize(new Dimension(400, 400));
                     final JPanel panel = new JPanel(new GridBagLayout());
@@ -203,14 +204,14 @@ public class AddImageryLayerAction extends JosmAction implements AdaptableAction
             }
 
             final String url = wms.buildGetMapUrl(
-                    tree.getSelectedLayers().stream().map(x -> x.getName()).collect(Collectors.toList()),
+                    tree.getSelectedLayers().stream().map(LayerDetails::getName).collect(Collectors.toList()),
                     (List<String>) null,
                     (String) formats.getSelectedItem(),
-                    true // TODO: ask the user if (s)he wants transparent layer
+                    true // TODO: ask the user if transparent layer is wanted
                     );
 
             String selectedLayers = tree.getSelectedLayers().stream()
-                    .map(x -> x.getName())
+                    .map(LayerDetails::getName)
                     .collect(Collectors.joining(", "));
             ImageryInfo ret = new ImageryInfo(info.getName() + selectedLayers,
                     url,

@@ -21,6 +21,7 @@ import javax.swing.JScrollPane;
 import org.openstreetmap.josm.data.imagery.DefaultLayer;
 import org.openstreetmap.josm.data.imagery.ImageryInfo;
 import org.openstreetmap.josm.data.imagery.ImageryInfo.ImageryType;
+import org.openstreetmap.josm.data.imagery.LayerDetails;
 import org.openstreetmap.josm.gui.bbox.SlippyMapBBoxChooser;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.JosmTextArea;
@@ -54,20 +55,20 @@ public class AddWMSLayerPanel extends AddImageryPanel {
         add(rawUrl, GBC.eol().fill(GBC.HORIZONTAL));
         rawUrl.setLineWrap(true);
         JButton getLayers = new JButton(tr("{0} Get layers", "3."));
-        add(getLayers, GBC.eop().fill());
+        add(getLayers, GBC.eop().fill(GBC.HORIZONTAL));
 
         add(new JLabel(tr("{0} Select layers", "4.")), GBC.eol());
 
         add(endpoint, GBC.eol());
         setDefaultLayers.setEnabled(false);
         add(setDefaultLayers, GBC.eol());
-        add(new JScrollPane(tree.getLayerTree()), GBC.eol().fill().weight(1, 100));
+        add(new JScrollPane(tree.getLayerTree()), GBC.eol().fill());
 
         showBounds.setEnabled(false);
-        add(showBounds, GBC.eop().fill());
+        add(showBounds, GBC.eop().fill(GBC.HORIZONTAL));
 
         add(new JLabel(tr("{0} Select image format", "5.")), GBC.eol());
-        add(formats, GBC.eol().fill());
+        add(formats, GBC.eol().fill(GBC.HORIZONTAL));
 
         addCommonSettings();
 
@@ -153,7 +154,7 @@ public class AddWMSLayerPanel extends AddImageryPanel {
     protected final void onLayerSelectionChanged() {
         if (wms != null && wms.buildRootUrl() != null) {
             wmsUrl.setText(wms.buildGetMapUrl(
-                    tree.getSelectedLayers().stream().map(x -> x.getName()).collect(Collectors.toList()),
+                    tree.getSelectedLayers().stream().map(LayerDetails::getName).collect(Collectors.toList()),
                     (List<String>) null,
                     (String) formats.getSelectedItem(),
                     true // TODO: ask user about transparency

@@ -262,13 +262,22 @@
         <text key="taxon" text="Taxon" />
     </chunk>
     <chunk id="leaf">
-        <combo key="leaf_type" text="Type" values="broadleaved,needleleaved,mixed,leafless" values_searchable="true" />
-        <combo key="leaf_cycle" text="Cycle" values_searchable="true" >
+        <combo key="leaf_type" text="Leaf type" values="broadleaved,needleleaved,mixed,leafless" values_searchable="true" />
+        <combo key="leaf_cycle" text="Leaf cycle" values_searchable="true" >
             <list_entry value="deciduous" short_description="Plants that are leafless for a certain period during the year." />
             <list_entry value="evergreen" short_description="Plants that are never entirely without green foliage." />
             <list_entry value="semi_deciduous" short_description="Plants that lose their foliage for a very short period, when old leaves fall off and new foliage growth is starting." />
             <list_entry value="semi_evergreen" short_description="Plants that lose most, but not all, of their foliage for a fraction of the year." />
             <list_entry value="mixed" short_description="Habitat with evergreen and deciduous vegetation." />
+        </combo>
+    </chunk>
+    <chunk id="leaf_without_mixed">
+        <combo key="leaf_type" text="Leaf type" values="broadleaved,needleleaved,leafless" values_searchable="true" />
+        <combo key="leaf_cycle" text="Leaf cycle" values_searchable="true" >
+            <list_entry value="deciduous" short_description="Plants that are leafless for a certain period during the year." />
+            <list_entry value="evergreen" short_description="Plants that are never entirely without green foliage." />
+            <list_entry value="semi_deciduous" short_description="Plants that lose their foliage for a very short period, when old leaves fall off and new foliage growth is starting." />
+            <list_entry value="semi_evergreen" short_description="Plants that lose most, but not all, of their foliage for a fraction of the year." />
         </combo>
     </chunk>
     <chunk id="religious">
@@ -284,6 +293,12 @@
     </chunk>
     <chunk id="voltage_frequency">
         <reference ref="voltage" />
+        <reference ref="frequency" />
+    </chunk>
+    <chunk id="transformer_voltage_frequency">
+        <combo key="voltage:primary" text="Primary voltage in Volts (V)" values="765000,750000,735000,500000,450000,420000,400000,380000,350000,345000,330000,315000,300000,275000,238000,230000,225000,220000,200000,161000,154000,150000,138000,132000,120000,115000,110000,100000,90000,69000,66000,65000,63000,60000,55000,49000,45000,35000,33000,30000,20000,15000" />
+        <combo key="voltage:secondary" text="Secondary voltage in Volts (V)" values="765000,750000,735000,500000,450000,420000,400000,380000,350000,345000,330000,315000,300000,275000,238000,230000,225000,220000,200000,161000,154000,150000,138000,132000,120000,115000,110000,100000,90000,69000,66000,65000,63000,60000,55000,49000,45000,35000,33000,30000,20000,15000" />
+        <combo key="voltage:tertiary" text="Tertiary voltage in Volts (V)" values="765000,750000,735000,500000,450000,420000,400000,380000,350000,345000,330000,315000,300000,275000,238000,230000,225000,220000,200000,161000,154000,150000,138000,132000,120000,115000,110000,100000,90000,69000,66000,65000,63000,60000,55000,49000,45000,35000,33000,30000,20000,15000" />
         <reference ref="frequency" />
     </chunk>
     <chunk id="ref_operator_branch">
@@ -348,10 +363,21 @@
         <check key="location:transition" text="Location transition" disable_off="true" />
         <reference ref="ref_operator_branch" />
     </chunk>
+    <chunk id="rating_phases">
+        <combo key="rating" text="Power rating (kVA/MVA)" values="2700 kVA,12500 kVA,15 MVA,50 MVA,100 MVA" />
+        <combo key="phases" text="Phases" values="1,3" length="1" />
+    </chunk>
     <chunk id="optional_rating_phases">
         <optional>
-            <combo key="rating" text="Power rating (kVA/MVA)" values="2700 kVA,12500 kVA,15 MVA,50 MVA,100 MVA" />
-            <combo key="phases" text="Phases" values="1,3" length="1" />
+            <reference ref="rating_phases" />
+        </optional>
+    </chunk>
+    <chunk id="optional_transformer_rating_phases_devices_windings">
+        <optional>
+            <reference ref="rating_phases" />
+            <combo key="devices" text="Number of devices" values="1,2,3,4" />
+            <combo key="windings" text="Number of windings" values="1,2,3,4" />
+            <combo key="windings:configuration" text="Windings configuration" values="star,delta,open-delta,zigzag,open,scott,leblanc" values_context="power" />
         </optional>
     </chunk>
     <chunk id="optional_bridge">
@@ -1808,11 +1834,12 @@
                   pl.href="https://wiki.openstreetmap.org/wiki/Pl:Tag:barrier=hedge"
                   pt.href="https://wiki.openstreetmap.org/wiki/Pt:Tag:barrier=hedge"
                   ru.href="https://wiki.openstreetmap.org/wiki/RU:Tag:barrier=hedge" />
+            <space />
             <key key="barrier" value="hedge" />
+            <reference ref="leaf" />
             <optional>
-                <text key="height" text="Height (meters)" length="7" />
                 <reference ref="genus_species_taxon" />
-                <reference ref="leaf" />
+                <text key="height" text="Height (meters)" length="7" />
             </optional>
         </item> <!-- Hedge -->
         <item name="Fence" icon="presets/barrier/fence.svg" type="way,closedway" preset_name_label="true">
@@ -4115,7 +4142,7 @@
             <combo key="drinking_water" text="Drinking Water" values="yes,no,seasonal" />
             <combo key="reservation" text="Reservation" values="yes,no,required,recommended,members_only" />
             <text key="ele" text="Elevation" />
-            <text key="description" text="Closer Description" />
+            <text key="description" text="Closer description" />
             <space />
             <reference ref="link_contact_address_payment" />
             <preset_link preset_name="Building" />
@@ -4429,7 +4456,7 @@
             <text key="name" text="Name" />
             <combo key="map_type" text="Detail Grade" values="topo,street,scheme,toposcope" />
             <combo key="map_size" text="Shown Area" values="site,city,region" />
-            <text key="description" text="Closer Description" />
+            <text key="description" text="Closer description" />
             <optional text="Routes shown for:">
                 <check key="hiking" text="Hiking" />
                 <check key="bicycle" text="Cycling" />
@@ -4453,7 +4480,7 @@
             <key key="information" value="board" />
             <text key="name" text="Name" />
             <combo key="board_type" text="Board Content" values="notice,history,nature,wildlife,plants,geology" />
-            <text key="description" text="Closer Description" />
+            <text key="description" text="Closer description" />
         </item> <!-- Information Board -->
         <item name="Guidepost" icon="presets/misc/information/guidepost.svg" type="node" preset_name_label="true">
             <link href="https://wiki.openstreetmap.org/wiki/Tag:information=guidepost"
@@ -4517,6 +4544,7 @@
             <space />
             <label text="Audioguide via mobile phone?" />
             <text key="phone" text="Phone number" />
+            <label text="Use E.123 format, e.g. +49 11223 456 7890" />
         </item> <!-- Audio Guide -->
         <item name="Other Information Point" icon="presets/misc/information/information.svg" type="node,closedway" preset_name_label="true">
             <link href="https://wiki.openstreetmap.org/wiki/Tag:tourism=information"
@@ -4530,7 +4558,7 @@
             <space />
             <key key="tourism" value="information" />
             <text key="name" text="Name" />
-            <text key="description" text="Closer Description" />
+            <text key="description" text="Closer description" />
         </item> <!-- Other Information Point -->
     </group> <!-- Tourism -->
     <group name="Leisure" icon="presets/leisure/theme_park.svg">
@@ -4635,6 +4663,19 @@
             <space />
             <reference ref="link_contact_address_payment" />
         </item> <!-- Water Park -->
+        <item name="Resort" icon="presets/leisure/resort.svg" type="node,closedway,multipolygon" preset_name_label="true">
+            <link href="https://wiki.openstreetmap.org/wiki/Tag:leisure=resort"
+                  cs.href="https://wiki.openstreetmap.org/wiki/Cs:Tag:leisure=resort"
+                  de.href="https://wiki.openstreetmap.org/wiki/DE:Tag:leisure=resort"
+                  pl.href="https://wiki.openstreetmap.org/wiki/Pl:Tag:leisure=resort"
+                  ru.href="https://wiki.openstreetmap.org/wiki/RU:Tag:leisure=resort" />
+            <space />
+            <key key="leisure" value="resort" />
+            <reference ref="name_operator_oh_wheelchair" />
+            <reference ref="fee_interval" />
+            <space />
+            <reference ref="link_contact_address_payment" />
+        </item> <!-- Resort -->
         <item name="Beach Resort" icon="presets/leisure/beach_resort.svg" type="node,closedway,multipolygon" preset_name_label="true">
             <link href="https://wiki.openstreetmap.org/wiki/Tag:leisure=beach_resort"
                   cs.href="https://wiki.openstreetmap.org/wiki/Cs:Tag:leisure=beach_resort"
@@ -5538,6 +5579,7 @@
             <text key="operator" text="Operator" />
             <text key="defibrillator:location" text="Location description" />
             <text key="phone" text="Phone number" />
+            <label text="Use E.123 format, e.g. +49 11223 456 7890" />
             <combo key="access" text="Access" values="yes,private,customers,permissive,no" />
             <check key="indoor" text="Located inside a building?" />
             <!-- lastcheck is in use for aed devices, but not yet well discussed or documented
@@ -5644,7 +5686,7 @@
             <combo key="siren:type" text="Type" values="pneumatic,electronic,mechanical" />
             <combo key="siren:purpose" text="Purpose" values="tornado,fire,air_raid,civil_defense" />
             <text key="siren:range" text="Range (in meters)" />
-        </item> <!-- Emergency Phone -->
+        </item> <!-- Siren -->
     </group> <!-- Emergency -->
     <group name="Social Facility" icon="presets/social_facility/outreach.svg">
         <item name="Nursing Home" icon="presets/social_facility/nursing_home.svg" type="node,closedway,multipolygon" preset_name_label="true">
@@ -7245,7 +7287,10 @@
                   zh_TW.href="https://wiki.openstreetmap.org/wiki/Zh-hant:Tag:amenity=fountain" />
             <space />
             <key key="amenity" value="fountain" />
-            <text key="name" text="Name" />
+            <optional>
+                <text key="name" text="Name" />
+                <check key="drinking_water" text="Drinking Water" />
+            </optional>
         </item> <!-- Fountain -->
         <item name="Water Well" icon="presets/landmark/water_well.svg" type="node,closedway" preset_name_label="true">
             <link href="https://wiki.openstreetmap.org/wiki/Tag:man_made=water_well"
@@ -7703,9 +7748,11 @@
                   ru.href="https://wiki.openstreetmap.org/wiki/RU:Tag:power=transformer" />
             <space />
             <key key="power" value="transformer" />
-            <combo key="transformer" text="Type of transformer" values="distribution,generator,converter,traction,auto,phase_angle_regulator,yes" match="key" values_context="power" />
-            <reference ref="power_extra" />
-            <reference ref="optional_rating_phases" />
+            <combo key="transformer" text="Type of transformer" values="distribution,generator,converter,traction,auto,phase_angle_regulator,auxiliary,yes" match="key" values_context="power" />
+            <reference ref="power_loc" />
+            <reference ref="transformer_voltage_frequency" />
+            <reference ref="ref_operator_branch" />
+            <reference ref="optional_transformer_rating_phases_devices_windings" />
         </item> <!-- Power Transformer -->
         <item name="Power Switchgear" icon="presets/power/switchgear.svg" type="closedway" preset_name_label="true">
             <link href="https://wiki.openstreetmap.org/wiki/Tag:power=switchgear"
@@ -7893,8 +7940,8 @@
             <space />
             <label text="Transformer Attributes:" />
             <key key="transformer" value="distribution" match="key!" />
-            <reference ref="voltage_frequency" />
-            <reference ref="optional_rating_phases" />
+            <reference ref="transformer_voltage_frequency" />
+            <reference ref="optional_transformer_rating_phases_devices_windings" />
         </item> <!-- Pole with Transformer -->
         <item name="Insulator" icon="presets/power/insulator.svg" type="node,way" preset_name_label="true">
             <link href="https://wiki.openstreetmap.org/wiki/Tag:power=insulator"
@@ -9397,6 +9444,7 @@
             <check key="payment:girocard" text="Girocard" match="keyvalue" />
             <check key="payment:laser" text="Laser" match="keyvalue" />
             <check key="payment:maestro" text="Maestro" match="keyvalue" />
+            <check key="payment:postfinance_card" text="PostFinance Card (ch)" match="keyvalue" />
             <check key="payment:visa_debit" text="Visa Debit" match="keyvalue" />
             <check key="payment:visa_electron" text="Visa Electron" match="keyvalue" />
         </checkgroup>
@@ -9414,8 +9462,6 @@
         <combo key="payment:electronic_purses" text="Electronic purses and Charge cards" values="no" match="keyvalue" />
         <checkgroup columns="4">
             <check key="payment:ep_avant" text="Avant (fi)" match="keyvalue" />
-            <check key="payment:ep_cash" text="Cash (ch)" match="keyvalue" />
-            <check key="payment:ep_chipknip" text="Chipknip (nl)" match="keyvalue" />
             <check key="payment:ep_geldkarte" text="Geldkarte (de)" match="keyvalue" />
             <check key="payment:ep_mep" text="Mep (pt)" match="keyvalue" />
             <check key="payment:ep_minicash" text="Minicash (lu)" match="keyvalue" />
@@ -9423,8 +9469,6 @@
             <check key="payment:ep_monedero" text="Mondero (ar)" match="keyvalue" />
             <check key="payment:ep_monedero4b" text="Mondero 4b (es)" match="keyvalue" />
             <check key="payment:ep_moneo" text="Moneo (fr)" match="keyvalue" />
-            <check key="payment:ep_proton" text="Proton (be)" match="keyvalue" />
-            <check key="payment:ep_quick" text="Quick (au)" match="keyvalue" />
         </checkgroup>
         <space />
         <combo key="payment:cryptocurrencies" text="Cryptocurrencies" values="no" match="keyvalue" />
@@ -10499,11 +10543,7 @@
             <label text="A single tree." />
             <space />
             <key key="natural" value="tree" />
-            <text key="name" text="Name" />
-            <text key="height" text="Height (meters)" />
-            <text key="circumference" text="Circumference (meters)" />
-            <reference ref="genus_species_taxon" />
-            <reference ref="leaf" />
+            <reference ref="leaf_without_mixed" />
             <combo key="denotation" text="Denotation" values_searchable="true" values_context="tree denotation" >
                 <list_entry value="landmark" short_description="Trees remarkable due to its size or prominent location, usually visible from great distances and useful for navigation." />
                 <list_entry value="natural_monument" short_description="Especially old tree, often with a particular shape. Usually protected for its uniqueness." />
@@ -10511,6 +10551,16 @@
                 <list_entry value="urban" short_description="Trees found within settlements, e.g. in parks or spread through residential areas." />
                 <list_entry value="agricultural" short_description="Trees in agricultural use." />
             </combo>
+            <optional>
+                <reference ref="genus_species_taxon" />
+                <space />
+                <text key="height" text="Height (meters)" />
+                <text key="diameter_crown" text="Diameter crown (meters)" />
+                <text key="circumference" text="Circumference (meters)" />
+                <space />
+                <text key="name" text="Name" />
+                <text key="start_date" text="Start date" />
+            </optional>
         </item> <!-- Tree -->
         <item name="Tree Row" icon="presets/landmark/tree_row.svg" type="way" preset_name_label="true">
             <link href="https://wiki.openstreetmap.org/wiki/Tag:natural=tree_row"
@@ -10526,10 +10576,10 @@
             <label text="A line of trees." />
             <space />
             <key key="natural" value="tree_row" />
-            <text key="height" text="Height (meters)" />
+            <reference ref="leaf" />
             <optional>
                 <reference ref="genus_species_taxon" />
-                <reference ref="leaf" />
+                <text key="height" text="Height (meters)" />
             </optional>
         </item> <!-- Tree Row -->
         <item name="Wood" icon="presets/landmark/forest.svg" type="closedway,multipolygon" preset_name_label="true">
@@ -10843,10 +10893,11 @@
                   ja.href="https://wiki.openstreetmap.org/wiki/JA:Tag:landuse=plant_nursery"
                   pl.href="https://wiki.openstreetmap.org/wiki/Pl:Tag:landuse=plant_nursery"
                   ru.href="https://wiki.openstreetmap.org/wiki/RU:Tag:landuse=plant_nursery" />
-            <space />
             <key key="landuse" value="plant_nursery" />
-            <reference ref="genus_species_taxon" />
             <reference ref="optional_name_operator" />
+            <space />
+            <reference ref="leaf" />
+            <reference ref="genus_species_taxon" />
         </item> <!-- Plant Nursery -->
         <item name="Salt Pond" icon="presets/landuse/salt_pond.svg" type="closedway,multipolygon" preset_name_label="true">
             <link href="https://wiki.openstreetmap.org/wiki/Tag:landuse=salt_pond"
@@ -11280,6 +11331,7 @@
             <space />
             <text key="phone" text="Phone number" match="key" />
             <text key="fax" text="Fax Number" match="key" />
+            <label text="Use E.123 format, e.g. +49 11223 456 7890" />
             <space />
             <text key="wikipedia" text="Wikipedia" />
             <text key="image" text="Image" />
@@ -11300,6 +11352,7 @@
             <space />
             <text key="contact:phone" text="Phone number" match="key" />
             <text key="contact:fax" text="Fax Number" match="key" />
+            <label text="Use E.123 format, e.g. +49 11223 456 7890" />
             <space />
             <text key="wikipedia" text="Wikipedia" />
             <text key="image" text="Image" />

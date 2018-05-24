@@ -3,6 +3,7 @@ package org.openstreetmap.josm.data.osm;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import org.openstreetmap.josm.data.osm.visitor.PrimitiveVisitor;
 import org.openstreetmap.josm.tools.LanguageInfo;
@@ -307,6 +308,14 @@ public interface IPrimitive extends Tagged, PrimitiveId, Stylable, Comparable<IP
     void accept(PrimitiveVisitor visitor);
 
     /**
+     * <p>Visits {@code visitor} for all referrers.</p>
+     *
+     * @param visitor the visitor. Ignored, if null.
+     * @since 13806
+     */
+    void visitReferrers(PrimitiveVisitor visitor);
+
+    /**
      * Replies the name of this primitive. The default implementation replies the value
      * of the tag <code>name</code> or null, if this tag is not present.
      *
@@ -407,5 +416,47 @@ public interface IPrimitive extends Tagged, PrimitiveId, Stylable, Comparable<IP
      * @return The referrers
      * @since 13764
      */
-    List<? extends IPrimitive> getReferrers();
+    default List<? extends IPrimitive> getReferrers() {
+        return getReferrers(false);
+    }
+
+    /**
+     * Find primitives that reference this primitive. Returns only primitives that are included in the same
+     * dataset as this primitive. <br>
+     *
+     * For example following code will add wnew as referer to all nodes of existingWay, but this method will
+     * not return wnew because it's not part of the dataset <br>
+     *
+     * <code>Way wnew = new Way(existingWay)</code>
+     *
+     * @param allowWithoutDataset If true, method will return empty list if primitive is not part of the dataset. If false,
+     * exception will be thrown in this case
+     *
+     * @return a collection of all primitives that reference this primitive.
+     * @since 13808
+     */
+    List<? extends IPrimitive> getReferrers(boolean allowWithoutDataset);
+
+    /**
+     * Returns the parent data set of this primitive.
+     * @return OsmData this primitive is part of.
+     * @since 13807
+     */
+    OsmData<?, ?, ?, ?> getDataSet();
+
+    /**
+     * Returns {@link #getKeys()} for which {@code key} does not fulfill uninteresting criteria.
+     * @return A map of interesting tags
+     * @since 13809
+     */
+    Map<String, String> getInterestingTags();
+
+    /**
+     * Replies true if other isn't null and has the same interesting tags (key/value-pairs) as this.
+     *
+     * @param other the other object primitive
+     * @return true if other isn't null and has the same interesting tags (key/value-pairs) as this.
+     * @since 13809
+     */
+    boolean hasSameInterestingTags(IPrimitive other);
 }

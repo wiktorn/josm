@@ -656,16 +656,18 @@ public class BZip2CompressorInputStream extends CompressorInputStream
                 final byte ch = seqToUnseq[yy0];
                 unzftab[ch & 0xff] += s + 1;
 
-                while (s-- >= 0) {
-                    ll8[++lastShadow] = ch;
-                }
+                final int from = ++lastShadow;
+                lastShadow += s;
+                Arrays.fill(ll8, from, lastShadow + 1, ch);
 
                 if (lastShadow >= limitLast) {
-                    throw new IOException("block overrun");
+                    throw new IOException("block overrun while expanding RLE in MTF, "
+                        + lastShadow + " exceeds " + limitLast);
                 }
             } else {
                 if (++lastShadow >= limitLast) {
-                    throw new IOException("block overrun");
+                    throw new IOException("block overrun in MTF, "
+                        + lastShadow + " exceeds " + limitLast);
                 }
                 checkBounds(nextSym, 256 + 1, "nextSym");
 

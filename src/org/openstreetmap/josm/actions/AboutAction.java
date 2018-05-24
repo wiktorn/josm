@@ -5,9 +5,12 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.GridBagLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,7 +34,9 @@ import org.openstreetmap.josm.gui.widgets.UrlLabel;
 import org.openstreetmap.josm.plugins.PluginHandler;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.ImageProvider.ImageSizes;
 import org.openstreetmap.josm.tools.Logging;
+import org.openstreetmap.josm.tools.OpenBrowser;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -92,9 +97,20 @@ public final class AboutAction extends JosmAction {
                 "<p>" + tr("Java Version {0}", Utils.getSystemProperty("java.version")) + "</p>" +
                 "<p style='font-size:50%'></p>" +
                 "</html>");
-        info.add(label, GBC.eol().fill(GBC.HORIZONTAL).insets(10, 0, 0, 0));
+        info.add(label, GBC.eol().fill(GBC.HORIZONTAL).insets(10, 0, 0, 10));
         info.add(new JLabel(tr("Homepage")), GBC.std().insets(10, 0, 10, 0));
-        info.add(new UrlLabel(Main.getJOSMWebsite(), 2), GBC.eol().fill(GBC.HORIZONTAL));
+        info.add(new UrlLabel(Main.getJOSMWebsite(), 2), GBC.eol());
+        info.add(new JLabel(tr("Translations")), GBC.std().insets(10, 0, 10, 0));
+        info.add(new UrlLabel("https://translations.launchpad.net/josm", 2), GBC.eol());
+        info.add(new JLabel(tr("Follow us on")), GBC.std().insets(10, 10, 10, 0));
+        JPanel logos = new JPanel(new FlowLayout());
+        logos.add(createImageLink("OpenStreetMap", /* ICON(dialogs/about/) */ "openstreetmap",
+                "https://www.openstreetmap.org/user/josmeditor/diary"));
+        logos.add(createImageLink("Twitter", /* ICON(dialogs/about/) */ "twitter", "https://twitter.com/josmeditor"));
+        logos.add(createImageLink("Facebook", /* ICON(dialogs/about/) */ "facebook", "https://www.facebook.com/josmeditor"));
+        logos.add(createImageLink("Google+", /* ICON(dialogs/about/) */ "google-plus", "https://plus.google.com/115458051662705872607"));
+        logos.add(createImageLink("Github", /* ICON(dialogs/about/) */ "github", "https://github.com/JOSM"));
+        info.add(logos, GBC.eol().insets(0, 10, 0, 0));
         info.add(GBC.glue(0, 5), GBC.eol());
 
         about.addTab(tr("Info"), info);
@@ -103,6 +119,12 @@ public final class AboutAction extends JosmAction {
         about.addTab(tr("Contribution"), createScrollPane(contribution));
         about.addTab(tr("License"), createScrollPane(license));
         about.addTab(tr("Plugins"), new JScrollPane(PluginHandler.getInfoPanel()));
+
+        // Get the list of Launchpad contributors using customary msgid “translator-credits”
+        String translators = tr("translator-credits");
+        if (translators != null && !translators.isEmpty() && !"translator-credits".equals(translators)) {
+            about.addTab(tr("Translators"), createScrollPane(new JosmTextArea(translators)));
+        }
 
         // Intermediate panel to allow proper optionPane resizing
         JPanel panel = new JPanel(new GridBagLayout());
@@ -119,6 +141,18 @@ public final class AboutAction extends JosmAction {
         if (2 == ret) {
             MainApplication.getMenu().reportbug.actionPerformed(null);
         }
+    }
+
+    private static JLabel createImageLink(String tooltip, String icon, final String link) {
+        JLabel label = new JLabel(ImageProvider.get("dialogs/about", icon, ImageSizes.LARGEICON));
+        label.setToolTipText(tooltip);
+        label.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                OpenBrowser.displayUrl(link);
+            }
+        });
+        return label;
     }
 
     /**
