@@ -23,6 +23,7 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
@@ -35,6 +36,7 @@ import java.security.PrivilegedAction;
 import java.text.Bidi;
 import java.text.DateFormat;
 import java.text.MessageFormat;
+import java.text.Normalizer;
 import java.text.ParseException;
 import java.util.AbstractCollection;
 import java.util.AbstractList;
@@ -96,6 +98,8 @@ public final class Utils {
      * A list of all characters allowed in URLs
      */
     public static final String URL_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~:/?#[]@!$&'()*+,;=%";
+
+    private static final Pattern REMOVE_DIACRITICS = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
 
     private static final char[] DEFAULT_STRIP = {'\u200B', '\uFEFF'};
 
@@ -388,6 +392,7 @@ public final class Utils {
      * @return the path to the target file
      * @throws IOException if any I/O error occurs
      * @throws IllegalArgumentException if {@code in} or {@code out} is {@code null}
+     * @throws InvalidPathException if a Path object cannot be constructed from the abstract path
      * @since 7003
      */
     public static Path copyFile(File in, File out) throws IOException {
@@ -1558,6 +1563,17 @@ public final class Utils {
             gvs.add(font.layoutGlyphVector(frc, chars, 0, chars.length, dirStrings[i].direction));
         }
         return gvs;
+    }
+
+    /**
+     * Removes diacritics (accents) from string.
+     * @param str string
+     * @return {@code str} without any diacritic (accent)
+     * @since 13836 (moved from SimilarNamedWays)
+     */
+    public static String deAccent(String str) {
+        // https://stackoverflow.com/a/1215117/2257172
+        return REMOVE_DIACRITICS.matcher(Normalizer.normalize(str, Normalizer.Form.NFD)).replaceAll("");
     }
 
     /**

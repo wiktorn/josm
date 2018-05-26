@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -176,7 +176,7 @@ public class WMSImagery {
             try {
                 capabilitiesUrl = new URL(workingAddress);
             } catch (MalformedURLException e) {
-                if (savedExc != null) {
+                if (savedExc == null) {
                     savedExc = e;
                 }
                 try {
@@ -465,15 +465,10 @@ public class WMSImagery {
                     parseAndAddStyle(reader, ret);
                 }
                 if (tagEquals(QN_LAYER, reader.getName())) {
-
                     parseLayer(reader, ret);
                 }
-                if (tagEquals(QN_EX_GEOGRAPHIC_BBOX, reader.getName())) {
-                    if (ret.getBounds() == null) {
-                        Bounds bbox = parseExGeographic(reader);
-                        ret.setBounds(bbox);
-                    }
-
+                if (tagEquals(QN_EX_GEOGRAPHIC_BBOX, reader.getName()) && ret.getBounds() == null) {
+                    ret.setBounds(parseExGeographic(reader));
                 }
                 if (tagEquals(QN_BOUNDINGBOX, reader.getName())) {
                     Projection conv;
@@ -483,15 +478,11 @@ public class WMSImagery {
                         conv = Projections.getProjectionByCode(reader.getAttributeValue(WMS_NS_URL, "CRS"));
                     }
                     if (ret.getBounds() == null && conv != null) {
-                        Bounds bbox = parseBoundingBox(reader, conv);
-                        ret.setBounds(bbox);
+                        ret.setBounds(parseBoundingBox(reader, conv));
                     }
                 }
-                if (tagEquals(QN_LATLONBOUNDINGBOX, reader.getName()) && belowWMS130()) {
-                    if (ret.getBounds() == null) {
-                        Bounds bbox = parseBoundingBox(reader, null);
-                        ret.setBounds(bbox);
-                    }
+                if (tagEquals(QN_LATLONBOUNDINGBOX, reader.getName()) && belowWMS130() && ret.getBounds() == null) {
+                    ret.setBounds(parseBoundingBox(reader, null));
                 }
             }
         }
@@ -554,7 +545,7 @@ public class WMSImagery {
     }
 
     private Bounds parseBoundingBox(XMLStreamReader reader, Projection conv) {
-        Function<String, String> attrGetter = tag -> belowWMS130() ?
+        UnaryOperator<String> attrGetter = tag -> belowWMS130() ?
                 reader.getAttributeValue(null, tag)
                 : reader.getAttributeValue(WMS_NS_URL, tag);
 
@@ -597,7 +588,6 @@ public class WMSImagery {
         if (!Pattern.compile(".*GetCapabilities.*", Pattern.CASE_INSENSITIVE).matcher(serviceUrlStr).matches()) {
             // If the url doesn't already have GetCapabilities, add it in
             getCapabilitiesUrl = new URL(serviceUrlStr);
-            ret = serviceUrlStr;
             if (getCapabilitiesUrl.getQuery() == null) {
                 ret = serviceUrlStr + '?' + CAPABILITIES_QUERY_STRING;
             } else if (!getCapabilitiesUrl.getQuery().isEmpty() && !getCapabilitiesUrl.getQuery().endsWith("&")) {
