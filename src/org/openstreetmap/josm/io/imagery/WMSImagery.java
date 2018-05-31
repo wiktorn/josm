@@ -431,7 +431,16 @@ public class WMSImagery {
                         }
                         // TODO should we handle also POST?
                         if ("GET".equalsIgnoreCase(mode) && getMapUrl != null && !"".equals(getMapUrl)) {
-                            this.getMapUrl = getMapUrl;
+                            try {
+                                String query = (new URL(getMapUrl)).getQuery();
+                                if (query == null || query.isEmpty()) {
+                                    this.getMapUrl = getMapUrl + "?";
+                                } else {
+                                    this.getMapUrl = getMapUrl;
+                                }
+                            } catch (MalformedURLException e) {
+                                throw new XMLStreamException(e);
+                            }
                         }
                     }
                 }
