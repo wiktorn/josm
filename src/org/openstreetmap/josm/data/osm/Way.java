@@ -39,13 +39,7 @@ public final class Way extends OsmPrimitive implements IWay<Node> {
         return new CopyList<>(nodes);
     }
 
-    /**
-     * Set new list of nodes to way. This method is preferred to multiple calls to addNode/removeNode
-     * and similar methods because nodes are internally saved as array which means lower memory overhead
-     * but also slower modifying operations.
-     * @param nodes New way nodes. Can be null, in that case all way nodes are removed
-     * @since 1862
-     */
+    @Override
     public void setNodes(List<Node> nodes) {
         checkDatasetNotReadOnly();
         boolean locked = writeLock();
@@ -495,49 +489,29 @@ public final class Way extends OsmPrimitive implements IWay<Node> {
         return false;
     }
 
-    /**
-     * Returns the last node of this way.
-     * The result equals <code>{@link #getNode getNode}({@link #getNodesCount getNodesCount} - 1)</code>.
-     * @return the last node of this way
-     * @since 1400
-     */
+    @Override
     public Node lastNode() {
         Node[] nodes = this.nodes;
         if (isIncomplete() || nodes.length == 0) return null;
         return nodes[nodes.length-1];
     }
 
-    /**
-     * Returns the first node of this way.
-     * The result equals {@link #getNode getNode}{@code (0)}.
-     * @return the first node of this way
-     * @since 1400
-     */
+    @Override
     public Node firstNode() {
         Node[] nodes = this.nodes;
         if (isIncomplete() || nodes.length == 0) return null;
         return nodes[0];
     }
 
-    /**
-     * Replies true if the given node is the first or the last one of this way, false otherwise.
-     * @param n The node to test
-     * @return true if the {@code n} is the first or the last node, false otherwise.
-     * @since 1400
-     */
-    public boolean isFirstLastNode(Node n) {
+    @Override
+    public boolean isFirstLastNode(INode n) {
         Node[] nodes = this.nodes;
         if (isIncomplete() || nodes.length == 0) return false;
         return n == nodes[0] || n == nodes[nodes.length -1];
     }
 
-    /**
-     * Replies true if the given node is an inner node of this way, false otherwise.
-     * @param n The node to test
-     * @return true if the {@code n} is an inner node, false otherwise.
-     * @since 3515
-     */
-    public boolean isInnerNode(Node n) {
+    @Override
+    public boolean isInnerNode(INode n) {
         Node[] nodes = this.nodes;
         if (isIncomplete() || nodes.length <= 2) return false;
         /* circular ways have only inner nodes, so return true for them! */

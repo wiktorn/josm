@@ -13,12 +13,17 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 
 import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.actions.downloadtasks.DownloadParams;
+import org.openstreetmap.josm.data.osm.DownloadPolicy;
+import org.openstreetmap.josm.data.osm.UploadPolicy;
 import org.openstreetmap.josm.io.remotecontrol.PermissionPrefWithDefault;
 import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.Logging;
@@ -297,10 +302,38 @@ public abstract class RequestHandler {
         return contentType;
     }
 
-    protected boolean isLoadInNewLayer() {
-        return args.get("new_layer") != null && !args.get("new_layer").isEmpty()
-                ? Boolean.parseBoolean(args.get("new_layer"))
-                : Config.getPref().getBoolean(loadInNewLayerKey, loadInNewLayerDefault);
+    private <T> T get(String key, Function<String, T> parser, Supplier<T> defaultSupplier) {
+        String val = args.get(key);
+        return val != null && !val.isEmpty() ? parser.apply(val) : defaultSupplier.get();
+    }
+
+    private boolean get(String key) {
+        return get(key, Boolean::parseBoolean, () -> Boolean.FALSE);
+    }
+
+    private boolean isLoadInNewLayer() {
+        return get("new_layer", Boolean::parseBoolean, () -> Config.getPref().getBoolean(loadInNewLayerKey, loadInNewLayerDefault));
+    }
+
+    protected DownloadParams getDownloadParams() {
+        DownloadParams result = new DownloadParams();
+        if (args != null) {
+            result = result
+                .withNewLayer(isLoadInNewLayer())
+                .withLayerName(args.get("layer_name"))
+                .withLocked(get("layer_locked"))
+                .withDownloadPolicy(get("download_policy", DownloadPolicy::of, () -> DownloadPolicy.NORMAL))
+                .withUploadPolicy(get("upload_policy", UploadPolicy::of, () -> UploadPolicy.NORMAL));
+        }
+        return result;
+    }
+
+    protected void validateDownloadParams() throws RequestHandlerBadRequestException {
+        try {
+            getDownloadParams();
+        } catch (IllegalArgumentException e) {
+            throw new RequestHandlerBadRequestException(e);
+        }
     }
 
     public void setSender(String sender) {

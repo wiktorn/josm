@@ -36,11 +36,7 @@ public final class Relation extends OsmPrimitive implements IRelation<RelationMe
         return new CopyList<>(members);
     }
 
-    /**
-     * Sets members of the relation.
-     * @param members Can be null, in that case all members are removed
-     * @since 1925
-     */
+    @Override
     public void setMembers(List<RelationMember> members) {
         checkDatasetNotReadOnly();
         boolean locked = writeLock();
@@ -408,6 +404,7 @@ public final class Relation extends OsmPrimitive implements IRelation<RelationMe
      * Returns an unmodifiable list of the {@link OsmPrimitive}s referred to by at least one member of this relation.
      * @return an unmodifiable list of the primitives
      */
+    @Override
     public List<OsmPrimitive> getMemberPrimitivesList() {
         return Utils.transform(getMembers(), RelationMember::getMember);
     }
@@ -508,6 +505,7 @@ public final class Relation extends OsmPrimitive implements IRelation<RelationMe
      *
      * @return the incomplete children. Empty collection if no children are incomplete.
      */
+    @Override
     public Collection<OsmPrimitive> getIncompleteMembers() {
         Set<OsmPrimitive> ret = new HashSet<>();
         RelationMember[] members = this.members;

@@ -67,6 +67,14 @@ public interface IWay<N extends INode> extends IPrimitive {
     long getNodeId(int idx);
 
     /**
+     * Set new list of nodes to way. This method is preferred to multiple calls to addNode/removeNode
+     * and similar methods because nodes are internally saved as array which means lower memory overhead
+     * but also slower modifying operations.
+     * @param nodes New way nodes. Can be null, in that case all way nodes are removed
+     */
+    void setNodes(List<N> nodes);
+
+    /**
      * Determines if this way is closed.
      * @return {@code true} if this way is closed, {@code false} otherwise
      */
@@ -83,4 +91,36 @@ public interface IWay<N extends INode> extends IPrimitive {
     default String getDisplayName(NameFormatter formatter) {
         return formatter.format(this);
     }
+
+    /**
+     * Returns the first node of this way.
+     * The result equals {@link #getNode getNode}{@code (0)}.
+     * @return the first node of this way
+     * @since 13922
+     */
+    N firstNode();
+
+    /**
+     * Returns the last node of this way.
+     * The result equals <code>{@link #getNode getNode}({@link #getNodesCount getNodesCount} - 1)</code>.
+     * @return the last node of this way
+     * @since 13922
+     */
+    N lastNode();
+
+    /**
+     * Replies true if the given node is the first or the last one of this way, false otherwise.
+     * @param n The node to test
+     * @return true if the {@code n} is the first or the last node, false otherwise.
+     * @since 13922
+     */
+    boolean isFirstLastNode(INode n);
+
+    /**
+     * Replies true if the given node is an inner node of this way, false otherwise.
+     * @param n The node to test
+     * @return true if the {@code n} is an inner node, false otherwise.
+     * @since 13922
+     */
+    boolean isInnerNode(INode n);
 }

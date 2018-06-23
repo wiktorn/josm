@@ -79,6 +79,7 @@ import org.openstreetmap.josm.actions.PreferencesAction;
 import org.openstreetmap.josm.actions.RestartAction;
 import org.openstreetmap.josm.actions.downloadtasks.DownloadGpsTask;
 import org.openstreetmap.josm.actions.downloadtasks.DownloadOsmTask;
+import org.openstreetmap.josm.actions.downloadtasks.DownloadParams;
 import org.openstreetmap.josm.actions.downloadtasks.DownloadTask;
 import org.openstreetmap.josm.actions.downloadtasks.PostDownloadHandler;
 import org.openstreetmap.josm.actions.mapmode.DrawAction;
@@ -92,6 +93,8 @@ import org.openstreetmap.josm.data.Version;
 import org.openstreetmap.josm.data.cache.JCSCacheManager;
 import org.openstreetmap.josm.data.oauth.OAuthAccessTokenHolder;
 import org.openstreetmap.josm.data.osm.DataSet;
+import org.openstreetmap.josm.data.osm.IPrimitive;
+import org.openstreetmap.josm.data.osm.OsmData;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.UserInfo;
 import org.openstreetmap.josm.data.osm.search.SearchMode;
@@ -522,22 +525,24 @@ public class MainApplication extends Main {
         }
     }
 
-    /**
-     * Replies the current selected primitives, from a end-user point of view.
-     * It is not always technically the same collection of primitives than {@link DataSet#getSelected()}.
-     * Indeed, if the user is currently in drawing mode, only the way currently being drawn is returned,
-     * see {@link DrawAction#getInProgressSelection()}.
-     *
-     * @return The current selected primitives, from a end-user point of view. Can be {@code null}.
-     * @since 6546
-     */
     @Override
     public Collection<OsmPrimitive> getInProgressSelection() {
         if (map != null && map.mapMode instanceof DrawAction) {
             return ((DrawAction) map.mapMode).getInProgressSelection();
         } else {
             DataSet ds = layerManager.getActiveDataSet();
-            if (ds == null) return null;
+            if (ds == null) return Collections.emptyList();
+            return ds.getSelected();
+        }
+    }
+
+    @Override
+    public Collection<? extends IPrimitive> getInProgressISelection() {
+        if (map != null && map.mapMode instanceof DrawAction) {
+            return ((DrawAction) map.mapMode).getInProgressSelection();
+        } else {
+            OsmData<?, ?, ?, ?> ds = layerManager.getActiveData();
+            if (ds == null) return Collections.emptyList();
             return ds.getSelected();
         }
     }
@@ -1022,9 +1027,16 @@ public class MainApplication extends Main {
         setupCallbacks();
 
         final SplashScreen splash = GuiHelper.runInEDTAndWaitAndReturn(SplashScreen::new);
-        final SplashScreen.SplashProgressMonitor monitor = splash.getProgressMonitor();
+        // splash can be null sometimes on Linux, in this case try to load JOSM silently
+        final SplashProgressMonitor monitor = splash != null ? splash.getProgressMonitor() : new SplashProgressMonitor(null, e -> {
+            if (e != null) {
+                Logging.debug(e.toString());
+            }
+        });
         monitor.beginTask(tr("Initializing"));
-        GuiHelper.runInEDT(() -> splash.setVisible(Config.getPref().getBoolean("draw.splashscreen", true)));
+        if (splash != null) {
+            GuiHelper.runInEDT(() -> splash.setVisible(Config.getPref().getBoolean("draw.splashscreen", true)));
+        }
         Main.setInitStatusListener(new InitStatusListener() {
 
             @Override
@@ -1065,8 +1077,10 @@ public class MainApplication extends Main {
 
         // Wait for splash disappearance (fix #9714)
         GuiHelper.runInEDTAndWait(() -> {
-            splash.setVisible(false);
-            splash.dispose();
+            if (splash != null) {
+                splash.setVisible(false);
+                splash.dispose();
+            }
             mainFrame.setVisible(true);
         });
 
@@ -1365,7 +1379,7 @@ public class MainApplication extends Main {
     static List<Future<?>> downloadFromParamBounds(final boolean rawGps, Bounds b) {
         DownloadTask task = rawGps ? new DownloadGpsTask() : new DownloadOsmTask();
         // asynchronously launch the download task ...
-        Future<?> future = task.download(true, b, null);
+        Future<?> future = task.download(new DownloadParams().withNewLayer(true), b, null);
         // ... and the continuation when the download is finished (this will wait for the download to finish)
         return Collections.singletonList(MainApplication.worker.submit(new PostDownloadHandler(task, future)));
     }

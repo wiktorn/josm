@@ -40,7 +40,8 @@ public class LoadObjectHandler extends RequestHandler {
 
     @Override
     public String[] getOptionalParams() {
-        return new String[] {"new_layer", "layer_name", "addtags", "relation_members", "referrers"};
+        return new String[] {"new_layer", "layer_name", "layer_locked", "download_policy", "upload_policy",
+                "addtags", "relation_members", "referrers"};
     }
 
     @Override
@@ -62,7 +63,7 @@ public class LoadObjectHandler extends RequestHandler {
             Logging.info("RemoteControl: download forbidden by preferences");
         }
         if (!ps.isEmpty()) {
-            final boolean newLayer = isLoadInNewLayer();
+            final boolean newLayer = getDownloadParams().isNewLayer();
             final boolean relationMembers = Boolean.parseBoolean(args.get("relation_members"));
             final boolean referrers = Boolean.parseBoolean(args.get("referrers"));
             final DownloadPrimitivesWithReferrersTask task = new DownloadPrimitivesWithReferrersTask(
@@ -96,6 +97,7 @@ public class LoadObjectHandler extends RequestHandler {
 
     @Override
     protected void validateRequest() throws RequestHandlerBadRequestException {
+        validateDownloadParams();
         ps.clear();
         for (String i : splitArg("objects", SPLITTER_COMMA)) {
             if (!i.isEmpty()) {

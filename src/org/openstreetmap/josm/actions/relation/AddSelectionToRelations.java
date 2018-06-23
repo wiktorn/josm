@@ -12,9 +12,9 @@ import javax.swing.JOptionPane;
 
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.SequenceCommand;
-import org.openstreetmap.josm.data.SelectionChangedListener;
-import org.openstreetmap.josm.data.osm.DataSet;
-import org.openstreetmap.josm.data.osm.OsmPrimitive;
+import org.openstreetmap.josm.data.osm.DataSelectionListener;
+import org.openstreetmap.josm.data.osm.IPrimitive;
+import org.openstreetmap.josm.data.osm.OsmData;
 import org.openstreetmap.josm.data.osm.OsmUtils;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.gui.MainApplication;
@@ -22,12 +22,13 @@ import org.openstreetmap.josm.gui.Notification;
 import org.openstreetmap.josm.gui.dialogs.relation.GenericRelationEditor;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.Utils;
 
 /**
  * Add all objects selected in the current dataset after the last member of relation(s).
  * @since 5799
  */
-public class AddSelectionToRelations extends AbstractRelationAction implements SelectionChangedListener {
+public class AddSelectionToRelations extends AbstractRelationAction implements DataSelectionListener {
     /**
     * Constructs a new <code>AddSelectionToRelation</code>.
     */
@@ -39,7 +40,7 @@ public class AddSelectionToRelations extends AbstractRelationAction implements S
     @Override
     public void actionPerformed(ActionEvent e) {
         Collection<Command> cmds = new LinkedList<>();
-        for (Relation orig : relations) {
+        for (Relation orig : Utils.filteredCollection(relations, Relation.class)) {
             Command c = GenericRelationEditor.addPrimitivesToRelation(orig, MainApplication.getLayerManager().getActiveDataSet().getSelected());
             if (c != null) {
                 cmds.add(c);
@@ -60,7 +61,7 @@ public class AddSelectionToRelations extends AbstractRelationAction implements S
     public void updateEnabledState() {
         int size = relations.size();
         putValue(NAME, trn("Add selection to {0} relation", "Add selection to {0} relations", size, size));
-        DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
+        OsmData<?, ?, ?, ?> ds = MainApplication.getLayerManager().getActiveData();
         if (ds != null) {
             selectionChanged(ds.getSelected());
         } else {
@@ -68,9 +69,13 @@ public class AddSelectionToRelations extends AbstractRelationAction implements S
         }
     }
 
-    @Override
-    public void selectionChanged(final Collection<? extends OsmPrimitive> newSelection) {
+    private void selectionChanged(final Collection<? extends IPrimitive> newSelection) {
         GuiHelper.runInEDT(() -> setEnabled(newSelection != null && !newSelection.isEmpty()
                 && OsmUtils.isOsmCollectionEditable(relations)));
+    }
+
+    @Override
+    public void selectionChanged(SelectionChangeEvent event) {
+        selectionChanged(event.getSelection());
     }
 }

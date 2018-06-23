@@ -9,7 +9,7 @@ import java.util.HashSet;
 
 import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.JosmAction;
-import org.openstreetmap.josm.data.osm.DataSet;
+import org.openstreetmap.josm.data.osm.OsmData;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.tools.Shortcut;
@@ -42,14 +42,14 @@ public final class TaggingPresetSearchPrimitiveDialog extends ExtendedDialog {
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            if (MainApplication.getLayerManager().getActiveDataSet() != null) {
+            if (MainApplication.getLayerManager().getActiveData() != null) {
                 TaggingPresetSearchPrimitiveDialog.getInstance().showDialog();
             }
         }
 
         @Override
         protected void updateEnabledState() {
-            setEnabled(getLayerManager().getActiveDataSet() != null);
+            setEnabled(getLayerManager().getActiveData() != null);
         }
     }
 
@@ -85,7 +85,7 @@ public final class TaggingPresetSearchPrimitiveDialog extends ExtendedDialog {
         if (buttonIndex == 0) {
             TaggingPreset preset = selector.getSelectedPresetAndUpdateClassification();
             if (preset != null) {
-                DataSet ds = Main.main.getActiveDataSet();
+                OsmData<?, ?, ?, ?> ds = MainApplication.getLayerManager().getActiveData();
                 ds.setSelected(new HashSet<>(ds.getPrimitives(preset)));
             }
         }

@@ -58,12 +58,15 @@ import org.openstreetmap.josm.actions.relation.SelectRelationAction;
 import org.openstreetmap.josm.command.ChangeCommand;
 import org.openstreetmap.josm.command.ChangePropertyCommand;
 import org.openstreetmap.josm.command.Command;
-import org.openstreetmap.josm.data.SelectionChangedListener;
 import org.openstreetmap.josm.data.osm.AbstractPrimitive;
+import org.openstreetmap.josm.data.osm.DataSelectionListener;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
+import org.openstreetmap.josm.data.osm.IPrimitive;
 import org.openstreetmap.josm.data.osm.IRelation;
+import org.openstreetmap.josm.data.osm.IRelationMember;
 import org.openstreetmap.josm.data.osm.Node;
+import org.openstreetmap.josm.data.osm.OsmData;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
@@ -123,7 +126,7 @@ import org.openstreetmap.josm.tools.Utils;
  * @author imi
  */
 public class PropertiesDialog extends ToggleDialog
-implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerAdapter.Listener {
+implements DataSelectionListener, ActiveLayerChangeListener, DataSetListenerAdapter.Listener {
 
     /**
      * hook for roadsigns plugin to display a small button in the upper right corner of this dialog
@@ -174,16 +177,16 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
 
     private final transient DataSetListenerAdapter dataChangedAdapter = new DataSetListenerAdapter(this);
     private final HelpAction helpAction = new HelpAction(tagTable, editHelper::getDataKey, editHelper::getDataValues,
-            membershipTable, x -> (Relation) membershipData.getValueAt(x, 0));
+            membershipTable, x -> (IRelation<?>) membershipData.getValueAt(x, 0));
     private final TaginfoAction taginfoAction = new TaginfoAction(tagTable, editHelper::getDataKey, editHelper::getDataValues,
-            membershipTable, x -> (Relation) membershipData.getValueAt(x, 0));
+            membershipTable, x -> (IRelation<?>) membershipData.getValueAt(x, 0));
     private final PasteValueAction pasteValueAction = new PasteValueAction();
     private final CopyValueAction copyValueAction = new CopyValueAction(
-            tagTable, editHelper::getDataKey, Main.main::getInProgressSelection);
+            tagTable, editHelper::getDataKey, Main.main::getInProgressISelection);
     private final CopyKeyValueAction copyKeyValueAction = new CopyKeyValueAction(
-            tagTable, editHelper::getDataKey, Main.main::getInProgressSelection);
+            tagTable, editHelper::getDataKey, Main.main::getInProgressISelection);
     private final CopyAllKeyValueAction copyAllKeyValueAction = new CopyAllKeyValueAction(
-            tagTable, editHelper::getDataKey, Main.main::getInProgressSelection);
+            tagTable, editHelper::getDataKey, Main.main::getInProgressISelection);
     private final SearchAction searchActionSame = new SearchAction(true);
     private final SearchAction searchActionAny = new SearchAction(false);
     private final AddAction addAction = new AddAction();
@@ -229,7 +232,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
             + tr("Select objects for which to change tags.") + "</p></html>");
 
     private final PreferenceChangedListener preferenceListener = e -> {
-                if (MainApplication.getLayerManager().getActiveDataSet() != null) {
+                if (MainApplication.getLayerManager().getActiveData() != null) {
                     // Re-load data when display preference change
                     updateSelection();
                 }
@@ -374,9 +377,9 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
             @Override
             protected int checkTableSelection(JTable table, Point p) {
                 int row = super.checkTableSelection(table, p);
-                List<Relation> rels = new ArrayList<>();
+                List<IRelation<?>> rels = new ArrayList<>();
                 for (int i: table.getSelectedRows()) {
-                    rels.add((Relation) table.getValueAt(i, 0));
+                    rels.add((IRelation<?>) table.getValueAt(i, 0));
                 }
                 membershipMenuHandler.setPrimitives(rels);
                 return row;
@@ -487,8 +490,13 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
         MainApplication.getMap().relationListDialog.selectRelation(relation);
         OsmDataLayer layer = MainApplication.getLayerManager().getActiveDataLayer();
         if (!layer.isLocked()) {
-            RelationEditor.getEditor(
-                    layer, relation, ((MemberInfo) membershipData.getValueAt(row, 1)).role).setVisible(true);
+            List<RelationMember> members = new ArrayList<>();
+            for (IRelationMember<?> rm : ((MemberInfo) membershipData.getValueAt(row, 1)).role) {
+                if (rm instanceof RelationMember) {
+                    members.add((RelationMember) rm);
+                }
+            }
+            RelationEditor.getEditor(layer, relation, members).setVisible(true);
         }
     }
 
@@ -511,7 +519,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
     @Override
     public void showNotify() {
         DatasetEventManager.getInstance().addDatasetListener(dataChangedAdapter, FireMode.IN_EDT_CONSOLIDATED);
-        SelectionEventManager.getInstance().addSelectionListener(this, FireMode.IN_EDT_CONSOLIDATED);
+        SelectionEventManager.getInstance().addSelectionListenerForEdt(this);
         MainApplication.getLayerManager().addActiveLayerChangeListener(this);
         for (JosmAction action : josmActions) {
             MainApplication.registerActionShortcut(action);
@@ -532,7 +540,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
     @Override
     public void setVisible(boolean b) {
         super.setVisible(b);
-        if (b && MainApplication.getLayerManager().getActiveDataSet() != null) {
+        if (b && MainApplication.getLayerManager().getActiveData() != null) {
             updateSelection();
         }
     }
@@ -548,7 +556,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
     }
 
     @Override
-    public void selectionChanged(Collection<? extends OsmPrimitive> newSelection) {
+    public void selectionChanged(SelectionChangeEvent event) {
         if (!isVisible())
             return;
         if (tagTable == null)
@@ -558,15 +566,15 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
         }
 
         // Ignore parameter as we do not want to operate always on real selection here, especially in draw mode
-        Collection<OsmPrimitive> newSel = Optional.ofNullable(Main.main.getInProgressSelection()).orElseGet(Collections::emptyList);
+        Collection<? extends IPrimitive> newSel = Main.main.getInProgressISelection();
         String selectedTag;
-        Relation selectedRelation = null;
+        IRelation<?> selectedRelation = null;
         selectedTag = editHelper.getChangedKey(); // select last added or last edited key by default
         if (selectedTag == null && tagTable.getSelectedRowCount() == 1) {
             selectedTag = editHelper.getDataKey(tagTable.getSelectedRow());
         }
         if (membershipTable.getSelectedRowCount() == 1) {
-            selectedRelation = (Relation) membershipData.getValueAt(membershipTable.getSelectedRow(), 0);
+            selectedRelation = (IRelation<?>) membershipData.getValueAt(membershipTable.getSelectedRow(), 0);
         }
 
         // re-load tag data
@@ -577,7 +585,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
         final Map<String, String> tags = new HashMap<>();
         valueCount.clear();
         Set<TaggingPresetType> types = EnumSet.noneOf(TaggingPresetType.class);
-        for (OsmPrimitive osm : newSel) {
+        for (IPrimitive osm : newSel) {
             types.add(TaggingPresetType.forPrimitive(osm));
             for (String key : osm.keySet()) {
                 if (displayDiscardableKeys || !AbstractPrimitive.getDiscardableKeys().contains(key)) {
@@ -609,15 +617,15 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
 
         membershipData.setRowCount(0);
 
-        Map<Relation, MemberInfo> roles = new HashMap<>();
-        for (OsmPrimitive primitive: newSel) {
-            for (OsmPrimitive ref: primitive.getReferrers(true)) {
-                if (ref instanceof Relation && !ref.isIncomplete() && !ref.isDeleted()) {
-                    Relation r = (Relation) ref;
+        Map<IRelation<?>, MemberInfo> roles = new HashMap<>();
+        for (IPrimitive primitive: newSel) {
+            for (IPrimitive ref: primitive.getReferrers(true)) {
+                if (ref instanceof IRelation && !ref.isIncomplete() && !ref.isDeleted()) {
+                    IRelation<?> r = (IRelation<?>) ref;
                     MemberInfo mi = Optional.ofNullable(roles.get(r)).orElseGet(() -> new MemberInfo(newSel));
                     roles.put(r, mi);
                     int i = 1;
-                    for (RelationMember m : r.getMembers()) {
+                    for (IRelationMember<?> m : r.getMembers()) {
                         if (m.getMember() == primitive) {
                             mi.add(m, i);
                         }
@@ -627,13 +635,13 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
             }
         }
 
-        List<Relation> sortedRelations = new ArrayList<>(roles.keySet());
+        List<IRelation<?>> sortedRelations = new ArrayList<>(roles.keySet());
         sortedRelations.sort((o1, o2) -> {
             int comp = Boolean.compare(o1.isDisabledAndHidden(), o2.isDisabledAndHidden());
             return comp != 0 ? comp : DefaultNameFormatter.getInstance().getRelationComparator().compare(o1, o2);
         });
 
-        for (Relation r: sortedRelations) {
+        for (IRelation<?> r: sortedRelations) {
             membershipData.addRow(new Object[]{r, roles.get(r)});
         }
 
@@ -642,7 +650,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
         membershipTable.getTableHeader().setVisible(membershipData.getRowCount() > 0);
         membershipTable.setVisible(membershipData.getRowCount() > 0);
 
-        DataSet ds = Main.main.getActiveDataSet();
+        OsmData<?, ?, ?, ?> ds = MainApplication.getLayerManager().getActiveData();
         boolean isReadOnly = ds != null && ds.isLocked();
         boolean hasSelection = !newSel.isEmpty();
         boolean hasTags = hasSelection && tagData.getRowCount() > 0;
@@ -766,7 +774,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
                 return this;
             if (c instanceof JLabel) {
                 JLabel label = (JLabel) c;
-                Relation r = (Relation) value;
+                IRelation<?> r = (IRelation<?>) value;
                 label.setText(r.getDisplayName(DefaultNameFormatter.getInstance()));
                 if (r.isDisabledAndHidden()) {
                     label.setFont(label.getFont().deriveFont(Font.ITALIC));
@@ -783,7 +791,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
             if (value == null)
                 return this;
             Component c = super.getTableCellRendererComponent(table, value, isSelected, false, row, column);
-            boolean isDisabledAndHidden = ((Relation) table.getValueAt(row, 0)).isDisabledAndHidden();
+            boolean isDisabledAndHidden = ((IRelation<?>) table.getValueAt(row, 0)).isDisabledAndHidden();
             if (c instanceof JLabel) {
                 JLabel label = (JLabel) c;
                 label.setText(((MemberInfo) value).getRoleString());
@@ -800,7 +808,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
         public Component getTableCellRendererComponent(JTable table, Object value,
                 boolean isSelected, boolean hasFocus, int row, int column) {
             Component c = super.getTableCellRendererComponent(table, value, isSelected, false, row, column);
-            boolean isDisabledAndHidden = ((Relation) table.getValueAt(row, 0)).isDisabledAndHidden();
+            boolean isDisabledAndHidden = ((IRelation<?>) table.getValueAt(row, 0)).isDisabledAndHidden();
             if (c instanceof JLabel) {
                 JLabel label = (JLabel) c;
                 label.setText(((MemberInfo) table.getValueAt(row, 1)).getPositionString());
@@ -887,18 +895,18 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
     }
 
     static class MemberInfo {
-        private final List<RelationMember> role = new ArrayList<>();
-        private Set<OsmPrimitive> members = new HashSet<>();
+        private final List<IRelationMember<?>> role = new ArrayList<>();
+        private Set<IPrimitive> members = new HashSet<>();
         private List<Integer> position = new ArrayList<>();
-        private Collection<OsmPrimitive> selection;
+        private Collection<? extends IPrimitive> selection;
         private String positionString;
         private String roleString;
 
-        MemberInfo(Collection<OsmPrimitive> selection) {
+        MemberInfo(Collection<? extends IPrimitive> selection) {
             this.selection = selection;
         }
 
-        void add(RelationMember r, Integer p) {
+        void add(IRelationMember<?> r, Integer p) {
             role.add(r);
             members.add(r.getMember());
             position.add(p);
@@ -920,7 +928,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
 
         String getRoleString() {
             if (roleString == null) {
-                for (RelationMember r : role) {
+                for (IRelationMember<?> r : role) {
                     if (roleString == null) {
                         roleString = r.getRole();
                     } else if (!roleString.equals(r.getRole())) {
@@ -1174,7 +1182,7 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
             if (tagTable.getSelectedRowCount() != 1)
                 return;
             String key = editHelper.getDataKey(tagTable.getSelectedRow());
-            Collection<OsmPrimitive> sel = Main.main.getInProgressSelection();
+            Collection<? extends IPrimitive> sel = Main.main.getInProgressISelection();
             if (sel.isEmpty())
                 return;
             final SearchSetting ss = createSearchSetting(key, sel, sameType);
@@ -1182,11 +1190,11 @@ implements SelectionChangedListener, ActiveLayerChangeListener, DataSetListenerA
         }
     }
 
-    static SearchSetting createSearchSetting(String key, Collection<OsmPrimitive> sel, boolean sameType) {
+    static SearchSetting createSearchSetting(String key, Collection<? extends IPrimitive> sel, boolean sameType) {
         String sep = "";
         StringBuilder s = new StringBuilder();
         Set<String> consideredTokens = new TreeSet<>();
-        for (OsmPrimitive p : sel) {
+        for (IPrimitive p : sel) {
             String val = p.get(key);
             if (val == null || (!sameType && consideredTokens.contains(val))) {
                 continue;

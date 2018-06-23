@@ -21,10 +21,10 @@ import javax.swing.JTabbedPane;
 import javax.swing.SingleSelectionModel;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
-import org.openstreetmap.josm.data.osm.OsmPrimitive;
-import org.openstreetmap.josm.data.osm.OsmPrimitiveComparator;
+import org.openstreetmap.josm.data.osm.IPrimitive;
+import org.openstreetmap.josm.data.osm.OsmData;
+import org.openstreetmap.josm.data.osm.PrimitiveComparator;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.NavigatableComponent;
@@ -51,7 +51,7 @@ import org.openstreetmap.josm.tools.GBC;
  */
 public class InspectPrimitiveDialog extends ExtendedDialog {
 
-    protected transient List<OsmPrimitive> primitives;
+    protected transient List<IPrimitive> primitives;
     private boolean mappaintTabLoaded;
     private boolean editcountTabLoaded;
 
@@ -61,7 +61,7 @@ public class InspectPrimitiveDialog extends ExtendedDialog {
      * @param data data set
      * @since 12672 (signature)
      */
-    public InspectPrimitiveDialog(final Collection<OsmPrimitive> primitives, DataSet data) {
+    public InspectPrimitiveDialog(final Collection<? extends IPrimitive> primitives, OsmData<?, ?, ?, ?> data) {
         super(Main.parent, tr("Advanced object info"), tr("Close"));
         this.primitives = new ArrayList<>(primitives);
         setRememberWindowGeometry(getClass().getName() + ".geometry",
@@ -104,16 +104,16 @@ public class InspectPrimitiveDialog extends ExtendedDialog {
         return p;
     }
 
-    protected static String buildDataText(DataSet data, List<OsmPrimitive> primitives) {
+    protected static String buildDataText(OsmData<?, ?, ?, ?> data, List<IPrimitive> primitives) {
         InspectPrimitiveDataText dt = new InspectPrimitiveDataText(data);
         primitives.stream()
-                .sorted(OsmPrimitiveComparator.orderingWaysRelationsNodes().thenComparing(OsmPrimitiveComparator.comparingNames()))
+                .sorted(PrimitiveComparator.orderingWaysRelationsNodes().thenComparing(PrimitiveComparator.comparingNames()))
                 .forEachOrdered(dt::addPrimitive);
         return dt.toString();
     }
 
     protected static String buildMapPaintText() {
-        final Collection<OsmPrimitive> sel = MainApplication.getLayerManager().getActiveDataSet().getAllSelected();
+        final Collection<? extends IPrimitive> sel = MainApplication.getLayerManager().getActiveData().getAllSelected();
         ElemStyles elemstyles = MapPaintStyles.getStyles();
         NavigatableComponent nc = MainApplication.getMap().mapView;
         double scale = nc.getDist100Pixel();
@@ -121,7 +121,7 @@ public class InspectPrimitiveDialog extends ExtendedDialog {
         final StringBuilder txtMappaint = new StringBuilder();
         MapCSSStyleSource.STYLE_SOURCE_LOCK.readLock().lock();
         try {
-            for (OsmPrimitive osm : sel) {
+            for (IPrimitive osm : sel) {
                 txtMappaint.append(tr("Styles Cache for \"{0}\":", osm.getDisplayName(DefaultNameFormatter.getInstance())));
 
                 MultiCascade mc = new MultiCascade();
@@ -149,7 +149,7 @@ public class InspectPrimitiveDialog extends ExtendedDialog {
             MapCSSStyleSource.STYLE_SOURCE_LOCK.readLock().unlock();
         }
         if (sel.size() == 2) {
-            List<OsmPrimitive> selList = new ArrayList<>(sel);
+            List<IPrimitive> selList = new ArrayList<>(sel);
             StyleCache sc1 = selList.get(0).getCachedStyle();
             StyleCache sc2 = selList.get(1).getCachedStyle();
             if (sc1 == sc2) {
@@ -170,11 +170,11 @@ public class InspectPrimitiveDialog extends ExtendedDialog {
         Sort by the count for presentation, so the most active editors are on top.
         Count only tagged nodes (so empty way nodes don't inflate counts).
     */
-    protected static String buildListOfEditorsText(Iterable<OsmPrimitive> primitives) {
+    protected static String buildListOfEditorsText(Iterable<? extends IPrimitive> primitives) {
         final Map<String, Integer> editCountByUser = new TreeMap<>(Collator.getInstance(Locale.getDefault()));
 
         // Count who edited each selected object
-        for (OsmPrimitive o : primitives) {
+        for (IPrimitive o : primitives) {
             if (o.getUser() != null) {
                 String username = o.getUser().getName();
                 Integer oldCount = editCountByUser.get(username);

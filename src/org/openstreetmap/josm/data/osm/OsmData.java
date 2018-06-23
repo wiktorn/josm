@@ -1,6 +1,7 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.data.osm;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.locks.Lock;
@@ -9,9 +10,9 @@ import java.util.function.Predicate;
 import org.openstreetmap.josm.data.Data;
 import org.openstreetmap.josm.data.DataSource;
 import org.openstreetmap.josm.data.ProjectionBounds;
-import org.openstreetmap.josm.data.SelectionChangedListener;
 import org.openstreetmap.josm.data.osm.event.SelectionEventManager;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
+import org.openstreetmap.josm.tools.SubclassFilteredCollection;
 
 /**
  * Abstraction of {@link DataSet}.
@@ -114,7 +115,9 @@ public interface OsmData<O extends IPrimitive, N extends INode, W extends IWay<N
      * @return the primitive
      * @throws NullPointerException if type is null
      */
-    O getPrimitiveById(long id, OsmPrimitiveType type);
+    default O getPrimitiveById(long id, OsmPrimitiveType type) {
+        return getPrimitiveById(new SimplePrimitiveId(id, type));
+    }
 
     /**
      * Returns a primitive with a given id from the data set. null, if no such primitive exists
@@ -278,12 +281,16 @@ public interface OsmData<O extends IPrimitive, N extends INode, W extends IWay<N
     /**
      * clear all highlights of virtual nodes
      */
-    void clearHighlightedVirtualNodes();
+    default void clearHighlightedVirtualNodes() {
+        setHighlightedVirtualNodes(new ArrayList<WaySegment>());
+    }
 
     /**
      * clear all highlights of way segments
      */
-    void clearHighlightedWaySegments();
+    default void clearHighlightedWaySegments() {
+        setHighlightedWaySegments(new ArrayList<WaySegment>());
+    }
 
     /**
      * set what virtual nodes should be highlighted. Requires a Collection of
@@ -324,7 +331,9 @@ public interface OsmData<O extends IPrimitive, N extends INode, W extends IWay<N
      *
      * @return unmodifiable collection of primitives
      */
-    Collection<O> getSelected();
+    default Collection<O> getSelected() {
+        return new SubclassFilteredCollection<>(getAllSelected(), p -> !p.isDeleted());
+    }
 
     /**
      * Replies an unmodifiable collection of primitives currently selected
@@ -340,19 +349,25 @@ public interface OsmData<O extends IPrimitive, N extends INode, W extends IWay<N
      * Returns selected nodes.
      * @return selected nodes
      */
-    Collection<N> getSelectedNodes();
+    default Collection<N> getSelectedNodes() {
+        return new SubclassFilteredCollection<>(getSelected(), Node.class::isInstance);
+    }
 
     /**
      * Returns selected ways.
      * @return selected ways
      */
-    Collection<W> getSelectedWays();
+    default Collection<W> getSelectedWays() {
+        return new SubclassFilteredCollection<>(getSelected(), Way.class::isInstance);
+    }
 
     /**
      * Returns selected relations.
      * @return selected relations
      */
-    Collection<R> getSelectedRelations();
+    default Collection<R> getSelectedRelations() {
+        return new SubclassFilteredCollection<>(getSelected(), Relation.class::isInstance);
+    }
 
     /**
      * Determines whether the selection is empty or not
@@ -381,7 +396,7 @@ public interface OsmData<O extends IPrimitive, N extends INode, W extends IWay<N
 
     /**
      * Sets the current selection to the primitives in <code>selection</code>
-     * and notifies all {@link SelectionChangedListener}.
+     * and notifies all {@link DataSelectionListener}.
      *
      * @param selection the selection
      */
@@ -389,7 +404,7 @@ public interface OsmData<O extends IPrimitive, N extends INode, W extends IWay<N
 
     /**
      * Sets the current selection to the primitives in <code>osm</code>
-     * and notifies all {@link SelectionChangedListener}.
+     * and notifies all {@link DataSelectionListener}.
      *
      * @param osm the primitives to set. <code>null</code> values are ignored for now, but this may be removed in the future.
      */
@@ -397,7 +412,7 @@ public interface OsmData<O extends IPrimitive, N extends INode, W extends IWay<N
 
     /**
      * Adds the primitives in <code>selection</code> to the current selection
-     * and notifies all {@link SelectionChangedListener}.
+     * and notifies all {@link DataSelectionListener}.
      *
      * @param selection the selection
      */
@@ -405,7 +420,7 @@ public interface OsmData<O extends IPrimitive, N extends INode, W extends IWay<N
 
     /**
      * Adds the primitives in <code>osm</code> to the current selection
-     * and notifies all {@link SelectionChangedListener}.
+     * and notifies all {@link DataSelectionListener}.
      *
      * @param osm the primitives to add
      */
@@ -432,8 +447,7 @@ public interface OsmData<O extends IPrimitive, N extends INode, W extends IWay<N
      * Add a listener that listens to selection changes in this specific data set.
      * @param listener The listener.
      * @see #removeSelectionListener(DataSelectionListener)
-     * @see SelectionEventManager#addSelectionListener(SelectionChangedListener,
-     *      org.openstreetmap.josm.data.osm.event.DatasetEventManager.FireMode)
+     * @see SelectionEventManager#addSelectionListener(DataSelectionListener)
      *      To add a global listener.
      */
     void addSelectionListener(DataSelectionListener listener);

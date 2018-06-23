@@ -198,11 +198,37 @@ public interface IPrimitive extends Tagged, PrimitiveId, Stylable, Comparable<IP
     long getId();
 
     /**
-     * Replies the unique primitive id for this primitive
+     * Replies the OSM id of this primitive.
+     * By default, returns the same value as {@link #getId}.
+     * Can be overidden by primitive implementations handling an internal id different from the OSM one.
+     *
+     * @return the OSM id of this primitive.
+     * @since 13924
+     */
+    default long getOsmId() {
+        return getId();
+    }
+
+    /**
+     * Replies the OSM primitive id for this primitive.
+     *
+     * @return the OSM primitive id for this primitive
+     * @see #getOsmId
+     * @since 13924
+     */
+    default PrimitiveId getOsmPrimitiveId() {
+        return new SimplePrimitiveId(getOsmId(), getType());
+    }
+
+    /**
+     * Replies the unique primitive id for this primitive.
      *
      * @return the unique primitive id for this primitive
+     * @see #getUniqueId
      */
-    PrimitiveId getPrimitiveId();
+    default PrimitiveId getPrimitiveId() {
+        return new SimplePrimitiveId(getUniqueId(), getType());
+    }
 
     /**
      * Replies the version number as returned by the API. The version is 0 if the id is 0 or
@@ -321,7 +347,9 @@ public interface IPrimitive extends Tagged, PrimitiveId, Stylable, Comparable<IP
      *
      * @return the name of this primitive
      */
-    String getName();
+    default String getName() {
+        return get("name");
+    }
 
     /**
      * Replies a localized name for this primitive given by the value of the name tags
@@ -330,7 +358,15 @@ public interface IPrimitive extends Tagged, PrimitiveId, Stylable, Comparable<IP
      * @return the name of this primitive, <code>null</code> if no name exists
      * @see LanguageInfo#getLanguageCodes
      */
-    String getLocalName();
+    default String getLocalName() {
+        for (String s : LanguageInfo.getLanguageCodes(null)) {
+            String val = get("name:" + s);
+            if (val != null)
+                return val;
+        }
+
+        return getName();
+    }
 
     /**
      * Replies the display name of a primitive formatted by <code>formatter</code>
@@ -458,5 +494,8 @@ public interface IPrimitive extends Tagged, PrimitiveId, Stylable, Comparable<IP
      * @return true if other isn't null and has the same interesting tags (key/value-pairs) as this.
      * @since 13809
      */
-    boolean hasSameInterestingTags(IPrimitive other);
+    default boolean hasSameInterestingTags(IPrimitive other) {
+        return (!hasKeys() && !other.hasKeys())
+                || getInterestingTags().equals(other.getInterestingTags());
+    }
 }

@@ -10,7 +10,9 @@ import org.openstreetmap.josm.data.osm.OsmPrimitive;
 /**
  * Interface used to enable/disable all primitive-related actions, even those registered by plugins.
  * @since 5821
+ * @deprecated Use {@link IPrimitiveAction} instead
  */
+@Deprecated
 public interface OsmPrimitiveAction extends Action {
 
     /**

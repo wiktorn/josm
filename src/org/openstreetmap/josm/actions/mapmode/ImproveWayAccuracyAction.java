@@ -28,13 +28,14 @@ import org.openstreetmap.josm.command.DeleteCommand;
 import org.openstreetmap.josm.command.MoveCommand;
 import org.openstreetmap.josm.command.SequenceCommand;
 import org.openstreetmap.josm.data.Bounds;
-import org.openstreetmap.josm.data.SelectionChangedListener;
 import org.openstreetmap.josm.data.coor.EastNorth;
+import org.openstreetmap.josm.data.osm.DataSelectionListener;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.osm.WaySegment;
+import org.openstreetmap.josm.data.osm.event.SelectionEventManager;
 import org.openstreetmap.josm.data.preferences.CachingProperty;
 import org.openstreetmap.josm.data.preferences.IntegerProperty;
 import org.openstreetmap.josm.data.preferences.NamedColorProperty;
@@ -58,8 +59,7 @@ import org.openstreetmap.josm.tools.Shortcut;
  *
  * @author Alexander Kachkaev &lt;alexander@kachkaev.ru&gt;, 2011
  */
-public class ImproveWayAccuracyAction extends MapMode implements
-        SelectionChangedListener, ModifierExListener {
+public class ImproveWayAccuracyAction extends MapMode implements DataSelectionListener, ModifierExListener {
 
     private static final String CROSSHAIR = /* ICON(cursor/)*/ "crosshair";
 
@@ -153,7 +153,7 @@ public class ImproveWayAccuracyAction extends MapMode implements
         map.mapView.addMouseListener(this);
         map.mapView.addMouseMotionListener(this);
         map.mapView.addTemporaryLayer(temporaryLayer);
-        DataSet.addSelectionListener(this);
+        SelectionEventManager.getInstance().addSelectionListener(this);
 
         map.keyDetector.addModifierExListener(this);
     }
@@ -171,7 +171,7 @@ public class ImproveWayAccuracyAction extends MapMode implements
         map.mapView.removeMouseListener(this);
         map.mapView.removeMouseMotionListener(this);
         map.mapView.removeTemporaryLayer(temporaryLayer);
-        DataSet.removeSelectionListener(this);
+        SelectionEventManager.getInstance().removeSelectionListener(this);
 
         map.keyDetector.removeModifierExListener(this);
         temporaryLayer.invalidate();
@@ -367,7 +367,7 @@ public class ImproveWayAccuracyAction extends MapMode implements
     }
 
     @Override
-    public void selectionChanged(Collection<? extends OsmPrimitive> newSelection) {
+    public void selectionChanged(SelectionChangeEvent event) {
         if (selectionChangedBlocked) {
             return;
         }
@@ -643,33 +643,35 @@ public class ImproveWayAccuracyAction extends MapMode implements
      * Updates the state according to the current selection. Goes to Improve
      * state if a single way or node is selected. Extracts a way by a node in
      * the second case.
-     *
      */
     private void updateStateByCurrentSelection() {
         final List<Node> nodeList = new ArrayList<>();
         final List<Way> wayList = new ArrayList<>();
-        final Collection<OsmPrimitive> sel = getLayerManager().getEditDataSet().getSelected();
+        final DataSet ds = getLayerManager().getEditDataSet();
+        if (ds != null) {
+            final Collection<OsmPrimitive> sel = ds.getSelected();
 
-        // Collecting nodes and ways from the selection
-        for (OsmPrimitive p : sel) {
-            if (p instanceof Way) {
-                wayList.add((Way) p);
+            // Collecting nodes and ways from the selection
+            for (OsmPrimitive p : sel) {
+                if (p instanceof Way) {
+                    wayList.add((Way) p);
+                }
+                if (p instanceof Node) {
+                    nodeList.add((Node) p);
+                }
             }
-            if (p instanceof Node) {
-                nodeList.add((Node) p);
-            }
-        }
 
-        if (wayList.size() == 1) {
-            // Starting improving the single selected way
-            startImproving(wayList.get(0));
-            return;
-        } else if (nodeList.size() == 1) {
-            // Starting improving the only way of the single selected node
-            List<OsmPrimitive> r = nodeList.get(0).getReferrers();
-            if (r.size() == 1 && (r.get(0) instanceof Way)) {
-                startImproving((Way) r.get(0));
+            if (wayList.size() == 1) {
+                // Starting improving the single selected way
+                startImproving(wayList.get(0));
                 return;
+            } else if (nodeList.size() == 1) {
+                // Starting improving the only way of the single selected node
+                List<OsmPrimitive> r = nodeList.get(0).getReferrers();
+                if (r.size() == 1 && (r.get(0) instanceof Way)) {
+                    startImproving((Way) r.get(0));
+                    return;
+                }
             }
         }
 

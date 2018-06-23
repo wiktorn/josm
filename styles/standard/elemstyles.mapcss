@@ -4240,11 +4240,16 @@ node[natural=stone] {
     set icon_z17;
 }
 area[natural=bay],
+area[natural=cape],
 area[natural=cave_entrance] {
     fill-color: natural#002f00;
 }
 node[natural=bay] {
     icon-image: "presets/nautical/bay.svg";
+    set icon_z17;
+}
+node[natural=cape] {
+    icon-image: "presets/nautical/cape.svg";
     set icon_z17;
 }
 area[natural=reef] {

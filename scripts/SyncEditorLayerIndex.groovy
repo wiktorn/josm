@@ -506,7 +506,11 @@ class SyncEditorLayerIndex {
             def e = eliUrls.get(url)
             if (!josmUrls.containsKey(url)) continue
             def j = josmUrls.get(url)
-            if (!getCountryCode(e).equals(getCountryCode(j))) {
+            def cce = getCountryCode(e)
+            if ("ZZ".equals(cce)) { /* special ELI country code */
+                cce = null
+            }
+            if (!cce.equals(getCountryCode(j))) {
                 myprintln "* Country code differs (${getCountryCode(e)} != ${getCountryCode(j)}): ${getDescription(j)}"
             }
         }
@@ -769,7 +773,9 @@ class SyncEditorLayerIndex {
                 }
             } else if(ij == null && ie != null) {
                 myprintln "- No JOSM icon: ${getDescription(j)}"
-            } else if(!ij.equals(ie)) {
+            } else if(!ij.equals(ie) && !(
+              ie.startsWith("https://osmlab.github.io/editor-layer-index/") &&
+              ij.startsWith("data:"))) {
                 myprintln "* Different icons: ${getDescription(j)}"
             }
         }
@@ -1089,11 +1095,11 @@ class SyncEditorLayerIndex {
     static Map<String,String> getDescriptions(Object e) {
         Map<String,String> res = new HashMap<String, String>()
         if (e instanceof ImageryInfo) {
-          String a = e.getDescription()
-          if (a) res.put("en", a)
+            String a = e.getDescription()
+            if (a) res.put("en", a)
         } else {
-          String a = e.get("properties").getString("description", null)
-          if (a) res.put("en", a)
+            String a = e.get("properties").getString("description", null)
+            if (a) res.put("en", a.replaceAll("''","'"))
         }
         return res
     }

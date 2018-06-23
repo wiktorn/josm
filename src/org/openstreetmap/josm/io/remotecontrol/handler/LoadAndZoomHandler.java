@@ -15,6 +15,7 @@ import java.util.concurrent.Future;
 
 import org.openstreetmap.josm.actions.AutoScaleAction;
 import org.openstreetmap.josm.actions.downloadtasks.DownloadOsmTask;
+import org.openstreetmap.josm.actions.downloadtasks.DownloadParams;
 import org.openstreetmap.josm.actions.downloadtasks.DownloadTask;
 import org.openstreetmap.josm.actions.downloadtasks.PostDownloadHandler;
 import org.openstreetmap.josm.data.Bounds;
@@ -81,7 +82,8 @@ public class LoadAndZoomHandler extends RequestHandler {
     @Override
     public String[] getOptionalParams() {
         return new String[] {"new_layer", "layer_name", "addtags", "select", "zoom_mode",
-                "changeset_comment", "changeset_source", "changeset_hashtags", "search"};
+                "changeset_comment", "changeset_source", "changeset_hashtags", "search",
+                "layer_locked", "download_policy", "upload_policy"};
     }
 
     @Override
@@ -111,20 +113,16 @@ public class LoadAndZoomHandler extends RequestHandler {
 
     @Override
     protected void handleRequest() throws RequestHandlerErrorException {
-        DownloadTask osmTask = new DownloadOsmTask() {
-            {
-                newLayerName = args.get("layer_name");
-            }
-        };
+        DownloadTask osmTask = new DownloadOsmTask();
         try {
-            boolean newLayer = isLoadInNewLayer();
+            DownloadParams settings = getDownloadParams();
 
             if (command.equals(myCommand)) {
                 if (!PermissionPrefWithDefault.LOAD_DATA.isAllowed()) {
                     Logging.info("RemoteControl: download forbidden by preferences");
                 } else {
                     Area toDownload = null;
-                    if (!newLayer) {
+                    if (!settings.isNewLayer()) {
                         // find out whether some data has already been downloaded
                         Area present = null;
                         DataSet ds = MainApplication.getLayerManager().getEditDataSet();
@@ -147,7 +145,7 @@ public class LoadAndZoomHandler extends RequestHandler {
                     if (toDownload != null && toDownload.isEmpty()) {
                         Logging.info("RemoteControl: no download necessary");
                     } else {
-                        Future<?> future = osmTask.download(newLayer, new Bounds(minlat, minlon, maxlat, maxlon),
+                        Future<?> future = osmTask.download(settings, new Bounds(minlat, minlon, maxlat, maxlon),
                                 null /* let the task manage the progress monitor */);
                         MainApplication.worker.submit(new PostDownloadHandler(osmTask, future));
                     }
@@ -263,6 +261,7 @@ public class LoadAndZoomHandler extends RequestHandler {
 
     @Override
     protected void validateRequest() throws RequestHandlerBadRequestException {
+        validateDownloadParams();
         // Process mandatory arguments
         minlat = 0;
         maxlat = 0;

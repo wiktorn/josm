@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.regex.Matcher;
@@ -75,9 +76,42 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
         }
     }
 
-    @Override
+    /**
+     * Asynchronously launches the download task for a given bounding box.
+     * @param newLayer true, if the data is to be downloaded into a new layer. If false, the task
+     * selects one of the existing layers as download layer, preferably the active layer.
+     *
+     * @param downloadArea the area to download
+     * @param progressMonitor the progressMonitor
+     * @return the future representing the asynchronous task
+     * @deprecated Use {@link #download(DownloadParams, Bounds, ProgressMonitor)}
+     */
+    @Deprecated
     public Future<?> download(boolean newLayer, Bounds downloadArea, ProgressMonitor progressMonitor) {
-        return download(new BoundingBoxDownloader(downloadArea), newLayer, downloadArea, progressMonitor);
+        return download(new BoundingBoxDownloader(downloadArea),
+                new DownloadParams().withNewLayer(newLayer), downloadArea, progressMonitor);
+    }
+
+    @Override
+    public Future<?> download(DownloadParams settings, Bounds downloadArea, ProgressMonitor progressMonitor) {
+        return download(new BoundingBoxDownloader(downloadArea), settings, downloadArea, progressMonitor);
+    }
+
+    /**
+     * Asynchronously launches the download task for a given bounding box.
+     *
+     * @param reader the reader used to parse OSM data (see {@link OsmServerReader#parseOsm})
+     * @param newLayer newLayer true, if the data is to be downloaded into a new layer. If false, the task
+     * selects one of the existing layers as download layer, preferably the active layer.
+     * @param downloadArea the area to download
+     * @param progressMonitor the progressMonitor
+     * @return the future representing the asynchronous task
+     * @deprecated Use {@link #download(OsmServerReader, DownloadParams, Bounds, ProgressMonitor)}
+     */
+    @Deprecated
+    public Future<?> download(OsmServerReader reader, boolean newLayer, Bounds downloadArea, ProgressMonitor progressMonitor) {
+        return download(new DownloadTask(new DownloadParams().withNewLayer(newLayer), reader, progressMonitor, zoomAfterDownload),
+                downloadArea);
     }
 
     /**
@@ -111,14 +145,14 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
      *    MainApplication.worker.submit(runAfterTask);
      * </pre>
      * @param reader the reader used to parse OSM data (see {@link OsmServerReader#parseOsm})
-     * @param newLayer true, if the data is to be downloaded into a new layer. If false, the task
-     *                 selects one of the existing layers as download layer, preferably the active layer.
+     * @param settings download settings
      * @param downloadArea the area to download
      * @param progressMonitor the progressMonitor
      * @return the future representing the asynchronous task
+     * @since 13927
      */
-    public Future<?> download(OsmServerReader reader, boolean newLayer, Bounds downloadArea, ProgressMonitor progressMonitor) {
-        return download(new DownloadTask(newLayer, reader, progressMonitor, zoomAfterDownload), downloadArea);
+    public Future<?> download(OsmServerReader reader, DownloadParams settings, Bounds downloadArea, ProgressMonitor progressMonitor) {
+        return download(new DownloadTask(settings, reader, progressMonitor, zoomAfterDownload), downloadArea);
     }
 
     protected Future<?> download(DownloadTask downloadTask, Bounds downloadArea) {
@@ -140,24 +174,27 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
 
     /**
      * Loads a given URL from the OSM Server
-     * @param newLayer True if the data should be saved to a new layer
+     * @param settings download settings
      * @param url The URL as String
      */
     @Override
-    public Future<?> loadUrl(boolean newLayer, String url, ProgressMonitor progressMonitor) {
+    public Future<?> loadUrl(DownloadParams settings, String url, ProgressMonitor progressMonitor) {
         String newUrl = modifyUrlBeforeLoad(url);
-        downloadTask = new DownloadTask(newLayer,
+        downloadTask = new DownloadTask(settings,
                 new OsmServerLocationReader(newUrl),
                 progressMonitor);
         currentBounds = null;
         // Extract .osm filename from URL to set the new layer name
-        extractOsmFilename("https?://.*/(.*\\.osm)", newUrl);
+        extractOsmFilename(settings, "https?://.*/(.*\\.osm)", newUrl);
         return MainApplication.worker.submit(downloadTask);
     }
 
-    protected final void extractOsmFilename(String pattern, String url) {
-        Matcher matcher = Pattern.compile(pattern).matcher(url);
-        newLayerName = matcher.matches() ? matcher.group(1) : null;
+    protected final void extractOsmFilename(DownloadParams settings, String pattern, String url) {
+        newLayerName = settings.getLayerName();
+        if (newLayerName == null || newLayerName.isEmpty()) {
+            Matcher matcher = Pattern.compile(pattern).matcher(url);
+            newLayerName = matcher.matches() ? matcher.group(1) : null;
+        }
     }
 
     @Override
@@ -183,28 +220,28 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
      */
     public abstract static class AbstractInternalTask extends PleaseWaitRunnable {
 
-        protected final boolean newLayer;
+        protected final DownloadParams settings;
         protected final boolean zoomAfterDownload;
         protected DataSet dataSet;
 
         /**
          * Constructs a new {@code AbstractInternalTask}.
-         * @param newLayer if {@code true}, force download to a new layer
+         * @param settings download settings
          * @param title message for the user
          * @param ignoreException If true, exception will be propagated to calling code. If false then
          * exception will be thrown directly in EDT. When this runnable is executed using executor framework
          * then use false unless you read result of task (because exception will get lost if you don't)
          * @param zoomAfterDownload If true, the map view will zoom to download area after download
          */
-        public AbstractInternalTask(boolean newLayer, String title, boolean ignoreException, boolean zoomAfterDownload) {
+        public AbstractInternalTask(DownloadParams settings, String title, boolean ignoreException, boolean zoomAfterDownload) {
             super(title, ignoreException);
-            this.newLayer = newLayer;
+            this.settings = Objects.requireNonNull(settings);
             this.zoomAfterDownload = zoomAfterDownload;
         }
 
         /**
          * Constructs a new {@code AbstractInternalTask}.
-         * @param newLayer if {@code true}, force download to a new layer
+         * @param settings download settings
          * @param title message for the user
          * @param progressMonitor progress monitor
          * @param ignoreException If true, exception will be propagated to calling code. If false then
@@ -212,10 +249,10 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
          * then use false unless you read result of task (because exception will get lost if you don't)
          * @param zoomAfterDownload If true, the map view will zoom to download area after download
          */
-        public AbstractInternalTask(boolean newLayer, String title, ProgressMonitor progressMonitor, boolean ignoreException,
+        public AbstractInternalTask(DownloadParams settings, String title, ProgressMonitor progressMonitor, boolean ignoreException,
                 boolean zoomAfterDownload) {
             super(title, progressMonitor, ignoreException);
-            this.newLayer = newLayer;
+            this.settings = Objects.requireNonNull(settings);
             this.zoomAfterDownload = zoomAfterDownload;
         }
 
@@ -258,7 +295,21 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
 
         protected OsmDataLayer createNewLayer(String layerName) {
             if (layerName == null || layerName.isEmpty()) {
+                layerName = settings.getLayerName();
+            }
+            if (layerName == null || layerName.isEmpty()) {
                 layerName = OsmDataLayer.createNewName();
+            }
+            if (settings.getDownloadPolicy() != null) {
+                dataSet.setDownloadPolicy(settings.getDownloadPolicy());
+            }
+            if (settings.getUploadPolicy() != null) {
+                dataSet.setUploadPolicy(settings.getUploadPolicy());
+            }
+            if (dataSet.isLocked() && !settings.isLocked()) {
+                dataSet.unlock();
+            } else if (!dataSet.isLocked() && settings.isLocked()) {
+                dataSet.lock();
             }
             return new OsmDataLayer(dataSet, layerName, null);
         }
@@ -279,7 +330,7 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
 
         protected OsmDataLayer addNewLayerIfRequired(String newLayerName) {
             long numDataLayers = getNumModifiableDataLayers();
-            if (newLayer || numDataLayers == 0 || (numDataLayers > 1 && getEditLayer() == null)) {
+            if (settings.isNewLayer() || numDataLayers == 0 || (numDataLayers > 1 && getEditLayer() == null)) {
                 // the user explicitly wants a new layer, we don't have any layer at all
                 // or it is not clear which layer to merge to
                 final OsmDataLayer layer = createNewLayer(newLayerName);
@@ -350,9 +401,11 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
          * @param newLayer if {@code true}, force download to a new layer
          * @param reader OSM data reader
          * @param progressMonitor progress monitor
+         * @deprecated Use {@code DownloadTask(DownloadParams, OsmServerReader, ProgressMonitor)}
          */
+        @Deprecated
         public DownloadTask(boolean newLayer, OsmServerReader reader, ProgressMonitor progressMonitor) {
-            this(newLayer, reader, progressMonitor, true);
+            this(new DownloadParams().withNewLayer(newLayer), reader, progressMonitor);
         }
 
         /**
@@ -361,10 +414,34 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
          * @param reader OSM data reader
          * @param progressMonitor progress monitor
          * @param zoomAfterDownload If true, the map view will zoom to download area after download
-         * @since 8942
+         * @deprecated Use {@code DownloadTask(DownloadParams, OsmServerReader, ProgressMonitor, boolean)}
          */
+        @Deprecated
         public DownloadTask(boolean newLayer, OsmServerReader reader, ProgressMonitor progressMonitor, boolean zoomAfterDownload) {
-            super(newLayer, tr("Downloading data"), progressMonitor, false, zoomAfterDownload);
+            this(new DownloadParams().withNewLayer(newLayer), reader, progressMonitor, zoomAfterDownload);
+        }
+
+        /**
+         * Constructs a new {@code DownloadTask}.
+         * @param settings download settings
+         * @param reader OSM data reader
+         * @param progressMonitor progress monitor
+         * @since 13927
+         */
+        public DownloadTask(DownloadParams settings, OsmServerReader reader, ProgressMonitor progressMonitor) {
+            this(settings, reader, progressMonitor, true);
+        }
+
+        /**
+         * Constructs a new {@code DownloadTask}.
+         * @param settings download settings
+         * @param reader OSM data reader
+         * @param progressMonitor progress monitor
+         * @param zoomAfterDownload If true, the map view will zoom to download area after download
+         * @since 13927
+         */
+        public DownloadTask(DownloadParams settings, OsmServerReader reader, ProgressMonitor progressMonitor, boolean zoomAfterDownload) {
+            super(settings, tr("Downloading data"), progressMonitor, false, zoomAfterDownload);
             this.reader = reader;
         }
 

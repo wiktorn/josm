@@ -63,6 +63,8 @@ public final class HistoryBrowserDialogManager implements LayerChangeListener {
 
     private final Predicate<PrimitiveId> notNewPredicate = p -> !p.isNew();
 
+    private static final List<HistoryHook> hooks = new ArrayList<>();
+
     protected HistoryBrowserDialogManager() {
         dialogs = new HashMap<>();
         MainApplication.getLayerManager().addLayerChangeListener(this);
@@ -193,11 +195,33 @@ public final class HistoryBrowserDialogManager implements LayerChangeListener {
     }
 
     /**
+     * Adds a new {@code HistoryHook}.
+     * @param hook hook to add
+     * @return <tt>true</tt> (as specified by {@link Collection#add})
+     * @since 13947
+     */
+    public static boolean addHistoryHook(HistoryHook hook) {
+        return hooks.add(Objects.requireNonNull(hook));
+    }
+
+    /**
+     * Removes an existing {@code HistoryHook}.
+     * @param hook hook to remove
+     * @return <tt>true</tt> if this list contained the specified element
+     * @since 13947
+     */
+    public static boolean removeHistoryHook(HistoryHook hook) {
+        return hooks.remove(Objects.requireNonNull(hook));
+    }
+
+    /**
      * Show history dialog(s) for the given primitive(s).
      * @param primitives The primitive(s) for which history will be displayed
      */
     public void showHistory(final Collection<? extends PrimitiveId> primitives) {
-        final Collection<? extends PrimitiveId> notNewPrimitives = SubclassFilteredCollection.filter(primitives, notNewPredicate);
+        final List<PrimitiveId> realPrimitives = new ArrayList<>(primitives);
+        hooks.forEach(h -> h.modifyRequestedIds(realPrimitives));
+        final Collection<? extends PrimitiveId> notNewPrimitives = SubclassFilteredCollection.filter(realPrimitives, notNewPredicate);
         if (notNewPrimitives.isEmpty()) {
             JOptionPane.showMessageDialog(
                     Main.parent,
@@ -207,7 +231,7 @@ public final class HistoryBrowserDialogManager implements LayerChangeListener {
             return;
         }
 
-        Collection<? extends PrimitiveId> toLoad = SubclassFilteredCollection.filter(primitives, unloadedHistoryPredicate);
+        Collection<? extends PrimitiveId> toLoad = SubclassFilteredCollection.filter(realPrimitives, unloadedHistoryPredicate);
         if (!toLoad.isEmpty()) {
             HistoryLoadTask task = new HistoryLoadTask();
             for (PrimitiveId p : notNewPrimitives) {

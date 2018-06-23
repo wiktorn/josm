@@ -15,6 +15,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.swing.AbstractAction;
 import javax.swing.JComponent;
@@ -33,12 +34,14 @@ import org.openstreetmap.josm.actions.AutoScaleAction;
 import org.openstreetmap.josm.actions.ValidateAction;
 import org.openstreetmap.josm.actions.relation.EditRelationAction;
 import org.openstreetmap.josm.command.Command;
-import org.openstreetmap.josm.data.SelectionChangedListener;
+import org.openstreetmap.josm.data.osm.DataSelectionListener;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.WaySegment;
+import org.openstreetmap.josm.data.osm.event.SelectionEventManager;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
+import org.openstreetmap.josm.data.osm.visitor.PrimitiveVisitor;
 import org.openstreetmap.josm.data.preferences.sources.ValidatorPrefHelper;
 import org.openstreetmap.josm.data.validation.OsmValidator;
 import org.openstreetmap.josm.data.validation.TestError;
@@ -70,7 +73,7 @@ import org.xml.sax.SAXException;
  *
  * @author frsantos
  */
-public class ValidatorDialog extends ToggleDialog implements SelectionChangedListener, ActiveLayerChangeListener {
+public class ValidatorDialog extends ToggleDialog implements DataSelectionListener, ActiveLayerChangeListener {
 
     /** The display tree */
     public ValidatorTreePanel tree;
@@ -179,7 +182,7 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
 
     @Override
     public void showNotify() {
-        DataSet.addSelectionListener(this);
+        SelectionEventManager.getInstance().addSelectionListener(this);
         DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
         if (ds != null) {
             updateSelection(ds.getAllSelected());
@@ -190,7 +193,7 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
     @Override
     public void hideNotify() {
         MainApplication.getLayerManager().removeActiveLayerChangeListener(this);
-        DataSet.removeSelectionListener(this);
+        SelectionEventManager.getInstance().removeSelectionListener(this);
     }
 
     @Override
@@ -204,7 +207,6 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
     /**
      * Fix selected errors
      */
-    @SuppressWarnings("unchecked")
     private void fixErrors() {
         TreePath[] selectionPaths = tree.getSelectionPaths();
         if (selectionPaths == null)
@@ -215,38 +217,21 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
         List<TestError> errorsToFix = new LinkedList<>();
         for (TreePath path : selectionPaths) {
             DefaultMutableTreeNode node = (DefaultMutableTreeNode) path.getLastPathComponent();
-            if (node == null) {
-                continue;
-            }
-
-            Enumeration<TreeNode> children = node.breadthFirstEnumeration();
-            while (children.hasMoreElements()) {
-                DefaultMutableTreeNode childNode = (DefaultMutableTreeNode) children.nextElement();
-                if (processedNodes.contains(childNode)) {
-                    continue;
-                }
-
-                processedNodes.add(childNode);
-                Object nodeInfo = childNode.getUserObject();
-                if (nodeInfo instanceof TestError) {
-                    errorsToFix.add((TestError) nodeInfo);
-                }
+            if (node != null) {
+                ValidatorTreePanel.visitTestErrors(node, errorsToFix::add, processedNodes);
             }
         }
 
         // run fix task asynchronously
-        //
-        FixTask fixTask = new FixTask(errorsToFix);
-        MainApplication.worker.submit(fixTask);
+        MainApplication.worker.submit(new FixTask(errorsToFix));
     }
 
     /**
      * Set selected errors to ignore state
      */
-    @SuppressWarnings("unchecked")
     private void ignoreErrors() {
         int asked = JOptionPane.DEFAULT_OPTION;
-        boolean changed = false;
+        AtomicBoolean changed = new AtomicBoolean();
         TreePath[] selectionPaths = tree.getSelectionPaths();
         if (selectionPaths == null)
             return;
@@ -269,22 +254,11 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
                             a, a[1]);
                 }
                 if (asked == JOptionPane.YES_NO_OPTION) {
-                    Enumeration<TreeNode> children = node.breadthFirstEnumeration();
-                    while (children.hasMoreElements()) {
-                        DefaultMutableTreeNode childNode = (DefaultMutableTreeNode) children.nextElement();
-                        if (processedNodes.contains(childNode)) {
-                            continue;
-                        }
-
-                        processedNodes.add(childNode);
-                        Object nodeInfo = childNode.getUserObject();
-                        if (nodeInfo instanceof TestError) {
-                            TestError err = (TestError) nodeInfo;
-                            err.setIgnored(true);
-                            changed = true;
-                            state.add(node.getDepth() == 1 ? err.getIgnoreSubGroup() : err.getIgnoreGroup());
-                        }
-                    }
+                    ValidatorTreePanel.visitTestErrors(node, err -> {
+                        err.setIgnored(true);
+                        changed.set(true);
+                        state.add(node.getDepth() == 1 ? err.getIgnoreSubGroup() : err.getIgnoreGroup());
+                    }, processedNodes);
                     for (String s : state) {
                         OsmValidator.addIgnoredError(s);
                     }
@@ -294,27 +268,16 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
                 }
             }
 
-            Enumeration<TreeNode> children = node.breadthFirstEnumeration();
-            while (children.hasMoreElements()) {
-                DefaultMutableTreeNode childNode = (DefaultMutableTreeNode) children.nextElement();
-                if (processedNodes.contains(childNode)) {
-                    continue;
+            ValidatorTreePanel.visitTestErrors(node, error -> {
+                String state = error.getIgnoreState();
+                if (state != null) {
+                    OsmValidator.addIgnoredError(state);
                 }
-
-                processedNodes.add(childNode);
-                Object nodeInfo = childNode.getUserObject();
-                if (nodeInfo instanceof TestError) {
-                    TestError error = (TestError) nodeInfo;
-                    String state = error.getIgnoreState();
-                    if (state != null) {
-                        OsmValidator.addIgnoredError(state);
-                    }
-                    changed = true;
-                    error.setIgnored(true);
-                }
-            }
+                changed.set(true);
+                error.setIgnored(true);
+            }, processedNodes);
         }
-        if (changed) {
+        if (changed.get()) {
             tree.resetErrors();
             OsmValidator.saveIgnoredErrors();
             invalidateValidatorLayers();
@@ -326,15 +289,15 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
      */
     @SuppressWarnings("unchecked")
     private void setSelectedItems() {
-        if (tree == null)
+        DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
+        if (tree == null || ds == null)
             return;
-
-        Collection<OsmPrimitive> sel = new HashSet<>(40);
 
         TreePath[] selectedPaths = tree.getSelectionPaths();
         if (selectedPaths == null)
             return;
 
+        Collection<OsmPrimitive> sel = new HashSet<>(40);
         for (TreePath path : selectedPaths) {
             DefaultMutableTreeNode node = (DefaultMutableTreeNode) path.getLastPathComponent();
             Enumeration<TreeNode> children = node.breadthFirstEnumeration();
@@ -349,10 +312,7 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
                 }
             }
         }
-        DataSet ds = MainApplication.getLayerManager().getActiveDataSet();
-        if (ds != null) {
-            ds.setSelected(sel);
-        }
+        ds.setSelected(sel);
     }
 
     /**
@@ -365,49 +325,33 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
      *            if true, add all selected elements to collection
      * @return whether the selected elements has any fix
      */
-    @SuppressWarnings("unchecked")
     private boolean setSelection(Collection<OsmPrimitive> sel, boolean addSelected) {
-        boolean hasFixes = false;
+        AtomicBoolean hasFixes = new AtomicBoolean();
 
         DefaultMutableTreeNode node = (DefaultMutableTreeNode) tree.getLastSelectedPathComponent();
         if (lastSelectedNode != null && !lastSelectedNode.equals(node)) {
-            Enumeration<TreeNode> children = lastSelectedNode.breadthFirstEnumeration();
-            while (children.hasMoreElements()) {
-                DefaultMutableTreeNode childNode = (DefaultMutableTreeNode) children.nextElement();
-                Object nodeInfo = childNode.getUserObject();
-                if (nodeInfo instanceof TestError) {
-                    TestError error = (TestError) nodeInfo;
-                    error.setSelected(false);
-                }
-            }
+            ValidatorTreePanel.visitTestErrors(lastSelectedNode, error -> error.setSelected(false));
         }
 
         lastSelectedNode = node;
-        if (node == null)
-            return hasFixes;
-
-        Enumeration<TreeNode> children = node.breadthFirstEnumeration();
-        while (children.hasMoreElements()) {
-            DefaultMutableTreeNode childNode = (DefaultMutableTreeNode) children.nextElement();
-            Object nodeInfo = childNode.getUserObject();
-            if (nodeInfo instanceof TestError) {
-                TestError error = (TestError) nodeInfo;
+        if (node != null) {
+            ValidatorTreePanel.visitTestErrors(node, error -> {
                 error.setSelected(true);
 
-                hasFixes = hasFixes || error.isFixable();
+                hasFixes.set(hasFixes.get() || error.isFixable());
                 if (addSelected) {
                     error.getPrimitives().stream()
                             .filter(OsmPrimitive::isSelectable)
                             .forEach(sel::add);
                 }
+            });
+            selectButton.setEnabled(true);
+            if (ignoreButton != null) {
+                ignoreButton.setEnabled(true);
             }
         }
-        selectButton.setEnabled(true);
-        if (ignoreButton != null) {
-            ignoreButton.setEnabled(true);
-        }
 
-        return hasFixes;
+        return hasFixes.get();
     }
 
     @Override
@@ -542,7 +486,7 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
         @Override
         public void visit(OsmPrimitive p) {
             if (p.isUsable()) {
-                p.accept(this);
+                p.accept((PrimitiveVisitor) this);
             }
         }
 
@@ -583,8 +527,8 @@ public class ValidatorDialog extends ToggleDialog implements SelectionChangedLis
     }
 
     @Override
-    public void selectionChanged(Collection<? extends OsmPrimitive> newSelection) {
-        updateSelection(newSelection);
+    public void selectionChanged(SelectionChangeEvent event) {
+        updateSelection(event.getSelection());
     }
 
     /**

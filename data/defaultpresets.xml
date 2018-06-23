@@ -377,7 +377,8 @@
             <reference ref="rating_phases" />
             <combo key="devices" text="Number of devices" values="1,2,3,4" />
             <combo key="windings" text="Number of windings" values="1,2,3,4" />
-            <combo key="windings:configuration" text="Windings configuration" values="star,delta,open-delta,zigzag,open,scott,leblanc" values_context="power" />
+            <!-- #16364: don't use simple "power" context to avoid conflict with "delta" used for power towers -->
+            <combo key="windings:configuration" text="Windings configuration" values="star,delta,open-delta,zigzag,open,scott,leblanc" values_context="power_windings" />
         </optional>
     </chunk>
     <chunk id="optional_bridge">
@@ -2272,7 +2273,8 @@
             <text key="name" text="Name" />
             <optional>
                 <combo key="layer" text="Layer" values="5,4,3,2,1,0,-1,-2,-3,-4,-5" length="3" />
-                <combo key="tunnel" text="Tunnel" values="culvert,yes" />
+                <combo key="tunnel" text="Tunnel" values="culvert,flooded,yes" />
+                <combo key="usage" text="Usage" values="transportation,transmission,irrigation,headrace,tailrace,spillway" values_context="usage" />
                 <text key="width" text="Width (meters)" />
                 <text key="wikipedia" text="Wikipedia" />
                 <check key="lock" text="Lock" disable_off="true" />
@@ -2374,6 +2376,21 @@
                 <text key="width" text="Width (meters)" />
             </optional>
         </item> <!-- Culvert -->
+        <item name="Penstock" icon="presets/nautical/penstock.svg" type="way" preset_name_label="true">
+            <link href="https://wiki.openstreetmap.org/wiki/Tag:usage=penstock"
+                  fr.href="https://wiki.openstreetmap.org/wiki/FR:Tag:usage=penstock" />
+            <key key="waterway" value="pressurised" />
+            <key key="man_made" value="pipeline" />
+            <key key="substance" value="water" />
+            <key key="usage" value="penstock" />
+            <combo key="location" text="Location" values="underground,overground" values_context="pipeline" />
+            <optional>
+                <text key="name" text="Name" />
+                <text key="operator" text="Operator" />
+                <combo key="diameter" text="Diameter (in mm)" values="800,1000,1200,1500,1600,1800,2200,2300,2400,2500,2600,2800,3200,3300,3400,3500,4000,4200,4300,4800" />
+                <combo key="material" text="Material" values="metal,steel" />
+            </optional>
+        </item> <!-- Penstock -->
         <separator/>
         <item name="Basin" icon="presets/landuse/basin.svg" type="node,closedway,multipolygon" preset_name_label="true">
             <link href="https://wiki.openstreetmap.org/wiki/Tag:landuse=basin"
@@ -2537,6 +2554,16 @@
             <key key="natural" value="bay" />
             <text key="name" text="Name" />
         </item> <!-- Bay -->
+        <item name="Cape" icon="presets/nautical/cape.svg" type="node,closedway,multipolygon" preset_name_label="true">
+            <link href="https://wiki.openstreetmap.org/wiki/Tag:natural=cape"
+                  cs.href="https://wiki.openstreetmap.org/wiki/Cs:Tag:natural=cape"
+                  it.href="https://wiki.openstreetmap.org/wiki/IT:Tag:natural=cape"
+                  pl.href="https://wiki.openstreetmap.org/wiki/Pl:Tag:natural=cape" />
+            <label text="A prominent, elevated piece of land sticking out into the sea or large lake." />
+            <space />
+            <key key="natural" value="cape" />
+            <text key="name" text="Name" />
+        </item> <!-- Cape -->
     </group> <!-- Water -->
     <group name="Shipping" icon="presets/nautical/ferry.svg">
         <item name="Ferry Terminal" icon="presets/nautical/ferry.svg" type="node,closedway,multipolygon" preset_name_label="true">
