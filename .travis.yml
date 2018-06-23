@@ -15,9 +15,11 @@ before_install:
   - >
     case "${TRAVIS_OS_NAME:-linux}" in
     linux)
+      ant bootstrap
       ;;
     osx)
       brew update
       brew install ant
+      ant bootstrap
       ;;
     esac;
