@@ -35,6 +35,8 @@
         <property name="mapcss.dir" location="${src.dir}/org/openstreetmap/josm/gui/mappaint/mapcss"/>
         <property name="proj-build.dir" location="${base.dir}/build2"/>
         <property name="checkstyle-build.dir" location="${base.dir}/build2"/>
+        <property name="lib.dir" location="${base.dir}/lib"/>
+        <taskdef resource="org/apache/ivy/ant/antlib.xml" uri="antlib:org.apache.ivy.ant" classpath="${tools.dir}/ivy/ivy.jar"/>
     </target>
     <target name="init-properties" depends="resolve,init-project-properties">
         <property name="checkstyle.dir" location="${tools.dir}/checkstyle"/>
@@ -953,10 +955,6 @@ Build-Date: ${build.tstamp}
             <arg value="${base.dir}"/>
         </java>
     </target>
-    <target name="bootstrap" description="Used to install the ivy task jar">
-        <mkdir dir="${user.home}/.ant/lib"/>
-        <get dest="${user.home}/.ant/lib/ivy.jar" src="http://search.maven.org/remotecontent?filepath=org/apache/ivy/ivy/2.4.0/ivy-2.4.0.jar"/>
-    </target>
     <target name="resolve" depends="init-project-properties">
         <ivy:resolve keep="true"/>
         <ivy:report todir="${tools.dir}/ivy-report" graph="false"/>
@@ -966,11 +964,13 @@ Build-Date: ${build.tstamp}
         <ivy:cachepath pathid="test.path"           conf="test"/>
         <ivy:cachepath pathid="groovy-ant.path"     conf="groovy-ant-task"/>
         <ivy:cachepath pathid="groovy-scripts.path" conf="groovy-scripts"/>
+        <ivy:retrieve pattern="tools/ivy/[artifact].[ext]" conf="ivy"/>
     </target>
     <target name="bootstrap-workspace" description="Copy libraries from ivy cache to workspace folders for IDE" depends="resolve">
-        <ivy:retrieve pattern="lib/compile/[artifact].[ext]" conf="compile"/>
-        <ivy:retrieve pattern="lib/runtime/[artifact].[ext]" conf="runtime"/>
-        <ivy:retrieve pattern="lib/test/[artifact].[ext]" conf="test"/>
-        <ivy:retrieve pattern="lib/groovy-scripts/[artifact].[ext]" conf="groovy-scripts"/>
+        <delete dir="${lib.dir}"/>
+        <ivy:retrieve pattern="${lib.dir}/compile/[artifact].[ext]" conf="compile"/>
+        <ivy:retrieve pattern="${lib.dir}/runtime/[artifact].[ext]" conf="runtime"/>
+        <ivy:retrieve pattern="${lib.dir}/test/[artifact].[ext]" conf="test"/>
+        <ivy:retrieve pattern="${lib.dir}/groovy-scripts/[artifact].[ext]" conf="groovy-scripts"/>
     </target>
 </project>
