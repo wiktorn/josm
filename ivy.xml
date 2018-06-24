@@ -42,7 +42,7 @@
          using groovy-ant 2.5.0 & groovy-all 2.4.15 - works
           -->
         <dependency org="org.codehaus.groovy" name="groovy-ant" rev="2.5.0" conf="groovy-ant-task->default" />
-        <dependency org="org.codehaus.groovy" name="groovy-all" rev="2.4.15" conf="groovy-scripts->default"/>
+        <dependency org="org.codehaus.groovy" name="groovy-all" rev="2.4.15" conf="groovy-scripts->default;test->default"/>
         <dependency org="commons-cli" name="commons-cli" rev="1.4" conf="groovy-scripts->default"/> 
     </dependencies>
 </ivy-module>
