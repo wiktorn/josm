@@ -15,8 +15,10 @@ before_install:
   - >
     case "${TRAVIS_OS_NAME:-linux}" in
     linux)
+      ant resolve
       ;;
     osx)
+      ant resolve
       brew update
       brew install ant
       ;;
