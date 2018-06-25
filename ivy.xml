@@ -3,23 +3,35 @@
 <ivy-module version="2.0">
     <info organisation="org.openstreetmap" module="josm"/>
     <configurations>
-        <conf name="runtime" description="Libraries only needed at runtime" />
-        <conf name="compile" description="Libraries needed only for compilation" extends="runtime" />
-        <conf name="test" description="Libraries only needed for testing" extends="compile" />
         <conf name="groovy-scripts" description="Dependencies for Groovy scripts" />
         <conf name="groovy-ant-task" description="Dependencies for Groovy scripts" />
         <conf name="ivy" description="Apache Ivy configration for self-update" />
+        <!--  configuration that should be used when specifying dependencies -->
+        <conf name="implementation" description="All libs JOSM uses that plugins should not use" />
+        <conf name="api" description="All libs that JOSM uses and are available for plugins" />
+        <conf name="runtimeOnly" description="The libs shipped with JOSM that we do not need during compilation" />
+        <conf name="provided" description="The libs we need during compilation but not on application start" />
+        <conf name="epsg" description="Everything epsg needs- which is currently all of JOSM." />
+        <!--  Meta configuration used in build scripts -->
+        <conf name="runtime" description="Libraries only needed at runtime" extends="implementation,api,runtimeOnly"/>
+        <conf name="compile" description="Libraries needed only for compilation" extends="implementation,api,provided" />
+        <conf name="test" description="Libraries only needed for testing" extends="compile,runtime" />
     </configurations>
     <dependencies>
         <dependency org="org.apache.ivy" name="ivy" rev="latest.release" conf="ivy->default" />
-        <dependency org="com.drewnoakes" name="metadata-extractor" rev="2.11.0" conf="runtime->default"/>
-        <dependency org="oauth.signpost" name="signpost-core" rev="1.2.1.2" conf="runtime->default"/>
-        <dependency org="org.apache.commons" name="commons-jcs-core" rev="2.2" conf="runtime->default"/>
-        <dependency org="commons-logging" name="commons-logging" rev="1.2" conf="runtime->default"/>
-        <dependency org="org.apache.commons" name="commons-compress" rev="1.12" conf="runtime->default"/>
-        <dependency org="javax.json" name="javax.json-api" rev="1.1.2" conf="runtime->default"/>
-        <dependency org="org.glassfish" name="javax.json" rev="1.1.2" conf="runtime->default"/>
-        <dependency org="org.openstreetmap.jmapviewer" name="jmapviewer" rev="2.6" conf="runtime->default" />
+        <!--  implementation -->
+        <dependency org="com.drewnoakes" name="metadata-extractor" rev="2.11.0" conf="implementation->default"/>
+        <dependency org="org.apache.commons" name="commons-compress" rev="1.12" conf="implementation->default"/>
+        <!--  api -->
+        <dependency org="oauth.signpost" name="signpost-core" rev="1.2.1.2" conf="api->default"/>
+        <dependency org="org.apache.commons" name="commons-jcs-core" rev="2.2" conf="api->default"/>
+        <dependency org="commons-logging" name="commons-logging" rev="1.2" conf="api->default"/>
+        <dependency org="javax.json" name="javax.json-api" rev="1.1.2" conf="api->default"/>
+        <dependency org="org.openstreetmap.jmapviewer" name="jmapviewer" rev="2.6" conf="api->default" />
+        <!--  runtime only -->
+        <dependency org="org.glassfish" name="javax.json" rev="1.1.2" conf="runtimeOnly->default"/>
+        <!--  provided -->
+        <dependency org="com.github.spotbugs" name="spotbugs-annotations" rev="3.1.3" conf="provided->default"/>
         <!--  tests -->
         <dependency org="junit" name="junit" rev="4.12" conf="test->default"/>
         <dependency org="com.github.stefanbirkner" name="system-rules" rev="1.16.0" conf="test->default"/>
@@ -34,8 +46,6 @@
         <dependency org="org.reflections" name="reflections" rev="0.9.11" conf="test->default"/>
         <dependency org="net.trajano.commons" name="commons-testing" rev="2.1.0" conf="test->default"/>
         <dependency org="org.awaitility" name="awaitility" rev="3.0.0" conf="test->default"/>
-        <!--  compile -->
-        <dependency org="com.github.spotbugs" name="spotbugs-annotations" rev="3.1.3" conf="compile->default"/>
          <!--
          Something strange with groovy (under Eclipse):
          using groovy-ant 2.4.15 & groovy-all 2.4.15 - fails on `java.lang.NoClassDefFoundError: org/apache/commons/cli/ParseException`
