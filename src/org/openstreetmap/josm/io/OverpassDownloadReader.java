@@ -12,6 +12,7 @@ import java.time.Period;
 import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -79,6 +80,10 @@ public class OverpassDownloadReader extends BoundingBoxDownloader {
             }
             super.parseUnknown(printWarning);
         }
+    }
+
+    static final class OverpassOsmJsonReader extends OsmJsonReader {
+
     }
 
     /**
@@ -163,6 +168,7 @@ public class OverpassDownloadReader extends BoundingBoxDownloader {
 
     static {
         registerOverpassOutpoutFormatReader(OverpassOutpoutFormat.OSM_XML, OverpassOsmReader.class);
+        registerOverpassOutpoutFormatReader(OverpassOutpoutFormat.OSM_JSON, OverpassOsmJsonReader.class);
     }
 
     @Override
@@ -280,7 +286,11 @@ public class OverpassDownloadReader extends BoundingBoxDownloader {
     }
 
     private static SearchResult searchName(String area) throws IOException {
-        return NameFinder.queryNominatim(area).stream().filter(
+        return searchName(NameFinder.queryNominatim(area));
+    }
+
+    static SearchResult searchName(List<SearchResult> results) {
+        return results.stream().filter(
                 x -> !OsmPrimitiveType.NODE.equals(x.getOsmId().getType())).iterator().next();
     }
 
@@ -291,6 +301,7 @@ public class OverpassDownloadReader extends BoundingBoxDownloader {
         idOffset.put(OsmPrimitiveType.WAY, 2_400_000_000L);
         idOffset.put(OsmPrimitiveType.RELATION, 3_600_000_000L);
         final PrimitiveId osmId = searchName(area).getOsmId();
+        Logging.debug("Area '{0}' resolved to {1}", area, osmId);
         return String.format("area(%d)", osmId.getUniqueId() + idOffset.get(osmId.getType()));
     }
 
@@ -403,6 +414,6 @@ public class OverpassDownloadReader extends BoundingBoxDownloader {
     public static String fixQuery(String query) {
         return query == null ? query : query
                 .replaceAll("out( body| skel| ids)?( id| qt)?;", "out meta$2;")
-                .replaceAll("(?s)\\[out:(json|csv)[^\\]]*\\]", "[out:xml]");
+                .replaceAll("(?s)\\[out:(csv)[^\\]]*\\]", "[out:xml]");
     }
 }

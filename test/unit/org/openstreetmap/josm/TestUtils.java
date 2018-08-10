@@ -1,13 +1,16 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Graphics2D;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
@@ -22,6 +25,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Stream;
 
 import org.junit.Assume;
@@ -33,17 +39,22 @@ import org.openstreetmap.josm.data.osm.OsmUtils;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.Way;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.progress.AbstractProgressMonitor;
 import org.openstreetmap.josm.gui.progress.CancelHandler;
 import org.openstreetmap.josm.gui.progress.ProgressMonitor;
 import org.openstreetmap.josm.gui.progress.ProgressTaskId;
+import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.io.Compression;
 import org.openstreetmap.josm.testutils.FakeGraphics;
+import org.openstreetmap.josm.testutils.mockers.WindowMocker;
 import org.openstreetmap.josm.tools.JosmRuntimeException;
 import org.openstreetmap.josm.tools.Utils;
+import org.reflections.Reflections;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.google.common.io.ByteStreams;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
@@ -169,7 +180,19 @@ public final class TestUtils {
      * @throws ReflectiveOperationException if a reflection operation error occurs
      */
     public static Object getPrivateField(Object obj, String fieldName) throws ReflectiveOperationException {
-        Field f = obj.getClass().getDeclaredField(fieldName);
+        return getPrivateField(obj.getClass(), obj, fieldName);
+    }
+
+    /**
+     * Returns a private field value.
+     * @param cls object class
+     * @param obj object
+     * @param fieldName private field name
+     * @return private field value
+     * @throws ReflectiveOperationException if a reflection operation error occurs
+     */
+    public static Object getPrivateField(Class<?> cls, Object obj, String fieldName) throws ReflectiveOperationException {
+        Field f = cls.getDeclaredField(fieldName);
         AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
             f.setAccessible(true);
             return null;
@@ -388,6 +411,19 @@ public final class TestUtils {
     }
 
     /**
+     * Use to assume that JMockit is working with the current JVM.
+     */
+    public static void assumeWorkingJMockit() {
+        try {
+            // Workaround to https://github.com/jmockit/jmockit1/issues/534
+            // Inspired by https://issues.apache.org/jira/browse/SOLR-11606
+            new WindowMocker();
+        } catch (UnsupportedOperationException e) {
+            Assume.assumeNoException(e);
+        }
+    }
+
+    /**
      * Return WireMock server serving files under ticker directory
      * @param ticketId Ticket numeric identifier
      * @return WireMock HTTP server on dynamic port
@@ -427,5 +463,68 @@ public final class TestUtils {
      */
     public static String getHTTPDate(long time) {
         return getHTTPDate(Instant.ofEpochMilli(time));
+    }
+
+    /**
+     * Throws AssertionError if contents of both files are not equal
+     * @param fileA File A
+     * @param fileB File B
+     */
+    public static void assertFileContentsEqual(final File fileA, final File fileB) {
+        assertTrue(fileA.exists());
+        assertTrue(fileA.canRead());
+        assertTrue(fileB.exists());
+        assertTrue(fileB.canRead());
+        try {
+            try (
+                FileInputStream streamA = new FileInputStream(fileA);
+                FileInputStream streamB = new FileInputStream(fileB);
+            ) {
+                assertArrayEquals(
+                    ByteStreams.toByteArray(streamA),
+                    ByteStreams.toByteArray(streamB)
+                );
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Waits until any asynchronous operations launched by the test on the EDT or worker threads have
+     * (almost certainly) completed.
+     */
+    public static void syncEDTAndWorkerThreads() {
+        boolean workerQueueEmpty = false;
+        while (!workerQueueEmpty) {
+            try {
+                // once our own task(s) have made it to the front of their respective queue(s),
+                // they're both executing at the same time and we know there aren't any outstanding
+                // worker tasks, then presumably the only way there could be incomplete operations
+                // is if the EDT had launched a deferred task to run on itself or perhaps set up a
+                // swing timer - neither are particularly common patterns in JOSM (?)
+                //
+                // there shouldn't be a risk of creating a deadlock in doing this as there shouldn't
+                // (...couldn't?) be EDT operations waiting on the results of a worker task.
+                workerQueueEmpty = MainApplication.worker.submit(
+                    () -> GuiHelper.runInEDTAndWaitAndReturn(
+                        () -> ((ThreadPoolExecutor) MainApplication.worker).getQueue().isEmpty()
+                    )
+                ).get();
+            } catch (InterruptedException | ExecutionException e) {
+                // inconclusive - retry...
+                workerQueueEmpty = false;
+            }
+        }
+    }
+
+    /**
+     * Returns all JOSM subtypes of the given class.
+     * @param <T> class
+     * @param superClass class
+     * @return all JOSM subtypes of the given class
+     */
+    public static <T> Set<Class<? extends T>> getJosmSubtypes(Class<T> superClass) {
+        return new Reflections("org.openstreetmap.josm").getSubTypesOf(superClass);
     }
 }

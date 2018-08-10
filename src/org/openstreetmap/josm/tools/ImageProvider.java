@@ -977,8 +977,8 @@ public class ImageProvider {
                 BufferedImage img = null;
                 try {
                     img = read(Utils.fileToURL(cf.getFile()), false, false);
-                } catch (IOException e) {
-                    Logging.log(Logging.LEVEL_WARN, "IOException while reading HTTP image:", e);
+                } catch (IOException | UnsatisfiedLinkError e) {
+                    Logging.log(Logging.LEVEL_WARN, "Exception while reading HTTP image:", e);
                 }
                 return img == null ? null : new ImageResource(img);
             default:
@@ -1034,8 +1034,8 @@ public class ImageProvider {
                     // CHECKSTYLE.ON: LineLength
                     Image img = read(new ByteArrayInputStream(bytes), false, true);
                     return img == null ? null : new ImageResource(img);
-                } catch (IOException e) {
-                    Logging.log(Logging.LEVEL_WARN, "IOException while reading image:", e);
+                } catch (IOException | UnsatisfiedLinkError e) {
+                    Logging.log(Logging.LEVEL_WARN, "Exception while reading image:", e);
                 }
             }
         }
@@ -1119,7 +1119,7 @@ public class ImageProvider {
                         BufferedImage img = null;
                         try {
                             img = read(new ByteArrayInputStream(buf), false, false);
-                        } catch (IOException e) {
+                        } catch (IOException | UnsatisfiedLinkError e) {
                             Logging.warn(e);
                         }
                         return img == null ? null : new ImageResource(img);
@@ -1128,7 +1128,7 @@ public class ImageProvider {
                     }
                 }
             }
-        } catch (IOException e) {
+        } catch (IOException | UnsatisfiedLinkError e) {
             Logging.log(Logging.LEVEL_WARN, tr("Failed to handle zip file ''{0}''. Exception was: {1}", archive.getName(), e.toString()), e);
         }
         return null;
@@ -1164,7 +1164,7 @@ public class ImageProvider {
                 if (Logging.isDebugEnabled() && isTransparencyForced(img)) {
                     Logging.debug("Transparency has been forced for image {0}", path);
                 }
-            } catch (IOException e) {
+            } catch (IOException | UnsatisfiedLinkError e) {
                 Logging.log(Logging.LEVEL_WARN, "Unable to read image", e);
                 Logging.debug(e);
             }
@@ -1485,8 +1485,8 @@ public class ImageProvider {
      * @since 8903
      */
     public static ImageIcon getPadded(OsmPrimitive primitive, Dimension iconSize) {
-        // Check if the current styles have special icon for tagged nodes.
-        if (primitive instanceof org.openstreetmap.josm.data.osm.Node) {
+        // Check if the current styles have special icon for tagged objects.
+        if (primitive.isTagged()) {
             Pair<StyleElementList, Range> nodeStyles;
             DataSet ds = primitive.getDataSet();
             if (ds != null) {
@@ -2024,6 +2024,16 @@ public class ImageProvider {
             }
             throw new IOException(e);
         }
+    }
+
+    /**
+     * Creates a blank icon of the given size.
+     * @param size image size
+     * @return a blank icon of the given size
+     * @since 13984
+     */
+    public static ImageIcon createBlankIcon(ImageSizes size) {
+        return new ImageIcon(new BufferedImage(size.getAdjustedWidth(), size.getAdjustedHeight(), BufferedImage.TYPE_INT_ARGB));
     }
 
     @Override

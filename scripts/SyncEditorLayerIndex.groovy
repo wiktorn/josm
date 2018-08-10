@@ -17,6 +17,7 @@
  * Add option "-h" to show the available command line flags.
  */
 import java.text.DecimalFormat
+
 import javax.json.Json
 import javax.json.JsonArray
 import javax.json.JsonObject
@@ -491,11 +492,17 @@ class SyncEditorLayerIndex {
 
             Integer eMinZoom = getMinZoom(e)
             Integer jMinZoom = getMinZoom(j)
+            /* dont warn for entries copied from the base of the mirror */
+            if(eMinZoom == null && "wms".equals(getType(j)) && j.getName() =~ / mirror/)
+                jMinZoom = null;
             if (eMinZoom != jMinZoom  && !(eMinZoom == 0 && jMinZoom == null)) {
                 myprintln "* Minzoom differs (${eMinZoom} != ${jMinZoom}): ${getDescription(j)}"
             }
             Integer eMaxZoom = getMaxZoom(e)
             Integer jMaxZoom = getMaxZoom(j)
+            /* dont warn for entries copied from the base of the mirror */
+            if(eMaxZoom == null && "wms".equals(getType(j)) && j.getName() =~ / mirror/)
+                jMaxZoom = null;
             if (eMaxZoom != jMaxZoom) {
                 myprintln "* Maxzoom differs (${eMaxZoom} != ${jMaxZoom}): ${getDescription(j)}"
             }
@@ -720,7 +727,7 @@ class SyncEditorLayerIndex {
                 }
             } catch(IllegalArgumentException err) {
                 def desc = getDescription(e)
-                myprintln("* Invalid data in ELI geometry for $desc: ${err.getMessage()}") 
+                myprintln("* Invalid data in ELI geometry for $desc: ${err.getMessage()}")
             }
             if (s == null || !josmUrls.containsKey(url)) {
                 continue
@@ -1018,8 +1025,6 @@ class SyncEditorLayerIndex {
     }
     static Integer getMinZoom(Object e) {
         if (e instanceof ImageryInfo) {
-            if("wms".equals(getType(e)) && e.getName() =~ / mirror/)
-                return null
             int mz = e.getMinZoom()
             return mz == 0 ? null : mz
         } else {
@@ -1030,8 +1035,6 @@ class SyncEditorLayerIndex {
     }
     static Integer getMaxZoom(Object e) {
         if (e instanceof ImageryInfo) {
-            if("wms".equals(getType(e)) && e.getName() =~ / mirror/)
-                return null
             int mz = e.getMaxZoom()
             return mz == 0 ? null : mz
         } else {

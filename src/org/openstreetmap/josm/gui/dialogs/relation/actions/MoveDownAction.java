@@ -7,8 +7,6 @@ import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 
 import org.openstreetmap.josm.Main;
-import org.openstreetmap.josm.gui.dialogs.relation.MemberTable;
-import org.openstreetmap.josm.gui.dialogs.relation.MemberTableModel;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Shortcut;
 
@@ -17,15 +15,15 @@ import org.openstreetmap.josm.tools.Shortcut;
  * @since 9496
  */
 public class MoveDownAction extends AbstractRelationEditorAction {
+    private static final long serialVersionUID = 1L;
 
     /**
      * Constructs a new {@code MoveDownAction}.
-     * @param memberTable member table
-     * @param memberTableModel member table model
+     * @param editorAccess An interface to access the relation editor contents.
      * @param actionMapKey action map key
      */
-    public MoveDownAction(MemberTable memberTable, MemberTableModel memberTableModel, String actionMapKey) {
-        super(memberTable, memberTableModel, actionMapKey);
+    public MoveDownAction(IRelationEditorActionAccess editorAccess, String actionMapKey) {
+        super(editorAccess, actionMapKey, IRelationEditorUpdateOn.MEMBER_TABLE_SELECTION);
         new ImageProvider("dialogs", "movedown").getResource().attachImageIcon(this, true);
         Shortcut sc = Shortcut.registerShortcut("relationeditor:movedown", tr("Relation Editor: Move Down"), KeyEvent.VK_DOWN, Shortcut.ALT);
         sc.setAccelerator(this);
@@ -35,11 +33,11 @@ public class MoveDownAction extends AbstractRelationEditorAction {
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        memberTableModel.moveDown(memberTable.getSelectedRows());
+        editorAccess.getMemberTableModel().moveDown(editorAccess.getMemberTable().getSelectedRows());
     }
 
     @Override
     protected void updateEnabledState() {
-        setEnabled(memberTableModel.canMoveDown(memberTable.getSelectedRows()));
+        setEnabled(editorAccess.getMemberTableModel().canMoveDown(editorAccess.getMemberTable().getSelectedRows()));
     }
 }

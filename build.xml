@@ -38,11 +38,11 @@
         <property name="proj-build.dir" location="${base.dir}/build2"/>
         <property name="checkstyle-build.dir" location="${base.dir}/build2"/>
         <property name="epsg.output" location="${base.dir}/data/projection/custom-epsg"/>
-        <property name="groovy.jar" location="${tools.dir}/groovy-all.jar"/>
         <property name="error_prone_ant.jar" location="${tools.dir}/error_prone_ant.jar"/>
         <property name="dist.jar" location="${dist.dir}/josm-custom.jar"/>
         <property name="dist-optimized.jar" location="${dist.dir}/josm-custom-optimized.jar"/>
         <property name="java.lang.version" value="1.8" />
+        <property name="test.headless" value="true" />
         <property name="jacoco.includes" value="org.openstreetmap.josm.*" />
         <property name="jacoco.inclbootstrapclasses" value="false" />
         <property name="jacoco.inclnolocationclasses" value="false" />
@@ -64,7 +64,7 @@
         <condition property="isJava11">
             <matches string="${ant.java.version}" pattern="1[1-9]" />
         </condition>
-        <!-- Disable error_prone on Java 10+, see https://github.com/google/error-prone/issues/860 -->
+        <!-- error_prone works differently on Java 10+, see https://github.com/google/error-prone/issues/860 -->
         <condition property="javac.compiler" value="modern" else="com.google.errorprone.ErrorProneAntCompilerAdapter">
             <isset property="isJava10"/>
         </condition>
@@ -74,12 +74,17 @@
                 <isset property="isJava11"/>
             </not>
         </condition>
+        <path id="groovy.classpath">
+            <fileset dir="${tools.dir}/groovy">
+                <include name="*.jar"/>
+            </fileset>
+        </path>
         <path id="test.classpath">
             <fileset dir="${test.dir}/lib">
                 <include name="**/*.jar"/>
             </fileset>
             <pathelement path="${dist.jar}"/>
-            <pathelement path="${groovy.jar}"/>
+            <pathelement path="${pmd.dir}/commons-lang3-3.7.jar"/>
             <pathelement path="${spotbugs.dir}/spotbugs-annotations.jar"/>
         </path>
         <path id="pmd.classpath">
@@ -327,6 +332,8 @@ Build-Date: ${build.tstamp}
             <compilerclasspath>
                 <pathelement location="${error_prone_ant.jar}"/>
             </compilerclasspath>
+            <compilerarg line="-XDcompilePolicy=simple" compiler="modern"/>
+            <compilerarg line="-processorpath ${error_prone_ant.jar}" compiler="modern"/>
             <compilerarg value="-Xlint:cast"/>
             <compilerarg value="-Xlint:deprecation"/>
             <compilerarg value="-Xlint:dep-ann"/>
@@ -340,8 +347,10 @@ Build-Date: ${build.tstamp}
             <compilerarg value="-Xlint:unchecked"/>
             <!-- Undocumented argument to ignore "Sun internal proprietary API" warning, see http://stackoverflow.com/a/13862308/2257172 -->
             <compilerarg value="-XDignore.symbol.file"/>
+            <compilerarg value="-Xep:CatchAndPrintStackTrace:OFF" compiler="com.google.errorprone.ErrorProneAntCompilerAdapter"/>
             <compilerarg value="-Xep:ReferenceEquality:OFF" compiler="com.google.errorprone.ErrorProneAntCompilerAdapter"/>
             <compilerarg value="-Xep:StringSplitter:OFF" compiler="com.google.errorprone.ErrorProneAntCompilerAdapter"/>
+            <compilerarg value="-Xplugin:ErrorProne -Xep:CatchAndPrintStackTrace:OFF -Xep:ReferenceEquality:OFF -Xep:StringSplitter:OFF" compiler="modern"/>
             <compilerarg line="-Xmaxwarns 1000"/>
         </javac>
     </target>
@@ -353,6 +362,8 @@ Build-Date: ${build.tstamp}
             <compilerclasspath>
                 <pathelement location="${error_prone_ant.jar}"/>
             </compilerclasspath>
+            <compilerarg line="-XDcompilePolicy=simple" compiler="modern"/>
+            <compilerarg line="-processorpath ${error_prone_ant.jar}" compiler="modern"/>
             <compilerarg value="-Xlint:cast"/>
             <compilerarg value="-Xlint:deprecation"/>
             <compilerarg value="-Xlint:dep-ann"/>
@@ -373,6 +384,7 @@ Build-Date: ${build.tstamp}
             <compilerarg value="-Xep:ShortCircuitBoolean:OFF" compiler="com.google.errorprone.ErrorProneAntCompilerAdapter"/>
             <compilerarg value="-Xep:StringSplitter:OFF" compiler="com.google.errorprone.ErrorProneAntCompilerAdapter"/>
             <compilerarg value="-Xep:JdkObsolete:OFF" compiler="com.google.errorprone.ErrorProneAntCompilerAdapter"/>
+            <compilerarg value="-Xplugin:ErrorProne -Xep:ReferenceEquality:OFF -Xep:ImmutableEnumChecker:OFF -Xep:FutureReturnValueIgnored:OFF -Xep:FloatingPointLiteralPrecision:OFF -Xep:ShortCircuitBoolean:OFF -Xep:StringSplitter:OFF -Xep:JdkObsolete:OFF" compiler="modern"/>
             <compilerarg line="-Xmaxwarns 1000"/>
             <exclude name="org/openstreetmap/josm/io/audio/fx/*.java" if:set="noJavaFX"/>
         </javac>
@@ -451,40 +463,39 @@ Build-Date: ${build.tstamp}
         <delete file="${test.dir}/config/functional-josm.home" failonerror="false"/>
         <delete file="${test.dir}/config/performance-josm.home" failonerror="false"/>
     </target>
-    <macrodef name="call-groovyc">
+    <macrodef name="call-javac">
         <attribute name="testfamily"/>
         <element name="cp-elements"/>
         <sequential>
-            <groovyc srcdir="${test.dir}/@{testfamily}" destdir="${test.dir}/build/@{testfamily}" encoding="UTF-8">
+            <javac srcdir="${test.dir}/@{testfamily}" destdir="${test.dir}/build/@{testfamily}"
+                target="${java.lang.version}" source="${java.lang.version}" debug="on"
+                includeantruntime="false" createMissingPackageInfoClass="false" encoding="UTF-8">
+                <compilerarg value="-Xlint:all"/>
+                <compilerarg value="-Xlint:-serial"/>
                 <classpath>
                     <cp-elements/>
                 </classpath>
-                <javac target="${java.lang.version}" source="${java.lang.version}" debug="on" encoding="UTF-8">
-                    <compilerarg value="-Xlint:all"/>
-                    <compilerarg value="-Xlint:-serial"/>
-                </javac>
-            </groovyc>
+            </javac>
         </sequential>
     </macrodef>
     <target name="test-compile" depends="test-init,dist">
-        <taskdef name="groovyc" classname="org.codehaus.groovy.ant.Groovyc" classpath="${groovy.jar}"/>
-        <call-groovyc testfamily="unit">
+        <call-javac testfamily="unit">
             <cp-elements>
                 <path refid="test.classpath"/>
             </cp-elements>
-        </call-groovyc>
-        <call-groovyc testfamily="functional">
-            <cp-elements>
-                <path refid="test.classpath"/>
-                <pathelement path="${test.dir}/build/unit"/>
-            </cp-elements>
-        </call-groovyc>
-        <call-groovyc testfamily="performance">
+        </call-javac>
+        <call-javac testfamily="functional">
             <cp-elements>
                 <path refid="test.classpath"/>
                 <pathelement path="${test.dir}/build/unit"/>
             </cp-elements>
-        </call-groovyc>
+        </call-javac>
+        <call-javac testfamily="performance">
+            <cp-elements>
+                <path refid="test.classpath"/>
+                <pathelement path="${test.dir}/build/unit"/>
+            </cp-elements>
+        </call-javac>
     </target>
     <macrodef name="call-junit">
         <attribute name="testfamily"/>
@@ -496,6 +507,7 @@ Build-Date: ${build.tstamp}
                 inclbootstrapclasses="${jacoco.inclbootstrapclasses}" inclnolocationclasses="${jacoco.inclnolocationclasses}">
                 <junit printsummary="yes" fork="true" forkmode="once">
                     <jvmarg value="-Dfile.encoding=UTF-8"/>
+                    <jvmarg value="-javaagent:${test.dir}/lib/jmockit-1.41.jar"/>
                     <jvmarg value="--add-modules" if:set="isJava9" unless:set="isJava11" />
                     <jvmarg value="java.activation,java.se.ee" if:set="isJava9" unless:set="isJava11" />
                     <jvmarg value="--add-exports" if:set="isJava9" />
@@ -520,7 +532,7 @@ Build-Date: ${build.tstamp}
                     <jvmarg value="java.desktop/java.awt=ALL-UNNAMED" if:set="isJava9" />
                     <sysproperty key="josm.home" value="${test.dir}/config/@{testfamily}-josm.home"/>
                     <sysproperty key="josm.test.data" value="${test.dir}/data"/>
-                    <sysproperty key="java.awt.headless" value="true"/>
+                    <sysproperty key="java.awt.headless" value="${test.headless}"/>
                     <sysproperty key="glass.platform" value="Monocle"/>
                     <sysproperty key="monocle.platform" value="Headless"/>
                     <sysproperty key="prism.order" value="sw"/>
@@ -786,7 +798,7 @@ Build-Date: ${build.tstamp}
         <attribute name="output"/>
         <sequential>
             <echo message="Generating Taginfo for type @{type} to @{output}"/>
-            <groovy src="${taginfoextract}" classpath="${dist.jar}:${spotbugs.dir}/spotbugs-annotations.jar">
+            <groovy src="${taginfoextract}" classpath="${dist.jar};${toString:groovy.classpath};${spotbugs.dir}/spotbugs-annotations.jar">
                 <arg value="-t"/>
                 <arg value="@{type}"/>
                 <arg value="--noexit"/>
@@ -800,7 +812,8 @@ Build-Date: ${build.tstamp}
     </macrodef>
 
     <target name="taginfo" depends="dist">
-        <taskdef name="groovy" classname="org.codehaus.groovy.ant.Groovy" classpath="${groovy.jar};${tools.dir}/commons-cli-1.3.1.jar"/>
+        <!-- http://docs.groovy-lang.org/2.5.1/html/documentation/#_the_groovy_ant_task -->
+        <taskdef name="groovy" classname="org.codehaus.groovy.ant.Groovy" classpathref="groovy.classpath"/>
         <property name="taginfoextract" value="scripts/TagInfoExtract.groovy"/>
         <property name="imgurlprefix" value="http://josm.openstreetmap.de/download/taginfo/taginfo-img"/>
         <_taginfo type="mappaint" output="taginfo_style.json"/>
@@ -809,7 +822,7 @@ Build-Date: ${build.tstamp}
     </target>
 
     <target name="imageryindex" depends="init-properties">
-        <taskdef name="groovy" classname="org.codehaus.groovy.ant.Groovy" classpath="${groovy.jar};${tools.dir}/commons-cli-1.3.1.jar"/>
+        <taskdef name="groovy" classname="org.codehaus.groovy.ant.Groovy" classpathref="groovy.classpath"/>
         <echo message="Checking editor imagery difference"/>
         <groovy src="scripts/SyncEditorLayerIndex.groovy" classpath="${dist.jar}">
                 <arg value="-noeli"/>

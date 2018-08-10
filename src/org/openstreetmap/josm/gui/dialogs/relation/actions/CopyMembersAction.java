@@ -7,29 +7,25 @@ import java.util.Collection;
 import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.gui.datatransfer.ClipboardUtils;
 import org.openstreetmap.josm.gui.datatransfer.RelationMemberTransferable;
-import org.openstreetmap.josm.gui.dialogs.relation.IRelationEditor;
-import org.openstreetmap.josm.gui.dialogs.relation.MemberTableModel;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 
 /**
  * Copy members.
  * @since 9496
  */
 public class CopyMembersAction extends AddFromSelectionAction {
+    private static final long serialVersionUID = 1L;
 
     /**
      * Constructs a new {@code CopyMembersAction}.
-     * @param memberTableModel member table model
-     * @param layer OSM data layer
-     * @param editor relation editor
+     * @param editorAccess An interface to access the relation editor contents.
      */
-    public CopyMembersAction(MemberTableModel memberTableModel, OsmDataLayer layer, IRelationEditor editor) {
-        super(null, memberTableModel, null, null, null, layer, editor);
+    public CopyMembersAction(IRelationEditorActionAccess editorAccess) {
+        super(editorAccess);
     }
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        final Collection<RelationMember> members = memberTableModel.getSelectedMembers();
+        final Collection<RelationMember> members = getMemberTableModel().getSelectedMembers();
 
         if (!members.isEmpty()) {
             ClipboardUtils.copy(new RelationMemberTransferable(members));

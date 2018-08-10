@@ -1,6 +1,8 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.tools.template_engine;
 
+import java.util.Arrays;
+
 /**
  * {@link TemplateEntry} that concatenates several templates.
  */
@@ -52,5 +54,20 @@ public final class CompoundTemplateEntry implements TemplateEntry {
             result.append(te);
         }
         return result.toString();
+    }
+
+    @Override
+    public int hashCode() {
+        return 31 + Arrays.hashCode(entries);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null || getClass() != obj.getClass())
+            return false;
+        CompoundTemplateEntry other = (CompoundTemplateEntry) obj;
+        return Arrays.equals(entries, other.entries);
     }
 }

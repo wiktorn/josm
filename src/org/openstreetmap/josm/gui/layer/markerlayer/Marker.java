@@ -10,7 +10,6 @@ import java.awt.event.ActionEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
@@ -18,7 +17,6 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.TimeZone;
 
 import javax.swing.ImageIcon;
 
@@ -34,6 +32,7 @@ import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.spi.preferences.PreferenceChangeEvent;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Logging;
+import org.openstreetmap.josm.tools.date.DateUtils;
 import org.openstreetmap.josm.tools.template_engine.ParseError;
 import org.openstreetmap.josm.tools.template_engine.TemplateEngineDataProvider;
 import org.openstreetmap.josm.tools.template_engine.TemplateEntry;
@@ -208,7 +207,7 @@ public class Marker implements TemplateEngineDataProvider, ILatLon {
     public static final String LABEL_PATTERN_NAME = "{name}";
     public static final String LABEL_PATTERN_DESC = "{desc}";
 
-    private final DateFormat timeFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+    private final DateFormat timeFormatter = DateUtils.getGpxFormat();
     private final TemplateEngineDataProvider dataProvider;
     private final String text;
 
@@ -237,7 +236,6 @@ public class Marker implements TemplateEngineDataProvider, ILatLon {
 
     private Marker(LatLon ll, TemplateEngineDataProvider dataProvider, String text, String iconName, MarkerLayer parentLayer,
             double time, double offset) {
-        timeFormatter.setTimeZone(TimeZone.getTimeZone("UTC"));
         setCoor(ll);
 
         this.offset = offset;
@@ -261,7 +259,7 @@ public class Marker implements TemplateEngineDataProvider, ILatLon {
      */
     public WayPoint convertToWayPoint() {
         WayPoint wpt = new WayPoint(getCoor());
-        wpt.put("time", timeFormatter.format(new Date(Math.round(time * 1000))));
+        wpt.put(GpxConstants.PT_TIME, timeFormatter.format(new Date(Math.round(time * 1000))));
         if (text != null) {
             wpt.addExtension("text", text);
         } else if (dataProvider != null) {

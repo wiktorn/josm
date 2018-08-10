@@ -13,16 +13,20 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Locale;
-import java.util.Optional;
+import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.gpx.GpxConstants;
 import org.openstreetmap.josm.data.gpx.GpxData;
 import org.openstreetmap.josm.data.gpx.ImmutableGpxTrack;
 import org.openstreetmap.josm.data.gpx.WayPoint;
+import org.openstreetmap.josm.io.IGpxReader;
 import org.openstreetmap.josm.io.IllegalDataException;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.date.DateUtils;
+import org.xml.sax.SAXException;
 
 /**
  * Reads a NMEA 0183 file. Based on information from
@@ -39,8 +43,13 @@ import org.openstreetmap.josm.tools.date.DateUtils;
  *
  * @author cbrill
  */
-public class NmeaReader {
+public class NmeaReader implements IGpxReader {
 
+    /**
+     * Course Over Ground and Ground Speed.
+     * <p>
+     * The actual course and speed relative to the ground
+     */
     enum VTG {
         COURSE(1), COURSE_REF(2), // true course
         COURSE_M(3), COURSE_M_REF(4), // magnetic course
@@ -55,6 +64,14 @@ public class NmeaReader {
         }
     }
 
+    /**
+     * Recommended Minimum Specific GNSS Data.
+     * <p>
+     * Time, date, position, course and speed data provided by a GNSS navigation receiver.
+     * This sentence is transmitted at intervals not exceeding 2-seconds.
+     * RMC is the recommended minimum data to be provided by a GNSS receiver.
+     * All data fields must be provided, null fields used only when data is temporarily unavailable.
+     */
     enum RMC {
         TIME(1),
         /** Warning from the receiver (A = data ok, V = warning) */
@@ -77,6 +94,11 @@ public class NmeaReader {
         }
     }
 
+    /**
+     * Global Positioning System Fix Data.
+     * <p>
+     * Time, position and fix related data for a GPS receiver.
+     */
     enum GGA {
         TIME(1), LATITUDE(2), LATITUDE_NAME(3), LONGITUDE(4), LONGITUDE_NAME(5),
         /**
@@ -95,6 +117,18 @@ public class NmeaReader {
         }
     }
 
+    /**
+     * GNSS DOP and Active Satellites.
+     * <p>
+     * GNSS receiver operating mode, satellites used in the navigation solution reported by the GGA or GNS sentence,
+     * and DOP values.
+     * If only GPS, GLONASS, etc. is used for the reported position solution the talker ID is GP, GL, etc.
+     * and the DOP values pertain to the individual system. If GPS, GLONASS, etc. are combined to obtain the
+     * reported position solution multiple GSA sentences are produced, one with the GPS satellites, another with
+     * the GLONASS satellites, etc. Each of these GSA sentences shall have talker ID GN, to indicate that the
+     * satellites are used in a combined solution and each shall have the PDOP, HDOP and VDOP for the
+     * combined satellites used in the position.
+     */
     enum GSA {
         AUTOMATIC(1),
         FIX_TYPE(2), // 1 = not fixed, 2 = 2D fixed, 3 = 3D fixed)
@@ -111,6 +145,11 @@ public class NmeaReader {
         }
     }
 
+    /**
+     * Geographic Position - Latitude/Longitude.
+     * <p>
+     * Latitude and Longitude of vessel position, time of position fix and status.
+     */
     enum GLL {
         LATITUDE(1), LATITUDE_NS(2), // Latitude, NS
         LONGITUDE(3), LONGITUDE_EW(4), // Latitude, EW
@@ -128,17 +167,30 @@ public class NmeaReader {
         }
     }
 
-    public GpxData data;
+    private final InputStream source;
+    GpxData data;
+
+    private static final Pattern DATE_TIME_PATTERN = Pattern.compile("(\\d{12})(\\.\\d+)?");
 
     private final SimpleDateFormat rmcTimeFmt = new SimpleDateFormat("ddMMyyHHmmss.SSS", Locale.ENGLISH);
-    private final SimpleDateFormat rmcTimeFmtStd = new SimpleDateFormat("ddMMyyHHmmss", Locale.ENGLISH);
 
     private Date readTime(String p) throws IllegalDataException {
-        Date d = Optional.ofNullable(rmcTimeFmt.parse(p, new ParsePosition(0)))
-                .orElseGet(() -> rmcTimeFmtStd.parse(p, new ParsePosition(0)));
-        if (d == null)
-            throw new IllegalDataException("Date is malformed: '" + p + "'");
-        return d;
+        // NMEA defines time with "a variable number of digits for decimal-fraction of seconds"
+        // This variable decimal fraction cannot be parsed by SimpleDateFormat
+        Matcher m = DATE_TIME_PATTERN.matcher(p);
+        if (m.matches()) {
+            String date = m.group(1);
+            double milliseconds = 0d;
+            if (m.groupCount() > 1 && m.group(2) != null) {
+                milliseconds = 1000d * Double.parseDouble("0" + m.group(2));
+            }
+            // Add milliseconds on three digits to match SimpleDateFormat pattern
+            date += String.format(".%03d", (int) milliseconds);
+            Date d = rmcTimeFmt.parse(date, new ParsePosition(0));
+            if (d != null)
+                return d;
+        }
+        throw new IllegalDataException("Date is malformed: '" + p + "'");
     }
 
     // functons for reading the error stats
@@ -170,9 +222,12 @@ public class NmeaReader {
      * @throws IOException if an I/O error occurs
      */
     public NmeaReader(InputStream source) throws IOException {
+        this.source = Objects.requireNonNull(source);
         rmcTimeFmt.setTimeZone(DateUtils.UTC);
-        rmcTimeFmtStd.setTimeZone(DateUtils.UTC);
+    }
 
+    @Override
+    public boolean parse(boolean tryToFinish) throws SAXException, IOException {
         // create the data tree
         data = new GpxData();
         Collection<Collection<WayPoint>> currentTrack = new ArrayList<>();
@@ -183,7 +238,7 @@ public class NmeaReader {
             ps = new NMEAParserState();
             if (loopstartChar == -1)
                 //TODO tell user about the problem?
-                return;
+                return false;
             sb.append((char) loopstartChar);
             ps.pDate = "010100"; // TODO date problem
             while (true) {
@@ -209,7 +264,9 @@ public class NmeaReader {
 
         } catch (IllegalDataException e) {
             Logging.warn(e);
+            return false;
         }
+        return true;
     }
 
     private static class NMEAParserState {
@@ -374,8 +431,7 @@ public class NmeaReader {
                     accu = e[VTG.SPEED_KMH.position];
                     if (!accu.isEmpty() && currentwp != null) {
                         double speed = Double.parseDouble(accu);
-                        speed /= 3.6; // speed in m/s
-                        currentwp.put("speed", Double.toString(speed));
+                        currentwp.put("speed", Double.toString(speed)); // speed in km/h
                     }
                 }
             } else if (isSentence(e[0], Sentence.GSA)) {
@@ -423,7 +479,7 @@ public class NmeaReader {
                 accu = e[RMC.SPEED.position];
                 if (!accu.isEmpty() && !currentwp.attr.containsKey("speed")) {
                     double speed = Double.parseDouble(accu);
-                    speed *= 0.514444444; // to m/s
+                    speed *= 0.514444444 * 3.6; // to km/h
                     currentwp.put("speed", Double.toString(speed));
                 }
                 // course
@@ -527,5 +583,10 @@ public class NmeaReader {
             lon = -lon;
         }
         return new LatLon(lat, lon);
+    }
+
+    @Override
+    public GpxData getGpxData() {
+        return data;
     }
 }

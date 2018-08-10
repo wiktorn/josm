@@ -808,10 +808,14 @@ implements DataSelectionListener, ActiveLayerChangeListener, DataSetListenerAdap
         public Component getTableCellRendererComponent(JTable table, Object value,
                 boolean isSelected, boolean hasFocus, int row, int column) {
             Component c = super.getTableCellRendererComponent(table, value, isSelected, false, row, column);
-            boolean isDisabledAndHidden = ((IRelation<?>) table.getValueAt(row, 0)).isDisabledAndHidden();
+            IRelation<?> relation = (IRelation<?>) table.getValueAt(row, 0);
+            boolean isDisabledAndHidden = relation != null && relation.isDisabledAndHidden();
             if (c instanceof JLabel) {
                 JLabel label = (JLabel) c;
-                label.setText(((MemberInfo) table.getValueAt(row, 1)).getPositionString());
+                MemberInfo member = (MemberInfo) table.getValueAt(row, 1);
+                if (member != null) {
+                    label.setText(member.getPositionString());
+                }
                 if (isDisabledAndHidden) {
                     label.setFont(label.getFont().deriveFont(Font.ITALIC));
                 }

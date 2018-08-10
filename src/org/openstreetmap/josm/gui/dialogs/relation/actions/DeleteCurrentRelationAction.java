@@ -5,28 +5,25 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.event.ActionEvent;
 import java.beans.PropertyChangeEvent;
-import java.beans.PropertyChangeListener;
 
 import org.openstreetmap.josm.actions.mapmode.DeleteAction;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.gui.dialogs.relation.GenericRelationEditor;
-import org.openstreetmap.josm.gui.dialogs.relation.IRelationEditor;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.tools.ImageProvider;
 
 /**
  * Delete the currently edited relation.
  * @since 9496
  */
-public class DeleteCurrentRelationAction extends AbstractRelationEditorAction implements PropertyChangeListener {
+public class DeleteCurrentRelationAction extends AbstractRelationEditorAction {
+    private static final long serialVersionUID = 1L;
 
     /**
      * Constructs a new {@code DeleteCurrentRelationAction}.
-     * @param layer OSM data layer
-     * @param editor relation editor
+     * @param editorAccess An interface to access the relation editor contents.
      */
-    public DeleteCurrentRelationAction(OsmDataLayer layer, IRelationEditor editor) {
-        super(null, null, null, layer, editor);
+    public DeleteCurrentRelationAction(IRelationEditorActionAccess editorAccess) {
+        super(editorAccess);
         putValue(SHORT_DESCRIPTION, tr("Delete the currently edited relation"));
         new ImageProvider("dialogs", "delete").getResource().attachImageIcon(this, true);
         putValue(NAME, tr("Delete"));
@@ -35,19 +32,20 @@ public class DeleteCurrentRelationAction extends AbstractRelationEditorAction im
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        Relation toDelete = editor.getRelation();
+        Relation toDelete = getEditor().getRelation();
         if (toDelete == null)
             return;
-        DeleteAction.deleteRelation(layer, toDelete);
+        DeleteAction.deleteRelation(getLayer(), toDelete);
     }
 
     @Override
     protected void updateEnabledState() {
-        setEnabled(editor.getRelationSnapshot() != null);
+        setEnabled(getEditor().getRelationSnapshot() != null);
     }
 
     @Override
     public void propertyChange(PropertyChangeEvent evt) {
+        // Do not call super.
         if (GenericRelationEditor.RELATION_SNAPSHOT_PROP.equals(evt.getPropertyName())) {
             updateEnabledState();
         }

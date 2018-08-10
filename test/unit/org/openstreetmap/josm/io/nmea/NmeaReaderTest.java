@@ -5,13 +5,17 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.TimeZone;
 
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.openstreetmap.josm.TestUtils;
@@ -39,6 +43,16 @@ public class NmeaReaderTest {
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
     public JOSMTestRules test = new JOSMTestRules();
 
+    private final SimpleDateFormat iso8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSX");
+
+    /**
+     * Forces the timezone.
+     */
+    @Before
+    public void setUp() {
+        iso8601.setTimeZone(DateUtils.UTC);
+    }
+
     /**
      * Tests reading a nmea file.
      * @throws Exception if any error occurs
@@ -47,6 +61,7 @@ public class NmeaReaderTest {
     public void testReader() throws Exception {
         TimeZone.setDefault(TimeZone.getTimeZone("Europe/Berlin"));
         final NmeaReader in = new NmeaReader(new FileInputStream("data_nodist/btnmeatrack_2016-01-25.nmea"));
+        in.parse(true);
         assertEquals(30, in.getNumberOfCoordinates());
         assertEquals(0, in.getParserMalformed());
 
@@ -56,10 +71,9 @@ public class NmeaReaderTest {
         assertEquals("2016-01-25T05:05:09.6Z", wayPoints.get(2).get(GpxConstants.PT_TIME));
         assertEquals(wayPoints.get(0).getTime(), DateUtils.fromString(wayPoints.get(0).get(GpxConstants.PT_TIME).toString()));
 
-        final SimpleDateFormat iso8601 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSX");
-        assertEquals("2016-01-25T06:05:09.200+01", iso8601.format(wayPoints.get(0).getTime()));
-        assertEquals("2016-01-25T06:05:09.400+01", iso8601.format(wayPoints.get(1).getTime()));
-        assertEquals("2016-01-25T06:05:09.600+01", iso8601.format(wayPoints.get(2).getTime()));
+        assertEquals("2016-01-25T05:05:09.200Z", iso8601.format(wayPoints.get(0).getTime()));
+        assertEquals("2016-01-25T05:05:09.400Z", iso8601.format(wayPoints.get(1).getTime()));
+        assertEquals("2016-01-25T05:05:09.600Z", iso8601.format(wayPoints.get(2).getTime()));
 
         assertEquals(new LatLon(46.98807, -1.400525), wayPoints.get(0).getCoor());
         assertEquals("38.9", wayPoints.get(0).get(GpxConstants.PT_ELE));
@@ -73,6 +87,7 @@ public class NmeaReaderTest {
     private static void compareWithReference(int ticket, String filename, int numCoor) throws IOException, SAXException {
         GpxData gpx = GpxReaderTest.parseGpxData(TestUtils.getRegressionDataFile(ticket, filename+".gpx"));
         NmeaReader in = new NmeaReader(new FileInputStream(TestUtils.getRegressionDataFile(ticket, filename+".nmea")));
+        in.parse(true);
         assertEquals(numCoor, in.getNumberOfCoordinates());
         assertEquals(0, in.getParserMalformed());
         assertEquals(gpx.dataSources, in.data.dataSources);
@@ -142,5 +157,50 @@ public class NmeaReaderTest {
     @Test
     public void testTicket14924() throws Exception {
         compareWithReference(14924, "input", 0);
+    }
+
+    private static GpxData read(String nmeaLine) throws IOException, SAXException {
+        NmeaReader in = new NmeaReader(new ByteArrayInputStream(nmeaLine.getBytes(StandardCharsets.UTF_8)));
+        in.parse(true);
+        return in.data;
+    }
+
+    private static WayPoint readWayPoint(String nmeaLine) throws IOException, SAXException {
+        return read(nmeaLine).tracks.iterator().next().getSegments().iterator().next().getWayPoints().iterator().next();
+    }
+
+    private static Date readDate(String nmeaLine) throws IOException, SAXException {
+        return readWayPoint(nmeaLine).getTime();
+    }
+
+    private static double readSpeed(String nmeaLine) throws IOException, SAXException {
+        return Double.parseDouble(readWayPoint(nmeaLine).getString("speed"));
+    }
+
+    /**
+     * Non-regression test for <a href="https://josm.openstreetmap.de/ticket/16496">Bug #16496</a>.
+     * @throws Exception if an error occurs
+     */
+    @Test
+    public void testTicket16496() throws Exception {
+        assertEquals("2018-05-30T16:28:59.400Z", iso8601.format(
+                readDate("$GNRMC,162859.400,A,4543.03388,N,00058.19870,W,45.252,209.07,300518,,,D,V*13")));
+        assertEquals("2018-05-30T16:28:59.400Z", iso8601.format(
+                readDate("$GNRMC,162859.40,A,4543.03388,N,00058.19870,W,45.252,209.07,300518,,,D,V*23")));
+        assertEquals("2018-05-30T16:28:59.400Z", iso8601.format(
+                readDate("$GNRMC,162859.4,A,4543.03388,N,00058.19870,W,45.252,209.07,300518,,,D,V*13")));
+    }
+
+    /**
+     * Non-regression test for <a href="https://josm.openstreetmap.de/ticket/16554">Bug #16554</a>.
+     * @throws Exception if an error occurs
+     */
+    @Test
+    public void testTicket16554() throws Exception {
+        assertEquals(63.2420959, readSpeed(
+                  "$GNRMC,141448.80,A,4659.05514,N,00130.44695,W,34.148,289.80,300718,,,D,V*26"), 1e-7);
+        assertEquals(63.2430000, readSpeed(
+                  "$GNRMC,141448.80,A,4659.05514,N,00130.44695,W,34.148,289.80,300718,,,D,V*26"
+                + "$GNVTG,289.80,T,,M,34.148,N,63.243,K,D*27"), 1e-7);
     }
 }

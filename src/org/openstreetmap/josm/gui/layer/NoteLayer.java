@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -96,9 +97,19 @@ public class NoteLayer extends AbstractModifiableLayer implements MouseListener,
      * @param name The name of the layer. Typically "Notes"
      */
     public NoteLayer(Collection<Note> notes, String name) {
+        this(new NoteData(notes), name);
+    }
+
+    /**
+     * Create a new note layer with a notes data
+     * @param noteData Notes data
+     * @param name The name of the layer. Typically "Notes"
+     * @since 14101
+     */
+    public NoteLayer(NoteData noteData, String name) {
         super(name);
-        noteData = new NoteData(notes);
-        noteData.addNoteDataUpdateListener(this);
+        this.noteData = Objects.requireNonNull(noteData);
+        this.noteData.addNoteDataUpdateListener(this);
     }
 
     /** Convenience constructor that creates a layer with an empty note list */

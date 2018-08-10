@@ -5,9 +5,6 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.event.ActionEvent;
 
-import org.openstreetmap.josm.gui.dialogs.relation.MemberTableModel;
-import org.openstreetmap.josm.gui.dialogs.relation.SelectionTableModel;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.tools.ImageProvider;
 
 /**
@@ -15,15 +12,14 @@ import org.openstreetmap.josm.tools.ImageProvider;
  * @since 9496
  */
 public class SelectedMembersForSelectionAction extends AddFromSelectionAction {
+    private static final long serialVersionUID = 1L;
 
     /**
      * Constructs a new {@code SelectedMembersForSelectionAction}.
-     * @param memberTableModel member table model
-     * @param selectionTableModel selection table model
-     * @param layer OSM data layer
+     * @param editorAccess An interface to access the relation editor contents.
      */
-    public SelectedMembersForSelectionAction(MemberTableModel memberTableModel, SelectionTableModel selectionTableModel, OsmDataLayer layer) {
-        super(null, memberTableModel, null, selectionTableModel, null, layer, null);
+    public SelectedMembersForSelectionAction(IRelationEditorActionAccess editorAccess) {
+        super(editorAccess, IRelationEditorUpdateOn.SELECTION_TABLE_CHANGE, IRelationEditorUpdateOn.MEMBER_TABLE_CHANGE);
         putValue(SHORT_DESCRIPTION, tr("Select relation members which refer to objects in the current selection"));
         new ImageProvider("dialogs/relation", "selectmembers").getResource().attachImageIcon(this, true);
         updateEnabledState();
@@ -31,12 +27,12 @@ public class SelectedMembersForSelectionAction extends AddFromSelectionAction {
 
     @Override
     protected void updateEnabledState() {
-        boolean enabled = selectionTableModel.getRowCount() > 0
-        && !memberTableModel.getChildPrimitives(layer.data.getSelected()).isEmpty();
+        boolean enabled = getSelectionTableModel().getRowCount() > 0
+        && !editorAccess.getMemberTableModel().getChildPrimitives(getLayer().data.getSelected()).isEmpty();
 
         if (enabled) {
             putValue(SHORT_DESCRIPTION, tr("Select relation members which refer to {0} objects in the current selection",
-                    memberTableModel.getChildPrimitives(layer.data.getSelected()).size()));
+                    editorAccess.getMemberTableModel().getChildPrimitives(getLayer().data.getSelected()).size()));
         } else {
             putValue(SHORT_DESCRIPTION, tr("Select relation members which refer to objects in the current selection"));
         }
@@ -45,6 +41,6 @@ public class SelectedMembersForSelectionAction extends AddFromSelectionAction {
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        memberTableModel.selectMembersReferringTo(layer.data.getSelected());
+        editorAccess.getMemberTableModel().selectMembersReferringTo(getLayer().data.getSelected());
     }
 }

@@ -8,6 +8,7 @@ import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Set;
+import java.util.logging.Level;
 
 import javax.swing.JTable;
 import javax.swing.table.TableCellRenderer;
@@ -15,9 +16,10 @@ import javax.swing.table.TableCellRenderer;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.openstreetmap.josm.TestUtils;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
+import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
-import org.reflections.Reflections;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
@@ -60,8 +62,7 @@ public class TableCellRendererTest {
      */
     @Test
     public void testTableCellRenderer() throws ReflectiveOperationException {
-        Reflections reflections = new Reflections("org.openstreetmap.josm");
-        Set<Class<? extends TableCellRenderer>> renderers = reflections.getSubTypesOf(TableCellRenderer.class);
+        Set<Class<? extends TableCellRenderer>> renderers = TestUtils.getJosmSubtypes(TableCellRenderer.class);
         Assert.assertTrue(renderers.size() >= 10); // if it finds less than 10 classes, something is broken
         JTable tbl = new JTable(2, 2);
         for (Class<? extends TableCellRenderer> klass : renderers) {
@@ -71,7 +72,12 @@ public class TableCellRendererTest {
             if (klass.isAnonymousClass()) {
                 continue;
             }
-            assertNotNull(createInstance(klass).getTableCellRendererComponent(tbl, null, false, false, 0, 0));
+            try {
+                Logging.info(klass.toString());
+                assertNotNull(createInstance(klass).getTableCellRendererComponent(tbl, null, false, false, 0, 0));
+            } catch (ReflectiveOperationException e) {
+                Logging.logWithStackTrace(Level.WARNING, "Unable to test " + klass, e);
+            }
         }
     }
 

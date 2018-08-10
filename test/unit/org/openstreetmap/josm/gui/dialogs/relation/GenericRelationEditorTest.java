@@ -16,16 +16,7 @@ import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.Way;
-import org.openstreetmap.josm.gui.dialogs.relation.GenericRelationEditor.LeftButtonToolbar;
-import org.openstreetmap.josm.gui.dialogs.relation.actions.ApplyAction;
-import org.openstreetmap.josm.gui.dialogs.relation.actions.CancelAction;
-import org.openstreetmap.josm.gui.dialogs.relation.actions.DeleteCurrentRelationAction;
-import org.openstreetmap.josm.gui.dialogs.relation.actions.DuplicateRelationAction;
-import org.openstreetmap.josm.gui.dialogs.relation.actions.OKAction;
-import org.openstreetmap.josm.gui.dialogs.relation.actions.RefreshAction;
-import org.openstreetmap.josm.gui.dialogs.relation.actions.SelectAction;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
-import org.openstreetmap.josm.gui.tagging.TagEditorModel;
 import org.openstreetmap.josm.gui.tagging.TagEditorPanel;
 import org.openstreetmap.josm.gui.tagging.ac.AutoCompletingTextField;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
@@ -102,6 +93,8 @@ public class GenericRelationEditorTest {
 
     /**
      * Unit test of {@code GenericRelationEditor#build*} methods.
+     * <p>
+     * This test only tests if they do not throw exceptions.
      */
     @Test
     public void testBuild() {
@@ -111,40 +104,13 @@ public class GenericRelationEditorTest {
         OsmDataLayer layer = new OsmDataLayer(ds, "test", null);
         IRelationEditor re = newRelationEditor(relation, layer);
 
-        MemberTableModel memberTableModel = new MemberTableModel(relation, layer, null);
-        MemberTable memberTable = new MemberTable(layer, relation, memberTableModel);
-
-        SelectionTableModel selectionTableModel = new SelectionTableModel(layer);
-        SelectionTable selectionTable = new SelectionTable(selectionTableModel, memberTableModel);
-
-        LeftButtonToolbar leftButtonToolbar = new LeftButtonToolbar(memberTable, memberTableModel, re);
-        assertNotNull(leftButtonToolbar.sortBelowButton);
-
         AutoCompletingTextField tfRole = GenericRelationEditor.buildRoleTextField(re);
         assertNotNull(tfRole);
 
         TagEditorPanel tagEditorPanel = new TagEditorPanel(relation, null);
 
         JPanel top = GenericRelationEditor.buildTagEditorPanel(tagEditorPanel);
-        JPanel bottom = GenericRelationEditor.buildMemberEditorPanel(
-                memberTable, memberTableModel, selectionTable, selectionTableModel, re, leftButtonToolbar, tfRole);
         assertNotNull(top);
-        assertNotNull(bottom);
-        assertNotNull(GenericRelationEditor.buildSplitPane(top, bottom, re));
-
-        TagEditorModel tagModel = tagEditorPanel.getModel();
-
-        assertNotNull(GenericRelationEditor.buildOkCancelButtonPanel(
-                new OKAction(memberTable, memberTableModel, tagModel, layer, re, tfRole),
-                new CancelAction(memberTable, memberTableModel, tagModel, layer, re, tfRole)));
-        assertNotNull(GenericRelationEditor.buildSelectionControlButtonToolbar(memberTable, memberTableModel, selectionTableModel, re));
-        assertNotNull(GenericRelationEditor.buildSelectionTablePanel(selectionTable));
-
-        assertNotNull(GenericRelationEditor.buildToolBar(
-                new RefreshAction(memberTable, memberTableModel, tagModel, layer, re),
-                new ApplyAction(memberTable, memberTableModel, tagModel, layer, re),
-                new SelectAction(layer, re),
-                new DuplicateRelationAction(memberTableModel, tagModel, layer),
-                new DeleteCurrentRelationAction(layer, re)));
+        assertNotNull(tagEditorPanel.getModel());
     }
 }

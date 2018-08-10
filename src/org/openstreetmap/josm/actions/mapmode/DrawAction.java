@@ -853,7 +853,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
      * the last used position to the mouse cursor. It duplicates some code from
      * mouseReleased() (FIXME).
      */
-    private void computeHelperLine() {
+    private synchronized void computeHelperLine() {
         if (mousePos == null) {
             // Don't draw the line.
             currentMouseEastNorth = null;
@@ -930,7 +930,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
      * @param selection
      * uses also lastUsedNode field
      */
-    private void determineCurrentBaseNodeAndPreviousNode(Collection<OsmPrimitive> selection) {
+    private synchronized void determineCurrentBaseNodeAndPreviousNode(Collection<OsmPrimitive> selection) {
         Node selectedNode = null;
         Way selectedWay = null;
         for (OsmPrimitive p : selection) {
@@ -1040,7 +1040,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
      * Replies the current base node, after having checked it is still usable (see #11105).
      * @return the current base node (can be null). If not-null, it's guaranteed the node is usable
      */
-    public Node getCurrentBaseNode() {
+    public synchronized Node getCurrentBaseNode() {
         if (currentBaseNode != null && (currentBaseNode.getDataSet() == null || !currentBaseNode.isUsable())) {
             currentBaseNode = null;
         }
@@ -1216,7 +1216,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
     }
 
     @Override
-    public void paint(Graphics2D g, MapView mv, Bounds box) {
+    public synchronized void paint(Graphics2D g, MapView mv, Bounds box) {
         // sanity checks
         MapView mapView = MainApplication.getMap().mapView;
         if (mapView == null || mousePos == null
@@ -1356,19 +1356,6 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
                 return Collections.<OsmPrimitive>singleton(continueFrom);
         }
         return ds.getSelected();
-    }
-
-    /**
-     * Gets a collection of primitives that should not be hidden by the filter.
-     * @return The primitives that the filter should not hide.
-     * @deprecated use {@link org.openstreetmap.josm.data.osm.DataSet#allPreservedPrimitives}
-     * @since 11993
-     */
-    @Override
-    @Deprecated
-    public Collection<? extends OsmPrimitive> getPreservedPrimitives() {
-        DataSet ds = getLayerManager().getEditDataSet();
-        return ds != null ? ds.allPreservedPrimitives() : Collections.emptySet();
     }
 
     @Override

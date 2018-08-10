@@ -295,7 +295,7 @@ public final class DomainValidator extends AbstractValidator {
 
     // WARNING: this array MUST be sorted, otherwise it cannot be searched reliably using binary search
     private static final String[] GENERIC_TLDS = new String[] {
-        // Taken from Version 2018060800, Last Updated Fri Jun  8 07:07:01 2018 UTC
+        // Taken from Version 2018071800, Last Updated Wed Jul 18 07:07:01 2018 UTC
         "aaa", // aaa American Automobile Association, Inc.
         "aarp", // aarp AARP
         "abarth", // abarth Fiat Chrysler Automobiles N.V.
@@ -806,6 +806,7 @@ public final class DomainValidator extends AbstractValidator {
         "imdb", // imdb Amazon Registry Service, Inc.
         "immo", // immo Auburn Bloom, LLC
         "immobilien", // immobilien United TLD Holdco Ltd.
+        "inc", // inc Intercap Holdings Inc.
         "industries", // industries Outer House, LLC
         "infiniti", // infiniti NISSAN MOTOR CO., LTD.
         "info", // info Afilias Limited
@@ -828,7 +829,6 @@ public final class DomainValidator extends AbstractValidator {
         "itau", // itau Itau Unibanco Holding S.A.
         "itv", // itv ITV Services Limited
         "iveco", // iveco CNH Industrial N.V.
-        "iwc", // iwc Richemont DNS Inc.
         "jaguar", // jaguar Jaguar Land Rover Ltd
         "java", // java Oracle Corporation
         "jcb", // jcb JCB Co., Ltd.
@@ -1525,7 +1525,6 @@ public final class DomainValidator extends AbstractValidator {
         "xn--w4rs40l", // 嘉里 Kerry Trading Co. Limited
         "xn--xhq521b", // 广东 Guangzhou YU Wei Information Technology Co., Ltd.
         "xn--zfr164b", // 政务 China Organizational Name Administration Center
-        "xperia", // xperia Sony Mobile Communications AB
         "xxx", // xxx ICM Registry LLC
         "xyz", // xyz XYZ.COM LLC
         "yachts", // yachts DERYachts, LLC

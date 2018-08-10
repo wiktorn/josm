@@ -1,20 +1,21 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.gui.layer.gpx;
 
-import static org.junit.Assert.assertFalse;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import org.awaitility.Awaitility;
 import org.junit.Rule;
 import org.junit.Test;
 import org.openstreetmap.josm.data.gpx.GpxData;
-import org.openstreetmap.josm.data.imagery.ImageryInfo;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.GpxLayerTest;
 import org.openstreetmap.josm.gui.layer.TMSLayer;
 import org.openstreetmap.josm.gui.layer.gpx.DownloadWmsAlongTrackAction.PrecacheWmsTask;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
+import org.openstreetmap.josm.testutils.TileSourceRule;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
@@ -28,7 +29,7 @@ public class DownloadWmsAlongTrackActionTest {
      */
     @Rule
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    public JOSMTestRules test = new JOSMTestRules().platform().main().projection().timeout(20000);
+    public JOSMTestRules test = new JOSMTestRules().platform().main().projection().fakeImagery().timeout(20000);
 
     /**
      * Test action without layer.
@@ -44,8 +45,11 @@ public class DownloadWmsAlongTrackActionTest {
      */
     @Test
     public void testTMSLayer() throws Exception {
-        // Create new TMS layer and clear cache
-        TMSLayer layer = new TMSLayer(new ImageryInfo("OSM TMS", "https://a.tile.openstreetmap.org/{zoom}/{x}/{y}.png", "tms", null, null));
+        final TileSourceRule tileSourceRule = this.test.getTileSourceRule();
+
+        final TMSLayer layer = new TMSLayer(
+            tileSourceRule.getSourcesList().get(0).getImageryInfo(tileSourceRule.port())
+        );
         try {
             MainApplication.getLayerManager().addLayer(layer);
             TMSLayer.getCache().clear();
@@ -54,8 +58,8 @@ public class DownloadWmsAlongTrackActionTest {
             PrecacheWmsTask task = new DownloadWmsAlongTrackAction(GpxLayerTest.getMinimalGpxData()).createTask();
             assertNotNull(task);
             task.run();
-            // Ensure cache is not empty
-            assertFalse(TMSLayer.getCache().getMatching(".*").isEmpty());
+            // Ensure cache is (eventually) not empty
+            Awaitility.await().atMost(10000, MILLISECONDS).until(() -> !TMSLayer.getCache().getMatching(".*").isEmpty());
         } finally {
             // Ensure we clean the place before leaving, even if test fails.
             MainApplication.getLayerManager().removeLayer(layer);

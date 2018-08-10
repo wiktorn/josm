@@ -72,6 +72,7 @@ import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.OsmPrimitiveComparator;
 import org.openstreetmap.josm.data.osm.Relation;
+import org.openstreetmap.josm.data.osm.Tagged;
 import org.openstreetmap.josm.data.osm.UploadPolicy;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.osm.event.AbstractDatasetChangedEvent;
@@ -79,9 +80,10 @@ import org.openstreetmap.josm.data.osm.event.DataSetListenerAdapter;
 import org.openstreetmap.josm.data.osm.event.DataSetListenerAdapter.Listener;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
 import org.openstreetmap.josm.data.osm.visitor.OsmPrimitiveVisitor;
+import org.openstreetmap.josm.data.osm.visitor.paint.AbstractMapRenderer;
 import org.openstreetmap.josm.data.osm.visitor.paint.MapRendererFactory;
-import org.openstreetmap.josm.data.osm.visitor.paint.Rendering;
 import org.openstreetmap.josm.data.osm.visitor.paint.relations.MultipolygonCache;
+import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.data.preferences.IntegerProperty;
 import org.openstreetmap.josm.data.preferences.NamedColorProperty;
 import org.openstreetmap.josm.data.preferences.StringProperty;
@@ -155,6 +157,11 @@ public class OsmDataLayer extends AbstractOsmDataLayer implements Listener, Data
      * The extension that should be used when saving the OSM file.
      */
     public static final StringProperty PROPERTY_SAVE_EXTENSION = new StringProperty("save.extension.osm", "osm");
+
+    /**
+     * Property to determine if labels must be hidden while dragging the map.
+     */
+    public static final BooleanProperty PROPERTY_HIDE_LABELS_WHILE_DRAGGING = new BooleanProperty("mappaint.hide.labels.while.dragging", true);
 
     private static final NamedColorProperty PROPERTY_BACKGROUND_COLOR = new NamedColorProperty(marktr("background"), Color.BLACK);
     private static final NamedColorProperty PROPERTY_OUTSIDE_COLOR = new NamedColorProperty(marktr("outside downloaded area"), Color.YELLOW);
@@ -488,11 +495,15 @@ public class OsmDataLayer extends AbstractOsmDataLayer implements Listener, Data
             MapViewPoint anchor = mv.getState().getPointFor(new EastNorth(0, 0));
             Rectangle2D anchorRect = new Rectangle2D.Double(anchor.getInView().getX() % HATCHED_SIZE,
                     anchor.getInView().getY() % HATCHED_SIZE, HATCHED_SIZE, HATCHED_SIZE);
-            g.setPaint(new TexturePaint(hatched, anchorRect));
+            if (hatched != null) {
+                g.setPaint(new TexturePaint(hatched, anchorRect));
+            }
             g.fill(a);
         }
 
-        Rendering painter = MapRendererFactory.getInstance().createActiveRenderer(g, mv, inactive);
+        AbstractMapRenderer painter = MapRendererFactory.getInstance().createActiveRenderer(g, mv, inactive);
+        painter.enableSlowOperations(mv.getMapMover() == null || !mv.getMapMover().movementInProgress()
+                || !PROPERTY_HIDE_LABELS_WHILE_DRAGGING.get());
         painter.render(data, virtual, box);
         MainApplication.getMap().conflictDialog.paintConflicts(g, mv);
     }
@@ -736,7 +747,7 @@ public class OsmDataLayer extends AbstractOsmDataLayer implements Listener, Data
                     trkseg = new ArrayList<>();
                     trk.add(trkseg);
                 }
-                if (!n.isTagged()) {
+                if (!n.isTagged() || containsOnlyGpxTags(n)) {
                     doneNodes.add(n);
                 }
                 trkseg.add(nodeToWayPoint(n));
@@ -744,6 +755,15 @@ public class OsmDataLayer extends AbstractOsmDataLayer implements Listener, Data
 
             gpxData.addTrack(new ImmutableGpxTrack(trk, trkAttr));
         });
+    }
+
+    private static boolean containsOnlyGpxTags(Tagged t) {
+        for (String key : t.getKeys().keySet()) {
+            if (!GpxConstants.WPT_KEYS.contains(key)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -769,9 +789,13 @@ public class OsmDataLayer extends AbstractOsmDataLayer implements Listener, Data
         addDoubleIfPresent(wpt, n, GpxConstants.PT_ELE);
 
         if (time > 0) {
+            wpt.put(GpxConstants.PT_TIME, DateUtils.fromTimestamp(time));
             wpt.setTime(time);
+        } else if (n.hasKey(GpxConstants.PT_TIME)) {
+            wpt.put(GpxConstants.PT_TIME, DateUtils.fromString(n.get(GpxConstants.PT_TIME)));
+            wpt.setTime();
         } else if (!n.isTimestampEmpty()) {
-            wpt.put("time", DateUtils.fromTimestamp(n.getRawTimestamp()));
+            wpt.put(GpxConstants.PT_TIME, DateUtils.fromTimestamp(n.getRawTimestamp()));
             wpt.setTime();
         }
 
