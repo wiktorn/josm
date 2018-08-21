@@ -9,10 +9,11 @@ import java.io.File;
 
 import javax.swing.JOptionPane;
 
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.spi.preferences.IBaseDirectories;
 import org.openstreetmap.josm.tools.Logging;
+import org.openstreetmap.josm.tools.PlatformManager;
 
 /**
  * Class provides base directory locations for JOSM.
@@ -62,7 +63,7 @@ public final class JosmBaseDirectories implements IBaseDirectories {
                 if (path != null) {
                     preferencesDir = new File(path).getAbsoluteFile();
                 } else {
-                    preferencesDir = Main.platform.getDefaultPrefDirectory();
+                    preferencesDir = PlatformManager.getPlatform().getDefaultPrefDirectory();
                 }
             }
         }
@@ -71,7 +72,7 @@ public final class JosmBaseDirectories implements IBaseDirectories {
                 Logging.warn(tr("Failed to create missing preferences directory: {0}", preferencesDir.getAbsoluteFile()));
                 if (!GraphicsEnvironment.isHeadless()) {
                     JOptionPane.showMessageDialog(
-                            Main.parent,
+                            MainApplication.getMainFrame(),
                             tr("<html>Failed to create missing preferences directory: {0}</html>", preferencesDir.getAbsoluteFile()),
                             tr("Error"),
                             JOptionPane.ERROR_MESSAGE
@@ -95,7 +96,7 @@ public final class JosmBaseDirectories implements IBaseDirectories {
                 if (path != null) {
                     userdataDir = new File(path).getAbsoluteFile();
                 } else {
-                    userdataDir = Main.platform.getDefaultUserDataDirectory();
+                    userdataDir = PlatformManager.getPlatform().getDefaultUserDataDirectory();
                 }
             }
         }
@@ -104,7 +105,7 @@ public final class JosmBaseDirectories implements IBaseDirectories {
                 Logging.warn(tr("Failed to create missing user data directory: {0}", userdataDir.getAbsoluteFile()));
                 if (!GraphicsEnvironment.isHeadless()) {
                     JOptionPane.showMessageDialog(
-                            Main.parent,
+                            MainApplication.getMainFrame(),
                             tr("<html>Failed to create missing user data directory: {0}</html>", userdataDir.getAbsoluteFile()),
                             tr("Error"),
                             JOptionPane.ERROR_MESSAGE
@@ -132,7 +133,7 @@ public final class JosmBaseDirectories implements IBaseDirectories {
                     if (path != null) {
                         cacheDir = new File(path).getAbsoluteFile();
                     } else {
-                        cacheDir = Main.platform.getDefaultCacheDirectory();
+                        cacheDir = PlatformManager.getPlatform().getDefaultCacheDirectory();
                     }
                 }
             }
@@ -142,7 +143,7 @@ public final class JosmBaseDirectories implements IBaseDirectories {
                 Logging.warn(tr("Failed to create missing cache directory: {0}", cacheDir.getAbsoluteFile()));
                 if (!GraphicsEnvironment.isHeadless()) {
                     JOptionPane.showMessageDialog(
-                            Main.parent,
+                            MainApplication.getMainFrame(),
                             tr("<html>Failed to create missing cache directory: {0}</html>", cacheDir.getAbsoluteFile()),
                             tr("Error"),
                             JOptionPane.ERROR_MESSAGE

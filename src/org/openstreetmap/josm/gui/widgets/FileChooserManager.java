@@ -9,12 +9,13 @@ import java.util.Collections;
 import javax.swing.JFileChooser;
 import javax.swing.filechooser.FileFilter;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.DiskAccessAction;
 import org.openstreetmap.josm.actions.ExtensionFileFilter;
 import org.openstreetmap.josm.actions.SaveActionBase;
 import org.openstreetmap.josm.data.preferences.BooleanProperty;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.spi.preferences.Config;
+import org.openstreetmap.josm.tools.PlatformManager;
 
 /**
  * A chained utility class used to create and open {@link AbstractFileChooser} dialogs.<br>
@@ -32,7 +33,7 @@ public class FileChooserManager {
      */
     public static final BooleanProperty PROP_USE_NATIVE_FILE_DIALOG = new BooleanProperty("use.native.file.dialog",
             // Native dialogs do not support file filters, so do not set them as default, except for OS X where they never worked
-            Main.isPlatformOsx());
+            PlatformManager.isPlatformOsx());
 
     private final boolean open;
     private final String lastDirProperty;
@@ -328,7 +329,7 @@ public class FileChooserManager {
      * Opens the {@code AbstractFileChooser} that has been created and waits for the user to choose a file/directory, or cancel the dialog.<br>
      * When the user choses a file or directory, the {@code lastDirProperty} is updated to the chosen directory path.
      *
-     * @param parent The Component used as the parent of the AbstractFileChooser. If null, uses {@code Main.parent}.
+     * @param parent The Component used as the parent of the AbstractFileChooser. If null, uses {@code MainApplication.getMainFrame()}.
      * @return the {@code AbstractFileChooser} if the user effectively choses a file or directory. {@code null} if the user cancelled the dialog.
      */
     public AbstractFileChooser openFileChooser(Component parent) {
@@ -336,7 +337,7 @@ public class FileChooserManager {
             doCreateFileChooser();
 
         if (parent == null) {
-            parent = Main.parent;
+            parent = MainApplication.getMainFrame();
         }
 
         int answer = open ? fc.showOpenDialog(parent) : fc.showSaveDialog(parent);

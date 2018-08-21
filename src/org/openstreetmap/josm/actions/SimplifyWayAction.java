@@ -19,11 +19,11 @@ import java.util.Set;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.command.ChangeCommand;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.DeleteCommand;
 import org.openstreetmap.josm.command.SequenceCommand;
+import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
@@ -81,7 +81,7 @@ public class SimplifyWayAction extends JosmAction {
                         null)
         };
         return 0 == HelpAwareOptionPane.showOptionDialog(
-                Main.parent,
+                MainApplication.getMainFrame(),
                 tr("The selection contains {0} ways. Are you sure you want to simplify them all?", numWays),
                 tr("Simplify ways?"),
                 JOptionPane.WARNING_MESSAGE,
@@ -119,7 +119,7 @@ public class SimplifyWayAction extends JosmAction {
                     trn("Simplify {0} way", "Simplify {0} ways", allCommands.size(), allCommands.size()),
                     allCommands
                     );
-            MainApplication.undoRedo.add(rootCommand);
+            UndoRedoHandler.getInstance().add(rootCommand);
         } finally {
             ds.endUpdate();
         }

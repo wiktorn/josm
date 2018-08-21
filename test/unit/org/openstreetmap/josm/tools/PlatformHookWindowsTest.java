@@ -6,6 +6,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 import static org.junit.Assert.fail;
 
 import java.io.File;
@@ -18,9 +19,9 @@ import java.util.Collection;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.openstreetmap.josm.JOSMFixture;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.io.remotecontrol.RemoteControlHttpsServer;
 import org.openstreetmap.josm.io.remotecontrol.RemoteControlTest;
+import org.openstreetmap.josm.spi.preferences.Config;
 
 /**
  * Unit tests of {@link PlatformHookWindows} class.
@@ -52,7 +53,7 @@ public class PlatformHookWindowsTest {
      */
     @Test
     public void testGetRootKeystore() throws Exception {
-        if (Main.isPlatformWindows()) {
+        if (PlatformManager.isPlatformWindows()) {
             assertNotNull(PlatformHookWindows.getRootKeystore());
         } else {
             try {
@@ -70,7 +71,7 @@ public class PlatformHookWindowsTest {
      */
     @Test
     public void testRemoveInsecureCertificates() throws Exception {
-        if (Main.isPlatformWindows()) {
+        if (PlatformManager.isPlatformWindows()) {
             PlatformHookWindows.removeInsecureCertificates();
         } else {
             try {
@@ -88,10 +89,13 @@ public class PlatformHookWindowsTest {
      */
     @Test
     public void testSetupHttpsCertificate() throws Exception {
+        // appveyor doesn't like us tinkering with the root keystore
+        assumeFalse(PlatformManager.isPlatformWindows() && "True".equals(System.getenv("APPVEYOR")));
+
         RemoteControlTest.deleteKeystore();
         KeyStore ks = RemoteControlHttpsServer.loadJosmKeystore();
         TrustedCertificateEntry trustedCert = new KeyStore.TrustedCertificateEntry(ks.getCertificate(ks.aliases().nextElement()));
-        if (Main.isPlatformWindows()) {
+        if (PlatformManager.isPlatformWindows()) {
             hook.setupHttpsCertificate(RemoteControlHttpsServer.ENTRY_ALIAS, trustedCert);
         } else {
             try {
@@ -117,11 +121,11 @@ public class PlatformHookWindowsTest {
      */
     @Test
     public void testOpenUrl() throws IOException {
-        if (Main.isPlatformWindows()) {
-            hook.openUrl(Main.getJOSMWebsite());
+        if (PlatformManager.isPlatformWindows()) {
+            hook.openUrl(Config.getUrls().getJOSMWebsite());
         } else {
             try {
-                hook.openUrl(Main.getJOSMWebsite());
+                hook.openUrl(Config.getUrls().getJOSMWebsite());
                 fail("Expected IOException");
             } catch (IOException e) {
                 Logging.info(e.getMessage());
@@ -144,7 +148,7 @@ public class PlatformHookWindowsTest {
     public void testGetDefaultCacheDirectory() {
         File cache = hook.getDefaultCacheDirectory();
         assertNotNull(cache);
-        if (Main.isPlatformWindows()) {
+        if (PlatformManager.isPlatformWindows()) {
             assertTrue(cache.toString().contains(":"));
         }
     }
@@ -156,7 +160,7 @@ public class PlatformHookWindowsTest {
     public void testGetDefaultPrefDirectory() {
         File cache = hook.getDefaultPrefDirectory();
         assertNotNull(cache);
-        if (Main.isPlatformWindows()) {
+        if (PlatformManager.isPlatformWindows()) {
             assertTrue(cache.toString().contains(":"));
         }
     }
@@ -175,7 +179,7 @@ public class PlatformHookWindowsTest {
     @Test
     public void testGetInstalledFonts() {
         Collection<String> fonts = hook.getInstalledFonts();
-        if (Main.isPlatformWindows()) {
+        if (PlatformManager.isPlatformWindows()) {
             assertFalse(fonts.isEmpty());
         } else {
             assertNull(fonts);
@@ -188,7 +192,7 @@ public class PlatformHookWindowsTest {
     @Test
     public void testGetOSDescription() {
         String os = hook.getOSDescription();
-        if (Main.isPlatformWindows()) {
+        if (PlatformManager.isPlatformWindows()) {
             assertTrue(os.contains("Windows"));
         } else {
             assertFalse(os.contains("Windows"));

@@ -31,14 +31,15 @@ import javax.swing.JPanel;
 import javax.swing.JToggleButton;
 import javax.swing.SwingUtilities;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.AdaptableAction;
 import org.openstreetmap.josm.command.ChangePropertyCommand;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.SequenceCommand;
+import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.IPrimitive;
 import org.openstreetmap.josm.data.osm.OsmData;
+import org.openstreetmap.josm.data.osm.OsmDataManager;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
@@ -381,10 +382,7 @@ public class TaggingPreset extends AbstractAction implements ActiveLayerChangeLi
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        if (Main.main == null) {
-            return;
-        }
-        DataSet ds = Main.main.getEditDataSet();
+        DataSet ds = OsmDataManager.getInstance().getEditDataSet();
         Collection<OsmPrimitive> participants = Collections.emptyList();
         if (ds != null) {
             participants = ds.getSelected();
@@ -401,7 +399,7 @@ public class TaggingPreset extends AbstractAction implements ActiveLayerChangeLi
         if (!sel.isEmpty() && answer == DIALOG_ANSWER_APPLY) {
             Command cmd = createCommand(sel, getChangedTags());
             if (cmd != null) {
-                MainApplication.undoRedo.add(cmd);
+                UndoRedoHandler.getInstance().add(cmd);
             }
         } else if (answer == DIALOG_ANSWER_NEW_RELATION) {
             final Relation r = new Relation();
@@ -432,7 +430,7 @@ public class TaggingPreset extends AbstractAction implements ActiveLayerChangeLi
          * @param showNewRelation whether to display "New relation" button
          */
         PresetDialog(Component content, String title, ImageIcon icon, boolean disableApply, boolean showNewRelation) {
-            super(Main.parent, title,
+            super(MainApplication.getMainFrame(), title,
                     showNewRelation ?
                             (new String[] {tr("Apply Preset"), tr("New relation"), tr("Cancel")}) :
                             (new String[] {tr("Apply Preset"), tr("Cancel")}),
@@ -563,7 +561,7 @@ public class TaggingPreset extends AbstractAction implements ActiveLayerChangeLi
     }
 
     protected final void updateEnabledState() {
-        setEnabled(Main.main != null && Main.main.getEditDataSet() != null);
+        setEnabled(OsmDataManager.getInstance().getEditDataSet() != null);
     }
 
     @Override

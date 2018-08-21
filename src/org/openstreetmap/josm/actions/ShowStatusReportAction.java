@@ -24,7 +24,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.Preferences;
 import org.openstreetmap.josm.data.Version;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.DatasetConsistencyTest;
@@ -42,6 +42,7 @@ import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.spi.preferences.Setting;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.PlatformHookUnixoid;
+import org.openstreetmap.josm.tools.PlatformManager;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.Utils;
 import org.openstreetmap.josm.tools.bugreport.BugReportSender;
@@ -88,7 +89,7 @@ public final class ShowStatusReportAction extends JosmAction {
         String runtimeVersion = getSystemProperty("java.runtime.version");
         text.append(Version.getInstance().getReleaseAttributes())
             .append("\nIdentification: ").append(Version.getInstance().getAgentString());
-        String buildNumber = Main.platform.getOSBuildNumber();
+        String buildNumber = PlatformManager.getPlatform().getOSBuildNumber();
         if (!buildNumber.isEmpty()) {
             text.append("\nOS Build number: ").append(buildNumber);
         }
@@ -118,9 +119,10 @@ public final class ShowStatusReportAction extends JosmAction {
             .append((int) maxScreenSize.getWidth()).append('x')
             .append((int) maxScreenSize.getHeight()).append('\n');
 
-        if (Main.platform instanceof PlatformHookUnixoid) {
+        if (PlatformManager.isPlatformUnixoid()) {
+            PlatformHookUnixoid platform = (PlatformHookUnixoid) PlatformManager.getPlatform();
             // Add Java package details
-            String packageDetails = ((PlatformHookUnixoid) Main.platform).getJavaPackageDetails();
+            String packageDetails = platform.getJavaPackageDetails();
             if (packageDetails != null) {
                 text.append("Java package: ")
                     .append(packageDetails)
@@ -128,7 +130,7 @@ public final class ShowStatusReportAction extends JosmAction {
             }
             // Add WebStart package details if run from JNLP
             if (isRunningJavaWebStart()) {
-                String webStartDetails = ((PlatformHookUnixoid) Main.platform).getWebStartPackageDetails();
+                String webStartDetails = platform.getWebStartPackageDetails();
                 if (webStartDetails != null) {
                     text.append("WebStart package: ")
                         .append(webStartDetails)
@@ -136,7 +138,7 @@ public final class ShowStatusReportAction extends JosmAction {
                 }
             }
             // Add Gnome Atk wrapper details if found
-            String atkWrapperDetails = ((PlatformHookUnixoid) Main.platform).getAtkWrapperPackageDetails();
+            String atkWrapperDetails = platform.getAtkWrapperPackageDetails();
             if (atkWrapperDetails != null) {
                 text.append("Java ATK Wrapper package: ")
                     .append(atkWrapperDetails)
@@ -178,15 +180,13 @@ public final class ShowStatusReportAction extends JosmAction {
         if (!commandLineArgs.isEmpty()) {
             text.append("Program arguments: ").append(Arrays.toString(paramCleanup(commandLineArgs).toArray())).append('\n');
         }
-        if (Main.main != null) {
-            DataSet dataset = MainApplication.getLayerManager().getActiveDataSet();
-            if (dataset != null) {
-                String result = DatasetConsistencyTest.runTests(dataset);
-                if (result.isEmpty()) {
-                    text.append("Dataset consistency test: No problems found\n");
-                } else {
-                    text.append("\nDataset consistency test:\n").append(result).append('\n');
-                }
+        DataSet dataset = MainApplication.getLayerManager().getActiveDataSet();
+        if (dataset != null) {
+            String result = DatasetConsistencyTest.runTests(dataset);
+            if (result.isEmpty()) {
+                text.append("Dataset consistency test: No problems found\n");
+            } else {
+                text.append("\nDataset consistency test:\n").append(result).append('\n');
             }
         }
         text.append('\n');
@@ -197,7 +197,7 @@ public final class ShowStatusReportAction extends JosmAction {
         appendCollection(text, "Last errors/warnings", Utils.transform(Logging.getLastErrorAndWarnings(), i -> "- " + i));
 
         String osmApi = OsmApi.getOsmApi().getServerUrl();
-        if (!OsmApi.DEFAULT_API_URL.equals(osmApi.trim())) {
+        if (!Config.getUrls().getDefaultOsmApiUrl().equals(osmApi.trim())) {
             text.append("OSM API: ").append(osmApi).append("\n\n");
         }
 
@@ -229,7 +229,7 @@ public final class ShowStatusReportAction extends JosmAction {
      */
     private static String paramCleanup(String param) {
         final String envJavaHome = getSystemEnv("JAVA_HOME");
-        final String envJavaHomeAlt = Main.isPlatformWindows() ? "%JAVA_HOME%" : "${JAVA_HOME}";
+        final String envJavaHomeAlt = PlatformManager.isPlatformWindows() ? "%JAVA_HOME%" : "${JAVA_HOME}";
         final String propJavaHome = getSystemProperty("java.home");
         final String propJavaHomeAlt = "<java.home>";
         final String prefDir = Config.getDirs().getPreferencesDirectory(false).toString();
@@ -239,7 +239,7 @@ public final class ShowStatusReportAction extends JosmAction {
         final String userCacheDir = Config.getDirs().getCacheDirectory(false).toString();
         final String userCacheDirAlt = "<josm.cache>";
         final String userHomeDir = getSystemProperty("user.home");
-        final String userHomeDirAlt = Main.isPlatformWindows() ? "%UserProfile%" : "${HOME}";
+        final String userHomeDirAlt = PlatformManager.isPlatformWindows() ? "%UserProfile%" : "${HOME}";
         final String userName = getSystemProperty("user.name");
         final String userNameAlt = "<user.name>";
 
@@ -276,7 +276,7 @@ public final class ShowStatusReportAction extends JosmAction {
         StringBuilder text = new StringBuilder();
         String reportHeader = getReportHeader();
         text.append(reportHeader);
-        Map<String, Setting<?>> settings = Main.pref.getAllSettings();
+        Map<String, Setting<?>> settings = Preferences.main().getAllSettings();
         Set<String> keys = new HashSet<>(settings.keySet());
         for (String key : keys) {
             // Remove sensitive information from status report
@@ -292,13 +292,13 @@ public final class ShowStatusReportAction extends JosmAction {
 
         DebugTextDisplay ta = new DebugTextDisplay(text.toString());
 
-        ExtendedDialog ed = new ExtendedDialog(Main.parent,
+        ExtendedDialog ed = new ExtendedDialog(MainApplication.getMainFrame(),
                 tr("Status Report"),
                 tr("Copy to clipboard and close"), tr("Report bug"), tr("Close"));
         ed.setButtonIcons("copy", "bug", "cancel");
         ed.setContent(ta, false);
         ed.setMinimumSize(new Dimension(380, 200));
-        ed.setPreferredSize(new Dimension(700, Main.parent.getHeight()-50));
+        ed.setPreferredSize(new Dimension(700, MainApplication.getMainFrame().getHeight()-50));
 
         switch (ed.showDialog().getValue()) {
             case 1: ta.copyToClipboard(); break;

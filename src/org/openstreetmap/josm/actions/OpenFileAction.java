@@ -30,7 +30,6 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileFilter;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.PreferencesUtils;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.MainApplication;
@@ -44,6 +43,7 @@ import org.openstreetmap.josm.io.OsmTransferException;
 import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.MultiMap;
+import org.openstreetmap.josm.tools.PlatformManager;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.Utils;
 import org.xml.sax.SAXException;
@@ -134,7 +134,7 @@ public class OpenFileAction extends DiskAccessAction {
             this.files = new ArrayList<>(files.size());
             for (final File file : files) {
                 if (file.exists()) {
-                    this.files.add(Main.platform.resolveFileLink(file));
+                    this.files.add(PlatformManager.getPlatform().resolveFileLink(file));
                 } else if (file.getParentFile() != null) {
                     // try to guess an extension using the specified fileFilter
                     final File[] matchingFiles = file.getParentFile().listFiles((dir, name) ->
@@ -207,7 +207,7 @@ public class OpenFileAction extends DiskAccessAction {
             msg.append("</ul></html>");
 
             HelpAwareOptionPane.showMessageDialogInEDT(
-                    Main.parent,
+                    MainApplication.getMainFrame(),
                     msg.toString(),
                     tr("Warning"),
                     JOptionPane.WARNING_MESSAGE,
@@ -231,7 +231,7 @@ public class OpenFileAction extends DiskAccessAction {
             msg.append("</ul></html>");
 
             HelpAwareOptionPane.showMessageDialogInEDT(
-                    Main.parent,
+                    MainApplication.getMainFrame(),
                     msg.toString(),
                     tr("Warning"),
                     JOptionPane.WARNING_MESSAGE,
@@ -270,7 +270,7 @@ public class OpenFileAction extends DiskAccessAction {
                 for (final File f : files) {
                     if (!chosenImporter.acceptFile(f)) {
                         if (f.isDirectory()) {
-                            SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(Main.parent, tr(
+                            SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(MainApplication.getMainFrame(), tr(
                                     "<html>Cannot open directory ''{0}''.<br>Please select a file.</html>",
                                     f.getAbsolutePath()), tr("Open file"), JOptionPane.ERROR_MESSAGE));
                             // TODO when changing to Java 6: Don't cancel the task here but use different modality. (Currently 2 dialogs

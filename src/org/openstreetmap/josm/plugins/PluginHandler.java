@@ -52,8 +52,8 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.UIManager;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.RestartAction;
+import org.openstreetmap.josm.data.Preferences;
 import org.openstreetmap.josm.data.PreferencesUtils;
 import org.openstreetmap.josm.data.Version;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
@@ -66,6 +66,7 @@ import org.openstreetmap.josm.gui.progress.ProgressMonitor;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel;
 import org.openstreetmap.josm.gui.widgets.JosmTextArea;
+import org.openstreetmap.josm.io.NetworkManager;
 import org.openstreetmap.josm.io.OfflineAccessException;
 import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.spi.preferences.Config;
@@ -183,7 +184,7 @@ public final class PluginHandler {
             a.setText(text);
             a.setCaretPosition(0);
             if (!GraphicsEnvironment.isHeadless()) {
-                JOptionPane.showMessageDialog(Main.parent, new JScrollPane(a), tr("Plugin information"),
+                JOptionPane.showMessageDialog(MainApplication.getMainFrame(), new JScrollPane(a), tr("Plugin information"),
                         JOptionPane.INFORMATION_MESSAGE);
             }
         }
@@ -529,13 +530,13 @@ public final class PluginHandler {
     }
 
     private static boolean checkOfflineAccess() {
-        if (Main.isOffline(OnlineResource.ALL)) {
+        if (NetworkManager.isOffline(OnlineResource.ALL)) {
             return false;
         }
-        if (Main.isOffline(OnlineResource.JOSM_WEBSITE)) {
-            for (String updateSite : Main.pref.getPluginSites()) {
+        if (NetworkManager.isOffline(OnlineResource.JOSM_WEBSITE)) {
+            for (String updateSite : Preferences.main().getPluginSites()) {
                 try {
-                    OnlineResource.JOSM_WEBSITE.checkOfflineAccess(updateSite, Main.getJOSMWebsite());
+                    OnlineResource.JOSM_WEBSITE.checkOfflineAccess(updateSite, Config.getUrls().getJOSMWebsite());
                 } catch (OfflineAccessException e) {
                     Logging.trace(e);
                     return false;
@@ -596,7 +597,7 @@ public final class PluginHandler {
     private static void downloadRequiredPluginsAndRestart(final Component parent, final Set<String> missingRequiredPlugin) {
         // Update plugin list
         final ReadRemotePluginInformationTask pluginInfoDownloadTask = new ReadRemotePluginInformationTask(
-                Main.pref.getOnlinePluginSites());
+                Preferences.main().getOnlinePluginSites());
         MainApplication.worker.submit(pluginInfoDownloadTask);
 
         // Continuation
@@ -741,7 +742,7 @@ public final class PluginHandler {
      */
     private static void extendJoinedPluginResourceCL(Collection<PluginInformation> plugins) {
         // iterate all plugins and collect all libraries of all plugins:
-        File pluginDir = Main.pref.getPluginsDirectory();
+        File pluginDir = Preferences.main().getPluginsDirectory();
         DynamicURLClassLoader cl = getJoinedPluginResourceCL();
 
         for (PluginInformation info : plugins) {
@@ -1074,7 +1075,7 @@ public final class PluginHandler {
             // try to download the plugin lists
             ReadRemotePluginInformationTask task1 = new ReadRemotePluginInformationTask(
                     monitor.createSubTaskMonitor(1, false),
-                    Main.pref.getOnlinePluginSites(), displayErrMsg
+                    Preferences.main().getOnlinePluginSites(), displayErrMsg
             );
             task1.run();
             List<PluginInformation> allPlugins = task1.getAvailablePlugins();
@@ -1246,7 +1247,7 @@ public final class PluginHandler {
      * @since 13294
      */
     public static void installDownloadedPlugins(Collection<PluginInformation> pluginsToLoad, boolean dowarn) {
-        File pluginDir = Main.pref.getPluginsDirectory();
+        File pluginDir = Preferences.main().getPluginsDirectory();
         if (!pluginDir.exists() || !pluginDir.isDirectory() || !pluginDir.canWrite())
             return;
 
@@ -1324,7 +1325,7 @@ public final class PluginHandler {
      * @since 5601
      */
     public static File findUpdatedJar(String name) {
-        File pluginDir = Main.pref.getPluginsDirectory();
+        File pluginDir = Preferences.main().getPluginsDirectory();
         // Find the downloaded file. We have tried to install the downloaded plugins
         // (PluginHandler.installDownloadedPlugins). This succeeds depending on the platform.
         File downloadedPluginFile = new File(pluginDir, name + ".jar.new");
@@ -1394,7 +1395,7 @@ public final class PluginHandler {
 
         try {
             FutureTask<Integer> task = new FutureTask<>(() -> HelpAwareOptionPane.showOptionDialog(
-                    Main.parent,
+                    MainApplication.getMainFrame(),
                     msg.toString(),
                     tr("Update plugins"),
                     JOptionPane.QUESTION_MESSAGE,
@@ -1477,14 +1478,14 @@ public final class PluginHandler {
         switch (askUpdateDisableKeepPluginAfterException(plugin)) {
         case 0:
             // update the plugin
-            updatePlugins(Main.parent, Collections.singleton(pluginInfo), null, true);
+            updatePlugins(MainApplication.getMainFrame(), Collections.singleton(pluginInfo), null, true);
             return pluginDownloadTask;
         case 1:
             // deactivate the plugin
             plugins.remove(plugin.getPluginInformation().name);
             Config.getPref().putList("plugins", new ArrayList<>(plugins));
             GuiHelper.runInEDTAndWait(() -> JOptionPane.showMessageDialog(
-                    Main.parent,
+                    MainApplication.getMainFrame(),
                     tr("The plugin has been removed from the configuration. Please restart JOSM to unload the plugin."),
                     tr("Information"),
                     JOptionPane.INFORMATION_MESSAGE

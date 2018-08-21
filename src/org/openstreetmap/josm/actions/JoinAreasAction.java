@@ -22,7 +22,6 @@ import java.util.TreeMap;
 
 import javax.swing.JOptionPane;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.ReverseWayAction.ReverseWayResult;
 import org.openstreetmap.josm.command.AddCommand;
 import org.openstreetmap.josm.command.ChangeCommand;
@@ -40,7 +39,6 @@ import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
 import org.openstreetmap.josm.data.osm.TagCollection;
 import org.openstreetmap.josm.data.osm.Way;
-import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.Notification;
 import org.openstreetmap.josm.gui.conflict.tags.CombinePrimitiveResolverDialog;
 import org.openstreetmap.josm.gui.layer.OsmDataLayer;
@@ -569,8 +567,8 @@ public class JoinAreasAction extends JosmAction {
             //FIXME: this is dirty hack
             makeCommitsOneAction(tr("Reverting changes"));
             if (addUndoRedo) {
-                MainApplication.undoRedo.undo();
-                MainApplication.undoRedo.redoCommands.clear();
+                UndoRedoHandler.getInstance().undo();
+                UndoRedoHandler.getInstance().redoCommands.clear();
             }
         }
     }
@@ -833,8 +831,8 @@ public class JoinAreasAction extends JosmAction {
     }
 
     private void commitCommand(Command c) {
-        if (Main.main != null && addUndoRedo) {
-            MainApplication.undoRedo.add(c);
+        if (addUndoRedo) {
+            UndoRedoHandler.getInstance().add(c);
         } else {
             c.executeCommand();
         }
@@ -1600,8 +1598,8 @@ public class JoinAreasAction extends JosmAction {
      */
     private void makeCommitsOneAction(String message) {
         cmds.clear();
-        if (Main.main != null && addUndoRedo) {
-            UndoRedoHandler ur = MainApplication.undoRedo;
+        if (addUndoRedo) {
+            UndoRedoHandler ur = UndoRedoHandler.getInstance();
             int i = Math.max(ur.commands.size() - cmdsCount, 0);
             for (; i < ur.commands.size(); i++) {
                 cmds.add(ur.commands.get(i));

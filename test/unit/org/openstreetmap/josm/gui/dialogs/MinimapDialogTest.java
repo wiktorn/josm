@@ -2,11 +2,11 @@
 package org.openstreetmap.josm.gui.dialogs;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static org.openstreetmap.josm.tools.I18n.tr;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.Color;
 import java.awt.Component;
@@ -18,26 +18,27 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.regex.Matcher;
 
-import javax.swing.JMenuItem;
 import javax.swing.JCheckBoxMenuItem;
+import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 
 import org.awaitility.Awaitility;
 import org.junit.Rule;
 import org.junit.Test;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.TestUtils;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.DataSource;
 import org.openstreetmap.josm.data.osm.DataSet;
+import org.openstreetmap.josm.data.projection.ProjectionRegistry;
 import org.openstreetmap.josm.data.projection.Projections;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.bbox.SlippyMapBBoxChooser;
 import org.openstreetmap.josm.gui.bbox.SourceButton;
-import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.layer.LayerManagerTest.TestLayer;
+import org.openstreetmap.josm.gui.layer.OsmDataLayer;
 import org.openstreetmap.josm.gui.util.GuiHelper;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.testutils.ImagePatternMatching;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
 
@@ -55,7 +56,7 @@ public class MinimapDialogTest {
      */
     @Rule
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    public JOSMTestRules josmTestRules = new JOSMTestRules().main().platform().projection().fakeImagery();
+    public JOSMTestRules josmTestRules = new JOSMTestRules().main().projection().fakeImagery();
 
     /**
      * Unit test of {@link MinimapDialog} class.
@@ -214,7 +215,7 @@ public class MinimapDialogTest {
 
         assertEquals(0xff00ff00, paintedSlippyMap.getRGB(0, 0));
 
-        assertEquals("Green Tiles", Main.pref.get("slippy_map_chooser.mapstyle", "Fail"));
+        assertEquals("Green Tiles", Config.getPref().get("slippy_map_chooser.mapstyle", "Fail"));
     }
 
     /**
@@ -223,7 +224,7 @@ public class MinimapDialogTest {
      */
     @Test
     public void testSourcePrefObeyed() throws Exception {
-        Main.pref.put("slippy_map_chooser.mapstyle", "Green Tiles");
+        Config.getPref().put("slippy_map_chooser.mapstyle", "Green Tiles");
 
         this.setUpMiniMap();
 
@@ -241,7 +242,7 @@ public class MinimapDialogTest {
         this.clickSourceMenuItemByLabel("Magenta Tiles");
         this.assertSingleSelectedSourceLabel("Magenta Tiles");
 
-        assertEquals("Magenta Tiles", Main.pref.get("slippy_map_chooser.mapstyle", "Fail"));
+        assertEquals("Magenta Tiles", Config.getPref().get("slippy_map_chooser.mapstyle", "Fail"));
     }
 
     /**
@@ -250,7 +251,7 @@ public class MinimapDialogTest {
      */
     @Test
     public void testSourcePrefInvalid() throws Exception {
-        Main.pref.put("slippy_map_chooser.mapstyle", "Hooloovoo Tiles");
+        Config.getPref().put("slippy_map_chooser.mapstyle", "Hooloovoo Tiles");
 
         this.setUpMiniMap();
 
@@ -275,9 +276,9 @@ public class MinimapDialogTest {
         // Add a test layer to the layer manager to get the MapFrame & MapView
         MainApplication.getLayerManager().addLayer(new TestLayer());
 
-        Main.pref.put("slippy_map_chooser.mapstyle", "White Tiles");
+        Config.getPref().put("slippy_map_chooser.mapstyle", "White Tiles");
         // ensure projection matches JMapViewer's
-        Main.setProjection(Projections.getProjectionByCode("EPSG:3857"));
+        ProjectionRegistry.setProjection(Projections.getProjectionByCode("EPSG:3857"));
 
         MapView mapView = MainApplication.getMap().mapView;
         GuiHelper.runInEDTAndWaitWithException(() -> {
@@ -413,8 +414,8 @@ public class MinimapDialogTest {
      */
     @Test
     public void testShowDownloadedArea() throws Exception {
-        Main.pref.put("slippy_map_chooser.mapstyle", "Green Tiles");
-        Main.pref.putBoolean("slippy_map_chooser.show_downloaded_area", false);
+        Config.getPref().put("slippy_map_chooser.mapstyle", "Green Tiles");
+        Config.getPref().putBoolean("slippy_map_chooser.show_downloaded_area", false);
 
         DataSet dataSet = new DataSet();
         dataSet.addDataSource(new DataSource(new Bounds(51.725, -0.0209, 51.746, 0.0162), "Somewhere"));
@@ -572,8 +573,8 @@ public class MinimapDialogTest {
      */
     @Test
     public void testShowDownloadedAreaLayerSwitching() throws Exception {
-        Main.pref.put("slippy_map_chooser.mapstyle", "Green Tiles");
-        Main.pref.putBoolean("slippy_map_chooser.show_downloaded_area", true);
+        Config.getPref().put("slippy_map_chooser.mapstyle", "Green Tiles");
+        Config.getPref().putBoolean("slippy_map_chooser.show_downloaded_area", true);
 
         DataSet dataSetA = new DataSet();
         // dataSetA has a long thin horizontal downloaded area (extending off the left & right of the map)

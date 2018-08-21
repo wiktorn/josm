@@ -17,11 +17,11 @@ import org.hamcrest.Matcher;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.ProjectionBounds;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
+import org.openstreetmap.josm.data.projection.ProjectionRegistry;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
 
@@ -55,7 +55,7 @@ public class NavigatableComponentTest {
      */
     @Rule
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    public JOSMTestRules test = new JOSMTestRules().preferences().platform().projection();
+    public JOSMTestRules test = new JOSMTestRules().preferences().projection();
 
     /**
      * Create a new, fresh {@link NavigatableComponent}
@@ -81,7 +81,7 @@ public class NavigatableComponentTest {
      */
     @Test
     public void testDefaultScale() {
-        assertEquals(Main.getProjection().getDefaultZoomInPPD(), component.getScale(), 0.00001);
+        assertEquals(ProjectionRegistry.getProjection().getDefaultZoomInPPD(), component.getScale(), 0.00001);
     }
 
     /**

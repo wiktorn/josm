@@ -20,9 +20,9 @@ import javax.imageio.ImageIO
 import javax.json.Json
 import javax.json.stream.JsonGenerator
 
-import org.openstreetmap.josm.Main
 import org.openstreetmap.josm.actions.DeleteAction
 import org.openstreetmap.josm.command.DeleteCommand
+import org.openstreetmap.josm.data.Preferences
 import org.openstreetmap.josm.data.Version
 import org.openstreetmap.josm.data.coor.LatLon
 import org.openstreetmap.josm.data.osm.Node
@@ -31,6 +31,8 @@ import org.openstreetmap.josm.data.osm.Way
 import org.openstreetmap.josm.data.osm.visitor.paint.MapPaintSettings
 import org.openstreetmap.josm.data.osm.visitor.paint.StyledMapRenderer
 import org.openstreetmap.josm.data.preferences.JosmBaseDirectories;
+import org.openstreetmap.josm.data.preferences.JosmUrls
+import org.openstreetmap.josm.data.projection.ProjectionRegistry
 import org.openstreetmap.josm.data.projection.Projections
 import org.openstreetmap.josm.gui.NavigatableComponent
 import org.openstreetmap.josm.gui.mappaint.Environment
@@ -410,12 +412,12 @@ class TagInfoExtract {
      * Initialize the script.
      */
     def init() {
-        Main.determinePlatformHook()
         Logging.setLogLevel(Logging.LEVEL_INFO)
-        Main.pref.enableSaveOnPut(false)
-        Config.setPreferencesInstance(Main.pref)
-        Config.setBaseDirectoriesProvider(JosmBaseDirectories.getInstance());
-        Main.setProjection(Projections.getProjectionByCode("EPSG:3857"))
+        Preferences.main().enableSaveOnPut(false)
+        Config.setPreferencesInstance(Preferences.main())
+        Config.setBaseDirectoriesProvider(JosmBaseDirectories.getInstance())
+        Config.setUrlsProvider(JosmUrls.getInstance())
+        ProjectionRegistry.setProjection(Projections.getProjectionByCode("EPSG:3857"))
         Path tmpdir = Files.createTempDirectory(FileSystems.getDefault().getPath(base_dir), "pref")
         tmpdir.toFile().deleteOnExit()
         System.setProperty("josm.home", tmpdir.toString())

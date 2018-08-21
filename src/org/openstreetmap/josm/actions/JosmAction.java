@@ -15,7 +15,6 @@ import javax.swing.AbstractAction;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.data.osm.DataSelectionListener;
 import org.openstreetmap.josm.data.osm.DataSet;
@@ -37,6 +36,7 @@ import org.openstreetmap.josm.tools.Destroyable;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.ImageResource;
 import org.openstreetmap.josm.tools.Logging;
+import org.openstreetmap.josm.tools.PlatformManager;
 import org.openstreetmap.josm.tools.Shortcut;
 
 /**
@@ -286,7 +286,7 @@ public abstract class JosmAction extends AbstractAction implements Destroyable {
      */
     public final void setTooltip(String tooltip) {
         if (tooltip != null) {
-            putValue(SHORT_DESCRIPTION, Main.platform.makeTooltip(tooltip, sc));
+            putValue(SHORT_DESCRIPTION, PlatformManager.getPlatform().makeTooltip(tooltip, sc));
         }
     }
 
@@ -469,7 +469,7 @@ public abstract class JosmAction extends AbstractAction implements Destroyable {
             msg.add(new JMultilineLabel("<html>" + outsideDialogMessage + "</html>"));
             boolean answer = ConditionalOptionPaneUtil.showConfirmationDialog(
                     operation + "_outside_nodes",
-                    Main.parent,
+                    MainApplication.getMainFrame(),
                     msg,
                     dialogTitle,
                     JOptionPane.YES_NO_OPTION,
@@ -483,7 +483,7 @@ public abstract class JosmAction extends AbstractAction implements Destroyable {
             msg.add(new JMultilineLabel("<html>" + incompleteDialogMessage + "</html>"));
             boolean answer = ConditionalOptionPaneUtil.showConfirmationDialog(
                     operation + "_incomplete",
-                    Main.parent,
+                    MainApplication.getMainFrame(),
                     msg,
                     dialogTitle,
                     JOptionPane.YES_NO_OPTION,

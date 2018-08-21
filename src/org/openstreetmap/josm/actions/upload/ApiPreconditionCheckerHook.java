@@ -8,7 +8,6 @@ import java.util.Collections;
 
 import javax.swing.JOptionPane;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.APIDataSet;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Tagged;
@@ -16,6 +15,7 @@ import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.gui.ExceptionDialogUtil;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.progress.NullProgressMonitor;
+import org.openstreetmap.josm.io.NetworkManager;
 import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.io.OsmApi;
 import org.openstreetmap.josm.io.OsmApiInitializationException;
@@ -32,7 +32,7 @@ public class ApiPreconditionCheckerHook implements UploadHook {
     public boolean checkUpload(APIDataSet apiData) {
         OsmApi api = OsmApi.getOsmApi();
         try {
-            if (Main.isOffline(OnlineResource.OSM_API)) {
+            if (NetworkManager.isOffline(OnlineResource.OSM_API)) {
                 return false;
             }
             // FIXME: this should run asynchronously and a progress monitor
@@ -73,7 +73,7 @@ public class ApiPreconditionCheckerHook implements UploadHook {
                         osmPrimitive.put(key, value.substring(0, Tagged.MAX_TAG_LENGTH));
                         continue;
                     }
-                    JOptionPane.showMessageDialog(Main.parent,
+                    JOptionPane.showMessageDialog(MainApplication.getMainFrame(),
                             tr("Length of value for tag ''{0}'' on object {1} exceeds the max. allowed length {2}. Values length is {3}.",
                                     key, Long.toString(osmPrimitive.getId()), Tagged.MAX_TAG_LENGTH, value.length()
                             ),
@@ -88,7 +88,7 @@ public class ApiPreconditionCheckerHook implements UploadHook {
             if (osmPrimitive instanceof Way &&
                     ((Way) osmPrimitive).getNodesCount() > maxNodes) {
                 JOptionPane.showMessageDialog(
-                        Main.parent,
+                        MainApplication.getMainFrame(),
                         tr("{0} nodes in way {1} exceed the max. allowed number of nodes {2}",
                                 ((Way) osmPrimitive).getNodesCount(),
                                 Long.toString(osmPrimitive.getId()),

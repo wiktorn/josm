@@ -15,7 +15,6 @@ import javax.swing.Action;
 
 import org.apache.commons.jcs.access.CacheAccess;
 import org.openstreetmap.gui.jmapviewer.interfaces.TileLoader;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.cache.BufferedImageCacheEntry;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.imagery.AbstractWMSTileSource;
@@ -28,6 +27,7 @@ import org.openstreetmap.josm.data.imagery.WMSEndpointTileSource;
 import org.openstreetmap.josm.data.preferences.BooleanProperty;
 import org.openstreetmap.josm.data.preferences.IntegerProperty;
 import org.openstreetmap.josm.data.projection.Projection;
+import org.openstreetmap.josm.data.projection.ProjectionRegistry;
 import org.openstreetmap.josm.data.projection.Projections;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.imagery.TileSourceDisplaySettings;
@@ -95,20 +95,20 @@ public class WMSLayer extends AbstractCachedTileSourceLayer<AbstractWMSTileSourc
     protected AbstractWMSTileSource getTileSource() {
         AbstractWMSTileSource tileSource;
         if (info.getImageryType() == ImageryType.WMS) {
-            tileSource = new TemplatedWMSTileSource(info, chooseProjection(Main.getProjection()));
+            tileSource = new TemplatedWMSTileSource(info, chooseProjection(ProjectionRegistry.getProjection()));
         } else {
             /*
              *  Chicken-and-egg problem. We want to create tile source, but supported projections we can get only
-             *  from this tile source. So create tilesource first with dummy Main.getProjection(), and then update
+             *  from this tile source. So create tilesource first with dummy ProjectionRegistry.getProjection(), and then update
              *  once we update server projections.
              *
              *  Thus:
              *  * it is not required to provide projections for wms_endpoint imagery types
              *  * we always use current definitions returned by server
              */
-            WMSEndpointTileSource endpointTileSource = new WMSEndpointTileSource(info, Main.getProjection());
+            WMSEndpointTileSource endpointTileSource = new WMSEndpointTileSource(info, ProjectionRegistry.getProjection());
             this.serverProjections = endpointTileSource.getServerProjections();
-            endpointTileSource.setTileProjection(chooseProjection(Main.getProjection()));
+            endpointTileSource.setTileProjection(chooseProjection(ProjectionRegistry.getProjection()));
             tileSource = endpointTileSource;
         }
         info.setAttribution(tileSource);
@@ -181,7 +181,7 @@ public class WMSLayer extends AbstractCachedTileSourceLayer<AbstractWMSTileSourc
     private Projection selectProjection(Projection proj) {
         Logging.info(tr("Reprojecting layer {0} from {1} to {2}. For best image quality and performance,"
                 + " switch to one of the supported projections: {3}",
-                getName(), proj.toCode(), Main.getProjection().toCode(), Utils.join(", ", getNativeProjections())));
+                getName(), proj.toCode(), ProjectionRegistry.getProjection().toCode(), Utils.join(", ", getNativeProjections())));
         return proj;
     }
 

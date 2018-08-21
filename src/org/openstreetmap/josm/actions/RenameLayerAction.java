@@ -14,11 +14,12 @@ import javax.swing.JCheckBox;
 import javax.swing.JDialog;
 import javax.swing.JOptionPane;
 
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.Layer;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
 import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.ImageProvider;
+import org.openstreetmap.josm.tools.PlatformManager;
 
 /**
  * Action to rename an specific layer. Provides the option to rename the
@@ -71,7 +72,7 @@ public class RenameLayerAction extends AbstractAction {
         }
 
         final JOptionPane optionPane = new InitialValueOptionPane(panel, name);
-        final JDialog dlg = optionPane.createDialog(Main.parent, tr("Rename layer"));
+        final JDialog dlg = optionPane.createDialog(MainApplication.getMainFrame(), tr("Rename layer"));
         dlg.setModalityType(ModalityType.DOCUMENT_MODAL);
         dlg.setVisible(true);
 
@@ -95,14 +96,14 @@ public class RenameLayerAction extends AbstractAction {
                 File newFile = new File(newname);
                 if (!SaveActionBase.confirmOverwrite(newFile))
                     return;
-                if (Main.platform.rename(file, newFile)) {
+                if (PlatformManager.getPlatform().rename(file, newFile)) {
                     layer.setAssociatedFile(newFile);
                     if (!layer.isRenamed()) {
                         nameText = newFile.getName();
                     }
                 } else {
                     JOptionPane.showMessageDialog(
-                            Main.parent,
+                            MainApplication.getMainFrame(),
                             tr("Could not rename file ''{0}''", file.getPath()),
                             tr("Error"),
                             JOptionPane.ERROR_MESSAGE
@@ -112,6 +113,6 @@ public class RenameLayerAction extends AbstractAction {
             }
         }
         layer.rename(nameText);
-        Main.parent.repaint();
+        MainApplication.getMainFrame().repaint();
     }
 }

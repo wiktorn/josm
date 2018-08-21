@@ -1,145 +1,82 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm;
 
-import static org.openstreetmap.josm.tools.I18n.tr;
-
 import java.awt.Component;
-import java.awt.GraphicsEnvironment;
-import java.io.IOException;
-import java.lang.ref.WeakReference;
 import java.net.URL;
-import java.nio.file.InvalidPathException;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
-import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.Preferences;
 import org.openstreetmap.josm.data.UndoRedoHandler;
-import org.openstreetmap.josm.data.coor.conversion.CoordinateFormatManager;
-import org.openstreetmap.josm.data.coor.conversion.DecimalDegreesCoordinateFormat;
-import org.openstreetmap.josm.data.coor.conversion.ICoordinateFormat;
-import org.openstreetmap.josm.data.osm.DataSet;
-import org.openstreetmap.josm.data.osm.IPrimitive;
-import org.openstreetmap.josm.data.osm.OsmData;
-import org.openstreetmap.josm.data.osm.OsmPrimitive;
-import org.openstreetmap.josm.data.preferences.JosmBaseDirectories;
+import org.openstreetmap.josm.data.osm.IOsmDataManager;
 import org.openstreetmap.josm.data.projection.Projection;
 import org.openstreetmap.josm.data.projection.ProjectionChangeListener;
+import org.openstreetmap.josm.data.projection.ProjectionRegistry;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.io.FileWatcher;
+import org.openstreetmap.josm.io.NetworkManager;
 import org.openstreetmap.josm.io.OnlineResource;
-import org.openstreetmap.josm.io.OsmApi;
+import org.openstreetmap.josm.spi.lifecycle.Lifecycle;
 import org.openstreetmap.josm.spi.preferences.Config;
-import org.openstreetmap.josm.tools.CheckParameterUtil;
-import org.openstreetmap.josm.tools.ImageProvider;
-import org.openstreetmap.josm.tools.JosmRuntimeException;
-import org.openstreetmap.josm.tools.Logging;
-import org.openstreetmap.josm.tools.Platform;
+import org.openstreetmap.josm.spi.preferences.IUrls;
 import org.openstreetmap.josm.tools.PlatformHook;
-import org.openstreetmap.josm.tools.PlatformHookOsx;
-import org.openstreetmap.josm.tools.PlatformHookWindows;
-import org.openstreetmap.josm.tools.Utils;
-import org.openstreetmap.josm.tools.bugreport.BugReport;
+import org.openstreetmap.josm.tools.PlatformManager;
 
 /**
  * Abstract class holding various static global variables and methods used in large parts of JOSM application.
  * @since 98
+ * @deprecated Not needed anymore
  */
-public abstract class Main {
-
-    /**
-     * The JOSM website URL.
-     * @since 6897 (was public from 6143 to 6896)
-     */
-    private static final String JOSM_WEBSITE = "https://josm.openstreetmap.de";
-
-    /**
-     * The OSM website URL.
-     * @since 6897 (was public from 6453 to 6896)
-     */
-    private static final String OSM_WEBSITE = "https://www.openstreetmap.org";
+@Deprecated
+public abstract class Main implements IOsmDataManager {
 
     /**
      * Global parent component for all dialogs and message boxes
+     * @deprecated Use {@link MainApplication#getMainFrame}
      */
+    @Deprecated
     public static Component parent;
 
     /**
      * Global application.
+     * @deprecated Not needed anymore
      */
+    @Deprecated
     public static volatile Main main;
 
     /**
      * Global application preferences
+     * @deprecated Use {@link Config#getPref()} or {@link Preferences#main()}
      */
-    public static final Preferences pref = new Preferences(JosmBaseDirectories.getInstance());
+    @Deprecated
+    public static final Preferences pref = Preferences.main();
 
     /**
      * The commands undo/redo handler.
+     * @deprecated Use {@link UndoRedoHandler#getInstance}
      */
-    public final UndoRedoHandler undoRedo = new UndoRedoHandler();
+    @Deprecated
+    public final UndoRedoHandler undoRedo = UndoRedoHandler.getInstance();
 
     /**
      * The file watcher service.
+     * @deprecated Use {@link FileWatcher#getDefaultInstance}
      */
-    public static final FileWatcher fileWatcher = new FileWatcher();
-
-    private static final Map<String, Throwable> NETWORK_ERRORS = new HashMap<>();
-
-    private static final Set<OnlineResource> OFFLINE_RESOURCES = EnumSet.noneOf(OnlineResource.class);
+    @Deprecated
+    public static final FileWatcher fileWatcher = FileWatcher.getDefaultInstance();
 
     /**
      * Platform specific code goes in here.
      * Plugins may replace it, however, some hooks will be called before any plugins have been loaded.
      * So if you need to hook into those early ones, split your class and send the one with the early hooks
      * to the JOSM team for inclusion.
+     * @deprecated Use {@link PlatformManager#getPlatform}
      */
-    public static volatile PlatformHook platform;
-
-    private static volatile InitStatusListener initListener;
-
-    /**
-     * Initialization task listener.
-     */
-    public interface InitStatusListener {
-
-        /**
-         * Called when an initialization task updates its status.
-         * @param event task name
-         * @return new status
-         */
-        Object updateStatus(String event);
-
-        /**
-         * Called when an initialization task completes.
-         * @param status final status
-         */
-        void finish(Object status);
-    }
-
-    /**
-     * Sets initialization task listener.
-     * @param listener initialization task listener
-     */
-    public static void setInitStatusListener(InitStatusListener listener) {
-        CheckParameterUtil.ensureParameterNotNull(listener);
-        initListener = listener;
-    }
+    @Deprecated
+    public static final PlatformHook platform = PlatformManager.getPlatform();
 
     /**
      * Constructs new {@code Main} object.
-     * @see #initialize()
      */
     protected Main() {
         setInstance(this);
@@ -149,188 +86,9 @@ public abstract class Main {
         main = instance;
     }
 
-    /**
-     * Initializes the main object. A lot of global variables are initialized here.
-     * @since 10340
-     */
-    public void initialize() {
-        // Initializes tasks that must be run before parallel tasks
-        runInitializationTasks(beforeInitializationTasks());
-
-        // Initializes tasks to be executed (in parallel) by a ExecutorService
-        try {
-            ExecutorService service = Executors.newFixedThreadPool(
-                    Runtime.getRuntime().availableProcessors(), Utils.newThreadFactory("main-init-%d", Thread.NORM_PRIORITY));
-            for (Future<Void> i : service.invokeAll(parallelInitializationTasks())) {
-                i.get();
-            }
-            // asynchronous initializations to be completed eventually
-            asynchronousRunnableTasks().forEach(service::submit);
-            asynchronousCallableTasks().forEach(service::submit);
-            try {
-                service.shutdown();
-            } catch (SecurityException e) {
-                Logging.log(Logging.LEVEL_ERROR, "Unable to shutdown executor service", e);
-            }
-        } catch (InterruptedException | ExecutionException ex) {
-            throw new JosmRuntimeException(ex);
-        }
-
-        // Initializes tasks that must be run after parallel tasks
-        runInitializationTasks(afterInitializationTasks());
-    }
-
-    private static void runInitializationTasks(List<InitializationTask> tasks) {
-        for (InitializationTask task : tasks) {
-            try {
-                task.call();
-            } catch (JosmRuntimeException e) {
-                // Can happen if the current projection needs NTV2 grid which is not available
-                // In this case we want the user be able to change his projection
-                BugReport.intercept(e).warn();
-            }
-        }
-    }
-
-    /**
-     * Returns tasks that must be run before parallel tasks.
-     * @return tasks that must be run before parallel tasks
-     * @see #afterInitializationTasks
-     * @see #parallelInitializationTasks
-     */
-    protected List<InitializationTask> beforeInitializationTasks() {
-        return Collections.emptyList();
-    }
-
-    /**
-     * Returns tasks to be executed (in parallel) by a ExecutorService.
-     * @return tasks to be executed (in parallel) by a ExecutorService
-     */
-    protected Collection<InitializationTask> parallelInitializationTasks() {
-        return Collections.emptyList();
-    }
-
-    /**
-     * Returns asynchronous callable initializations to be completed eventually
-     * @return asynchronous callable initializations to be completed eventually
-     */
-    protected List<Callable<?>> asynchronousCallableTasks() {
-        return Collections.emptyList();
-    }
-
-    /**
-     * Returns asynchronous runnable initializations to be completed eventually
-     * @return asynchronous runnable initializations to be completed eventually
-     */
-    protected List<Runnable> asynchronousRunnableTasks() {
-        return Collections.emptyList();
-    }
-
-    /**
-     * Returns tasks that must be run after parallel tasks.
-     * @return tasks that must be run after parallel tasks
-     * @see #beforeInitializationTasks
-     * @see #parallelInitializationTasks
-     */
-    protected List<InitializationTask> afterInitializationTasks() {
-        return Collections.emptyList();
-    }
-
-    protected static final class InitializationTask implements Callable<Void> {
-
-        private final String name;
-        private final Runnable task;
-
-        /**
-         * Constructs a new {@code InitializationTask}.
-         * @param name translated name to be displayed to user
-         * @param task runnable initialization task
-         */
-        public InitializationTask(String name, Runnable task) {
-            this.name = name;
-            this.task = task;
-        }
-
-        @Override
-        public Void call() {
-            Object status = null;
-            if (initListener != null) {
-                status = initListener.updateStatus(name);
-            }
-            task.run();
-            if (initListener != null) {
-                initListener.finish(status);
-            }
-            return null;
-        }
-    }
-
-    /**
-     * Replies the current selected OSM primitives, from a end-user point of view.
-     * It is not always technically the same collection of primitives than {@link DataSet#getSelected()}.
-     * @return The current selected OSM primitives, from a end-user point of view. Can be {@code null}.
-     * @since 6546
-     */
-    public Collection<OsmPrimitive> getInProgressSelection() {
-        return Collections.emptyList();
-    }
-
-    /**
-     * Replies the current selected primitives, from a end-user point of view.
-     * It is not always technically the same collection of primitives than {@link OsmData#getSelected()}.
-     * @return The current selected primitives, from a end-user point of view. Can be {@code null}.
-     * @since 13926
-     */
-    public Collection<? extends IPrimitive> getInProgressISelection() {
-        return Collections.emptyList();
-    }
-
-    /**
-     * Gets the active edit data set (not read-only).
-     * @return That data set, <code>null</code>.
-     * @see #getActiveDataSet
-     * @since 12691
-     */
-    public abstract DataSet getEditDataSet();
-
-    /**
-     * Gets the active data set (can be read-only).
-     * @return That data set, <code>null</code>.
-     * @see #getEditDataSet
-     * @since 13434
-     */
-    public abstract DataSet getActiveDataSet();
-
-    /**
-     * Sets the active data set (and also edit data set if not read-only).
-     * @param ds New data set, or <code>null</code>
-     * @since 13434
-     */
-    public abstract void setActiveDataSet(DataSet ds);
-
-    /**
-     * Determines if the list of data sets managed by JOSM contains {@code ds}.
-     * @param ds the data set to look for
-     * @return {@code true} if the list of data sets managed by JOSM contains {@code ds}
-     * @since 12718
-     */
-    public abstract boolean containsDataSet(DataSet ds);
-
     ///////////////////////////////////////////////////////////////////////////
     //  Implementation part
     ///////////////////////////////////////////////////////////////////////////
-
-    /**
-     * Should be called before the main constructor to setup some parameter stuff
-     */
-    public static void preConstructorInit() {
-        // init default coordinate format
-        ICoordinateFormat fmt = CoordinateFormatManager.getCoordinateFormat(Config.getPref().get("coordinates"));
-        if (fmt == null) {
-            fmt = DecimalDegreesCoordinateFormat.INSTANCE;
-        }
-        CoordinateFormatManager.setCoordinateFormat(fmt);
-    }
 
     /**
      * Closes JOSM and optionally terminates the Java Virtual Machine (JVM).
@@ -338,114 +96,43 @@ public abstract class Main {
      * @param exitCode The return code
      * @return {@code true}
      * @since 12636
+     * @deprecated Use {@link Lifecycle#exitJosm}
      */
+    @Deprecated
     public static boolean exitJosm(boolean exit, int exitCode) {
-        if (Main.main != null) {
-            Main.main.shutdown();
-        }
-
-        if (exit) {
-            System.exit(exitCode);
-        }
-        return true;
-    }
-
-    /**
-     * Shutdown JOSM.
-     */
-    protected void shutdown() {
-        if (!GraphicsEnvironment.isHeadless()) {
-            ImageProvider.shutdown(false);
-        }
-        try {
-            pref.saveDefaults();
-        } catch (IOException | InvalidPathException ex) {
-            Logging.log(Logging.LEVEL_WARN, tr("Failed to save default preferences."), ex);
-        }
-        if (!GraphicsEnvironment.isHeadless()) {
-            ImageProvider.shutdown(true);
-        }
+        return Lifecycle.exitJosm(exit, exitCode);
     }
 
     /**
      * Identifies the current operating system family and initializes the platform hook accordingly.
      * @since 1849
+     * @deprecated Not needed anymore
      */
+    @Deprecated
     public static void determinePlatformHook() {
-        platform = Platform.determinePlatform().accept(PlatformHook.CONSTRUCT_FROM_PLATFORM);
+        // Do nothing
     }
-
-    /* ----------------------------------------------------------------------------------------- */
-    /* projection handling  - Main is a registry for a single, global projection instance        */
-    /*                                                                                           */
-    /* TODO: For historical reasons the registry is implemented by Main. An alternative approach */
-    /* would be a singleton org.openstreetmap.josm.data.projection.ProjectionRegistry class.     */
-    /* ----------------------------------------------------------------------------------------- */
-    /**
-     * The projection method used.
-     * Use {@link #getProjection()} and {@link #setProjection(Projection)} for access.
-     * Use {@link #setProjection(Projection)} in order to trigger a projection change event.
-     */
-    private static volatile Projection proj;
 
     /**
      * Replies the current projection.
      *
      * @return the currently active projection
+     * @deprecated Use {@link ProjectionRegistry#getProjection}
      */
+    @Deprecated
     public static Projection getProjection() {
-        return proj;
+        return ProjectionRegistry.getProjection();
     }
 
     /**
      * Sets the current projection
      *
      * @param p the projection
+     * @deprecated Use {@link ProjectionRegistry#setProjection}
      */
+    @Deprecated
     public static void setProjection(Projection p) {
-        CheckParameterUtil.ensureParameterNotNull(p);
-        Projection oldValue = proj;
-        Bounds b = main != null ? main.getRealBounds() : null;
-        proj = p;
-        fireProjectionChanged(oldValue, proj, b);
-    }
-
-    /**
-     * Returns the bounds for the current projection. Used for projection events.
-     * @return the bounds for the current projection
-     * @see #restoreOldBounds
-     */
-    protected Bounds getRealBounds() {
-        // To be overriden
-        return null;
-    }
-
-    /**
-     * Restore clean state corresponding to old bounds after a projection change event.
-     * @param oldBounds bounds previously returned by {@link #getRealBounds}, before the change of projection
-     * @see #getRealBounds
-     */
-    protected void restoreOldBounds(Bounds oldBounds) {
-        // To be overriden
-    }
-
-    /*
-     * Keep WeakReferences to the listeners. This relieves clients from the burden of
-     * explicitly removing the listeners and allows us to transparently register every
-     * created dataset as projection change listener.
-     */
-    private static final List<WeakReference<ProjectionChangeListener>> listeners = new CopyOnWriteArrayList<>();
-
-    private static void fireProjectionChanged(Projection oldValue, Projection newValue, Bounds oldBounds) {
-        if ((newValue == null ^ oldValue == null)
-                || (newValue != null && oldValue != null && !Objects.equals(newValue.toCode(), oldValue.toCode()))) {
-            listeners.removeIf(x -> x.get() == null);
-            listeners.stream().map(WeakReference::get).filter(Objects::nonNull).forEach(x -> x.projectionChanged(oldValue, newValue));
-            if (newValue != null && oldBounds != null && main != null) {
-                main.restoreOldBounds(oldBounds);
-            }
-            /* TODO - remove layers with fixed projection */
-        }
+        ProjectionRegistry.setProjection(p);
     }
 
     /**
@@ -453,33 +140,32 @@ public abstract class Main {
      * The listener is registered to be weak, so keep a reference of it if you want it to be preserved.
      *
      * @param listener the listener. Ignored if <code>null</code>.
+     * @deprecated Use {@link ProjectionRegistry#addProjectionChangeListener}
      */
+    @Deprecated
     public static void addProjectionChangeListener(ProjectionChangeListener listener) {
-        if (listener == null) return;
-        for (WeakReference<ProjectionChangeListener> wr : listeners) {
-            // already registered ? => abort
-            if (wr.get() == listener) return;
-        }
-        listeners.add(new WeakReference<>(listener));
+        ProjectionRegistry.addProjectionChangeListener(listener);
     }
 
     /**
      * Removes a projection change listener.
      *
      * @param listener the listener. Ignored if <code>null</code>.
+     * @deprecated Use {@link ProjectionRegistry#removeProjectionChangeListener}
      */
+    @Deprecated
     public static void removeProjectionChangeListener(ProjectionChangeListener listener) {
-        if (listener == null) return;
-        // remove the listener - and any other listener which got garbage collected in the meantime
-        listeners.removeIf(wr -> wr.get() == null || wr.get() == listener);
+        ProjectionRegistry.removeProjectionChangeListener(listener);
     }
 
     /**
      * Remove all projection change listeners. For testing purposes only.
      * @since 13322
+     * @deprecated Use {@link ProjectionRegistry#clearProjectionChangeListeners}
      */
+    @Deprecated
     public static void clearProjectionChangeListeners() {
-        listeners.clear();
+        ProjectionRegistry.clearProjectionChangeListeners();
     }
 
     /**
@@ -489,17 +175,12 @@ public abstract class Main {
      * @param url The accessed URL that caused the error
      * @param t The network error
      * @return The previous error associated to the given resource, if any. Can be {@code null}
+     * @deprecated Use {@link NetworkManager#addNetworkError(URL, Throwable)}
      * @since 6642
      */
+    @Deprecated
     public static Throwable addNetworkError(URL url, Throwable t) {
-        if (url != null && t != null) {
-            Throwable old = addNetworkError(url.toExternalForm(), t);
-            if (old != null) {
-                Logging.warn("Already here "+old);
-            }
-            return old;
-        }
-        return null;
+        return NetworkManager.addNetworkError(url, t);
     }
 
     /**
@@ -509,153 +190,156 @@ public abstract class Main {
      * @param url The accessed URL that caused the error
      * @param t The network error
      * @return The previous error associated to the given resource, if any. Can be {@code null}
+     * @deprecated Use {@link NetworkManager#addNetworkError(String, Throwable)}
      * @since 6642
      */
+    @Deprecated
     public static Throwable addNetworkError(String url, Throwable t) {
-        if (url != null && t != null) {
-            return NETWORK_ERRORS.put(url, t);
-        }
-        return null;
+        return NetworkManager.addNetworkError(url, t);
     }
 
     /**
      * Returns the network errors that occured until now.
      * @return the network errors that occured until now, indexed by URL
+     * @deprecated Use {@link NetworkManager#getNetworkErrors}
      * @since 6639
      */
+    @Deprecated
     public static Map<String, Throwable> getNetworkErrors() {
-        return new HashMap<>(NETWORK_ERRORS);
+        return NetworkManager.getNetworkErrors();
     }
 
     /**
      * Clears the network errors cache.
+     * @deprecated Use {@link NetworkManager#clearNetworkErrors}
      * @since 12011
      */
+    @Deprecated
     public static void clearNetworkErrors() {
-        NETWORK_ERRORS.clear();
+        NetworkManager.clearNetworkErrors();
     }
 
     /**
      * Returns the JOSM website URL.
      * @return the josm website URL
+     * @deprecated Use {@link IUrls#getJOSMWebsite}
      * @since 6897
      */
+    @Deprecated
     public static String getJOSMWebsite() {
-        if (Config.getPref() != null)
-            return Config.getPref().get("josm.url", JOSM_WEBSITE);
-        return JOSM_WEBSITE;
+        return Config.getUrls().getJOSMWebsite();
     }
 
     /**
      * Returns the JOSM XML URL.
      * @return the josm XML URL
+     * @deprecated Use {@link IUrls#getXMLBase}
      * @since 6897
      */
+    @Deprecated
     public static String getXMLBase() {
-        // Always return HTTP (issues reported with HTTPS)
-        return "http://josm.openstreetmap.de";
+        return Config.getUrls().getXMLBase();
     }
 
     /**
      * Returns the OSM website URL.
      * @return the OSM website URL
+     * @deprecated Use {@link IUrls#getOSMWebsite}
      * @since 6897
      */
+    @Deprecated
     public static String getOSMWebsite() {
-        if (Config.getPref() != null)
-            return Config.getPref().get("osm.url", OSM_WEBSITE);
-        return OSM_WEBSITE;
-    }
-
-    /**
-     * Returns the OSM website URL depending on the selected {@link OsmApi}.
-     * @return the OSM website URL depending on the selected {@link OsmApi}
-     */
-    private static String getOSMWebsiteDependingOnSelectedApi() {
-        final String api = OsmApi.getOsmApi().getServerUrl();
-        if (OsmApi.DEFAULT_API_URL.equals(api)) {
-            return getOSMWebsite();
-        } else {
-            return api.replaceAll("/api$", "");
-        }
+        return Config.getUrls().getOSMWebsite();
     }
 
     /**
      * Replies the base URL for browsing information about a primitive.
      * @return the base URL, i.e. https://www.openstreetmap.org
+     * @deprecated Use {@link IUrls#getBaseBrowseUrl}
      * @since 7678
      */
+    @Deprecated
     public static String getBaseBrowseUrl() {
-        if (Config.getPref() != null)
-            return Config.getPref().get("osm-browse.url", getOSMWebsiteDependingOnSelectedApi());
-        return getOSMWebsiteDependingOnSelectedApi();
+        return Config.getUrls().getBaseBrowseUrl();
     }
 
     /**
      * Replies the base URL for browsing information about a user.
      * @return the base URL, i.e. https://www.openstreetmap.org/user
+     * @deprecated Use {@link IUrls#getBaseUserUrl}
      * @since 7678
      */
+    @Deprecated
     public static String getBaseUserUrl() {
-        if (Config.getPref() != null)
-            return Config.getPref().get("osm-user.url", getOSMWebsiteDependingOnSelectedApi() + "/user");
-        return getOSMWebsiteDependingOnSelectedApi() + "/user";
+        return Config.getUrls().getBaseUserUrl();
     }
 
     /**
      * Determines if we are currently running on OSX.
      * @return {@code true} if we are currently running on OSX
      * @since 6957
+     * @deprecated Use {@link PlatformManager#isPlatformOsx}
      */
+    @Deprecated
     public static boolean isPlatformOsx() {
-        return Main.platform instanceof PlatformHookOsx;
+        return PlatformManager.isPlatformOsx();
     }
 
     /**
      * Determines if we are currently running on Windows.
      * @return {@code true} if we are currently running on Windows
      * @since 7335
+     * @deprecated Use {@link PlatformManager#isPlatformWindows}
      */
+    @Deprecated
     public static boolean isPlatformWindows() {
-        return Main.platform instanceof PlatformHookWindows;
+        return PlatformManager.isPlatformWindows();
     }
 
     /**
      * Determines if the given online resource is currently offline.
      * @param r the online resource
      * @return {@code true} if {@code r} is offline and should not be accessed
+     * @deprecated Use {@link NetworkManager#isOffline}
      * @since 7434
      */
+    @Deprecated
     public static boolean isOffline(OnlineResource r) {
-        return OFFLINE_RESOURCES.contains(r) || OFFLINE_RESOURCES.contains(OnlineResource.ALL);
+        return NetworkManager.isOffline(r);
     }
 
     /**
      * Sets the given online resource to offline state.
      * @param r the online resource
      * @return {@code true} if {@code r} was not already offline
+     * @deprecated Use {@link NetworkManager#setOffline}
      * @since 7434
      */
+    @Deprecated
     public static boolean setOffline(OnlineResource r) {
-        return OFFLINE_RESOURCES.add(r);
+        return NetworkManager.setOffline(r);
     }
 
     /**
      * Sets the given online resource to online state.
      * @param r the online resource
      * @return {@code true} if {@code r} was offline
+     * @deprecated Use {@link NetworkManager#setOnline}
      * @since 8506
      */
+    @Deprecated
     public static boolean setOnline(OnlineResource r) {
-        return OFFLINE_RESOURCES.remove(r);
+        return NetworkManager.setOnline(r);
     }
 
     /**
      * Replies the set of online resources currently offline.
      * @return the set of online resources currently offline
+     * @deprecated Use {@link NetworkManager#getOfflineResources}
      * @since 7434
      */
+    @Deprecated
     public static Set<OnlineResource> getOfflineResources() {
-        return EnumSet.copyOf(OFFLINE_RESOURCES);
+        return NetworkManager.getOfflineResources();
     }
 }

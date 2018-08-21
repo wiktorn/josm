@@ -16,7 +16,7 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.gui.ExtendedDialog;
@@ -179,7 +179,7 @@ public class ConflictResolutionDialog extends ExtendedDialog implements Property
                 Object[] options = {
                         tr("Close anyway"),
                         tr("Continue resolving")};
-                int ret = JOptionPane.showOptionDialog(Main.parent,
+                int ret = JOptionPane.showOptionDialog(MainApplication.getMainFrame(),
                         tr("<html>You did not finish to merge the differences in this conflict.<br>"
                                 + "Conflict resolutions will not be applied unless all differences<br>"
                                 + "are resolved.<br>"
@@ -203,7 +203,7 @@ public class ConflictResolutionDialog extends ExtendedDialog implements Property
                     return;
                 }
             }
-            MainApplication.undoRedo.add(resolver.buildResolveCommand());
+            UndoRedoHandler.getInstance().add(resolver.buildResolveCommand());
             buttonAction(1, evt);
         }
 

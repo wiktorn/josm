@@ -16,7 +16,6 @@ import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -48,7 +47,6 @@ import javax.swing.table.TableColumnModel;
 import javax.swing.table.TableModel;
 import javax.swing.table.TableRowSorter;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.JosmAction;
 import org.openstreetmap.josm.actions.relation.DownloadMembersAction;
 import org.openstreetmap.josm.actions.relation.DownloadSelectedIncompleteMembersAction;
@@ -58,6 +56,7 @@ import org.openstreetmap.josm.actions.relation.SelectRelationAction;
 import org.openstreetmap.josm.command.ChangeCommand;
 import org.openstreetmap.josm.command.ChangePropertyCommand;
 import org.openstreetmap.josm.command.Command;
+import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.osm.AbstractPrimitive;
 import org.openstreetmap.josm.data.osm.DataSelectionListener;
 import org.openstreetmap.josm.data.osm.DataSet;
@@ -67,6 +66,7 @@ import org.openstreetmap.josm.data.osm.IRelation;
 import org.openstreetmap.josm.data.osm.IRelationMember;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.OsmData;
+import org.openstreetmap.josm.data.osm.OsmDataManager;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
 import org.openstreetmap.josm.data.osm.RelationMember;
@@ -182,11 +182,11 @@ implements DataSelectionListener, ActiveLayerChangeListener, DataSetListenerAdap
             membershipTable, x -> (IRelation<?>) membershipData.getValueAt(x, 0));
     private final PasteValueAction pasteValueAction = new PasteValueAction();
     private final CopyValueAction copyValueAction = new CopyValueAction(
-            tagTable, editHelper::getDataKey, Main.main::getInProgressISelection);
+            tagTable, editHelper::getDataKey, OsmDataManager.getInstance()::getInProgressISelection);
     private final CopyKeyValueAction copyKeyValueAction = new CopyKeyValueAction(
-            tagTable, editHelper::getDataKey, Main.main::getInProgressISelection);
+            tagTable, editHelper::getDataKey, OsmDataManager.getInstance()::getInProgressISelection);
     private final CopyAllKeyValueAction copyAllKeyValueAction = new CopyAllKeyValueAction(
-            tagTable, editHelper::getDataKey, Main.main::getInProgressISelection);
+            tagTable, editHelper::getDataKey, OsmDataManager.getInstance()::getInProgressISelection);
     private final SearchAction searchActionSame = new SearchAction(true);
     private final SearchAction searchActionAny = new SearchAction(false);
     private final AddAction addAction = new AddAction();
@@ -566,7 +566,7 @@ implements DataSelectionListener, ActiveLayerChangeListener, DataSetListenerAdap
         }
 
         // Ignore parameter as we do not want to operate always on real selection here, especially in draw mode
-        Collection<? extends IPrimitive> newSel = Main.main.getInProgressISelection();
+        Collection<? extends IPrimitive> newSel = OsmDataManager.getInstance().getInProgressISelection();
         String selectedTag;
         IRelation<?> selectedRelation = null;
         selectedTag = editHelper.getChangedKey(); // select last added or last edited key by default
@@ -843,13 +843,13 @@ implements DataSelectionListener, ActiveLayerChangeListener, DataSetListenerAdap
         public void updateTags(List<Tag> tags) {
             Command command = TaggingPreset.createCommand(getSelection(), tags);
             if (command != null) {
-                MainApplication.undoRedo.add(command);
+                UndoRedoHandler.getInstance().add(command);
             }
         }
 
         @Override
         public Collection<OsmPrimitive> getSelection() {
-            return Main.main == null ? Collections.<OsmPrimitive>emptyList() : Main.main.getInProgressSelection();
+            return OsmDataManager.getInstance().getInProgressSelection();
         }
     }
 
@@ -1009,8 +1009,8 @@ implements DataSelectionListener, ActiveLayerChangeListener, DataSetListenerAdap
                 nextKey = (String) tagData.getValueAt(nextKeyIndex, 0);
             }
 
-            Collection<OsmPrimitive> sel = Main.main.getInProgressSelection();
-            MainApplication.undoRedo.add(new ChangePropertyCommand(sel, tags));
+            Collection<OsmPrimitive> sel = OsmDataManager.getInstance().getInProgressSelection();
+            UndoRedoHandler.getInstance().add(new ChangePropertyCommand(sel, tags));
 
             membershipTable.clearSelection();
             if (nextKey != null) {
@@ -1027,7 +1027,7 @@ implements DataSelectionListener, ActiveLayerChangeListener, DataSetListenerAdap
                 nextRelation = (Relation) membershipData.getValueAt(row + 1 < rowCount ? row + 1 : row - 1, 0);
             }
 
-            ExtendedDialog ed = new ExtendedDialog(Main.parent,
+            ExtendedDialog ed = new ExtendedDialog(MainApplication.getMainFrame(),
                     tr("Change relation"),
                     tr("Delete from relation"), tr("Cancel"));
             ed.setButtonIcons("dialogs/delete", "cancel");
@@ -1038,10 +1038,10 @@ implements DataSelectionListener, ActiveLayerChangeListener, DataSetListenerAdap
                 return;
 
             Relation rel = new Relation(cur);
-            for (OsmPrimitive primitive: Main.main.getInProgressSelection()) {
+            for (OsmPrimitive primitive: OsmDataManager.getInstance().getInProgressSelection()) {
                 rel.removeMembersFor(primitive);
             }
-            MainApplication.undoRedo.add(new ChangeCommand(cur, rel));
+            UndoRedoHandler.getInstance().add(new ChangeCommand(cur, rel));
 
             tagTable.clearSelection();
             if (nextRelation != null) {
@@ -1067,7 +1067,7 @@ implements DataSelectionListener, ActiveLayerChangeListener, DataSetListenerAdap
 
         @Override
         protected final void updateEnabledState() {
-            DataSet ds = Main.main.getActiveDataSet();
+            DataSet ds = OsmDataManager.getInstance().getActiveDataSet();
             setEnabled(ds != null && !ds.isLocked() &&
                     ((tagTable != null && tagTable.getSelectedRowCount() >= 1)
                     || (membershipTable != null && membershipTable.getSelectedRowCount() > 0)
@@ -1135,7 +1135,7 @@ implements DataSelectionListener, ActiveLayerChangeListener, DataSetListenerAdap
 
         @Override
         protected void updateEnabledState() {
-            DataSet ds = Main.main.getActiveDataSet();
+            DataSet ds = OsmDataManager.getInstance().getActiveDataSet();
             setEnabled(ds != null && !ds.isLocked() &&
                     ((tagTable != null && tagTable.getSelectedRowCount() == 1)
                     ^ (membershipTable != null && membershipTable.getSelectedRowCount() == 1)
@@ -1159,11 +1159,11 @@ implements DataSelectionListener, ActiveLayerChangeListener, DataSetListenerAdap
             if (tagTable.getSelectedRowCount() != 1)
                 return;
             String key = editHelper.getDataKey(tagTable.getSelectedRow());
-            Collection<OsmPrimitive> sel = Main.main.getInProgressSelection();
+            Collection<OsmPrimitive> sel = OsmDataManager.getInstance().getInProgressSelection();
             String clipboard = ClipboardUtils.getClipboardStringContent();
             if (sel.isEmpty() || clipboard == null || sel.iterator().next().getDataSet().isLocked())
                 return;
-            MainApplication.undoRedo.add(new ChangePropertyCommand(sel, key, Utils.strip(clipboard)));
+            UndoRedoHandler.getInstance().add(new ChangePropertyCommand(sel, key, Utils.strip(clipboard)));
         }
     }
 
@@ -1186,7 +1186,7 @@ implements DataSelectionListener, ActiveLayerChangeListener, DataSetListenerAdap
             if (tagTable.getSelectedRowCount() != 1)
                 return;
             String key = editHelper.getDataKey(tagTable.getSelectedRow());
-            Collection<? extends IPrimitive> sel = Main.main.getInProgressISelection();
+            Collection<? extends IPrimitive> sel = OsmDataManager.getInstance().getInProgressISelection();
             if (sel.isEmpty())
                 return;
             final SearchSetting ss = createSearchSetting(key, sel, sameType);

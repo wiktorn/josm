@@ -28,11 +28,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.Preferences;
 import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.HttpClient;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Pair;
+import org.openstreetmap.josm.tools.PlatformManager;
 import org.openstreetmap.josm.tools.Utils;
 
 /**
@@ -296,7 +297,7 @@ public class CachedFile implements Closeable {
             } else if (name.startsWith("josmdir://")) {
                 cacheFile = new File(Config.getDirs().getUserDataDirectory(false), name.substring("josmdir://".length()));
             } else if (name.startsWith("josmplugindir://")) {
-                cacheFile = new File(Main.pref.getPluginsDirectory(), name.substring("josmplugindir://".length()));
+                cacheFile = new File(Preferences.main().getPluginsDirectory(), name.substring("josmplugindir://".length()));
             } else {
                 cacheFile = new File(name);
             }
@@ -520,7 +521,7 @@ public class CachedFile implements Closeable {
             }
             activeConnection = null;
             localFile = new File(destDir, localPath);
-            if (Main.platform.rename(destDirFile, localFile)) {
+            if (PlatformManager.getPlatform().rename(destDirFile, localFile)) {
                 Config.getPref().putList(prefKey,
                         Arrays.asList(Long.toString(System.currentTimeMillis()), localFile.toString()));
             } else {
@@ -540,7 +541,7 @@ public class CachedFile implements Closeable {
     }
 
     private static void checkOfflineAccess(String urlString) {
-        OnlineResource.JOSM_WEBSITE.checkOfflineAccess(urlString, Main.getJOSMWebsite());
+        OnlineResource.JOSM_WEBSITE.checkOfflineAccess(urlString, Config.getUrls().getJOSMWebsite());
         OnlineResource.OSM_API.checkOfflineAccess(urlString, OsmApi.getOsmApi().getServerUrl());
     }
 
@@ -548,7 +549,7 @@ public class CachedFile implements Closeable {
         if (directory.length() + fileName.length() > 255) {
             // Windows doesn't support paths longer than 260, leave 5 chars as safe buffer, 4 will be used by ".tmp"
             // TODO: what about filename size on other systems? 255?
-            if (directory.length() > 191 && Main.isPlatformWindows()) {
+            if (directory.length() > 191 && PlatformManager.isPlatformWindows()) {
                 // digest length + name prefix == 64
                 // 255 - 64 = 191
                 // TODO: use this check only on Windows?

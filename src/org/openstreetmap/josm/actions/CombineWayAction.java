@@ -18,12 +18,12 @@ import java.util.stream.Collectors;
 
 import javax.swing.JOptionPane;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.command.ChangeCommand;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.DeleteCommand;
 import org.openstreetmap.josm.command.SequenceCommand;
 import org.openstreetmap.josm.corrector.ReverseWayTagCorrector;
+import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
 import org.openstreetmap.josm.data.osm.NodeGraph;
@@ -60,7 +60,7 @@ public class CombineWayAction extends JosmAction {
     }
 
     protected static boolean confirmChangeDirectionOfWays() {
-        return new ExtendedDialog(Main.parent,
+        return new ExtendedDialog(MainApplication.getMainFrame(),
                 tr("Change directions?"),
                 tr("Reverse and Combine"), tr("Cancel"))
             .setButtonIcons("wayflip", "cancel")
@@ -175,7 +175,7 @@ public class CombineWayAction extends JosmAction {
                 }
                 if (!reverseWayTagCommands.isEmpty()) {
                     // commands need to be executed for CombinePrimitiveResolverDialog
-                    MainApplication.undoRedo.add(new SequenceCommand(tr("Reverse Ways"), reverseWayTagCommands));
+                    UndoRedoHandler.getInstance().add(new SequenceCommand(tr("Reverse Ways"), reverseWayTagCommands));
                 }
                 wayTags = TagCollection.unionOfAllPrimitives(reversedTagWays);
                 wayTags.add(TagCollection.unionOfAllPrimitives(unreversedTagWays));
@@ -194,7 +194,7 @@ public class CombineWayAction extends JosmAction {
         } finally {
             if (!reverseWayTagCommands.isEmpty()) {
                 // undo reverseWayTagCorrector and merge into SequenceCommand below
-                MainApplication.undoRedo.undo();
+                UndoRedoHandler.getInstance().undo();
             }
         }
 
@@ -238,7 +238,7 @@ public class CombineWayAction extends JosmAction {
         if (combineResult == null)
             return;
         final Way selectedWay = combineResult.a;
-        MainApplication.undoRedo.add(combineResult.b);
+        UndoRedoHandler.getInstance().add(combineResult.b);
         if (selectedWay != null) {
             GuiHelper.runInEDT(() -> ds.setSelected(selectedWay));
         }

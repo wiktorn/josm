@@ -23,8 +23,8 @@ import java.util.Set;
 
 import javax.swing.JOptionPane;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.preferences.sources.PresetPrefHelper;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.tagging.presets.items.Check;
 import org.openstreetmap.josm.gui.tagging.presets.items.CheckGroup;
 import org.openstreetmap.josm.gui.tagging.presets.items.Combo;
@@ -41,7 +41,9 @@ import org.openstreetmap.josm.gui.tagging.presets.items.Roles.Role;
 import org.openstreetmap.josm.gui.tagging.presets.items.Space;
 import org.openstreetmap.josm.gui.tagging.presets.items.Text;
 import org.openstreetmap.josm.io.CachedFile;
+import org.openstreetmap.josm.io.NetworkManager;
 import org.openstreetmap.josm.io.UTFInputStreamReader;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.I18n;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
@@ -177,7 +179,7 @@ public final class TaggingPresetReader {
         final Deque<Iterator<Object>> lastIdIterators = new ArrayDeque<>();
 
         if (validate) {
-            parser.startWithValidation(in, Main.getXMLBase()+"/tagging-preset-1.0", "resource://data/tagging-preset.xsd");
+            parser.startWithValidation(in, Config.getUrls().getXMLBase()+"/tagging-preset-1.0", "resource://data/tagging-preset.xsd");
         } else {
             parser.start(in);
         }
@@ -384,11 +386,11 @@ public final class TaggingPresetReader {
                 Logging.log(Logging.LEVEL_ERROR, e);
                 Logging.error(source);
                 if (source.startsWith("http")) {
-                    Main.addNetworkError(source, e);
+                    NetworkManager.addNetworkError(source, e);
                 }
                 if (displayErrMsg) {
                     JOptionPane.showMessageDialog(
-                            Main.parent,
+                            MainApplication.getMainFrame(),
                             tr("Could not read tagging preset source: {0}", source),
                             tr("Error"),
                             JOptionPane.ERROR_MESSAGE
@@ -399,7 +401,7 @@ public final class TaggingPresetReader {
                 Logging.error(source);
                 if (displayErrMsg) {
                     JOptionPane.showMessageDialog(
-                            Main.parent,
+                            MainApplication.getMainFrame(),
                             "<html>" + tr("Error parsing {0}: ", source) + "<br><br><table width=600>" +
                                     Utils.escapeReservedCharactersHTML(e.getMessage()) + "</table></html>",
                             tr("Error"),

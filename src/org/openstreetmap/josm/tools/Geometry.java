@@ -17,7 +17,6 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.command.AddCommand;
 import org.openstreetmap.josm.command.ChangeCommand;
 import org.openstreetmap.josm.command.Command;
@@ -36,6 +35,7 @@ import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.data.osm.visitor.paint.relations.Multipolygon;
 import org.openstreetmap.josm.data.osm.visitor.paint.relations.MultipolygonCache;
 import org.openstreetmap.josm.data.projection.Projection;
+import org.openstreetmap.josm.data.projection.ProjectionRegistry;
 import org.openstreetmap.josm.data.projection.Projections;
 
 /**
@@ -163,7 +163,7 @@ public final class Geometry {
                                     return intersectionNodes;
                                 }
 
-                                Node newNode = new Node(Main.getProjection().eastNorth2latlon(intersection));
+                                Node newNode = new Node(ProjectionRegistry.getProjection().eastNorth2latlon(intersection));
                                 Node intNode = newNode;
                                 boolean insertInSeg1 = false;
                                 boolean insertInSeg2 = false;
@@ -1044,7 +1044,7 @@ public final class Geometry {
      * Calculate area and perimeter length of a polygon in the given projection.
      *
      * @param nodes the list of nodes representing the polygon
-     * @param projection the projection to use for the calculation, {@code null} defaults to {@link Main#getProjection()}
+     * @param projection the projection to use for the calculation, {@code null} defaults to {@link ProjectionRegistry#getProjection()}
      * @return area and perimeter
      * @since 13638 (signature)
      */
@@ -1052,7 +1052,7 @@ public final class Geometry {
         CheckParameterUtil.ensureParameterNotNull(nodes, "nodes");
         double area = 0;
         double perimeter = 0;
-        Projection useProjection = projection == null ? Main.getProjection() : projection;
+        Projection useProjection = projection == null ? ProjectionRegistry.getProjection() : projection;
 
         if (!nodes.isEmpty()) {
             boolean closed = nodes.get(0) == nodes.get(nodes.size() - 1);

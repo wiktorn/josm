@@ -12,14 +12,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.AutoScaleAction;
 import org.openstreetmap.josm.command.AddCommand;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.SequenceCommand;
+import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
+import org.openstreetmap.josm.data.osm.OsmDataManager;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Way;
 import org.openstreetmap.josm.gui.MainApplication;
@@ -149,7 +150,7 @@ public class AddWayHandler extends RequestHandler {
         } else if (nd == null) {
             nd = new Node(ll);
             // Now execute the commands to add this node.
-            commands.add(new AddCommand(Main.main.getEditDataSet(), nd));
+            commands.add(new AddCommand(OsmDataManager.getInstance().getEditDataSet(), nd));
             addedNodes.put(ll, nd);
         }
         return nd;
@@ -169,7 +170,7 @@ public class AddWayHandler extends RequestHandler {
         allCoordinates.clear();
         DataSet ds = MainApplication.getLayerManager().getEditDataSet();
         commands.add(new AddCommand(ds, way));
-        MainApplication.undoRedo.add(new SequenceCommand(tr("Add way"), commands));
+        UndoRedoHandler.getInstance().add(new SequenceCommand(tr("Add way"), commands));
         ds.setSelected(way);
         if (PermissionPrefWithDefault.CHANGE_VIEWPORT.isAllowed()) {
             AutoScaleAction.autoScale("selection");

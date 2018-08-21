@@ -6,6 +6,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 
 import java.awt.BorderLayout;
 import java.awt.event.KeyEvent;
@@ -27,7 +28,6 @@ import javax.swing.UIManager;
 
 import org.junit.Rule;
 import org.junit.Test;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.TestUtils;
 import org.openstreetmap.josm.actions.AboutAction;
 import org.openstreetmap.josm.data.Version;
@@ -43,6 +43,7 @@ import org.openstreetmap.josm.plugins.PluginListParser;
 import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
 import org.openstreetmap.josm.tools.Logging;
+import org.openstreetmap.josm.tools.PlatformManager;
 import org.openstreetmap.josm.tools.Shortcut;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -194,8 +195,10 @@ public class MainApplicationTest {
      */
     @Test
     public void testSetupUIManager() {
+        assumeFalse(PlatformManager.isPlatformWindows() && "True".equals(System.getenv("APPVEYOR")));
         MainApplication.setupUIManager();
-        assertEquals(Config.getPref().get("laf", Main.platform.getDefaultStyle()), UIManager.getLookAndFeel().getClass().getCanonicalName());
+        assertEquals(Config.getPref().get("laf", PlatformManager.getPlatform().getDefaultStyle()),
+                UIManager.getLookAndFeel().getClass().getCanonicalName());
     }
 
     private static PluginInformation newPluginInformation(String plugin) throws PluginListParseException {

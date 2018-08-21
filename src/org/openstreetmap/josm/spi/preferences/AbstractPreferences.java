@@ -1,8 +1,11 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.spi.preferences;
 
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.TreeMap;
 
 import org.openstreetmap.josm.tools.Logging;
 
@@ -123,6 +126,12 @@ public abstract class AbstractPreferences implements IPreferences {
     }
 
     /**
+     * Gets a map of all settings that are currently stored
+     * @return The settings
+     */
+    public abstract Map<String, Setting<?>> getAllSettings();
+
+    /**
      * Set a value for a certain setting. The changed setting is saved to the preference file immediately.
      * Due to caching mechanisms on modern operating systems and hardware, this shouldn't be a performance problem.
      * @param key the unique identifier for the setting
@@ -141,4 +150,34 @@ public abstract class AbstractPreferences implements IPreferences {
      * @return the corresponding value if the property has been set before, {@code def} otherwise
      */
     public abstract <T extends Setting<?>> T getSetting(String key, T def, Class<T> klass);
+
+    /**
+     * Gets all normal (string) settings that have a key starting with the prefix
+     * @param prefix The start of the key
+     * @return The key names of the settings
+     */
+    public Map<String, String> getAllPrefix(String prefix) {
+        final Map<String, String> all = new TreeMap<>();
+        for (final Entry<String, Setting<?>> e : getAllSettings().entrySet()) {
+            if (e.getKey().startsWith(prefix) && (e.getValue() instanceof StringSetting)) {
+                all.put(e.getKey(), ((StringSetting) e.getValue()).getValue());
+            }
+        }
+        return all;
+    }
+
+    /**
+     * Gets all list settings that have a key starting with the prefix
+     * @param prefix The start of the key
+     * @return The key names of the list settings
+     */
+    public List<String> getAllPrefixCollectionKeys(String prefix) {
+        final List<String> all = new LinkedList<>();
+        for (Entry<String, Setting<?>> entry : getAllSettings().entrySet()) {
+            if (entry.getKey().startsWith(prefix) && entry.getValue() instanceof ListSetting) {
+                all.add(entry.getKey());
+            }
+        }
+        return all;
+    }
 }

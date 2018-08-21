@@ -61,12 +61,13 @@ import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.text.JTextComponent;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.JosmAction;
 import org.openstreetmap.josm.actions.search.SearchAction;
 import org.openstreetmap.josm.command.ChangePropertyCommand;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.SequenceCommand;
+import org.openstreetmap.josm.data.UndoRedoHandler;
+import org.openstreetmap.josm.data.osm.OsmDataManager;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Tag;
 import org.openstreetmap.josm.data.osm.search.SearchCompiler;
@@ -93,6 +94,7 @@ import org.openstreetmap.josm.gui.widgets.PopupMenuLauncher;
 import org.openstreetmap.josm.io.XmlWriter;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.Logging;
+import org.openstreetmap.josm.tools.PlatformManager;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -230,7 +232,7 @@ public class TagEditHelper {
      */
     public void addTag() {
         changedKey = null;
-        sel = Main.main.getInProgressSelection();
+        sel = OsmDataManager.getInstance().getInProgressSelection();
         if (sel == null || sel.isEmpty())
             return;
 
@@ -261,7 +263,7 @@ public class TagEditHelper {
     */
     public void editTag(final int row, boolean focusOnKey) {
         changedKey = null;
-        sel = Main.main.getInProgressSelection();
+        sel = OsmDataManager.getInstance().getInProgressSelection();
         if (sel == null || sel.isEmpty())
             return;
 
@@ -348,7 +350,7 @@ public class TagEditHelper {
     private static void warnAboutParseError(SearchParseError parseError) {
         Logging.warn(parseError);
         JOptionPane.showMessageDialog(
-                Main.parent,
+                MainApplication.getMainFrame(),
                 parseError.getMessage(),
                 tr("Error"),
                 JOptionPane.ERROR_MESSAGE
@@ -380,7 +382,7 @@ public class TagEditHelper {
      */
     private static boolean warnOverwriteKey(String action, String togglePref) {
         return new ExtendedDialog(
-                Main.parent,
+                MainApplication.getMainFrame(),
                 tr("Overwrite key"),
                 tr("Replace"), tr("Cancel"))
             .setButtonIcons("purge", "cancel")
@@ -417,7 +419,7 @@ public class TagEditHelper {
         };
 
         protected EditTagDialog(String key, Map<String, Integer> map, final boolean initialFocusOnKey) {
-            super(Main.parent, trn("Change value?", "Change values?", map.size()), tr("OK"), tr("Cancel"));
+            super(MainApplication.getMainFrame(), trn("Change value?", "Change values?", map.size()), tr("OK"), tr("Cancel"));
             setButtonIcons("ok", "cancel");
             setCancelButton(2);
             configureContextsensitiveHelp("/Dialog/EditValue", true /* show help button */);
@@ -446,7 +448,7 @@ public class TagEditHelper {
             JPanel p = new JPanel(new GridBagLayout());
             mainPanel.add(p, BorderLayout.CENTER);
 
-            AutoCompletionManager autocomplete = AutoCompletionManager.of(Main.main.getActiveDataSet());
+            AutoCompletionManager autocomplete = AutoCompletionManager.of(OsmDataManager.getInstance().getActiveDataSet());
             List<AutoCompletionItem> keyList = autocomplete.getTagKeys(DEFAULT_AC_ITEM_COMPARATOR);
 
             keys = new AutoCompletingComboBox(key);
@@ -507,7 +509,7 @@ public class TagEditHelper {
             if (key.equals(newkey) && tr("<different>").equals(value))
                 return;
             if (key.equals(newkey) || value == null) {
-                MainApplication.undoRedo.add(new ChangePropertyCommand(sel, newkey, value));
+                UndoRedoHandler.getInstance().add(new ChangePropertyCommand(sel, newkey, value));
                 AutoCompletionManager.rememberUserInput(newkey, value, true);
             } else {
                 for (OsmPrimitive osm: sel) {
@@ -541,7 +543,7 @@ public class TagEditHelper {
                     commands.add(new ChangePropertyCommand(sel, newkey, value));
                     AutoCompletionManager.rememberUserInput(newkey, value, false);
                 }
-                MainApplication.undoRedo.add(new SequenceCommand(
+                UndoRedoHandler.getInstance().add(new SequenceCommand(
                         trn("Change properties of up to {0} object",
                                 "Change properties of up to {0} objects", sel.size(), sel.size()),
                                 commands));
@@ -563,7 +565,7 @@ public class TagEditHelper {
         @Override
         public void setupDialog() {
             super.setupDialog();
-            buttons.get(0).setEnabled(!Main.main.getActiveDataSet().isLocked());
+            buttons.get(0).setEnabled(!OsmDataManager.getInstance().getActiveDataSet().isLocked());
             final Dimension size = getSize();
             // Set resizable only in width
             setMinimumSize(size);
@@ -573,7 +575,7 @@ public class TagEditHelper {
             // https://bugs.openjdk.java.net/browse/JDK-6464548
 
             setRememberWindowGeometry(getClass().getName() + ".geometry",
-                WindowGeometry.centerInWindow(Main.parent, size));
+                WindowGeometry.centerInWindow(MainApplication.getMainFrame(), size));
         }
 
         @Override
@@ -685,7 +687,7 @@ public class TagEditHelper {
         private int commandCount;
 
         protected AddTagsDialog() {
-            super(Main.parent, tr("Add value?"), tr("OK"), tr("Cancel"));
+            super(MainApplication.getMainFrame(), tr("Add value?"), tr("OK"), tr("Cancel"));
             setButtonIcons("ok", "cancel");
             setCancelButton(2);
             configureContextsensitiveHelp("/Dialog/AddValue", true /* show help button */);
@@ -699,7 +701,7 @@ public class TagEditHelper {
                 +"<br><br>"+tr("Please select a key")), GBC.eol().fill(GBC.HORIZONTAL));
 
             cacheRecentTags();
-            AutoCompletionManager autocomplete = AutoCompletionManager.of(Main.main.getActiveDataSet());
+            AutoCompletionManager autocomplete = AutoCompletionManager.of(OsmDataManager.getInstance().getActiveDataSet());
             List<AutoCompletionItem> keyList = autocomplete.getTagKeys(DEFAULT_AC_ITEM_COMPARATOR);
 
             // remove the object's tag keys from the list
@@ -816,7 +818,7 @@ public class TagEditHelper {
 
         @Override
         public void setContentPane(Container contentPane) {
-            final int commandDownMask = Main.platform.getMenuShortcutKeyMaskEx();
+            final int commandDownMask = PlatformManager.getPlatform().getMenuShortcutKeyMaskEx();
             List<String> lines = new ArrayList<>();
             Shortcut.findShortcut(KeyEvent.VK_1, commandDownMask).ifPresent(sc ->
                     lines.add(sc.getKeyText() + ' ' + tr("to apply first suggestion"))
@@ -1076,7 +1078,7 @@ public class TagEditHelper {
             valueCount.put(key, new TreeMap<String, Integer>());
             AutoCompletionManager.rememberUserInput(key, value, false);
             commandCount++;
-            MainApplication.undoRedo.add(new ChangePropertyCommand(sel, key, value));
+            UndoRedoHandler.getInstance().add(new ChangePropertyCommand(sel, key, value));
             changedKey = key;
             clearEntries();
         }
@@ -1087,7 +1089,7 @@ public class TagEditHelper {
         }
 
         public void undoAllTagsAdding() {
-            MainApplication.undoRedo.undo(commandCount);
+            UndoRedoHandler.getInstance().undo(commandCount);
         }
 
         private void refreshRecentTags() {

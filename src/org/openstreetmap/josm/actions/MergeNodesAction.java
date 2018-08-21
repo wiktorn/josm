@@ -19,12 +19,12 @@ import java.util.Set;
 
 import javax.swing.JOptionPane;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.command.ChangeCommand;
 import org.openstreetmap.josm.command.ChangeNodesCommand;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.DeleteCommand;
 import org.openstreetmap.josm.command.SequenceCommand;
+import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
@@ -97,7 +97,7 @@ public class MergeNodesAction extends JosmAction {
             Node targetLocationNode = selectTargetLocationNode(selectedNodes);
             Command cmd = mergeNodes(selectedNodes, targetNode, targetLocationNode);
             if (cmd != null) {
-                MainApplication.undoRedo.add(cmd);
+                UndoRedoHandler.getInstance().add(cmd);
                 getLayerManager().getEditLayer().data.setSelected(targetNode);
             }
         }
@@ -227,7 +227,7 @@ public class MergeNodesAction extends JosmAction {
                             )
                     };
                     HelpAwareOptionPane.showOptionDialog(
-                            Main.parent,
+                            MainApplication.getMainFrame(),
                             tr("Cannot merge nodes: Would have to delete way {0} which is still used by {1}",
                                 DefaultNameFormatter.getInstance().formatAsHtmlUnorderedList(w),
                                 DefaultNameFormatter.getInstance().formatAsHtmlUnorderedList(w.getReferrers(), 20)),
@@ -276,7 +276,7 @@ public class MergeNodesAction extends JosmAction {
         if (target != null) {
             Command cmd = mergeNodes(nodes, target, targetLocationNode);
             if (cmd != null) {
-                MainApplication.undoRedo.add(cmd);
+                UndoRedoHandler.getInstance().add(cmd);
                 layer.data.setSelected(target);
             }
         }

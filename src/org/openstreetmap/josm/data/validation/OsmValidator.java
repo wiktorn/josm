@@ -28,8 +28,8 @@ import java.util.stream.Collectors;
 
 import javax.swing.JOptionPane;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.preferences.sources.ValidatorPrefHelper;
+import org.openstreetmap.josm.data.projection.ProjectionRegistry;
 import org.openstreetmap.josm.data.validation.tests.Addresses;
 import org.openstreetmap.josm.data.validation.tests.ApiCapabilitiesTest;
 import org.openstreetmap.josm.data.validation.tests.BarriersEntrances;
@@ -351,7 +351,7 @@ public final class OsmValidator {
      * until most bugs were discovered while keeping the processing time reasonable)
      */
     public static void initializeGridDetail() {
-        String code = Main.getProjection().toCode();
+        String code = ProjectionRegistry.getProjection().toCode();
         if (Arrays.asList(ProjectionPreference.wgs84.allCodes()).contains(code)) {
             OsmValidator.griddetail = 10_000;
         } else if (Arrays.asList(ProjectionPreference.mercator.allCodes()).contains(code)) {
@@ -405,7 +405,7 @@ public final class OsmValidator {
                 Logging.error(message);
                 if (!GraphicsEnvironment.isHeadless()) {
                     GuiHelper.runInEDT(() ->
-                        JOptionPane.showMessageDialog(Main.parent, message, tr("Error"), JOptionPane.ERROR_MESSAGE)
+                        JOptionPane.showMessageDialog(MainApplication.getMainFrame(), message, tr("Error"), JOptionPane.ERROR_MESSAGE)
                     );
                 }
             }

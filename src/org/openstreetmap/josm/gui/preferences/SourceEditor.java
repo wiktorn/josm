@@ -71,7 +71,6 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableModel;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.ExtensionFileFilter;
 import org.openstreetmap.josm.data.Version;
 import org.openstreetmap.josm.data.preferences.sources.ExtendedSourceEntry;
@@ -90,6 +89,7 @@ import org.openstreetmap.josm.gui.widgets.AbstractFileChooser;
 import org.openstreetmap.josm.gui.widgets.FileChooserManager;
 import org.openstreetmap.josm.gui.widgets.JosmTextField;
 import org.openstreetmap.josm.io.CachedFile;
+import org.openstreetmap.josm.io.NetworkManager;
 import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.io.OsmTransferException;
 import org.openstreetmap.josm.spi.preferences.Config;
@@ -1110,7 +1110,7 @@ public abstract class SourceEditor extends JPanel {
                     }
                 }
                 if (!messages.isEmpty()) {
-                    ExtendedDialog dlg = new ExtendedDialog(Main.parent, tr("Warning"), tr("Cancel"), tr("Continue anyway"));
+                    ExtendedDialog dlg = new ExtendedDialog(MainApplication.getMainFrame(), tr("Warning"), tr("Cancel"), tr("Continue anyway"));
                     dlg.setButtonIcons(
                         ImageProvider.get("cancel"),
                         new ImageProvider("ok").setMaxSize(ImageSizes.LARGEICON).addOverlay(
@@ -1154,7 +1154,7 @@ public abstract class SourceEditor extends JPanel {
             new ImageProvider("dialogs", "refresh").getResource().attachImageIcon(this);
             this.url = url;
             this.sourceProviders = sourceProviders;
-            setEnabled(!Main.isOffline(OnlineResource.JOSM_WEBSITE));
+            setEnabled(!NetworkManager.isOffline(OnlineResource.JOSM_WEBSITE));
         }
 
         @Override
@@ -1412,7 +1412,7 @@ public abstract class SourceEditor extends JPanel {
             final String msg = tr(getStr(I18nString.FAILED_TO_LOAD_SOURCES_FROM), url, emsg);
 
             GuiHelper.runInEDT(() -> HelpAwareOptionPane.showOptionDialog(
-                    Main.parent,
+                    MainApplication.getMainFrame(),
                     msg,
                     tr("Error"),
                     JOptionPane.ERROR_MESSAGE,

@@ -31,12 +31,12 @@ import javax.swing.JScrollPane;
 import javax.swing.KeyStroke;
 import javax.swing.UIManager;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.gui.help.HelpBrowser;
 import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.util.WindowGeometry;
 import org.openstreetmap.josm.gui.widgets.JMultilineLabel;
+import org.openstreetmap.josm.io.NetworkManager;
 import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
@@ -63,7 +63,7 @@ import org.openstreetmap.josm.tools.Utils;
  * Simple example:
  * <pre>
  *  ExtendedDialog ed = new ExtendedDialog(
- *          Main.parent, tr("Dialog Title"),
+ *          MainApplication.getMainFrame(), tr("Dialog Title"),
  *          new String[] {tr("Ok"), tr("Cancel")});
  *  ed.setButtonIcons(new String[] {"ok", "cancel"});   // optional
  *  ed.setIcon(JOptionPane.WARNING_MESSAGE);            // optional
@@ -553,7 +553,7 @@ public class ExtendedDialog extends JDialog implements IExtendedDialog {
             putValue(SHORT_DESCRIPTION, tr("Show help information"));
             putValue(NAME, tr("Help"));
             new ImageProvider("help").getResource().attachImageIcon(this, true);
-            setEnabled(!Main.isOffline(OnlineResource.JOSM_WEBSITE));
+            setEnabled(!NetworkManager.isOffline(OnlineResource.JOSM_WEBSITE));
         }
 
         @Override

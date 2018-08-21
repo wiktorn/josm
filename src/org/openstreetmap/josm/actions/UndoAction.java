@@ -7,7 +7,7 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.UndoRedoHandler.CommandQueueListener;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.MapFrame;
@@ -36,23 +36,23 @@ public class UndoAction extends JosmAction implements CommandQueueListener {
         if (map == null)
             return;
         map.repaint();
-        MainApplication.undoRedo.undo();
+        UndoRedoHandler.getInstance().undo();
     }
 
     @Override
     protected void updateEnabledState() {
-        setEnabled(Main.main != null && !MainApplication.undoRedo.commands.isEmpty());
+        setEnabled(!UndoRedoHandler.getInstance().commands.isEmpty());
     }
 
     @Override
     public void commandChanged(int queueSize, int redoSize) {
-        if (MainApplication.undoRedo.commands.isEmpty()) {
+        if (UndoRedoHandler.getInstance().commands.isEmpty()) {
             putValue(NAME, tr("Undo"));
             setTooltip(tr("Undo the last action."));
         } else {
             putValue(NAME, tr("Undo ..."));
             setTooltip(tr("Undo {0}",
-                    MainApplication.undoRedo.commands.getLast().getDescriptionText()));
+                    UndoRedoHandler.getInstance().commands.getLast().getDescriptionText()));
         }
     }
 }

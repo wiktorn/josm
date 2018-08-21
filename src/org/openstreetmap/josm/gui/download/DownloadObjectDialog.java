@@ -10,9 +10,10 @@ import java.util.Collection;
 
 import javax.swing.JCheckBox;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.osm.OsmPrimitiveType;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.dialogs.OsmIdSelectionDialog;
+import org.openstreetmap.josm.io.NetworkManager;
 import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.spi.preferences.Config;
 
@@ -29,10 +30,10 @@ public class DownloadObjectDialog extends OsmIdSelectionDialog {
     // CHECKSTYLE.ON: SingleSpaceSeparator
 
     /**
-     * Constructs a new DownloadObjectDialog with Main.parent as parent component.
+     * Constructs a new DownloadObjectDialog with MainApplication.getMainFrame() as parent component.
      */
     public DownloadObjectDialog() {
-        this(Main.parent);
+        this(MainApplication.getMainFrame());
     }
 
     /**
@@ -53,7 +54,7 @@ public class DownloadObjectDialog extends OsmIdSelectionDialog {
     @Override
     public void setupDialog() {
         super.setupDialog();
-        buttons.get(0).setEnabled(!Main.isOffline(OnlineResource.OSM_API));
+        buttons.get(0).setEnabled(!NetworkManager.isOffline(OnlineResource.OSM_API));
     }
 
     @Override

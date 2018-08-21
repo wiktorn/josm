@@ -53,7 +53,6 @@ import org.openstreetmap.gui.jmapviewer.MapRectangleImpl;
 import org.openstreetmap.gui.jmapviewer.interfaces.MapPolygon;
 import org.openstreetmap.gui.jmapviewer.interfaces.MapRectangle;
 import org.openstreetmap.gui.jmapviewer.tilesources.OsmTileSource;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.imagery.ImageryInfo;
 import org.openstreetmap.josm.data.imagery.ImageryInfo.ImageryBounds;
@@ -61,6 +60,7 @@ import org.openstreetmap.josm.data.imagery.ImageryLayerInfo;
 import org.openstreetmap.josm.data.imagery.OffsetBookmark;
 import org.openstreetmap.josm.data.imagery.Shape;
 import org.openstreetmap.josm.data.preferences.NamedColorProperty;
+import org.openstreetmap.josm.data.projection.ProjectionRegistry;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.download.DownloadDialog;
 import org.openstreetmap.josm.gui.help.HelpUtil;
@@ -71,6 +71,7 @@ import org.openstreetmap.josm.gui.preferences.PreferenceTabbedPane;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.widgets.HtmlPanel;
 import org.openstreetmap.josm.gui.widgets.JosmEditorPane;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.LanguageInfo;
@@ -377,7 +378,7 @@ public final class ImageryPreference extends DefaultTabPreferenceSetting {
             add(defaultToolbar, GBC.eol().anchor(GBC.SOUTH).insets(0, 0, 5, 0));
 
             HtmlPanel help = new HtmlPanel(tr("New default entries can be added in the <a href=\"{0}\">Wiki</a>.",
-                Main.getJOSMWebsite()+"/wiki/Maps"));
+                Config.getUrls().getJOSMWebsite()+"/wiki/Maps"));
             help.enableClickableHyperlinks();
             add(help, GBC.eol().insets(10, 0, 0, 0).fill(GBC.HORIZONTAL));
 
@@ -543,7 +544,7 @@ public final class ImageryPreference extends DefaultTabPreferenceSetting {
                         if (ex.getMessage() == null || ex.getMessage().isEmpty())
                             throw ex;
                         else {
-                            JOptionPane.showMessageDialog(Main.parent,
+                            JOptionPane.showMessageDialog(MainApplication.getMainFrame(),
                                     ex.getMessage(), tr("Error"),
                                     JOptionPane.ERROR_MESSAGE);
                         }
@@ -812,7 +813,7 @@ public final class ImageryPreference extends DefaultTabPreferenceSetting {
                 JScrollPane scrollPane = new JScrollPane(htmlPane);
                 scrollPane.setPreferredSize(new Dimension(400, 400));
                 box.add(scrollPane);
-                int option = JOptionPane.showConfirmDialog(Main.parent, box, tr("Please abort if you are not sure"),
+                int option = JOptionPane.showConfirmDialog(MainApplication.getMainFrame(), box, tr("Please abort if you are not sure"),
                         JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
                 if (option == JOptionPane.YES_OPTION)
                     return true;
@@ -854,7 +855,7 @@ public final class ImageryPreference extends DefaultTabPreferenceSetting {
 
             JButton add = new JButton(tr("Add"));
             buttonPanel.add(add, GBC.std().insets(0, 5, 0, 0));
-            add.addActionListener(e -> model.addRow(new OffsetBookmark(Main.getProjection().toCode(), "", "", "", 0, 0)));
+            add.addActionListener(e -> model.addRow(new OffsetBookmark(ProjectionRegistry.getProjection().toCode(), "", "", "", 0, 0)));
 
             JButton delete = new JButton(tr("Delete"));
             buttonPanel.add(delete, GBC.std().insets(0, 5, 0, 0));

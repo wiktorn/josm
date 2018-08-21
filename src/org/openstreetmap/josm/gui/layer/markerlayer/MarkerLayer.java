@@ -27,7 +27,6 @@ import javax.swing.Icon;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JOptionPane;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.RenameLayerAction;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.coor.LatLon;
@@ -48,7 +47,7 @@ import org.openstreetmap.josm.gui.layer.JumpToMarkerActions.JumpToMarkerLayer;
 import org.openstreetmap.josm.gui.layer.JumpToMarkerActions.JumpToNextMarker;
 import org.openstreetmap.josm.gui.layer.JumpToMarkerActions.JumpToPreviousMarker;
 import org.openstreetmap.josm.gui.layer.Layer;
-import org.openstreetmap.josm.gui.layer.gpx.ConvertToDataLayerAction;
+import org.openstreetmap.josm.gui.layer.gpx.ConvertFromMarkerLayerAction;
 import org.openstreetmap.josm.io.audio.AudioPlayer;
 import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.ImageProvider;
@@ -247,7 +246,7 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
         }
         components.add(new JumpToNextMarker(this));
         components.add(new JumpToPreviousMarker(this));
-        components.add(new ConvertToDataLayerAction.FromMarkerLayer(this));
+        components.add(new ConvertFromMarkerLayerAction(this));
         components.add(new RenameLayerAction(getAssociatedFile(), this));
         components.add(SeparatorLayerAction.INSTANCE);
         components.add(new LayerListPopup.InfoAction(this));
@@ -308,7 +307,7 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
         }
         if (am == null) {
             JOptionPane.showMessageDialog(
-                    Main.parent,
+                    MainApplication.getMainFrame(),
                     tr("No existing audio markers in this layer to offset from."),
                     tr("Error"),
                     JOptionPane.ERROR_MESSAGE
@@ -536,7 +535,7 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
         public void actionPerformed(ActionEvent e) {
             if (!AudioPlayer.paused()) {
                 JOptionPane.showMessageDialog(
-                        Main.parent,
+                        MainApplication.getMainFrame(),
                         tr("You need to pause audio at the moment when you hear your synchronization cue."),
                         tr("Warning"),
                         JOptionPane.WARNING_MESSAGE
@@ -546,14 +545,14 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
             AudioMarker recent = AudioMarker.recentlyPlayedMarker();
             if (synchronizeAudioMarkers(recent)) {
                 JOptionPane.showMessageDialog(
-                        Main.parent,
+                        MainApplication.getMainFrame(),
                         tr("Audio synchronized at point {0}.", syncAudioMarker.getText()),
                         tr("Information"),
                         JOptionPane.INFORMATION_MESSAGE
                         );
             } else {
                 JOptionPane.showMessageDialog(
-                        Main.parent,
+                        MainApplication.getMainFrame(),
                         tr("Unable to synchronize in layer being played."),
                         tr("Error"),
                         JOptionPane.ERROR_MESSAGE
@@ -574,7 +573,7 @@ public class MarkerLayer extends Layer implements JumpToMarkerLayer {
         public void actionPerformed(ActionEvent e) {
             if (!AudioPlayer.paused()) {
                 JOptionPane.showMessageDialog(
-                        Main.parent,
+                        MainApplication.getMainFrame(),
                         tr("You need to have paused audio at the point on the track where you want the marker."),
                         tr("Warning"),
                         JOptionPane.WARNING_MESSAGE

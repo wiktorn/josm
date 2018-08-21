@@ -26,8 +26,8 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.command.PurgeCommand;
+import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.IPrimitive;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
@@ -94,7 +94,7 @@ public class PurgeAction extends JosmAction {
 
         if (!GraphicsEnvironment.isHeadless()) {
             final boolean answer = ConditionalOptionPaneUtil.showConfirmationDialog(
-                    "purge", Main.parent, buildPanel(modified), tr("Confirm Purging"),
+                    "purge", MainApplication.getMainFrame(), buildPanel(modified), tr("Confirm Purging"),
                     JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_OPTION);
             if (!answer)
                 return;
@@ -103,9 +103,9 @@ public class PurgeAction extends JosmAction {
             Config.getPref().putBoolean("purge.clear_undo_redo", clearUndoRedo);
         }
 
-        MainApplication.undoRedo.add(cmd);
+        UndoRedoHandler.getInstance().add(cmd);
         if (clearUndoRedo) {
-            MainApplication.undoRedo.clean();
+            UndoRedoHandler.getInstance().clean();
             getLayerManager().getEditDataSet().clearSelectionHistory();
         }
     }

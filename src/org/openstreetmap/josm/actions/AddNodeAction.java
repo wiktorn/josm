@@ -8,8 +8,8 @@ import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.util.Collections;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.command.AddCommand;
+import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
@@ -42,7 +42,7 @@ public final class AddNodeAction extends JosmAction {
         if (!isEnabled())
             return;
 
-        LatLonDialog dialog = new LatLonDialog(Main.parent, tr("Add Node..."), ht("/Action/AddNode"));
+        LatLonDialog dialog = new LatLonDialog(MainApplication.getMainFrame(), tr("Add Node..."), ht("/Action/AddNode"));
 
         if (textLatLon != null) {
             dialog.setLatLonText(textLatLon);
@@ -67,7 +67,7 @@ public final class AddNodeAction extends JosmAction {
 
         // add the node
         DataSet ds = getLayerManager().getEditDataSet();
-        MainApplication.undoRedo.add(new AddCommand(ds, nnew));
+        UndoRedoHandler.getInstance().add(new AddCommand(ds, nnew));
         ds.setSelected(nnew);
         MapView mapView = MainApplication.getMap().mapView;
         if (mapView != null && !mapView.getRealBounds().contains(nnew.getCoor())) {

@@ -42,15 +42,16 @@ import org.openstreetmap.gui.jmapviewer.interfaces.ICoordinate;
 import org.openstreetmap.gui.jmapviewer.interfaces.IProjected;
 import org.openstreetmap.gui.jmapviewer.interfaces.TemplatedTileSource;
 import org.openstreetmap.gui.jmapviewer.tilesources.AbstractTMSTileSource;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.ProjectionBounds;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.imagery.GetCapabilitiesParseHelper.TransferMode;
 import org.openstreetmap.josm.data.imagery.ImageryInfo.ImageryType;
 import org.openstreetmap.josm.data.projection.Projection;
+import org.openstreetmap.josm.data.projection.ProjectionRegistry;
 import org.openstreetmap.josm.data.projection.Projections;
 import org.openstreetmap.josm.gui.ExtendedDialog;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.NativeScaleLayer.ScaleList;
 import org.openstreetmap.josm.gui.layer.imagery.WMTSLayerSelection;
 import org.openstreetmap.josm.io.CachedFile;
@@ -279,7 +280,7 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
         private final WMTSLayerSelection list;
 
         SelectLayerDialog(Collection<Layer> layers) {
-            super(Main.parent, tr("Select WMTS layer"), tr("Add layers"), tr("Cancel"));
+            super(MainApplication.getMainFrame(), tr("Select WMTS layer"), tr("Add layers"), tr("Cancel"));
             this.list = new WMTSLayerSelection(groupLayersByNameAndTileMatrixSet(layers));
             setContent(list);
         }
@@ -345,7 +346,7 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
         if (layerById.size() == 1) { // only one layer
             List<Layer> ls = layerById.entrySet().iterator().next().getValue()
                     .stream().filter(
-                            u -> u.tileMatrixSet.crs.equals(Main.getProjection().toCode()))
+                            u -> u.tileMatrixSet.crs.equals(ProjectionRegistry.getProjection().toCode()))
                     .collect(Collectors.toList());
             if (ls.size() == 1) {
                 // only one tile matrix set with matching projection - no point in asking
@@ -630,7 +631,7 @@ public class WMTSTileSource extends AbstractTMSTileSource implements TemplatedTi
      */
     private static TileMatrix parseTileMatrix(XMLStreamReader reader, String matrixCrs) throws XMLStreamException {
         Projection matrixProj = Optional.ofNullable(Projections.getProjectionByCode(matrixCrs))
-                .orElseGet(Main::getProjection); // use current projection if none found. Maybe user is using custom string
+                .orElseGet(ProjectionRegistry::getProjection); // use current projection if none found. Maybe user is using custom string
         TileMatrix ret = new TileMatrix();
         for (int event = reader.getEventType();
                 reader.hasNext() && !(event == XMLStreamReader.END_ELEMENT && QN_TILEMATRIX.equals(reader.getName()));

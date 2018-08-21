@@ -20,8 +20,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -35,11 +33,12 @@ import java.util.stream.Stream;
 import javax.swing.JOptionPane;
 import javax.xml.stream.XMLStreamException;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.preferences.ColorInfo;
+import org.openstreetmap.josm.data.preferences.JosmBaseDirectories;
 import org.openstreetmap.josm.data.preferences.NamedColorProperty;
 import org.openstreetmap.josm.data.preferences.PreferencesReader;
 import org.openstreetmap.josm.data.preferences.PreferencesWriter;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.io.OfflineAccessException;
 import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.spi.preferences.AbstractPreferences;
@@ -47,10 +46,10 @@ import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.spi.preferences.IBaseDirectories;
 import org.openstreetmap.josm.spi.preferences.ListSetting;
 import org.openstreetmap.josm.spi.preferences.Setting;
-import org.openstreetmap.josm.spi.preferences.StringSetting;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.ListenerList;
 import org.openstreetmap.josm.tools.Logging;
+import org.openstreetmap.josm.tools.PlatformManager;
 import org.openstreetmap.josm.tools.Utils;
 import org.xml.sax.SAXException;
 
@@ -117,6 +116,8 @@ public class Preferences extends AbstractPreferences {
 
     private final HashMap<String, ListenerList<org.openstreetmap.josm.spi.preferences.PreferenceChangedListener>> keyListeners = new HashMap<>();
 
+    private static final Preferences defaultInstance = new Preferences(JosmBaseDirectories.getInstance());
+
     /**
      * Constructs a new {@code Preferences}.
      */
@@ -142,6 +143,15 @@ public class Preferences extends AbstractPreferences {
         this(pref.dirs);
         settingsMap.putAll(pref.settingsMap);
         defaultsMap.putAll(pref.defaultsMap);
+    }
+
+    /**
+     * Returns the main (default) preferences instance.
+     * @return the main (default) preferences instance
+     * @since 14149
+     */
+    public static Preferences main() {
+        return defaultInstance;
     }
 
     /**
@@ -220,7 +230,7 @@ public class Preferences extends AbstractPreferences {
      * Default value is "JOSM", unless overridden by system property "josm.dir.name".
      * @return the base name of the JOSM directories for preferences, cache and user data
      */
-    public String getJOSMDirectoryBaseName() {
+    public static String getJOSMDirectoryBaseName() {
         String name = getSystemProperty("josm.dir.name");
         if (name != null)
             return name;
@@ -273,57 +283,14 @@ public class Preferences extends AbstractPreferences {
      * Returns a set of all existing directories where resources could be stored.
      * @return A set of all existing directories where resources could be stored.
      */
-    public Collection<String> getAllPossiblePreferenceDirs() {
+    public static Collection<String> getAllPossiblePreferenceDirs() {
         Set<String> locations = new HashSet<>();
-        addPossibleResourceDir(locations, dirs.getPreferencesDirectory(false).getPath());
-        addPossibleResourceDir(locations, dirs.getUserDataDirectory(false).getPath());
+        addPossibleResourceDir(locations, defaultInstance.dirs.getPreferencesDirectory(false).getPath());
+        addPossibleResourceDir(locations, defaultInstance.dirs.getUserDataDirectory(false).getPath());
         addPossibleResourceDir(locations, getSystemEnv("JOSM_RESOURCES"));
         addPossibleResourceDir(locations, getSystemProperty("josm.resources"));
-        if (Main.isPlatformWindows()) {
-            String appdata = getSystemEnv("APPDATA");
-            if (appdata != null && getSystemEnv("ALLUSERSPROFILE") != null
-                    && appdata.lastIndexOf(File.separator) != -1) {
-                appdata = appdata.substring(appdata.lastIndexOf(File.separator));
-                locations.add(new File(new File(getSystemEnv("ALLUSERSPROFILE"),
-                        appdata), "JOSM").getPath());
-            }
-        } else {
-            locations.add("/usr/local/share/josm/");
-            locations.add("/usr/local/lib/josm/");
-            locations.add("/usr/share/josm/");
-            locations.add("/usr/lib/josm/");
-        }
+        locations.addAll(PlatformManager.getPlatform().getPossiblePreferenceDirs());
         return locations;
-    }
-
-    /**
-     * Gets all normal (string) settings that have a key starting with the prefix
-     * @param prefix The start of the key
-     * @return The key names of the settings
-     */
-    public synchronized Map<String, String> getAllPrefix(final String prefix) {
-        final Map<String, String> all = new TreeMap<>();
-        for (final Entry<String, Setting<?>> e : settingsMap.entrySet()) {
-            if (e.getKey().startsWith(prefix) && (e.getValue() instanceof StringSetting)) {
-                all.put(e.getKey(), ((StringSetting) e.getValue()).getValue());
-            }
-        }
-        return all;
-    }
-
-    /**
-     * Gets all list settings that have a key starting with the prefix
-     * @param prefix The start of the key
-     * @return The key names of the list settings
-     */
-    public synchronized List<String> getAllPrefixCollectionKeys(final String prefix) {
-        final List<String> all = new LinkedList<>();
-        for (Map.Entry<String, Setting<?>> entry : settingsMap.entrySet()) {
-            if (entry.getKey().startsWith(prefix) && entry.getValue() instanceof ListSetting) {
-                all.add(entry.getKey());
-            }
-        }
-        return all;
     }
 
     /**
@@ -486,7 +453,7 @@ public class Preferences extends AbstractPreferences {
                         prefDir.getAbsoluteFile()));
                 if (!GraphicsEnvironment.isHeadless()) {
                     JOptionPane.showMessageDialog(
-                            Main.parent,
+                            MainApplication.getMainFrame(),
                             tr("<html>Failed to initialize preferences.<br>Preference directory ''{0}'' is not a directory.</html>",
                                     prefDir.getAbsoluteFile()),
                             tr("Error"),
@@ -501,7 +468,7 @@ public class Preferences extends AbstractPreferences {
                         prefDir.getAbsoluteFile()));
                 if (!GraphicsEnvironment.isHeadless()) {
                     JOptionPane.showMessageDialog(
-                            Main.parent,
+                            MainApplication.getMainFrame(),
                             tr("<html>Failed to initialize preferences.<br>Failed to create missing preference directory: {0}</html>",
                                     prefDir.getAbsoluteFile()),
                             tr("Error"),
@@ -520,7 +487,7 @@ public class Preferences extends AbstractPreferences {
                 save();
             } else if (reset) {
                 File backupFile = new File(prefDir, "preferences.xml.bak");
-                Main.platform.rename(preferenceFile, backupFile);
+                PlatformManager.getPlatform().rename(preferenceFile, backupFile);
                 Logging.warn(tr("Replacing existing preference file ''{0}'' with default preference file.", preferenceFile.getAbsoluteFile()));
                 resetToDefault();
                 save();
@@ -529,7 +496,7 @@ public class Preferences extends AbstractPreferences {
             Logging.error(e);
             if (!GraphicsEnvironment.isHeadless()) {
                 JOptionPane.showMessageDialog(
-                        Main.parent,
+                        MainApplication.getMainFrame(),
                         tr("<html>Failed to initialize preferences.<br>Failed to reset preference file to default: {0}</html>",
                                 getPreferenceFile().getAbsoluteFile()),
                         tr("Error"),
@@ -546,7 +513,7 @@ public class Preferences extends AbstractPreferences {
             File backupFile = new File(prefDir, "preferences.xml.bak");
             if (!GraphicsEnvironment.isHeadless()) {
                 JOptionPane.showMessageDialog(
-                        Main.parent,
+                        MainApplication.getMainFrame(),
                         tr("<html>Preferences file had errors.<br> Making backup of old one to <br>{0}<br> " +
                                 "and creating a new default preference file.</html>",
                                 backupFile.getAbsoluteFile()),
@@ -554,7 +521,7 @@ public class Preferences extends AbstractPreferences {
                         JOptionPane.ERROR_MESSAGE
                 );
             }
-            Main.platform.rename(preferenceFile, backupFile);
+            PlatformManager.getPlatform().rename(preferenceFile, backupFile);
             try {
                 resetToDefault();
                 save();
@@ -692,10 +659,7 @@ public class Preferences extends AbstractPreferences {
         return Collections.unmodifiableSet(settingsMap.keySet());
     }
 
-    /**
-     * Gets a map of all settings that are currently stored
-     * @return The settings
-     */
+    @Override
     public Map<String, Setting<?>> getAllSettings() {
         return new TreeMap<>(settingsMap);
     }
@@ -714,7 +678,7 @@ public class Preferences extends AbstractPreferences {
      * @see #getOnlinePluginSites
      */
     public Collection<String> getPluginSites() {
-        return getList("pluginmanager.sites", Collections.singletonList(Main.getJOSMWebsite()+"/pluginicons%<?plugins=>"));
+        return getList("pluginmanager.sites", Collections.singletonList(Config.getUrls().getJOSMWebsite()+"/pluginicons%<?plugins=>"));
     }
 
     /**
@@ -726,7 +690,7 @@ public class Preferences extends AbstractPreferences {
         Collection<String> pluginSites = new ArrayList<>(getPluginSites());
         for (Iterator<String> it = pluginSites.iterator(); it.hasNext();) {
             try {
-                OnlineResource.JOSM_WEBSITE.checkOfflineAccess(it.next(), Main.getJOSMWebsite());
+                OnlineResource.JOSM_WEBSITE.checkOfflineAccess(it.next(), Config.getUrls().getJOSMWebsite());
             } catch (OfflineAccessException ex) {
                 Logging.log(Logging.LEVEL_WARN, ex);
                 it.remove();

@@ -12,8 +12,8 @@ import java.util.List;
 
 import org.junit.Rule;
 import org.junit.Test;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.TestUtils;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.preferences.plugin.PluginPreferenceTest;
 import org.openstreetmap.josm.plugins.PluginHandler.DeprecatedPlugin;
 import org.openstreetmap.josm.plugins.PluginHandler.PluginInformationAction;
@@ -33,7 +33,7 @@ public class PluginHandlerTest {
      */
     @Rule
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    public JOSMTestRules test = new JOSMTestRules().platform();
+    public JOSMTestRules test = new JOSMTestRules();
 
     /**
      * Unit test of methods {@link DeprecatedPlugin#equals} and {@link DeprecatedPlugin#hashCode}.
@@ -72,7 +72,7 @@ public class PluginHandlerTest {
     @Test
     public void testFilterDeprecatedPlugins() {
         List<String> plugins = new ArrayList<>(Arrays.asList("foo", "bar", "imagery"));
-        PluginHandler.filterDeprecatedPlugins(Main.parent, plugins);
+        PluginHandler.filterDeprecatedPlugins(MainApplication.getMainFrame(), plugins);
         assertEquals(2, plugins.size());
         assertFalse(plugins.contains("imagery"));
     }
@@ -83,7 +83,7 @@ public class PluginHandlerTest {
     @Test
     public void testFilterUnmaintainedPlugins() {
         List<String> plugins = new ArrayList<>(Arrays.asList("foo", "bar", "gpsbabelgui"));
-        PluginHandler.filterUnmaintainedPlugins(Main.parent, plugins);
+        PluginHandler.filterUnmaintainedPlugins(MainApplication.getMainFrame(), plugins);
         assertEquals(2, plugins.size());
         assertFalse(plugins.contains("gpsbabelgui"));
     }

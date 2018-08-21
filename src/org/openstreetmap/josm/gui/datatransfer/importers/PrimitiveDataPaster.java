@@ -13,8 +13,8 @@ import java.util.Map;
 
 import javax.swing.TransferHandler.TransferSupport;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.command.AddPrimitivesCommand;
+import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.osm.NodeData;
 import org.openstreetmap.josm.data.osm.OsmPrimitiveType;
@@ -22,6 +22,7 @@ import org.openstreetmap.josm.data.osm.PrimitiveData;
 import org.openstreetmap.josm.data.osm.RelationData;
 import org.openstreetmap.josm.data.osm.RelationMemberData;
 import org.openstreetmap.josm.data.osm.WayData;
+import org.openstreetmap.josm.data.projection.ProjectionRegistry;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.datatransfer.data.PrimitiveTransferData;
@@ -57,7 +58,7 @@ public final class PrimitiveDataPaster extends AbstractOsmDataPaster {
         AddPrimitivesCommand command = createNewPrimitives(pasteBuffer, offset, layer);
 
         /* Now execute the commands to add the duplicated contents of the paste buffer to the map */
-        MainApplication.undoRedo.add(command);
+        UndoRedoHandler.getInstance().add(command);
         return true;
     }
 
@@ -72,7 +73,7 @@ public final class PrimitiveDataPaster extends AbstractOsmDataPaster {
             try {
                 if (data instanceof NodeData) {
                     NodeData nodeData = (NodeData) data;
-                    nodeData.setEastNorth(nodeData.getEastNorth(Main.getProjection()).add(offset));
+                    nodeData.setEastNorth(nodeData.getEastNorth(ProjectionRegistry.getProjection()).add(offset));
                 } else if (data instanceof WayData) {
                     updateNodes(newIds.get(OsmPrimitiveType.NODE), data);
                 } else if (data instanceof RelationData) {
@@ -135,7 +136,7 @@ public final class PrimitiveDataPaster extends AbstractOsmDataPaster {
     }
 
     private static boolean confirmDeleteIncomplete() {
-        ExtendedDialog ed = new ExtendedDialog(Main.parent, tr("Delete incomplete members?"),
+        ExtendedDialog ed = new ExtendedDialog(MainApplication.getMainFrame(), tr("Delete incomplete members?"),
                 tr("Paste without incomplete members"), tr("Cancel"));
         ed.setButtonIcons("dialogs/relation/deletemembers", "cancel");
         ed.setContent(tr(

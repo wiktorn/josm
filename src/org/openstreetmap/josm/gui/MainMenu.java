@@ -24,7 +24,6 @@ import javax.swing.KeyStroke;
 import javax.swing.event.MenuEvent;
 import javax.swing.event.MenuListener;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.AboutAction;
 import org.openstreetmap.josm.actions.AddNodeAction;
 import org.openstreetmap.josm.actions.AlignInCircleAction;
@@ -114,6 +113,7 @@ import org.openstreetmap.josm.actions.audio.AudioPlayPauseAction;
 import org.openstreetmap.josm.actions.audio.AudioPrevAction;
 import org.openstreetmap.josm.actions.audio.AudioSlowerAction;
 import org.openstreetmap.josm.actions.search.SearchAction;
+import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.gui.dialogs.MenuItemSearchDialog;
 import org.openstreetmap.josm.gui.io.RecentlyOpenedFilesMenu;
 import org.openstreetmap.josm.gui.layer.MainLayerManager.ActiveLayerChangeEvent;
@@ -123,6 +123,7 @@ import org.openstreetmap.josm.gui.preferences.imagery.ImageryPreference;
 import org.openstreetmap.josm.gui.preferences.map.TaggingPresetPreference;
 import org.openstreetmap.josm.gui.tagging.presets.TaggingPresetSearchPrimitiveDialog;
 import org.openstreetmap.josm.spi.preferences.Config;
+import org.openstreetmap.josm.tools.PlatformManager;
 import org.openstreetmap.josm.tools.Shortcut;
 
 /**
@@ -686,9 +687,9 @@ public class MainMenu extends JMenuBar {
         add(fileMenu, exit);
 
         add(editMenu, undo);
-        MainApplication.undoRedo.addCommandQueueListener(undo);
+        UndoRedoHandler.getInstance().addCommandQueueListener(undo);
         add(editMenu, redo);
-        MainApplication.undoRedo.addCommandQueueListener(redo);
+        UndoRedoHandler.getInstance().addCommandQueueListener(redo);
         editMenu.addSeparator();
         add(editMenu, copy);
         add(editMenu, copyCoordinates, true);
@@ -732,7 +733,7 @@ public class MainMenu extends JMenuBar {
         vft.setAccelerator(viewportFollowToggleAction.getShortcut().getKeyStroke());
         viewportFollowToggleAction.addButtonModel(vft.getModel());
 
-        if (Main.platform.canFullscreen()) {
+        if (PlatformManager.getPlatform().canFullscreen()) {
             // -- fullscreen toggle action
             fullscreenToggleAction = new FullscreenToggleAction();
             final JCheckBoxMenuItem fullscreen = new JCheckBoxMenuItem(fullscreenToggleAction);

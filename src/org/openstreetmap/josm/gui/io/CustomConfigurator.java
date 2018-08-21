@@ -38,11 +38,11 @@ import javax.xml.transform.TransformerFactoryConfigurationError;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Preferences;
 import org.openstreetmap.josm.data.PreferencesUtils;
 import org.openstreetmap.josm.data.Version;
 import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MainFrame;
 import org.openstreetmap.josm.plugins.PluginDownloadTask;
 import org.openstreetmap.josm.plugins.PluginInformation;
 import org.openstreetmap.josm.plugins.ReadLocalPluginInformationTask;
@@ -99,7 +99,7 @@ public final class CustomConfigurator {
      * @param file - file to open for reading XML
      */
     public static void readXML(File file) {
-        readXML(file, Main.pref);
+        readXML(file, Preferences.main());
     }
 
     /**
@@ -136,12 +136,11 @@ public final class CustomConfigurator {
             return; // some basic protection
         }
         File fOut = new File(dir, path);
-        DownloadFileTask downloadFileTask = new DownloadFileTask(Main.parent, address, fOut, mkdir, unzip);
+        DownloadFileTask downloadFileTask = new DownloadFileTask(MainApplication.getMainFrame(), address, fOut, mkdir, unzip);
 
         MainApplication.worker.submit(downloadFileTask);
         PreferencesUtils.log("Info: downloading file from %s to %s in background ", parentDir, fOut.getAbsolutePath());
         if (unzip) PreferencesUtils.log("and unpacking it"); else PreferencesUtils.log("");
-
     }
 
     /**
@@ -151,12 +150,13 @@ public final class CustomConfigurator {
      */
     public static void messageBox(String type, String text) {
         char c = (type == null || type.isEmpty() ? "plain" : type).charAt(0);
+        MainFrame parent = MainApplication.getMainFrame();
         switch (c) {
-            case 'i': JOptionPane.showMessageDialog(Main.parent, text, tr("Information"), JOptionPane.INFORMATION_MESSAGE); break;
-            case 'w': JOptionPane.showMessageDialog(Main.parent, text, tr("Warning"), JOptionPane.WARNING_MESSAGE); break;
-            case 'e': JOptionPane.showMessageDialog(Main.parent, text, tr("Error"), JOptionPane.ERROR_MESSAGE); break;
-            case 'q': JOptionPane.showMessageDialog(Main.parent, text, tr("Question"), JOptionPane.QUESTION_MESSAGE); break;
-            case 'p': JOptionPane.showMessageDialog(Main.parent, text, tr("Message"), JOptionPane.PLAIN_MESSAGE); break;
+            case 'i': JOptionPane.showMessageDialog(parent, text, tr("Information"), JOptionPane.INFORMATION_MESSAGE); break;
+            case 'w': JOptionPane.showMessageDialog(parent, text, tr("Warning"), JOptionPane.WARNING_MESSAGE); break;
+            case 'e': JOptionPane.showMessageDialog(parent, text, tr("Error"), JOptionPane.ERROR_MESSAGE); break;
+            case 'q': JOptionPane.showMessageDialog(parent, text, tr("Question"), JOptionPane.QUESTION_MESSAGE); break;
+            case 'p': JOptionPane.showMessageDialog(parent, text, tr("Message"), JOptionPane.PLAIN_MESSAGE); break;
             default: Logging.warn("Unsupported messageBox type: " + c);
         }
     }
@@ -169,16 +169,16 @@ public final class CustomConfigurator {
      */
     public static int askForOption(String text, String opts) {
         if (!opts.isEmpty()) {
-            return JOptionPane.showOptionDialog(Main.parent, text, "Question",
+            return JOptionPane.showOptionDialog(MainApplication.getMainFrame(), text, "Question",
                     JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE, null, opts.split(";"), 0);
         } else {
-            return JOptionPane.showOptionDialog(Main.parent, text, "Question",
+            return JOptionPane.showOptionDialog(MainApplication.getMainFrame(), text, "Question",
                     JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE, null, null, 2);
         }
     }
 
     public static String askForText(String text) {
-        String s = JOptionPane.showInputDialog(Main.parent, text, tr("Enter text"), JOptionPane.QUESTION_MESSAGE);
+        String s = JOptionPane.showInputDialog(MainApplication.getMainFrame(), text, tr("Enter text"), JOptionPane.QUESTION_MESSAGE);
         return s != null ? s.trim() : null;
     }
 
@@ -205,7 +205,7 @@ public final class CustomConfigurator {
      */
     public static void exportPreferencesKeysByPatternToFile(String fileName, boolean append, String pattern) {
         List<String> keySet = new ArrayList<>();
-        Map<String, Setting<?>> allSettings = Main.pref.getAllSettings();
+        Map<String, Setting<?>> allSettings = Preferences.main().getAllSettings();
         for (String key: allSettings.keySet()) {
             if (key.matches(pattern))
                 keySet.add(key);
@@ -226,7 +226,7 @@ public final class CustomConfigurator {
         Document exportDocument = null;
 
         try {
-            String toXML = Main.pref.toXML(true);
+            String toXML = Preferences.main().toXML(true);
             DocumentBuilder builder = XmlUtils.newSafeDOMBuilder();
             document = builder.parse(new ByteArrayInputStream(toXML.getBytes(StandardCharsets.UTF_8)));
             exportDocument = builder.newDocument();
@@ -343,7 +343,7 @@ public final class CustomConfigurator {
                     }
                     if (!installList.isEmpty()) {
                         PluginDownloadTask pluginDownloadTask =
-                                new PluginDownloadTask(Main.parent, toInstallPlugins, tr("Installing plugins"));
+                                new PluginDownloadTask(MainApplication.getMainFrame(), toInstallPlugins, tr("Installing plugins"));
                         MainApplication.worker.submit(pluginDownloadTask);
                     }
                     List<String> pls = new ArrayList<>(Config.getPref().getList("plugins"));
@@ -357,7 +357,7 @@ public final class CustomConfigurator {
                     }
                     for (PluginInformation pi4: toDeletePlugins) {
                         pls.remove(pi4.name);
-                        new File(Main.pref.getPluginsDirectory(), pi4.name+".jar").deleteOnExit();
+                        new File(Preferences.main().getPluginsDirectory(), pi4.name+".jar").deleteOnExit();
                     }
                     Config.getPref().putList("plugins", pls);
                 });
@@ -374,7 +374,7 @@ public final class CustomConfigurator {
         } else if ("cache".equals(base)) {
             dir = Config.getDirs().getCacheDirectory(false).getAbsolutePath();
         } else if ("plugins".equals(base)) {
-            dir = Main.pref.getPluginsDirectory().getAbsolutePath();
+            dir = Preferences.main().getPluginsDirectory().getAbsolutePath();
         } else {
             dir = null;
         }

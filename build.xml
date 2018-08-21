@@ -29,6 +29,7 @@
         </condition>
         <property name="build.dir" location="${base.dir}/build"/>
         <property name="dist.dir" location="${base.dir}/dist"/>
+        <property name="modules.dir" location="${dist.dir}/modules"/>
         <property name="tools.dir" location="${base.dir}/tools"/>
         <property name="pmd.dir" location="${tools.dir}/pmd"/>
         <property name="checkstyle.dir" location="${tools.dir}/checkstyle"/>
@@ -52,26 +53,20 @@
         <condition property="clevel" value="${clevel}" else="9">
             <isset property="clevel"/>
         </condition>
-        <!-- For Java9-specific stuff -->
-        <condition property="isJava9">
-            <matches string="${ant.java.version}" pattern="(1.)?(9|1[0-9])" />
-        </condition>
-        <!-- For Java10-specific stuff -->
-        <condition property="isJava10">
-            <matches string="${ant.java.version}" pattern="1[0-9]" />
-        </condition>
-        <!-- For Java11-specific stuff -->
-        <condition property="isJava11">
-            <matches string="${ant.java.version}" pattern="1[1-9]" />
-        </condition>
+        <!-- For Java specific stuff by version -->
+        <condition property="isJava9"><matches string="${ant.java.version}" pattern="(1.)?(9|1[0-9])" /></condition>
+        <condition property="isJava10"><matches string="${ant.java.version}" pattern="1[0-9]" /></condition>
+        <condition property="isJava11"><matches string="${ant.java.version}" pattern="1[1-9]" /></condition>
+        <condition property="isJava12"><matches string="${ant.java.version}" pattern="1[2-9]" /></condition>
+        <condition property="isJava13"><matches string="${ant.java.version}" pattern="1[3-9]" /></condition>
         <!-- error_prone works differently on Java 10+, see https://github.com/google/error-prone/issues/860 -->
         <condition property="javac.compiler" value="modern" else="com.google.errorprone.ErrorProneAntCompilerAdapter">
             <isset property="isJava10"/>
         </condition>
-        <!-- Disable jacoco on Java 11+, see https://github.com/jacoco/jacoco/issues/629 -->
+        <!-- Disable jacoco on Java 13+, see https://github.com/jacoco/jacoco/pull/738 -->
         <condition property="coverageByDefault">
             <not>
-                <isset property="isJava11"/>
+                <isset property="isJava13"/>
             </not>
         </condition>
         <path id="groovy.classpath">
@@ -505,7 +500,7 @@ Build-Date: ${build.tstamp}
             <echo message="Running @{testfamily}@{testITsuffix} tests with JUnit"/>
             <jacoco:coverage destfile="${test.dir}/jacoco@{testITsuffix}.exec" enabled="@{coverage}" includes="${jacoco.includes}"
                 inclbootstrapclasses="${jacoco.inclbootstrapclasses}" inclnolocationclasses="${jacoco.inclnolocationclasses}">
-                <junit printsummary="yes" fork="true" forkmode="once">
+                <junit printsummary="yes" fork="true" forkmode="once" failureproperty="test.@{testfamily}@{testITsuffix}.failed">
                     <jvmarg value="-Dfile.encoding=UTF-8"/>
                     <jvmarg value="-javaagent:${test.dir}/lib/jmockit-1.41.jar"/>
                     <jvmarg value="--add-modules" if:set="isJava9" unless:set="isJava11" />
@@ -557,14 +552,44 @@ Build-Date: ${build.tstamp}
         <call-junit testfamily="unit"/>
         <call-junit testfamily="functional"/>
     </target>
+    <target name="test-hardfail" depends="test" description="Run 'test' target but abort if tests failed">
+        <fail message="'test' failed">
+            <condition>
+                <or>
+                    <isset property="test.unit.failed"/>
+                    <isset property="test.functional.failed"/>
+                </or>
+            </condition>
+        </fail>
+    </target>
+    <target name="test-unit" depends="test-compile" unless="test-unit.notRequired"
+        description="Run unit tests. OSM API (TEST) account shall be set with -Dosm.username and -Dosm.password">
+        <call-junit testfamily="unit"/>
+    </target>
+    <target name="test-unit-hardfail" depends="test-unit" description="Run 'test-unit' target but abort if tests failed">
+        <fail message="'test-unit' failed" if="test.unit.failed"/>
+    </target>
     <target name="test-it" depends="test-compile" unless="test-it.notRequired"
         description="Run integration tests. OSM API (TEST) account shall be set with -Dosm.username and -Dosm.password">
         <call-junit testfamily="unit" testITsuffix="IT"/>
         <call-junit testfamily="functional" testITsuffix="IT"/>
     </target>
+    <target name="test-it-hardfail" depends="test-it" description="Run 'test-it' target but abort if tests failed">
+        <fail message="'test-it' failed">
+            <condition>
+                <or>
+                    <isset property="test.unitIT.failed"/>
+                    <isset property="test.functionalIT.failed"/>
+                </or>
+            </condition>
+        </fail>
+    </target>
     <target name="test-perf" depends="test-compile" unless="test-perf.notRequired"
         description="Run performance tests. OSM API (TEST) account shall be set with -Dosm.username and -Dosm.password">
         <call-junit testfamily="performance" coverage="false"/>
+    </target>
+    <target name="test-perf-hardfail" depends="test-perf" description="Run 'test-perf' target but abort if tests failed">
+        <fail message="'test-perf' failed" if="test.performance.failed"/>
     </target>
     <target name="test-html" depends="test, test-it, test-perf" description="Generate HTML test reports">
         <!-- May require additional ant dependencies like ant-trax package -->
@@ -740,6 +765,7 @@ Build-Date: ${build.tstamp}
             <ignore classname="groovy.*"/>
             <ignore classname="io.*"/>
             <ignore classname="it.*"/>
+            <ignore classname="java.lang.invoke.MethodHandle"/>
             <ignore classname="javax.*"/>
             <ignore classname="jogamp.*"/>
             <ignore classname="junit.*"/>
@@ -756,6 +782,7 @@ Build-Date: ${build.tstamp}
             <ignore classname="org.dom4j.*"/>
             <ignore classname="org.eclipse.*"/>
             <ignore classname="org.ejml.*"/>
+            <ignore classname="org.fusesource.*"/>
             <ignore classname="org.gdal.*"/>
             <ignore classname="org.hibernate.*"/>
             <ignore classname="org.hsqldb.*"/>
@@ -764,11 +791,13 @@ Build-Date: ${build.tstamp}
             <ignore classname="org.jaitools.*"/>
             <ignore classname="org.jaxen.*"/>
             <ignore classname="org.jboss.*"/>
+            <ignore classname="org.jctools.*"/>
             <ignore classname="org.jdom.*"/>
             <ignore classname="org.jdom2.*"/>
             <ignore classname="org.jfree.*"/>
             <ignore classname="org.jgraph.*"/>
             <ignore classname="org.joda.*"/>
+            <ignore classname="org.json.*"/>
             <ignore classname="org.junit.*"/>
             <ignore classname="org.jvnet.*"/>
             <ignore classname="org.kxml2.*"/>
@@ -956,5 +985,62 @@ Build-Date: ${build.tstamp}
             </classpath>
             <arg value="${base.dir}"/>
         </java>
+    </target>
+    <!--
+      ** generate jdeps dependency graph
+    -->
+    <target name="jdeps" depends="compile">
+        <delete dir="${modules.dir}"/>
+        <mkdir dir="${modules.dir}"/>
+        <!-- JOSM only -->
+        <jar basedir="${build.dir}" level="${clevel}" destfile="${modules.dir}/josm-main.jar" includes="org/openstreetmap/josm/Main.class"/>
+        <jar basedir="${build.dir}" level="${clevel}" destfile="${modules.dir}/josm-actions.jar" includes="org/openstreetmap/josm/actions/**/*.class"/>
+        <jar basedir="${build.dir}" level="${clevel}" destfile="${modules.dir}/josm-cli.jar" includes="org/openstreetmap/josm/cli/**/*.class"/>
+        <jar basedir="${build.dir}" level="${clevel}" destfile="${modules.dir}/josm-command.jar" includes="org/openstreetmap/josm/command/**/*.class"/>
+        <jar basedir="${build.dir}" level="${clevel}" destfile="${modules.dir}/josm-corrector.jar" includes="org/openstreetmap/josm/corrector/**/*.class"/>
+        <jar basedir="${build.dir}" level="${clevel}" destfile="${modules.dir}/josm-data.jar" includes="org/openstreetmap/josm/data/**/*.class"/>
+        <jar basedir="${build.dir}" level="${clevel}" destfile="${modules.dir}/josm-gui.jar" includes="org/openstreetmap/josm/gui/**/*.class"/>
+        <jar basedir="${build.dir}" level="${clevel}" destfile="${modules.dir}/josm-io.jar" includes="org/openstreetmap/josm/io/**/*.class"/>
+        <jar basedir="${build.dir}" level="${clevel}" destfile="${modules.dir}/josm-plugins.jar" includes="org/openstreetmap/josm/plugins/**/*.class"/>
+        <jar basedir="${build.dir}" level="${clevel}" destfile="${modules.dir}/josm-spi.jar" includes="org/openstreetmap/josm/spi/**/*.class"/>
+        <jar basedir="${build.dir}" level="${clevel}" destfile="${modules.dir}/josm-tools.jar" includes="org/openstreetmap/josm/tools/**/*.class"/>
+        <exec executable="jdeps" dir="${modules.dir}">
+            <arg line="-f 'java.*|org.xml.*|org.w3c.*|sun.*|com.*|gnu.*|oauth.*|org.apache.*|org.glassfish.*|org.jdesktop.*|org.openstreetmap.gui.*'"/>
+            <arg line="-dotoutput dots *.jar"/>
+        </exec>
+        <exec executable="dot" dir="${modules.dir}/dots">
+            <arg line="-O -Tpng summary.dot"/>
+        </exec>
+        <move file="${modules.dir}/dots/summary.dot.png" tofile="${modules.dir}/josm-without-dependencies.png"/>
+        <!-- Direct dependencies -->
+        <jar basedir="${build.dir}" level="${clevel}" destfile="${modules.dir}/metadata-extractor.jar" includes="com/drew/**/*.class"/>
+        <jar basedir="${build.dir}" level="${clevel}" destfile="${modules.dir}/svgSalamander.jar" includes="com/kitfox/**/*.class"/>
+        <jar basedir="${build.dir}" level="${clevel}" destfile="${modules.dir}/gnu-getopt.jar" includes="gnu/**/*.class"/>
+        <jar basedir="${build.dir}" level="${clevel}" destfile="${modules.dir}/javax-json.jar" includes="javax/**/*.class"/>
+        <jar basedir="${build.dir}" level="${clevel}" destfile="${modules.dir}/oauth-signpost.jar" includes="oauth/**/*.class"/>
+        <jar basedir="${build.dir}" level="${clevel}" destfile="${modules.dir}/commons-compress.jar" includes="org/apache/commons/compress/**/*.class"/>
+        <jar basedir="${build.dir}" level="${clevel}" destfile="${modules.dir}/commons-jcs.jar" includes="org/apache/commons/jcs/**/*.class"/>
+        <jar basedir="${build.dir}" level="${clevel}" destfile="${modules.dir}/glassfish-json.jar" includes="org/glassfish/**/*.class"/>
+        <jar basedir="${build.dir}" level="${clevel}" destfile="${modules.dir}/jdesktop.jar" includes="org/jdesktop/**/*.class"/>
+        <jar basedir="${build.dir}" level="${clevel}" destfile="${modules.dir}/jmapviewer.jar" includes="org/openstreetmap/gui/**/*.class"/>
+        <exec executable="jdeps" dir="${modules.dir}">
+            <arg line="-f 'java.*|org.xml.*|org.w3c.*|sun.*|com.sun.*|com.google.*|org.tukaani.*|org.apache.commons.logging.*'"/>
+            <arg line="-dotoutput dots *.jar"/>
+        </exec>
+        <exec executable="dot" dir="${modules.dir}/dots">
+            <arg line="-O -Tpng summary.dot"/>
+        </exec>
+        <move file="${modules.dir}/dots/summary.dot.png" tofile="${modules.dir}/josm-with-direct-dependencies.png"/>
+        <!-- All dependencies -->
+        <jar basedir="${build.dir}" level="${clevel}" destfile="${modules.dir}/commons-logging.jar" includes="org/apache/commons/logging/**/*.class"/>
+        <jar basedir="${build.dir}" level="${clevel}" destfile="${modules.dir}/google-gdata.jar" includes="com/google/**/*.class"/>
+        <jar basedir="${build.dir}" level="${clevel}" destfile="${modules.dir}/tukaani-xz.jar" includes="org/tukaani/**/*.class"/>
+        <exec executable="jdeps" dir="${modules.dir}">
+            <arg line="-dotoutput dots *.jar"/>
+        </exec>
+        <exec executable="dot" dir="${modules.dir}/dots">
+            <arg line="-O -Tpng summary.dot"/>
+        </exec>
+        <move file="${modules.dir}/dots/summary.dot.png" tofile="${modules.dir}/josm-with-all-dependencies.png"/>
     </target>
 </project>

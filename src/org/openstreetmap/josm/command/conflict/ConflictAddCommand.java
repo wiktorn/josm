@@ -9,12 +9,13 @@ import java.util.Objects;
 import javax.swing.Icon;
 import javax.swing.JOptionPane;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.data.conflict.Conflict;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
+import org.openstreetmap.josm.data.osm.OsmDataManager;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
@@ -39,7 +40,7 @@ public class ConflictAddCommand extends Command {
 
     protected void warnBecauseOfDoubleConflict() {
         JOptionPane.showMessageDialog(
-                Main.parent,
+                MainApplication.getMainFrame(),
                 tr("<html>Layer ''{0}'' already has a conflict for object<br>"
                         + "''{1}''.<br>"
                         + "This conflict cannot be added.</html>",
@@ -65,7 +66,7 @@ public class ConflictAddCommand extends Command {
     @Override
     public void undoCommand() {
         DataSet ds = getAffectedDataSet();
-        if (Main.main != null && !Main.main.containsDataSet(ds)) {
+        if (!OsmDataManager.getInstance().containsDataSet(ds)) {
             Logging.warn(tr("Layer ''{0}'' does not exist any more. Cannot remove conflict for object ''{1}''.",
                     ds.getName(),
                     conflict.getMy().getDisplayName(DefaultNameFormatter.getInstance())

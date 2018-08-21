@@ -1871,6 +1871,7 @@
                   cs.href="https://wiki.openstreetmap.org/wiki/Cs:Tag:barrier=fence"
                   de.href="https://wiki.openstreetmap.org/wiki/DE:Tag:barrier=fence"
                   es.href="https://wiki.openstreetmap.org/wiki/ES:Tag:barrier=fence"
+                  fr.href="https://wiki.openstreetmap.org/wiki/FR:Tag:barrier=fence"
                   it.href="https://wiki.openstreetmap.org/wiki/IT:Tag:barrier=fence"
                   ja.href="https://wiki.openstreetmap.org/wiki/JA:Tag:barrier=fence"
                   nl.href="https://wiki.openstreetmap.org/wiki/NL:Tag:barrier=fence"
@@ -1979,6 +1980,7 @@
                   cs.href="https://wiki.openstreetmap.org/wiki/Cs:Tag:barrier=entrance"
                   de.href="https://wiki.openstreetmap.org/wiki/DE:Tag:barrier=entrance"
                   es.href="https://wiki.openstreetmap.org/wiki/ES:Tag:barrier=entrance"
+                  fr.href="https://wiki.openstreetmap.org/wiki/FR:Tag:barrier=entrance"
                   ja.href="https://wiki.openstreetmap.org/wiki/JA:Tag:barrier=entrance"
                   pl.href="https://wiki.openstreetmap.org/wiki/Pl:Tag:barrier=entrance"
                   ru.href="https://wiki.openstreetmap.org/wiki/RU:Tag:barrier=entrance" />
@@ -2453,6 +2455,7 @@
                   cs.href="https://wiki.openstreetmap.org/wiki/Cs:Tag:man_made=reservoir_covered"
                   de.href="https://wiki.openstreetmap.org/wiki/DE:Tag:man_made=reservoir_covered"
                   es.href="https://wiki.openstreetmap.org/wiki/ES:Tag:man_made=reservoir_covered"
+                  fr.href="https://wiki.openstreetmap.org/wiki/FR:Tag:man_made=reservoir_covered"
                   ja.href="https://wiki.openstreetmap.org/wiki/JA:Tag:man_made=reservoir_covered"
                   pl.href="https://wiki.openstreetmap.org/wiki/Pl:Tag:man_made=reservoir_covered"
                   pt.href="https://wiki.openstreetmap.org/wiki/Pt:Tag:man_made=reservoir_covered"
@@ -2479,7 +2482,7 @@
             <text key="name" text="Name" />
             <combo key="water" text="Water Body" values="canal,lake,lagoon,oxbow,pond,reservoir,river,lock,wastewater" match="key" values_searchable="true" />
             <check key="salt" text="Salt Water" disable_off="true" />
-            <check key="intermittent" text="Is the water body intermittent (disappears seasonally)?" disable_off="true" />
+            <check key="intermittent" text="Intermittent (contains not permanently water)" disable_off="true" />
             <check key="tidal" text="In the tidal range" disable_off="true" />
             <text key="wikipedia" text="Wikipedia" />
             <reference ref="water_access" />
@@ -2512,7 +2515,7 @@
             <space />
             <key key="waterway" value="riverbank" />
             <text key="name" text="Name" />
-            <check key="intermittent" text="Is the water body intermittent (disappears seasonally)?" disable_off="true" />
+            <check key="intermittent" text="Intermittent (contains not permanently water)" disable_off="true" />
             <check key="tidal" text="In the tidal range" disable_off="true" />
         </item> <!-- Riverbank -->
         <separator/>
@@ -2554,6 +2557,7 @@
                   cs.href="https://wiki.openstreetmap.org/wiki/Cs:Tag:natural=beach"
                   de.href="https://wiki.openstreetmap.org/wiki/DE:Tag:natural=beach"
                   es.href="https://wiki.openstreetmap.org/wiki/ES:Tag:natural=beach"
+                  fr.href="https://wiki.openstreetmap.org/wiki/FR:Tag:natural=beach"
                   ja.href="https://wiki.openstreetmap.org/wiki/JA:Tag:natural=beach"
                   pl.href="https://wiki.openstreetmap.org/wiki/Pl:Tag:natural=beach"
                   pt.href="https://wiki.openstreetmap.org/wiki/Pt:Tag:natural=beach"
@@ -3192,6 +3196,7 @@
                   cs.href="https://wiki.openstreetmap.org/wiki/Cs:Tag:amenity=parking_entrance"
                   de.href="https://wiki.openstreetmap.org/wiki/DE:Tag:amenity=parking_entrance"
                   es.href="https://wiki.openstreetmap.org/wiki/ES:Tag:amenity=parking_entrance"
+                  fr.href="https://wiki.openstreetmap.org/wiki/FR:Tag:amenity=parking_entrance"
                   ja.href="https://wiki.openstreetmap.org/wiki/JA:Tag:amenity=parking_entrance"
                   pl.href="https://wiki.openstreetmap.org/wiki/Pl:Tag:amenity=parking_entrance"
                   pt.href="https://wiki.openstreetmap.org/wiki/Pt:Tag:amenity=parking_entrance"
@@ -4772,6 +4777,7 @@
                   ca.href="https://wiki.openstreetmap.org/wiki/Ca:Tag:leisure=swimming_pool"
                   cs.href="https://wiki.openstreetmap.org/wiki/Cs:Tag:leisure=swimming_pool"
                   de.href="https://wiki.openstreetmap.org/wiki/DE:Tag:leisure=swimming_pool"
+                  es.href="https://wiki.openstreetmap.org/wiki/ES:Tag:leisure=swimming_pool"
                   fr.href="https://wiki.openstreetmap.org/wiki/FR:Tag:leisure=swimming_pool"
                   it.href="https://wiki.openstreetmap.org/wiki/IT:Tag:leisure=swimming_pool"
                   ja.href="https://wiki.openstreetmap.org/wiki/JA:Tag:leisure=swimming_pool"
@@ -4818,7 +4824,8 @@
                   es.href="https://wiki.openstreetmap.org/wiki/ES:Tag:leisure=horse_riding"
                   fr.href="https://wiki.openstreetmap.org/wiki/FR:Tag:leisure=horse_riding"
                   ja.href="https://wiki.openstreetmap.org/wiki/JA:Tag:leisure=horse_riding"
-                  pl.href="https://wiki.openstreetmap.org/wiki/Pl:Tag:leisure=horse_riding" />
+                  pl.href="https://wiki.openstreetmap.org/wiki/Pl:Tag:leisure=horse_riding"
+                  ru.href="https://wiki.openstreetmap.org/wiki/RU:Tag:leisure=horse_riding" />
             <space />
             <key key="leisure" value="horse_riding" />
             <reference ref="name_operator_oh_wheelchair" />
@@ -5077,6 +5084,8 @@
             <combo key="artwork_type" text="Type" values="mural,sculpture,statue" />
             <text key="name" text="Name" />
             <text key="artist_name" text="Artist Name" />
+            <combo key="material" text="Material" values="metal,plastic,steel,stone,wood,concrete" />
+            <text key="start_date" text="Start date" />
         </item> <!-- Artwork -->
         <item name="Studio" icon="presets/service/studio.svg" type="node,closedway,multipolygon" preset_name_label="true">
             <link href="https://wiki.openstreetmap.org/wiki/Tag:amenity=studio"
@@ -5776,6 +5785,7 @@
                   fr.href="https://wiki.openstreetmap.org/wiki/FR:Key:social_facility"
                   ja.href="https://wiki.openstreetmap.org/wiki/JA:Key:social_facility"
                   pl.href="https://wiki.openstreetmap.org/wiki/Pl:Key:social_facility"
+                  pt.href="https://wiki.openstreetmap.org/wiki/Pt:Key:social_facility"
                   ru.href="https://wiki.openstreetmap.org/wiki/RU:Key:social_facility" />
             <space />
             <key key="amenity" value="social_facility" />
@@ -6637,7 +6647,8 @@
         <item name="Horse Racing" icon="presets/sport/riding.svg" type="node,closedway,multipolygon" preset_name_label="true">
             <link href="https://wiki.openstreetmap.org/wiki/Tag:sport=horse_racing"
                   de.href="https://wiki.openstreetmap.org/wiki/DE:Tag:sport=horse_racing"
-                  fr.href="https://wiki.openstreetmap.org/wiki/FR:Tag:sport=horse_racing" />
+                  fr.href="https://wiki.openstreetmap.org/wiki/FR:Tag:sport=horse_racing"
+                  ru.href="https://wiki.openstreetmap.org/wiki/RU:Tag:sport=horse_racing" />
             <space />
             <key key="sport" value="horse_racing" />
             <text key="name" text="Name" />
@@ -6919,6 +6930,7 @@
         <item name="Motorsport" icon="presets/sport/motor.svg" type="node,closedway,multipolygon" preset_name_label="true">
             <link href="https://wiki.openstreetmap.org/wiki/Tag:sport=motor"
                   de.href="https://wiki.openstreetmap.org/wiki/DE:Tag:sport=motor"
+                  es.href="https://wiki.openstreetmap.org/wiki/ES:Tag:sport=motor"
                   ru.href="https://wiki.openstreetmap.org/wiki/RU:Tag:sport=motor" />
             <space />
             <key key="sport" value="motor" />
@@ -7073,7 +7085,7 @@
             <space />
             <key key="man_made" value="tower" />
             <text key="name" text="Name" />
-            <combo key="tower:type" text="Tower type" values="bell_tower,communication,cooling,defensive,observation,radar,watchtower" />
+            <combo key="tower:type" text="Tower type" values="bell_tower,communication,cooling,defensive,observation,radar,watchtower" values_searchable="true" />
             <optional>
                 <text key="height" text="Height (meters)" />
                 <text key="operator" text="Operator" />
@@ -7939,6 +7951,17 @@
             <reference ref="ref_operator_branch" />
             <preset_link preset_name="Power Substation" />
         </item> <!-- Transformer Tower -->
+        <item name="Terminal" icon="presets/power/terminal.svg" type="node" preset_name_label="true">
+            <link href="https://wiki.openstreetmap.org/wiki/Tag:power=terminal"
+                  cs.href="https://wiki.openstreetmap.org/wiki/Cs:Tag:power=terminal"
+                  fr.href="https://wiki.openstreetmap.org/wiki/FR:Tag:power=terminal" />
+            <space />
+            <key key="power" value="terminal" />
+            <optional>
+                <text key="ref" text="Reference" />
+                <text key="operator" text="Operator" />
+            </optional>
+        </item> <!-- Terminal -->
         <item name="Power Portal" icon="presets/power/portal.svg" type="node,way" preset_name_label="true">
             <link href="https://wiki.openstreetmap.org/wiki/Tag:power=portal"
                   de.href="https://wiki.openstreetmap.org/wiki/DE:Tag:power=portal"
@@ -8034,6 +8057,17 @@
             <reference ref="transformer_voltage_frequency" />
             <reference ref="optional_transformer_rating_phases_devices_windings" />
         </item> <!-- Pole with Transformer -->
+        <item name="Catenary mast" icon="presets/power/catenary_mast.svg" type="node" preset_name_label="true">
+            <link href="https://wiki.openstreetmap.org/wiki/Tag:power=catenary_mast"
+                  cs.href="https://wiki.openstreetmap.org/wiki/Cs:Tag:power=catenary_mast"
+                  ja.href="https://wiki.openstreetmap.org/wiki/JA:Tag:power=catenary_mast" />
+            <space />
+            <key key="power" value="catenary_mast" />
+            <optional>
+                <text key="ref" text="Reference" />
+                <text key="operator" text="Operator" />
+            </optional>
+        </item> <!-- Catenary mast -->
         <item name="Insulator" icon="presets/power/insulator.svg" type="node,way" preset_name_label="true">
             <link href="https://wiki.openstreetmap.org/wiki/Tag:power=insulator"
                   fr.href="https://wiki.openstreetmap.org/wiki/FR:Tag:power=insulator" />
@@ -8638,6 +8672,7 @@
                   cs.href="https://wiki.openstreetmap.org/wiki/Cs:Tag:shop=outdoor"
                   de.href="https://wiki.openstreetmap.org/wiki/DE:Tag:shop=outdoor"
                   es.href="https://wiki.openstreetmap.org/wiki/ES:Tag:shop=outdoor"
+                  fr.href="https://wiki.openstreetmap.org/wiki/FR:Tag:shop=outdoor"
                   ja.href="https://wiki.openstreetmap.org/wiki/JA:Tag:shop=outdoor"
                   pt.href="https://wiki.openstreetmap.org/wiki/Pt:Tag:shop=outdoor"
                   ru.href="https://wiki.openstreetmap.org/wiki/RU:Tag:shop=outdoor" />
@@ -8665,6 +8700,7 @@
                   cs.href="https://wiki.openstreetmap.org/wiki/Cs:Tag:shop=dry_cleaning"
                   de.href="https://wiki.openstreetmap.org/wiki/DE:Tag:shop=dry_cleaning"
                   fi.href="https://wiki.openstreetmap.org/wiki/Fi:Tag:shop=dry_cleaning"
+                  fr.href="https://wiki.openstreetmap.org/wiki/FR:Tag:shop=dry_cleaning"
                   ja.href="https://wiki.openstreetmap.org/wiki/JA:Tag:shop=dry_cleaning"
                   pt.href="https://wiki.openstreetmap.org/wiki/Pt:Tag:shop=dry_cleaning"
                   ru.href="https://wiki.openstreetmap.org/wiki/RU:Tag:shop=dry_cleaning" />
@@ -8794,6 +8830,7 @@
                   cs.href="https://wiki.openstreetmap.org/wiki/Cs:Tag:shop=video_games"
                   de.href="https://wiki.openstreetmap.org/wiki/DE:Tag:shop=video_games"
                   es.href="https://wiki.openstreetmap.org/wiki/ES:Tag:shop=video_games"
+                  fr.href="https://wiki.openstreetmap.org/wiki/FR:Tag:shop=video_games"
                   ja.href="https://wiki.openstreetmap.org/wiki/JA:Tag:shop=video_games" />
             <space />
             <key key="shop" value="video_games" />
@@ -8980,6 +9017,7 @@
             <link href="https://wiki.openstreetmap.org/wiki/Tag:shop=interior_decoration"
                   cs.href="https://wiki.openstreetmap.org/wiki/Cs:Tag:shop=interior_decoration"
                   de.href="https://wiki.openstreetmap.org/wiki/DE:Tag:shop=interior_decoration"
+                  fr.href="https://wiki.openstreetmap.org/wiki/FR:Tag:shop=interior_decoration"
                   ja.href="https://wiki.openstreetmap.org/wiki/JA:Tag:shop=interior_decoration"
                   pt.href="https://wiki.openstreetmap.org/wiki/Pt:Tag:shop=interior_decoration"
                   ru.href="https://wiki.openstreetmap.org/wiki/RU:Tag:shop=interior_decoration" />
@@ -9235,6 +9273,7 @@
             <link href="https://wiki.openstreetmap.org/wiki/Tag:shop=erotic"
                   cs.href="https://wiki.openstreetmap.org/wiki/Cs:Tag:shop=erotic"
                   de.href="https://wiki.openstreetmap.org/wiki/DE:Tag:shop=erotic"
+                  fr.href="https://wiki.openstreetmap.org/wiki/FR:Tag:shop=erotic"
                   ja.href="https://wiki.openstreetmap.org/wiki/JA:Tag:shop=erotic"
                   pl.href="https://wiki.openstreetmap.org/wiki/Pl:Tag:shop=erotic"
                   pt.href="https://wiki.openstreetmap.org/wiki/Pt:Tag:shop=erotic"
@@ -9738,6 +9777,7 @@
                   cs.href="https://wiki.openstreetmap.org/wiki/Cs:Tag:office=insurance"
                   de.href="https://wiki.openstreetmap.org/wiki/DE:Tag:office=insurance"
                   es.href="https://wiki.openstreetmap.org/wiki/ES:Tag:office=insurance"
+                  fr.href="https://wiki.openstreetmap.org/wiki/FR:Tag:office=insurance"
                   ja.href="https://wiki.openstreetmap.org/wiki/JA:Tag:office=insurance"
                   pt.href="https://wiki.openstreetmap.org/wiki/Pt:Tag:office=insurance"
                   ru.href="https://wiki.openstreetmap.org/wiki/RU:Tag:office=insurance"
@@ -10081,6 +10121,7 @@
                   cs.href="https://wiki.openstreetmap.org/wiki/Cs:Tag:craft=handicraft"
                   de.href="https://wiki.openstreetmap.org/wiki/DE:Tag:craft=handicraft"
                   es.href="https://wiki.openstreetmap.org/wiki/ES:Tag:craft=handicraft"
+                  fr.href="https://wiki.openstreetmap.org/wiki/FR:Tag:craft=handicraft"
                   ja.href="https://wiki.openstreetmap.org/wiki/JA:Tag:craft=handicraft"
                   pt.href="https://wiki.openstreetmap.org/wiki/Pt:Tag:craft=handicraft"
                   ru.href="https://wiki.openstreetmap.org/wiki/RU:Tag:craft=handicraft" />
@@ -11204,6 +11245,7 @@
             <link href="https://wiki.openstreetmap.org/wiki/Tag:landuse=retail"
                   cs.href="https://wiki.openstreetmap.org/wiki/Cs:Tag:landuse=retail"
                   de.href="https://wiki.openstreetmap.org/wiki/DE:Tag:landuse=retail"
+                  es.href="https://wiki.openstreetmap.org/wiki/ES:Tag:landuse=retail"
                   fr.href="https://wiki.openstreetmap.org/wiki/FR:Tag:landuse=retail"
                   ja.href="https://wiki.openstreetmap.org/wiki/JA:Tag:landuse=retail"
                   pl.href="https://wiki.openstreetmap.org/wiki/Pl:Tag:landuse=retail"
@@ -11837,6 +11879,7 @@
                 <link href="https://wiki.openstreetmap.org/wiki/Tag:route=railway"
                   cs.href="https://wiki.openstreetmap.org/wiki/Cs:Tag:route=railway"
                   de.href="https://wiki.openstreetmap.org/wiki/DE:Tag:route=railway"
+                  fr.href="https://wiki.openstreetmap.org/wiki/FR:Tag:route=railway"
                   it.href="https://wiki.openstreetmap.org/wiki/IT:Tag:route=railway"
                   ja.href="https://wiki.openstreetmap.org/wiki/JA:Tag:route=railway"
                   pt.href="https://wiki.openstreetmap.org/wiki/Pt:Tag:route=railway"

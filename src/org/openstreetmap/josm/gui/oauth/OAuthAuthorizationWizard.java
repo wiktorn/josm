@@ -36,16 +36,16 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.text.html.HTMLEditorKit;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.oauth.OAuthAccessTokenHolder;
 import org.openstreetmap.josm.data.oauth.OAuthParameters;
 import org.openstreetmap.josm.data.oauth.OAuthToken;
+import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.help.ContextSensitiveHelpAction;
 import org.openstreetmap.josm.gui.help.HelpUtil;
 import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.gui.util.WindowGeometry;
 import org.openstreetmap.josm.gui.widgets.HtmlPanel;
-import org.openstreetmap.josm.io.OsmApi;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.InputMapUtils;
@@ -151,7 +151,7 @@ public class OAuthAuthorizationWizard extends JDialog {
         cbAuthorisationProcedure.addItemListener(new AuthorisationProcedureChangeListener());
         lbl.setLabelFor(cbAuthorisationProcedure);
 
-        if (!OsmApi.DEFAULT_API_URL.equals(apiUrl)) {
+        if (!Config.getUrls().getDefaultOsmApiUrl().equals(apiUrl)) {
             gc.gridy = 3;
             gc.gridwidth = 2;
             gc.gridx = 0;
@@ -316,7 +316,7 @@ public class OAuthAuthorizationWizard extends JDialog {
             new WindowGeometry(
                     getClass().getName() + ".geometry",
                     WindowGeometry.centerInWindow(
-                            Main.parent,
+                            MainApplication.getMainFrame(),
                             getPreferredSize()
                     )
             ).applySafe(this);
@@ -343,7 +343,7 @@ public class OAuthAuthorizationWizard extends JDialog {
             // Concerning Utils.newDirectExecutor: Main worker cannot be used since this connection is already
             // executed via main worker. The OAuth connections would block otherwise.
             final OAuthAuthorizationWizard wizard = new OAuthAuthorizationWizard(
-                    Main.parent, serverUrl.toExternalForm(), Utils.newDirectExecutor());
+                    MainApplication.getMainFrame(), serverUrl.toExternalForm(), Utils.newDirectExecutor());
             wizard.showDialog();
             return wizard;
         });

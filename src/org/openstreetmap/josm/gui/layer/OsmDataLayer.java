@@ -43,7 +43,6 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.ExpertToggleAction;
 import org.openstreetmap.josm.actions.RenameLayerAction;
 import org.openstreetmap.josm.actions.ToggleUploadDiscouragedLayerAction;
@@ -51,6 +50,7 @@ import org.openstreetmap.josm.data.APIDataSet;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.DataSource;
 import org.openstreetmap.josm.data.ProjectionBounds;
+import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.conflict.Conflict;
 import org.openstreetmap.josm.data.conflict.ConflictCollection;
 import org.openstreetmap.josm.data.coor.EastNorth;
@@ -565,7 +565,7 @@ public class OsmDataLayer extends AbstractOsmDataLayer implements Listener, Data
         } catch (DataIntegrityProblemException e) {
             Logging.error(e);
             JOptionPane.showMessageDialog(
-                    Main.parent,
+                    MainApplication.getMainFrame(),
                     e.getHtmlMessage() != null ? e.getHtmlMessage() : e.getMessage(),
                     tr("Error"),
                     JOptionPane.ERROR_MESSAGE
@@ -617,7 +617,7 @@ public class OsmDataLayer extends AbstractOsmDataLayer implements Listener, Data
         if (processed == null || processed.isEmpty())
             return;
 
-        MainApplication.undoRedo.clean(data);
+        UndoRedoHandler.getInstance().clean(data);
 
         // if uploaded, clean the modified flags as well
         data.cleanupDeletedPrimitives();
@@ -1025,7 +1025,7 @@ public class OsmDataLayer extends AbstractOsmDataLayer implements Listener, Data
         public void actionPerformed(ActionEvent e) {
             String result = DatasetConsistencyTest.runTests(data);
             if (result.isEmpty()) {
-                JOptionPane.showMessageDialog(Main.parent, tr("No problems found"));
+                JOptionPane.showMessageDialog(MainApplication.getMainFrame(), tr("No problems found"));
             } else {
                 JPanel p = new JPanel(new GridBagLayout());
                 p.add(new JLabel(tr("Following problems found:")), GBC.eol());
@@ -1034,7 +1034,7 @@ public class OsmDataLayer extends AbstractOsmDataLayer implements Listener, Data
                 info.setEditable(false);
                 p.add(new JScrollPane(info), GBC.eop());
 
-                JOptionPane.showMessageDialog(Main.parent, p, tr("Warning"), JOptionPane.WARNING_MESSAGE);
+                JOptionPane.showMessageDialog(MainApplication.getMainFrame(), p, tr("Warning"), JOptionPane.WARNING_MESSAGE);
             }
         }
     }
@@ -1101,7 +1101,7 @@ public class OsmDataLayer extends AbstractOsmDataLayer implements Listener, Data
                 return 2;
             }
             return new ExtendedDialog(
-                    Main.parent,
+                    MainApplication.getMainFrame(),
                     tr("Empty document"),
                     tr("Save anyway"), tr("Cancel"))
                 .setContent(tr("The document contains no data."))
@@ -1114,7 +1114,7 @@ public class OsmDataLayer extends AbstractOsmDataLayer implements Listener, Data
         ConflictCollection conflictsCol = getConflicts();
         return conflictsCol == null || conflictsCol.isEmpty() || 1 == GuiHelper.runInEDTAndWaitAndReturn(() ->
             new ExtendedDialog(
-                    Main.parent,
+                    MainApplication.getMainFrame(),
                     /* I18N: Display title of the window showing conflicts */
                     tr("Conflicts"),
                     tr("Reject Conflicts and Save"), tr("Cancel"))

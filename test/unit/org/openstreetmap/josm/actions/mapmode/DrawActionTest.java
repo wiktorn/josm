@@ -15,6 +15,7 @@ import javax.swing.JList;
 
 import org.junit.Rule;
 import org.junit.Test;
+import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
@@ -38,7 +39,7 @@ public class DrawActionTest {
      */
     @Rule
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    public JOSMTestRules test = new JOSMTestRules().platform().main().projection().timeout(20000);
+    public JOSMTestRules test = new JOSMTestRules().main().projection().timeout(20000);
 
     /**
      * Non regression test case for bug #12011.
@@ -90,7 +91,7 @@ public class DrawActionTest {
 
             assertNotNull(renderer.getListCellRendererComponent(lstPrimitives, n3, 0, false, false));
 
-            MainApplication.undoRedo.undo();
+            UndoRedoHandler.getInstance().undo();
 
             assertEquals(2, w.getNodesCount());
             assertTrue(dataSet.getSelectedNodes().isEmpty());

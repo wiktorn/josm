@@ -14,21 +14,24 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.logging.Handler;
 
+import org.awaitility.Awaitility;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.InitializationError;
 import org.junit.runners.model.Statement;
 import org.openstreetmap.josm.JOSMFixture;
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.TestUtils;
 import org.openstreetmap.josm.actions.DeleteAction;
 import org.openstreetmap.josm.command.DeleteCommand;
+import org.openstreetmap.josm.data.Preferences;
 import org.openstreetmap.josm.data.UserIdentityManager;
 import org.openstreetmap.josm.data.Version;
 import org.openstreetmap.josm.data.osm.User;
 import org.openstreetmap.josm.data.osm.event.SelectionEventManager;
 import org.openstreetmap.josm.data.preferences.JosmBaseDirectories;
+import org.openstreetmap.josm.data.preferences.JosmUrls;
+import org.openstreetmap.josm.data.projection.ProjectionRegistry;
 import org.openstreetmap.josm.data.projection.Projections;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
@@ -53,8 +56,6 @@ import org.openstreetmap.josm.tools.RightAndLefthandTraffic;
 import org.openstreetmap.josm.tools.Territories;
 import org.openstreetmap.josm.tools.date.DateUtils;
 
-import org.awaitility.Awaitility;
-
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
@@ -77,7 +78,6 @@ public class JOSMTestRules implements TestRule {
     private Runnable mapViewStateMockingRunnable;
     private Runnable navigableComponentMockingRunnable;
     private Runnable edtAssertionMockingRunnable;
-    private boolean platform;
     private boolean useProjection;
     private boolean useProjectionNadGrids;
     private boolean commands;
@@ -148,9 +148,10 @@ public class JOSMTestRules implements TestRule {
     /**
      * Enable {@link Main#platform} global variable.
      * @return this instance, for easy chaining
+     * @deprecated Not needed anymore
      */
+    @Deprecated
     public JOSMTestRules platform() {
-        platform = true;
         return this;
     }
 
@@ -207,7 +208,6 @@ public class JOSMTestRules implements TestRule {
      */
     public JOSMTestRules https() {
         useHttps = true;
-        platform = true;
         return this;
     }
 
@@ -417,8 +417,10 @@ public class JOSMTestRules implements TestRule {
             }
         }
 
-        Config.setPreferencesInstance(Main.pref);
+        Preferences pref = Preferences.main();
+        Config.setPreferencesInstance(pref);
         Config.setBaseDirectoriesProvider(JosmBaseDirectories.getInstance());
+        Config.setUrlsProvider(JosmUrls.getInstance());
         // All tests use the same timezone.
         TimeZone.setDefault(DateUtils.UTC);
 
@@ -447,18 +449,13 @@ public class JOSMTestRules implements TestRule {
         // Add preferences
         if (usePreferences) {
             @SuppressWarnings("unchecked")
-            final Map<String, Setting<?>> defaultsMap = (Map<String, Setting<?>>) TestUtils.getPrivateField(Main.pref, "defaultsMap");
+            final Map<String, Setting<?>> defaultsMap = (Map<String, Setting<?>>) TestUtils.getPrivateField(pref, "defaultsMap");
             defaultsMap.clear();
-            Main.pref.resetToInitialState();
-            Main.pref.enableSaveOnPut(false);
+            pref.resetToInitialState();
+            pref.enableSaveOnPut(false);
             // No pref init -> that would only create the preferences file.
             // We force the use of a wrong API server, just in case anyone attempts an upload
             Config.getPref().put("osm-server.url", "http://invalid");
-        }
-
-        // Set Platform
-        if (platform) {
-            Main.determinePlatformHook();
         }
 
         if (useHttps) {
@@ -470,7 +467,7 @@ public class JOSMTestRules implements TestRule {
         }
 
         if (useProjection) {
-            Main.setProjection(Projections.getProjectionByCode("EPSG:3857")); // Mercator
+            ProjectionRegistry.setProjection(Projections.getProjectionByCode("EPSG:3857")); // Mercator
         }
 
         if (useProjectionNadGrids) {
@@ -546,8 +543,7 @@ public class JOSMTestRules implements TestRule {
     private void cleanUpFromJosmFixture() {
         MemoryManagerTest.resetState(true);
         cleanLayerEnvironment();
-        Main.pref.resetToInitialState();
-        Main.platform = null;
+        Preferences.main().resetToInitialState();
         System.gc();
     }
 
@@ -587,9 +583,8 @@ public class JOSMTestRules implements TestRule {
         MemoryManagerTest.resetState(allowMemoryManagerLeaks);
 
         // TODO: Remove global listeners and other global state.
-        Main.clearProjectionChangeListeners();
-        Main.pref.resetToInitialState();
-        Main.platform = null;
+        ProjectionRegistry.clearProjectionChangeListeners();
+        Preferences.main().resetToInitialState();
 
         if (this.assumeRevisionString != null && this.originalVersion != null) {
             TestUtils.setPrivateStaticField(Version.class, "instance", this.originalVersion);

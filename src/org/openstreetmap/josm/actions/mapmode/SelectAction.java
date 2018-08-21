@@ -21,7 +21,6 @@ import java.util.Set;
 
 import javax.swing.JOptionPane;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.MergeNodesAction;
 import org.openstreetmap.josm.command.AddCommand;
 import org.openstreetmap.josm.command.ChangeCommand;
@@ -30,6 +29,7 @@ import org.openstreetmap.josm.command.MoveCommand;
 import org.openstreetmap.josm.command.RotateCommand;
 import org.openstreetmap.josm.command.ScaleCommand;
 import org.openstreetmap.josm.command.SequenceCommand;
+import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
 import org.openstreetmap.josm.data.osm.DataSet;
@@ -56,6 +56,7 @@ import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Pair;
+import org.openstreetmap.josm.tools.PlatformManager;
 import org.openstreetmap.josm.tools.Shortcut;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -220,6 +221,8 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
     @Override
     public void exitMode() {
         super.exitMode();
+        cycleManager.cycleStart = null;
+        cycleManager.cycleList = asColl(null);
         selectionManager.unregister(mv);
         mv.removeMouseListener(this);
         mv.removeMouseMotionListener(this);
@@ -341,7 +344,7 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
             if (lassoMode) {
                 c = "lasso";
             } else {
-                c = "rect" + (shift ? "_add" : (ctrl && !Main.isPlatformOsx() ? "_rm" : ""));
+                c = "rect" + (shift ? "_add" : (ctrl && !PlatformManager.isPlatformOsx() ? "_rm" : ""));
             }
             break;
         }
@@ -444,7 +447,7 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
             break;
         case SELECT:
         default:
-            if (!(ctrl && Main.isPlatformOsx())) {
+            if (!(ctrl && PlatformManager.isPlatformOsx())) {
                 // start working with rectangle or lasso
                 selectionManager.register(mv, lassoMode);
                 selectionManager.mousePressed(e);
@@ -460,7 +463,7 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
     @Override
     public void mouseMoved(MouseEvent e) {
         // Mac OSX simulates with ctrl + mouse 1 the second mouse button hence no dragging events get fired.
-        if (Main.isPlatformOsx() && (mode == Mode.ROTATE || mode == Mode.SCALE)) {
+        if (PlatformManager.isPlatformOsx() && (mode == Mode.ROTATE || mode == Mode.SCALE)) {
             mouseDragged(e);
             return;
         }
@@ -488,7 +491,7 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
         cancelDrawMode = true;
         if (mode == Mode.SELECT) {
             // Unregisters selectionManager if ctrl has been pressed after mouse click on Mac OS X in order to move the map
-            if (ctrl && Main.isPlatformOsx()) {
+            if (ctrl && PlatformManager.isPlatformOsx()) {
                 selectionManager.unregister(mv);
                 // Make sure correct cursor is displayed
                 mv.setNewCursor(Cursor.MOVE_CURSOR, this);
@@ -717,7 +720,7 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
                     ((MoveCommand) c).applyVectorTo(currentEN);
                 } else if (!selection.isEmpty()) {
                     c = new MoveCommand(selection, startEN, currentEN);
-                    MainApplication.undoRedo.add(c);
+                    UndoRedoHandler.getInstance().add(c);
                 }
                 for (Node n : affectedNodes) {
                     LatLon ll = n.getCoor();
@@ -728,7 +731,7 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
                         }
                         // TODO: We might use a simple notification in the lower left corner.
                         JOptionPane.showMessageDialog(
-                                Main.parent,
+                                MainApplication.getMainFrame(),
                                 tr("Cannot move objects outside of the world."),
                                 tr("Warning"),
                                 JOptionPane.WARNING_MESSAGE);
@@ -752,13 +755,13 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
                     if (c instanceof RotateCommand && affectedNodes.equals(((RotateCommand) c).getTransformedNodes())) {
                         ((RotateCommand) c).handleEvent(currentEN);
                     } else {
-                        MainApplication.undoRedo.add(new RotateCommand(selection, currentEN));
+                        UndoRedoHandler.getInstance().add(new RotateCommand(selection, currentEN));
                     }
                 } else if (mode == Mode.SCALE) {
                     if (c instanceof ScaleCommand && affectedNodes.equals(((ScaleCommand) c).getTransformedNodes())) {
                         ((ScaleCommand) c).handleEvent(currentEN);
                     } else {
-                        MainApplication.undoRedo.add(new ScaleCommand(selection, currentEN));
+                        UndoRedoHandler.getInstance().add(new ScaleCommand(selection, currentEN));
                     }
                 }
 
@@ -807,7 +810,7 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
      * @return last command
      */
     private static Command getLastCommandInDataset(DataSet ds) {
-        Command lastCommand = MainApplication.undoRedo.getLastCommand();
+        Command lastCommand = UndoRedoHandler.getInstance().getLastCommand();
         if (lastCommand instanceof SequenceCommand) {
             lastCommand = ((SequenceCommand) lastCommand).getLastCommand();
         }
@@ -833,7 +836,7 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
             ed.toggleEnable("movedHiddenElements");
             ed.showDialog();
             if (ed.getValue() != 1) {
-                MainApplication.undoRedo.undo();
+                UndoRedoHandler.getInstance().undo();
             }
         }
         Set<Node> nodes = new HashSet<>();
@@ -859,7 +862,7 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
             ed.showDialog();
 
             if (ed.getValue() != 1) {
-                MainApplication.undoRedo.undo();
+                UndoRedoHandler.getInstance().undo();
             }
         } else {
             // if small number of elements were moved,
@@ -870,7 +873,7 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
 
     static class ConfirmMoveDialog extends ExtendedDialog {
         ConfirmMoveDialog() {
-            super(Main.parent,
+            super(MainApplication.getMainFrame(),
                     tr("Move elements"),
                     tr("Move them"), tr("Undo move"));
             setButtonIcons("reorder", "cancel");
@@ -1259,7 +1262,7 @@ public class SelectAction extends MapMode implements ModifierExListener, KeyPres
             String text = trn("Add and move a virtual new node to way",
                     "Add and move a virtual new node to {0} ways", virtualWays.size(),
                     virtualWays.size());
-            MainApplication.undoRedo.add(new SequenceCommand(text, virtualCmds));
+            UndoRedoHandler.getInstance().add(new SequenceCommand(text, virtualCmds));
             ds.setSelected(Collections.singleton((OsmPrimitive) virtualNode));
             clear();
         }

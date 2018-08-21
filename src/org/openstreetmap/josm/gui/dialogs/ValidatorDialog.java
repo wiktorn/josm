@@ -28,12 +28,12 @@ import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreeNode;
 import javax.swing.tree.TreePath;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.AbstractSelectAction;
 import org.openstreetmap.josm.actions.AutoScaleAction;
 import org.openstreetmap.josm.actions.ValidateAction;
 import org.openstreetmap.josm.actions.relation.EditRelationAction;
 import org.openstreetmap.josm.command.Command;
+import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.osm.DataSelectionListener;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
@@ -249,7 +249,7 @@ public class ValidatorDialog extends ToggleDialog implements DataSelectionListen
                 // ask if the whole set should be ignored
                 if (asked == JOptionPane.DEFAULT_OPTION) {
                     String[] a = new String[] {tr("Whole group"), tr("Single elements"), tr("Nothing")};
-                    asked = JOptionPane.showOptionDialog(Main.parent, tr("Ignore whole group or individual elements?"),
+                    asked = JOptionPane.showOptionDialog(MainApplication.getMainFrame(), tr("Ignore whole group or individual elements?"),
                             tr("Ignoring elements"), JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE, null,
                             a, a[1]);
                 }
@@ -559,7 +559,7 @@ public class ValidatorDialog extends ToggleDialog implements DataSelectionListen
             if (error.isFixable()) {
                 final Command fixCommand = error.getFix();
                 if (fixCommand != null) {
-                    SwingUtilities.invokeAndWait(() -> MainApplication.undoRedo.addNoRedraw(fixCommand));
+                    SwingUtilities.invokeAndWait(() -> UndoRedoHandler.getInstance().addNoRedraw(fixCommand));
                 }
                 // It is wanted to ignore an error if it said fixable, even if fixCommand was null
                 // This is to fix #5764 and #5773:
@@ -590,7 +590,7 @@ public class ValidatorDialog extends ToggleDialog implements DataSelectionListen
                 }
                 monitor.subTask(tr("Updating map ..."));
                 SwingUtilities.invokeAndWait(() -> {
-                    MainApplication.undoRedo.afterAdd(null);
+                    UndoRedoHandler.getInstance().afterAdd(null);
                     invalidateValidatorLayers();
                     tree.resetErrors();
                 });

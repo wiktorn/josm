@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.junit.Rule;
 import org.junit.Test;
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.Preferences;
 import org.openstreetmap.josm.data.gpx.GpxData;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.gui.MainApplication;
@@ -41,7 +41,7 @@ public class PluginHandlerTestIT {
      */
     @Rule
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-    public JOSMTestRules test = new JOSMTestRules().platform().main().projection().preferences().timeout(10*60*1000);
+    public JOSMTestRules test = new JOSMTestRules().main().projection().preferences().timeout(10*60*1000);
 
     /**
      * Test that available plugins rules can be loaded.
@@ -92,7 +92,7 @@ public class PluginHandlerTestIT {
     public static void loadAllPlugins() {
         // Download complete list of plugins
         ReadRemotePluginInformationTask pluginInfoDownloadTask = new ReadRemotePluginInformationTask(
-                Main.pref.getOnlinePluginSites());
+                Preferences.main().getOnlinePluginSites());
         pluginInfoDownloadTask.run();
         List<PluginInformation> plugins = pluginInfoDownloadTask.getAvailablePlugins();
         System.out.println("Original plugin list contains " + plugins.size() + " plugins");

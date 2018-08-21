@@ -23,7 +23,6 @@ import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextArea;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.Version;
 import org.openstreetmap.josm.gui.ExtendedDialog;
 import org.openstreetmap.josm.gui.MainApplication;
@@ -32,6 +31,7 @@ import org.openstreetmap.josm.gui.widgets.JMultilineLabel;
 import org.openstreetmap.josm.gui.widgets.JosmTextArea;
 import org.openstreetmap.josm.gui.widgets.UrlLabel;
 import org.openstreetmap.josm.plugins.PluginHandler;
+import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.ImageProvider.ImageSizes;
@@ -99,7 +99,7 @@ public final class AboutAction extends JosmAction {
                 "</html>");
         info.add(label, GBC.eol().fill(GBC.HORIZONTAL).insets(10, 0, 0, 10));
         info.add(new JLabel(tr("Homepage")), GBC.std().insets(10, 0, 10, 0));
-        info.add(new UrlLabel(Main.getJOSMWebsite(), 2), GBC.eol());
+        info.add(new UrlLabel(Config.getUrls().getJOSMWebsite(), 2), GBC.eol());
         info.add(new JLabel(tr("Translations")), GBC.std().insets(10, 0, 10, 0));
         info.add(new UrlLabel("https://translations.launchpad.net/josm", 2), GBC.eol());
         info.add(new JLabel(tr("Follow us on")), GBC.std().insets(10, 10, 10, 0));
@@ -134,7 +134,7 @@ public final class AboutAction extends JosmAction {
         panel.add(about, GBC.std().fill());
 
         GuiHelper.prepareResizeableOptionPane(panel, panel.getPreferredSize());
-        int ret = new ExtendedDialog(Main.parent, tr("About JOSM..."), tr("OK"), tr("Report bug"))
+        int ret = new ExtendedDialog(MainApplication.getMainFrame(), tr("About JOSM..."), tr("OK"), tr("Report bug"))
             .setButtonIcons("ok", "bug")
             .setContent(panel, false)
             .showDialog().getValue();

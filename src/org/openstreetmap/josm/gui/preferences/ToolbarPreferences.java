@@ -58,7 +58,6 @@ import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreePath;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.ActionParameter;
 import org.openstreetmap.josm.actions.AdaptableAction;
 import org.openstreetmap.josm.actions.AddImageryLayerAction;
@@ -76,6 +75,7 @@ import org.openstreetmap.josm.tools.GBC;
 import org.openstreetmap.josm.tools.ImageProvider;
 import org.openstreetmap.josm.tools.ImageProvider.ImageSizes;
 import org.openstreetmap.josm.tools.Logging;
+import org.openstreetmap.josm.tools.PlatformManager;
 import org.openstreetmap.josm.tools.Shortcut;
 
 /**
@@ -512,7 +512,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
         private final JMenuItem configure = new JMenuItem(new AbstractAction(tr("Configure toolbar")) {
             @Override
             public void actionPerformed(ActionEvent e) {
-                final PreferenceDialog p = new PreferenceDialog(Main.parent);
+                final PreferenceDialog p = new PreferenceDialog(MainApplication.getMainFrame());
                 p.selectPreferencesTabByName("toolbar");
                 p.setVisible(true);
             }
@@ -521,7 +521,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
         private final JMenuItem shortcutEdit = new JMenuItem(new AbstractAction(tr("Edit shortcut")) {
             @Override
             public void actionPerformed(ActionEvent e) {
-                final PreferenceDialog p = new PreferenceDialog(Main.parent);
+                final PreferenceDialog p = new PreferenceDialog(MainApplication.getMainFrame());
                 p.getTabbedPane().getShortcutPreference().setDefaultFilter(act.getDisplayName());
                 p.selectPreferencesTabByName("shortcuts");
                 p.setVisible(true);
@@ -1259,7 +1259,7 @@ public class ToolbarPreferences implements PreferenceSettingFactory {
                 if (tt.startsWith("<html>") && tt.endsWith("</html>")) {
                     tt = tt.substring(6, tt.length()-6);
                 }
-                tt = Main.platform.makeTooltip(tt, sc);
+                tt = PlatformManager.getPlatform().makeTooltip(tt, sc);
             }
         }
 

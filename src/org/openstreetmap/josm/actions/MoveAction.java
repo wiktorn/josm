@@ -10,9 +10,9 @@ import java.util.Collection;
 
 import javax.swing.JOptionPane;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.MoveCommand;
+import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.Node;
@@ -135,7 +135,7 @@ public class MoveAction extends JosmAction {
         Collection<OsmPrimitive> selection = ds.getSelected();
         Collection<Node> affectedNodes = AllNodesVisitor.getAllNodes(selection);
 
-        Command c = MainApplication.undoRedo.getLastCommand();
+        Command c = UndoRedoHandler.getInstance().getLastCommand();
 
         ds.beginUpdate();
         try {
@@ -144,7 +144,7 @@ public class MoveAction extends JosmAction {
                 ((MoveCommand) c).moveAgain(distx, disty);
             } else {
                 c = new MoveCommand(ds, selection, distx, disty);
-                MainApplication.undoRedo.add(c);
+                UndoRedoHandler.getInstance().add(c);
             }
         } finally {
             ds.endUpdate();
@@ -155,7 +155,7 @@ public class MoveAction extends JosmAction {
                 // Revert move
                 ((MoveCommand) c).moveAgain(-distx, -disty);
                 JOptionPane.showMessageDialog(
-                        Main.parent,
+                        MainApplication.getMainFrame(),
                         tr("Cannot move objects outside of the world."),
                         tr("Warning"),
                         JOptionPane.WARNING_MESSAGE

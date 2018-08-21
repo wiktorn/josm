@@ -17,13 +17,13 @@ import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.filechooser.FileFilter;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.DiskAccessAction;
 import org.openstreetmap.josm.data.gpx.GpxConstants;
 import org.openstreetmap.josm.data.gpx.GpxData;
 import org.openstreetmap.josm.data.gpx.GpxTrack;
 import org.openstreetmap.josm.data.gpx.GpxTrackSegment;
 import org.openstreetmap.josm.data.gpx.WayPoint;
+import org.openstreetmap.josm.data.projection.ProjectionRegistry;
 import org.openstreetmap.josm.gui.HelpAwareOptionPane;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.layer.GpxLayer;
@@ -78,7 +78,7 @@ public class ImportAudioAction extends AbstractAction {
         String msg = tr("<html>The data in the GPX layer ''{0}'' has been downloaded from the server.<br>" +
                 "Because its way points do not include a timestamp we cannot correlate them with audio data.</html>",
                 Utils.escapeReservedCharactersHTML(layer.getName()));
-        HelpAwareOptionPane.showOptionDialog(Main.parent, msg, tr("Import not possible"),
+        HelpAwareOptionPane.showOptionDialog(MainApplication.getMainFrame(), msg, tr("Import not possible"),
                 JOptionPane.WARNING_MESSAGE, ht("/Action/ImportAudio#CantImportIntoGpxLayerFromServer"));
     }
 
@@ -163,7 +163,7 @@ public class ImportAudioAction extends AbstractAction {
         }
         if (firstTime < 0.0) {
             JOptionPane.showMessageDialog(
-                    Main.parent,
+                    MainApplication.getMainFrame(),
                     tr("No GPX track available in layer to associate audio with."),
                     tr("Error"),
                     JOptionPane.ERROR_MESSAGE
@@ -188,7 +188,7 @@ public class ImportAudioAction extends AbstractAction {
                 if (waypoints.contains(w)) {
                     continue;
                 }
-                WayPoint wNear = layer.data.nearestPointOnTrack(w.getEastNorth(Main.getProjection()), snapDistance);
+                WayPoint wNear = layer.data.nearestPointOnTrack(w.getEastNorth(ProjectionRegistry.getProjection()), snapDistance);
                 if (wNear != null) {
                     WayPoint wc = new WayPoint(w.getCoor());
                     wc.time = wNear.time;
@@ -300,12 +300,12 @@ public class ImportAudioAction extends AbstractAction {
         }
 
         if (timedMarkersOmitted && !markers.timedMarkersOmitted) {
-            JOptionPane.showMessageDialog(Main.parent,
+            JOptionPane.showMessageDialog(MainApplication.getMainFrame(),
                 tr("Some waypoints with timestamps from before the start of the track or after the end were omitted or moved to the start."));
             markers.timedMarkersOmitted = timedMarkersOmitted;
         }
         if (untimedMarkersOmitted && !markers.untimedMarkersOmitted) {
-            JOptionPane.showMessageDialog(Main.parent,
+            JOptionPane.showMessageDialog(MainApplication.getMainFrame(),
                 tr("Some waypoints which were too far from the track to sensibly estimate their time were omitted."));
             markers.untimedMarkersOmitted = untimedMarkersOmitted;
         }

@@ -20,7 +20,6 @@ import java.util.List;
 
 import javax.swing.JOptionPane;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.command.AddCommand;
 import org.openstreetmap.josm.command.ChangeCommand;
 import org.openstreetmap.josm.command.Command;
@@ -28,6 +27,7 @@ import org.openstreetmap.josm.command.DeleteCommand;
 import org.openstreetmap.josm.command.MoveCommand;
 import org.openstreetmap.josm.command.SequenceCommand;
 import org.openstreetmap.josm.data.Bounds;
+import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.osm.DataSelectionListener;
 import org.openstreetmap.josm.data.osm.DataSet;
@@ -414,7 +414,7 @@ public class ImproveWayAccuracyAction extends MapMode implements DataSelectionLi
         } else if (state == State.IMPROVING) {
             // Checking if the new coordinate is outside of the world
             if (mv.getLatLon(mousePos.x, mousePos.y).isOutSideWorld()) {
-                JOptionPane.showMessageDialog(Main.parent,
+                JOptionPane.showMessageDialog(MainApplication.getMainFrame(),
                         tr("Cannot add a node outside of the world."),
                         tr("Warning"), JOptionPane.WARNING_MESSAGE);
                 return;
@@ -477,7 +477,7 @@ public class ImproveWayAccuracyAction extends MapMode implements DataSelectionLi
                         "Add a new node to {0} ways",
                         virtualSegments.size(), virtualSegments.size());
 
-                MainApplication.undoRedo.add(new SequenceCommand(text, virtualCmds));
+                UndoRedoHandler.getInstance().add(new SequenceCommand(text, virtualCmds));
 
             } else if (alt && !ctrl && candidateNode != null) {
                 // Deleting the highlighted node
@@ -494,29 +494,29 @@ public class ImproveWayAccuracyAction extends MapMode implements DataSelectionLi
                     if (nodes.size() < 2) {
                         final Command deleteCmd = DeleteCommand.delete(Collections.singleton(targetWay), true);
                         if (deleteCmd != null) {
-                            MainApplication.undoRedo.add(deleteCmd);
+                            UndoRedoHandler.getInstance().add(deleteCmd);
                         }
                     } else {
-                        MainApplication.undoRedo.add(new ChangeCommand(targetWay, newWay));
+                        UndoRedoHandler.getInstance().add(new ChangeCommand(targetWay, newWay));
                     }
                 } else if (candidateNode.isTagged()) {
-                    JOptionPane.showMessageDialog(Main.parent,
+                    JOptionPane.showMessageDialog(MainApplication.getMainFrame(),
                             tr("Cannot delete node that has tags"),
                             tr("Error"), JOptionPane.ERROR_MESSAGE);
                 } else {
                     final Command deleteCmd = DeleteCommand.delete(Collections.singleton(candidateNode), true);
                     if (deleteCmd != null) {
-                        MainApplication.undoRedo.add(deleteCmd);
+                        UndoRedoHandler.getInstance().add(deleteCmd);
                     }
                 }
-
 
             } else if (candidateNode != null) {
                 // Moving the highlighted node
                 EastNorth nodeEN = candidateNode.getEastNorth();
                 EastNorth cursorEN = mv.getEastNorth(mousePos.x, mousePos.y);
 
-                MainApplication.undoRedo.add(new MoveCommand(candidateNode, cursorEN.east() - nodeEN.east(), cursorEN.north() - nodeEN.north()));
+                UndoRedoHandler.getInstance().add(
+                        new MoveCommand(candidateNode, cursorEN.east() - nodeEN.east(), cursorEN.north() - nodeEN.north()));
             }
         }
 

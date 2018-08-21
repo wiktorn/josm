@@ -31,13 +31,13 @@ import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.actions.JosmAction;
 import org.openstreetmap.josm.command.AddCommand;
 import org.openstreetmap.josm.command.ChangeCommand;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.command.SequenceCommand;
 import org.openstreetmap.josm.data.Bounds;
+import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.osm.DataSelectionListener;
 import org.openstreetmap.josm.data.osm.DataSet;
@@ -529,7 +529,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
         if (newNode) {
             if (n.getCoor().isOutSideWorld()) {
                 JOptionPane.showMessageDialog(
-                        Main.parent,
+                        MainApplication.getMainFrame(),
                         tr("Cannot add a node outside of the world."),
                         tr("Warning"),
                         JOptionPane.WARNING_MESSAGE
@@ -666,7 +666,7 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
 
         Command c = new SequenceCommand(title, cmds);
 
-        MainApplication.undoRedo.add(c);
+        UndoRedoHandler.getInstance().add(c);
         if (!wayIsFinished) {
             lastUsedNode = n;
         }
@@ -1381,8 +1381,8 @@ public class DrawAction extends MapMode implements MapViewPaintable, DataSelecti
 
         @Override
         public void actionPerformed(ActionEvent e) {
-            MainApplication.undoRedo.undo();
-            Command lastCmd = MainApplication.undoRedo.getLastCommand();
+            UndoRedoHandler.getInstance().undo();
+            Command lastCmd = UndoRedoHandler.getInstance().getLastCommand();
             if (lastCmd == null) return;
             Node n = null;
             for (OsmPrimitive p: lastCmd.getParticipatingPrimitives()) {

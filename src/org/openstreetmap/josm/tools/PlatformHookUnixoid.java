@@ -23,10 +23,13 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
-import org.openstreetmap.josm.Main;
+import org.openstreetmap.josm.data.Preferences;
 import org.openstreetmap.josm.io.CertificateAmendment.NativeCertAmend;
 import org.openstreetmap.josm.spi.preferences.Config;
 
@@ -345,7 +348,7 @@ public class PlatformHookUnixoid implements PlatformHook {
      * @return the dot directory
      */
     private static File getDotDirectory() {
-        String dirName = "." + Main.pref.getJOSMDirectoryBaseName().toLowerCase(Locale.ENGLISH);
+        String dirName = "." + Preferences.getJOSMDirectoryBaseName().toLowerCase(Locale.ENGLISH);
         return new File(getSystemProperty("user.home"), dirName);
     }
 
@@ -366,10 +369,10 @@ public class PlatformHookUnixoid implements PlatformHook {
         } else {
             String xdgCacheDir = getSystemEnv("XDG_CACHE_HOME");
             if (xdgCacheDir != null && !xdgCacheDir.isEmpty()) {
-                return new File(xdgCacheDir, Main.pref.getJOSMDirectoryBaseName());
+                return new File(xdgCacheDir, Preferences.getJOSMDirectoryBaseName());
             } else {
                 return new File(getSystemProperty("user.home") + File.separator +
-                        ".cache" + File.separator + Main.pref.getJOSMDirectoryBaseName());
+                        ".cache" + File.separator + Preferences.getJOSMDirectoryBaseName());
             }
         }
     }
@@ -381,10 +384,10 @@ public class PlatformHookUnixoid implements PlatformHook {
         } else {
             String xdgConfigDir = getSystemEnv("XDG_CONFIG_HOME");
             if (xdgConfigDir != null && !xdgConfigDir.isEmpty()) {
-                return new File(xdgConfigDir, Main.pref.getJOSMDirectoryBaseName());
+                return new File(xdgConfigDir, Preferences.getJOSMDirectoryBaseName());
             } else {
                 return new File(getSystemProperty("user.home") + File.separator +
-                        ".config" + File.separator + Main.pref.getJOSMDirectoryBaseName());
+                        ".config" + File.separator + Preferences.getJOSMDirectoryBaseName());
             }
         }
     }
@@ -396,10 +399,10 @@ public class PlatformHookUnixoid implements PlatformHook {
         } else {
             String xdgDataDir = getSystemEnv("XDG_DATA_HOME");
             if (xdgDataDir != null && !xdgDataDir.isEmpty()) {
-                return new File(xdgDataDir, Main.pref.getJOSMDirectoryBaseName());
+                return new File(xdgDataDir, Preferences.getJOSMDirectoryBaseName());
             } else {
                 return new File(getSystemProperty("user.home") + File.separator +
-                        ".local" + File.separator + "share" + File.separator + Main.pref.getJOSMDirectoryBaseName());
+                        ".local" + File.separator + "share" + File.separator + Preferences.getJOSMDirectoryBaseName());
             }
         }
     }
@@ -417,5 +420,15 @@ public class PlatformHookUnixoid implements PlatformHook {
             }
         }
         return null;
+    }
+
+    @Override
+    public Collection<String> getPossiblePreferenceDirs() {
+        Set<String> locations = new HashSet<>();
+        locations.add("/usr/local/share/josm/");
+        locations.add("/usr/local/lib/josm/");
+        locations.add("/usr/share/josm/");
+        locations.add("/usr/lib/josm/");
+        return locations;
     }
 }

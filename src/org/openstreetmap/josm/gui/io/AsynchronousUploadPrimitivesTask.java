@@ -8,6 +8,7 @@ import java.util.Optional;
 import javax.swing.JOptionPane;
 
 import org.openstreetmap.josm.data.APIDataSet;
+import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.osm.Changeset;
 import org.openstreetmap.josm.gui.MainApplication;
 import org.openstreetmap.josm.gui.dialogs.LayerListDialog;
@@ -85,7 +86,7 @@ public final class AsynchronousUploadPrimitivesTask extends UploadPrimitivesTask
         synchronized (AsynchronousUploadPrimitivesTask.class) {
             if (asynchronousUploadPrimitivesTask != null) {
                 GuiHelper.runInEDTAndWait(() ->
-                        JOptionPane.showMessageDialog(MainApplication.parent,
+                        JOptionPane.showMessageDialog(MainApplication.getMainFrame(),
                                 tr("A background upload is already in progress. " +
                                         "Kindly wait for it to finish before uploading new changes")));
                 return Optional.empty();
@@ -119,7 +120,7 @@ public final class AsynchronousUploadPrimitivesTask extends UploadPrimitivesTask
         // Lock the data layer before upload in EDT
         GuiHelper.runInEDTAndWait(() -> {
             // Remove the commands from the undo stack
-            MainApplication.undoRedo.clean(uploadDataLayer.getDataSet());
+            UndoRedoHandler.getInstance().clean(uploadDataLayer.getDataSet());
             MainApplication.getLayerManager().prepareLayerForUpload(uploadDataLayer);
 
             // Repainting the Layer List dialog to update the icon of the active layer

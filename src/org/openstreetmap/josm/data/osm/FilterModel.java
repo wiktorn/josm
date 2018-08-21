@@ -15,7 +15,6 @@ import java.util.Stack;
 
 import javax.swing.JOptionPane;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.data.StructUtils;
 import org.openstreetmap.josm.data.osm.Filter.FilterPreferenceEntry;
 import org.openstreetmap.josm.data.osm.search.SearchParseError;
@@ -55,7 +54,7 @@ public class FilterModel {
             } catch (SearchParseError e) {
                 Logging.error(e);
                 JOptionPane.showMessageDialog(
-                        Main.parent,
+                        MainApplication.getMainFrame(),
                         tr("<html>Error in filter <code>{0}</code>:<br>{1}",
                                 Utils.escapeReservedCharactersHTML(Utils.shortenString(filter.text, 80)),
                                 Utils.escapeReservedCharactersHTML(e.getMessage())),
@@ -97,7 +96,7 @@ public class FilterModel {
      * Runs the filters on the current edit data set.
      */
     public void executeFilters() {
-        DataSet ds = Main.main.getActiveDataSet();
+        DataSet ds = OsmDataManager.getInstance().getActiveDataSet();
         changed = false;
         if (ds == null) {
             disabledAndHiddenCount = 0;
@@ -149,7 +148,7 @@ public class FilterModel {
      * @param primitives The primitives
      */
     public void executeFilters(Collection<? extends OsmPrimitive> primitives) {
-        DataSet ds = Main.main.getEditDataSet();
+        DataSet ds = OsmDataManager.getInstance().getEditDataSet();
         if (ds == null)
             return;
 
@@ -208,7 +207,7 @@ public class FilterModel {
      * Clears all filtered flags from all primitives in the dataset
      */
     public void clearFilterFlags() {
-        DataSet ds = Main.main.getEditDataSet();
+        DataSet ds = OsmDataManager.getInstance().getEditDataSet();
         if (ds != null) {
             FilterWorker.clearFilterFlags(ds.allPrimitives());
         }

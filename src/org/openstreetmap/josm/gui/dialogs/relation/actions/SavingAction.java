@@ -10,10 +10,10 @@ import java.util.List;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
-import org.openstreetmap.josm.Main;
 import org.openstreetmap.josm.command.AddCommand;
 import org.openstreetmap.josm.command.ChangeCommand;
 import org.openstreetmap.josm.command.conflict.ConflictAddCommand;
+import org.openstreetmap.josm.data.UndoRedoHandler;
 import org.openstreetmap.josm.data.conflict.Conflict;
 import org.openstreetmap.josm.data.osm.DefaultNameFormatter;
 import org.openstreetmap.josm.data.osm.Relation;
@@ -60,13 +60,13 @@ abstract class SavingAction extends AbstractRelationEditorAction {
             newRelation.setMembers(newMembers);
             String msg = tr("One or more members of this new relation have been deleted while the relation editor\n" +
             "was open. They have been removed from the relation members list.");
-            JOptionPane.showMessageDialog(Main.parent, msg, tr("Warning"), JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(MainApplication.getMainFrame(), msg, tr("Warning"), JOptionPane.WARNING_MESSAGE);
         }
         // If the user wanted to create a new relation, but hasn't added any members or
         // tags, don't add an empty relation
         if (newRelation.getMembersCount() == 0 && !newRelation.hasKeys())
             return;
-        MainApplication.undoRedo.add(new AddCommand(getLayer().getDataSet(), newRelation));
+        UndoRedoHandler.getInstance().add(new AddCommand(getLayer().getDataSet(), newRelation));
 
         // make sure everybody is notified about the changes
         //
@@ -88,7 +88,7 @@ abstract class SavingAction extends AbstractRelationEditorAction {
         tagEditorModel.applyToPrimitive(editedRelation);
         editorAccess.getMemberTableModel().applyToRelation(editedRelation);
         Conflict<Relation> conflict = new Conflict<>(editorAccess.getEditor().getRelation(), editedRelation);
-        MainApplication.undoRedo.add(new ConflictAddCommand(getLayer().getDataSet(), conflict));
+        UndoRedoHandler.getInstance().add(new ConflictAddCommand(getLayer().getDataSet(), conflict));
     }
 
     /**
@@ -101,7 +101,7 @@ abstract class SavingAction extends AbstractRelationEditorAction {
         tagEditorModel.applyToPrimitive(editedRelation);
         getMemberTableModel().applyToRelation(editedRelation);
         if (!editedRelation.hasEqualSemanticAttributes(originRelation, false)) {
-            MainApplication.undoRedo.add(new ChangeCommand(originRelation, editedRelation));
+            UndoRedoHandler.getInstance().add(new ChangeCommand(originRelation, editedRelation));
         }
     }
 
@@ -122,7 +122,7 @@ abstract class SavingAction extends AbstractRelationEditorAction {
         };
 
         int ret = HelpAwareOptionPane.showOptionDialog(
-                Main.parent,
+                MainApplication.getMainFrame(),
                 tr("<html>This relation has been changed outside of the editor.<br>"
                         + "You cannot apply your changes and continue editing.<br>"
                         + "<br>"
@@ -142,7 +142,7 @@ abstract class SavingAction extends AbstractRelationEditorAction {
 
     protected void warnDoubleConflict() {
         JOptionPane.showMessageDialog(
-                Main.parent,
+                MainApplication.getMainFrame(),
                 tr("<html>Layer ''{0}'' already has a conflict for object<br>"
                         + "''{1}''.<br>"
                         + "Please resolve this conflict first, then try again.</html>",
