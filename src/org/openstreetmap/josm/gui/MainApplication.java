@@ -5,6 +5,7 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 import static org.openstreetmap.josm.tools.I18n.trn;
 import static org.openstreetmap.josm.tools.Utils.getSystemProperty;
 
+import java.awt.AWTError;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -105,6 +106,7 @@ import org.openstreetmap.josm.data.validation.tests.MapCSSTagChecker;
 import org.openstreetmap.josm.gui.ProgramArguments.Option;
 import org.openstreetmap.josm.gui.SplashScreen.SplashProgressMonitor;
 import org.openstreetmap.josm.gui.bugreport.BugReportDialog;
+import org.openstreetmap.josm.gui.bugreport.DefaultBugReportSendingHandler;
 import org.openstreetmap.josm.gui.download.DownloadDialog;
 import org.openstreetmap.josm.gui.io.CredentialDialog;
 import org.openstreetmap.josm.gui.io.CustomConfigurator.XMLCommandProcessor;
@@ -775,7 +777,7 @@ public class MainApplication extends org.openstreetmap.josm.Main {
 
         if (!GraphicsEnvironment.isHeadless()) {
             BugReportQueue.getInstance().setBugReportHandler(BugReportDialog::showFor);
-            BugReportSender.setBugReportSendingHandler(BugReportDialog.bugReportSendingHandler);
+            BugReportSender.setBugReportSendingHandler(new DefaultBugReportSendingHandler());
         }
 
         Level logLevel = args.getLogLevel();
@@ -872,7 +874,7 @@ public class MainApplication extends org.openstreetmap.josm.Main {
         WindowGeometry geometry = WindowGeometry.mainWindow("gui.geometry",
                 args.getSingle(Option.GEOMETRY).orElse(null),
                 !args.hasOption(Option.NO_MAXIMIZE) && Config.getPref().getBoolean("gui.maximized", false));
-        final MainFrame mainFrame = new MainFrame(geometry);
+        final MainFrame mainFrame = createMainFrame(geometry);
         final Container contentPane = mainFrame.getContentPane();
         if (contentPane instanceof JComponent) {
             contentPanePrivate = (JComponent) contentPane;
@@ -1014,6 +1016,17 @@ public class MainApplication extends org.openstreetmap.josm.Main {
             // but they don't seem to break anything and are difficult to fix
             Logging.info("Enabled EDT checker, wrongful access to gui from non EDT thread will be printed to console");
             RepaintManager.setCurrentManager(new CheckThreadViolationRepaintManager());
+        }
+    }
+
+    private static MainFrame createMainFrame(WindowGeometry geometry) {
+        try {
+            return new MainFrame(geometry);
+        } catch (AWTError e) {
+            // #12022 #16666 On Debian, Ubuntu and Linux Mint the first AWT toolkit access can fail because of ATK wrapper
+            // Good news: the error happens after the toolkit initialization so we can just try again and it will work
+            Logging.error(e);
+            return new MainFrame(geometry);
         }
     }
 
