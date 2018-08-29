@@ -32,6 +32,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
@@ -71,8 +72,8 @@ import org.openstreetmap.josm.gui.mappaint.MapPaintStyles;
 import org.openstreetmap.josm.gui.mappaint.styleelement.BoxTextElement;
 import org.openstreetmap.josm.gui.mappaint.styleelement.BoxTextElement.HorizontalTextAlignment;
 import org.openstreetmap.josm.gui.mappaint.styleelement.BoxTextElement.VerticalTextAlignment;
+import org.openstreetmap.josm.gui.mappaint.styleelement.DefaultStyles;
 import org.openstreetmap.josm.gui.mappaint.styleelement.MapImage;
-import org.openstreetmap.josm.gui.mappaint.styleelement.NodeElement;
 import org.openstreetmap.josm.gui.mappaint.styleelement.RepeatImageElement.LineImageAlignment;
 import org.openstreetmap.josm.gui.mappaint.styleelement.StyleElement;
 import org.openstreetmap.josm.gui.mappaint.styleelement.Symbol;
@@ -139,7 +140,7 @@ public class StyledMapRenderer extends AbstractMapRenderer {
 
             order <<= 1;
             // simple node on top of icons and shapes
-            if (NodeElement.SIMPLE_NODE_ELEMSTYLE.equals(this.style)) {
+            if (DefaultStyles.SIMPLE_NODE_ELEMSTYLE.equals(this.style)) {
                 order |= 1;
             }
 
@@ -187,6 +188,24 @@ public class StyledMapRenderer extends AbstractMapRenderer {
                 return -1;
 
             return Float.compare(this.style.objectZIndex, other.style.objectZIndex);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(order, osm, style, flags);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj)
+                return true;
+            if (obj == null || getClass() != obj.getClass())
+                return false;
+            StyleRecord other = (StyleRecord) obj;
+            return flags == other.flags
+                && order == other.order
+                && Objects.equals(osm, other.osm)
+                && Objects.equals(style, other.style);
         }
 
         /**
