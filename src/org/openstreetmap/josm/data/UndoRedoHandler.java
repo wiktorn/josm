@@ -9,6 +9,7 @@ import java.util.Objects;
 import org.openstreetmap.josm.command.Command;
 import org.openstreetmap.josm.data.osm.DataSet;
 import org.openstreetmap.josm.data.osm.OsmDataManager;
+import org.openstreetmap.josm.gui.util.GuiHelper;
 import org.openstreetmap.josm.spi.preferences.Config;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 
@@ -290,26 +291,28 @@ public final class UndoRedoHandler {
     public synchronized void undo(int num) {
         if (commands.isEmpty())
             return;
-        DataSet ds = OsmDataManager.getInstance().getEditDataSet();
-        if (ds != null) {
-            ds.beginUpdate();
-        }
-        try {
-            for (int i = 1; i <= num; ++i) {
-                final Command c = commands.removeLast();
-                c.undoCommand();
-                redoCommands.addFirst(c);
-                fireEvent(new CommandUndoneEvent(this, c));
-                if (commands.isEmpty()) {
-                    break;
+        GuiHelper.runInEDTAndWait(() -> {
+            DataSet ds = OsmDataManager.getInstance().getEditDataSet();
+            if (ds != null) {
+                ds.beginUpdate();
+            }
+            try {
+                for (int i = 1; i <= num; ++i) {
+                    final Command c = commands.removeLast();
+                    c.undoCommand();
+                    redoCommands.addFirst(c);
+                    fireEvent(new CommandUndoneEvent(this, c));
+                    if (commands.isEmpty()) {
+                        break;
+                    }
+                }
+            } finally {
+                if (ds != null) {
+                    ds.endUpdate();
                 }
             }
-        } finally {
-            if (ds != null) {
-                ds.endUpdate();
-            }
-        }
-        fireCommandsChanged();
+            fireCommandsChanged();
+        });
     }
 
     /**
@@ -323,7 +326,7 @@ public final class UndoRedoHandler {
      * Redoes multiple commands.
      * @param num The number of commands to redo
      */
-    public void redo(int num) {
+    public synchronized void redo(int num) {
         if (redoCommands.isEmpty())
             return;
         for (int i = 0; i < num; ++i) {
@@ -366,7 +369,7 @@ public final class UndoRedoHandler {
      * @param dataSet The data set that was affected.
      * @since 12718
      */
-    public void clean(DataSet dataSet) {
+    public synchronized void clean(DataSet dataSet) {
         if (dataSet == null)
             return;
         boolean changed = false;

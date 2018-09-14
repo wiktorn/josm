@@ -39,7 +39,9 @@
         <property name="proj-build.dir" location="${base.dir}/build2"/>
         <property name="checkstyle-build.dir" location="${base.dir}/build2"/>
         <property name="epsg.output" location="${base.dir}/data/projection/custom-epsg"/>
-        <property name="error_prone_ant.jar" location="${tools.dir}/error_prone_ant.jar"/>
+        <property name="error_prone_core.jar" location="${tools.dir}/error_prone_core.jar"/>
+        <property name="error_prone_javac.jar" location="${tools.dir}/error_prone_javac.jar"/>
+        <property name="jformatstring.jar" location="${spotbugs.dir}/jFormatString-3.0.0.jar"/>
         <property name="dist.jar" location="${dist.dir}/josm-custom.jar"/>
         <property name="dist-optimized.jar" location="${dist.dir}/josm-custom-optimized.jar"/>
         <property name="java.lang.version" value="1.8" />
@@ -59,15 +61,14 @@
         <condition property="isJava11"><matches string="${ant.java.version}" pattern="1[1-9]" /></condition>
         <condition property="isJava12"><matches string="${ant.java.version}" pattern="1[2-9]" /></condition>
         <condition property="isJava13"><matches string="${ant.java.version}" pattern="1[3-9]" /></condition>
-        <!-- error_prone works differently on Java 10+, see https://github.com/google/error-prone/issues/860 -->
-        <condition property="javac.compiler" value="modern" else="com.google.errorprone.ErrorProneAntCompilerAdapter">
-            <isset property="isJava10"/>
-        </condition>
         <!-- Disable jacoco on Java 13+, see https://github.com/jacoco/jacoco/pull/738 -->
         <condition property="coverageByDefault">
             <not>
                 <isset property="isJava13"/>
             </not>
+        </condition>
+        <condition property="java.library.dir" value="jmods" else="lib">
+            <isset property="isJava9"/>
         </condition>
         <path id="groovy.classpath">
             <fileset dir="${tools.dir}/groovy">
@@ -86,6 +87,10 @@
             <fileset dir="${pmd.dir}">
                 <include name="*.jar"/>
             </fileset>
+        </path>
+        <path id="processor.path">
+            <pathelement location="${error_prone_core.jar}"/>
+            <pathelement location="${jformatstring.jar}"/>
         </path>
     </target>
 
@@ -321,14 +326,13 @@ Build-Date: ${build.tstamp}
     </target>
     <target name="compile-jmapviewer" depends="init">
         <!-- JMapViewer -->
-        <javac compiler="${javac.compiler}" sourcepath="" srcdir="${src.dir}" 
+        <javac sourcepath="" srcdir="${src.dir}" fork="yes"
             excludes="com/**,javax/**,oauth/**,org/apache/commons/**,org/glassfish/**,org/openstreetmap/gui/jmapviewer/Demo.java,org/openstreetmap/gui/jmapviewer/JMapViewerTree.java,org/openstreetmap/gui/jmapviewer/checkBoxTree/**,org/openstreetmap/josm/**,org/tukaani/**,gnu/**"
             destdir="${build.dir}" target="${java.lang.version}" source="${java.lang.version}" debug="on" includeantruntime="false" createMissingPackageInfoClass="false" encoding="UTF-8">
-            <compilerclasspath>
-                <pathelement location="${error_prone_ant.jar}"/>
-            </compilerclasspath>
-            <compilerarg line="-XDcompilePolicy=simple" compiler="modern"/>
-            <compilerarg line="-processorpath ${error_prone_ant.jar}" compiler="modern"/>
+            <compilerarg value="-J-Xbootclasspath/p:${error_prone_javac.jar}" unless:set="isJava9"/>
+            <compilerarg line="-XDcompilePolicy=simple"/>
+            <compilerarg value="-processorpath"/>
+            <compilerarg pathref="processor.path"/>
             <compilerarg value="-Xlint:cast"/>
             <compilerarg value="-Xlint:deprecation"/>
             <compilerarg value="-Xlint:dep-ann"/>
@@ -342,23 +346,19 @@ Build-Date: ${build.tstamp}
             <compilerarg value="-Xlint:unchecked"/>
             <!-- Undocumented argument to ignore "Sun internal proprietary API" warning, see http://stackoverflow.com/a/13862308/2257172 -->
             <compilerarg value="-XDignore.symbol.file"/>
-            <compilerarg value="-Xep:CatchAndPrintStackTrace:OFF" compiler="com.google.errorprone.ErrorProneAntCompilerAdapter"/>
-            <compilerarg value="-Xep:ReferenceEquality:OFF" compiler="com.google.errorprone.ErrorProneAntCompilerAdapter"/>
-            <compilerarg value="-Xep:StringSplitter:OFF" compiler="com.google.errorprone.ErrorProneAntCompilerAdapter"/>
-            <compilerarg value="-Xplugin:ErrorProne -Xep:CatchAndPrintStackTrace:OFF -Xep:ReferenceEquality:OFF -Xep:StringSplitter:OFF" compiler="modern"/>
+            <compilerarg value="-Xplugin:ErrorProne -Xep:CatchAndPrintStackTrace:OFF -Xep:ReferenceEquality:OFF -Xep:StringSplitter:OFF"/>
             <compilerarg line="-Xmaxwarns 1000"/>
         </javac>
     </target>
     <target name="compile" depends="init,javacc,compile-cots,compile-jmapviewer">
         <!-- JOSM -->
-        <javac compiler="${javac.compiler}" sourcepath="" srcdir="${src.dir}"
+        <javac sourcepath="" srcdir="${src.dir}" fork="yes"
             excludes="com/**,javax/**,gnu/**,oauth/**,org/apache/commons/**,org/glassfish/**,org/openstreetmap/gui/jmapviewer/**,org/tukaani/**"
             destdir="${build.dir}" target="${java.lang.version}" source="${java.lang.version}" debug="on" includeantruntime="false" createMissingPackageInfoClass="false" encoding="UTF-8">
-            <compilerclasspath>
-                <pathelement location="${error_prone_ant.jar}"/>
-            </compilerclasspath>
-            <compilerarg line="-XDcompilePolicy=simple" compiler="modern"/>
-            <compilerarg line="-processorpath ${error_prone_ant.jar}" compiler="modern"/>
+            <compilerarg value="-J-Xbootclasspath/p:${error_prone_javac.jar}" unless:set="isJava9"/>
+            <compilerarg line="-XDcompilePolicy=simple"/>
+            <compilerarg value="-processorpath"/>
+            <compilerarg pathref="processor.path"/>
             <compilerarg value="-Xlint:cast"/>
             <compilerarg value="-Xlint:deprecation"/>
             <compilerarg value="-Xlint:dep-ann"/>
@@ -372,14 +372,7 @@ Build-Date: ${build.tstamp}
             <compilerarg value="-Xlint:unchecked"/>
             <!-- Undocumented argument to ignore "Sun internal proprietary API" warning, see http://stackoverflow.com/a/13862308/2257172 -->
             <compilerarg value="-XDignore.symbol.file"/>
-            <compilerarg value="-Xep:ReferenceEquality:OFF" compiler="com.google.errorprone.ErrorProneAntCompilerAdapter"/>
-            <compilerarg value="-Xep:ImmutableEnumChecker:OFF" compiler="com.google.errorprone.ErrorProneAntCompilerAdapter"/>
-            <compilerarg value="-Xep:FutureReturnValueIgnored:OFF" compiler="com.google.errorprone.ErrorProneAntCompilerAdapter"/>
-            <compilerarg value="-Xep:FloatingPointLiteralPrecision:OFF" compiler="com.google.errorprone.ErrorProneAntCompilerAdapter"/>
-            <compilerarg value="-Xep:ShortCircuitBoolean:OFF" compiler="com.google.errorprone.ErrorProneAntCompilerAdapter"/>
-            <compilerarg value="-Xep:StringSplitter:OFF" compiler="com.google.errorprone.ErrorProneAntCompilerAdapter"/>
-            <compilerarg value="-Xep:JdkObsolete:OFF" compiler="com.google.errorprone.ErrorProneAntCompilerAdapter"/>
-            <compilerarg value="-Xplugin:ErrorProne -Xep:ReferenceEquality:OFF -Xep:ImmutableEnumChecker:OFF -Xep:FutureReturnValueIgnored:OFF -Xep:FloatingPointLiteralPrecision:OFF -Xep:ShortCircuitBoolean:OFF -Xep:StringSplitter:OFF -Xep:JdkObsolete:OFF" compiler="modern"/>
+            <compilerarg value="-Xplugin:ErrorProne -Xep:ReferenceEquality:OFF -Xep:ImmutableEnumChecker:OFF -Xep:FutureReturnValueIgnored:OFF -Xep:FloatingPointLiteralPrecision:OFF -Xep:ShortCircuitBoolean:OFF -Xep:StringSplitter:OFF -Xep:JdkObsolete:OFF -Xep:UnnecessaryParentheses:OFF -Xep:EqualsGetClass:OFF -Xep:ThreadPriorityCheck:OFF -Xep:UndefinedEquals:OFF"/>
             <compilerarg line="-Xmaxwarns 1000"/>
             <exclude name="org/openstreetmap/josm/io/audio/fx/*.java" if:set="noJavaFX"/>
         </javac>
@@ -524,6 +517,8 @@ Build-Date: ${build.tstamp}
                     <jvmarg value="--add-opens" if:set="isJava9" />
                     <jvmarg value="java.base/java.util=ALL-UNNAMED" if:set="isJava9" />
                     <jvmarg value="--add-opens" if:set="isJava9" />
+                    <jvmarg value="java.base/jdk.internal.loader=ALL-UNNAMED" if:set="isJava9" />
+                    <jvmarg value="--add-opens" if:set="isJava9" />
                     <jvmarg value="java.desktop/java.awt=ALL-UNNAMED" if:set="isJava9" />
                     <sysproperty key="josm.home" value="${test.dir}/config/@{testfamily}-josm.home"/>
                     <sysproperty key="josm.test.data" value="${test.dir}/data"/>
@@ -620,7 +615,7 @@ Build-Date: ${build.tstamp}
         -injars ${dist.jar}
         -outjars ${dist-optimized.jar}
 
-        -libraryjars ${java.home}/lib
+        -libraryjars ${java.home}/${java.library.dir}
 
         -dontoptimize
         -dontobfuscate
@@ -666,8 +661,7 @@ Build-Date: ${build.tstamp}
         -dontnote
         </proguard>
     </target>
-    <!-- Proguard does not support Java 9 : http://sourceforge.net/p/proguard/bugs/551/ -->
-    <target name="dist-optimized-report" depends="dist-optimized" unless="isJava9">
+    <target name="dist-optimized-report" depends="dist-optimized">
         <!-- generate difference report between optimized jar and normal one -->
         <exec executable="perl" dir="${basedir}">
             <arg value="${tools.dir}/japicc/japi-compliance-checker.pl"/>
@@ -714,6 +708,10 @@ Build-Date: ${build.tstamp}
                 <linecontainsregexp negate="true">
                     <regexp pattern="${deprecated-plugins}"/>
                 </linecontainsregexp>
+                <linecontainsregexp negate="true" unless:set="isJava10">
+                    <!-- Skip openjfx on Java 8/9, built for Java 10+ only -->
+                    <regexp pattern="openjfx"/>
+                </linecontainsregexp>
                 <tokenfilter>
                     <replaceregex pattern="^.*;" replace="" flags="gi"/>
                 </tokenfilter>
@@ -750,9 +748,10 @@ Build-Date: ${build.tstamp}
         <as:build-signatures destfile="${dir}/api.sig">
             <path>
                 <fileset file="${dist-optimized.jar}"/>
-                <fileset file="${java.home}/lib/rt.jar"/>
-                <fileset file="${java.home}/lib/jce.jar"/>
-                <fileset file="${java.home}/lib/ext/jfxrt.jar"/>
+                <fileset file="${java.home}/lib/rt.jar" unless:set="isJava9"/>
+                <fileset file="${java.home}/lib/jce.jar" unless:set="isJava9"/>
+                <fileset file="${java.home}/lib/ext/jfxrt.jar" unless:set="isJava9"/>
+                <fileset dir="${java.home}/jmods" if:set="isJava9"/>
             </path>
         </as:build-signatures>
         <as:check-signature signature="${dir}/api.sig" failonerror="false">
@@ -767,6 +766,7 @@ Build-Date: ${build.tstamp}
             <ignore classname="it.*"/>
             <ignore classname="java.lang.invoke.MethodHandle"/>
             <ignore classname="javax.*"/>
+            <ignore classname="jdk.swing.interop.*"/>
             <ignore classname="jogamp.*"/>
             <ignore classname="junit.*"/>
             <ignore classname="kdu_jni.*"/>
@@ -813,9 +813,11 @@ Build-Date: ${build.tstamp}
             <ignore classname="org.zeromq.*"/>
             <!-- plugins used by another ones -->
             <ignore classname="org.openstreetmap.josm.plugins.geotools.*"/>
+            <ignore classname="org.openstreetmap.josm.plugins.jaxb.*"/>
             <ignore classname="org.openstreetmap.josm.plugins.jna.*"/>
             <ignore classname="org.openstreetmap.josm.plugins.jts.*"/>
             <ignore classname="org.openstreetmap.josm.plugins.log4j.*"/>
+            <ignore classname="org.openstreetmap.josm.plugins.openjfx.*"/>
             <ignore classname="org.openstreetmap.josm.plugins.utilsplugin2.*"/>
             <ignore classname="sun.*"/>
             <path path="${dir}"/>

@@ -76,42 +76,9 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
         }
     }
 
-    /**
-     * Asynchronously launches the download task for a given bounding box.
-     * @param newLayer true, if the data is to be downloaded into a new layer. If false, the task
-     * selects one of the existing layers as download layer, preferably the active layer.
-     *
-     * @param downloadArea the area to download
-     * @param progressMonitor the progressMonitor
-     * @return the future representing the asynchronous task
-     * @deprecated Use {@link #download(DownloadParams, Bounds, ProgressMonitor)}
-     */
-    @Deprecated
-    public Future<?> download(boolean newLayer, Bounds downloadArea, ProgressMonitor progressMonitor) {
-        return download(new BoundingBoxDownloader(downloadArea),
-                new DownloadParams().withNewLayer(newLayer), downloadArea, progressMonitor);
-    }
-
     @Override
     public Future<?> download(DownloadParams settings, Bounds downloadArea, ProgressMonitor progressMonitor) {
         return download(new BoundingBoxDownloader(downloadArea), settings, downloadArea, progressMonitor);
-    }
-
-    /**
-     * Asynchronously launches the download task for a given bounding box.
-     *
-     * @param reader the reader used to parse OSM data (see {@link OsmServerReader#parseOsm})
-     * @param newLayer newLayer true, if the data is to be downloaded into a new layer. If false, the task
-     * selects one of the existing layers as download layer, preferably the active layer.
-     * @param downloadArea the area to download
-     * @param progressMonitor the progressMonitor
-     * @return the future representing the asynchronous task
-     * @deprecated Use {@link #download(OsmServerReader, DownloadParams, Bounds, ProgressMonitor)}
-     */
-    @Deprecated
-    public Future<?> download(OsmServerReader reader, boolean newLayer, Bounds downloadArea, ProgressMonitor progressMonitor) {
-        return download(new DownloadTask(new DownloadParams().withNewLayer(newLayer), reader, progressMonitor, zoomAfterDownload),
-                downloadArea);
     }
 
     /**
@@ -260,16 +227,6 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
             return MainApplication.getLayerManager().getEditLayer();
         }
 
-        /**
-         * Returns the number of modifiable data layers
-         * @return number of modifiable data layers
-         * @deprecated Use {@link #getNumModifiableDataLayers}
-         */
-        @Deprecated
-        protected int getNumDataLayers() {
-            return (int) getNumModifiableDataLayers();
-        }
-
         private static Stream<OsmDataLayer> getModifiableDataLayers() {
             return MainApplication.getLayerManager().getLayersOfType(OsmDataLayer.class)
                     .stream().filter(OsmDataLayer::isDownloadable);
@@ -398,31 +355,6 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
 
         /**
          * Constructs a new {@code DownloadTask}.
-         * @param newLayer if {@code true}, force download to a new layer
-         * @param reader OSM data reader
-         * @param progressMonitor progress monitor
-         * @deprecated Use {@code DownloadTask(DownloadParams, OsmServerReader, ProgressMonitor)}
-         */
-        @Deprecated
-        public DownloadTask(boolean newLayer, OsmServerReader reader, ProgressMonitor progressMonitor) {
-            this(new DownloadParams().withNewLayer(newLayer), reader, progressMonitor);
-        }
-
-        /**
-         * Constructs a new {@code DownloadTask}.
-         * @param newLayer if {@code true}, force download to a new layer
-         * @param reader OSM data reader
-         * @param progressMonitor progress monitor
-         * @param zoomAfterDownload If true, the map view will zoom to download area after download
-         * @deprecated Use {@code DownloadTask(DownloadParams, OsmServerReader, ProgressMonitor, boolean)}
-         */
-        @Deprecated
-        public DownloadTask(boolean newLayer, OsmServerReader reader, ProgressMonitor progressMonitor, boolean zoomAfterDownload) {
-            this(new DownloadParams().withNewLayer(newLayer), reader, progressMonitor, zoomAfterDownload);
-        }
-
-        /**
-         * Constructs a new {@code DownloadTask}.
          * @param settings download settings
          * @param reader OSM data reader
          * @param progressMonitor progress monitor
@@ -479,6 +411,10 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
             if (dataSet.allPrimitives().isEmpty()) {
                 if (warnAboutEmptyArea) {
                     rememberErrorMessage(tr("No data found in this area."));
+                }
+                String remark = dataSet.getRemark();
+                if (remark != null && !remark.isEmpty()) {
+                    rememberErrorMessage(remark);
                 }
                 // need to synthesize a download bounds lest the visual indication of downloaded area doesn't work
                 dataSet.addDataSource(new DataSource(currentBounds != null ? currentBounds :

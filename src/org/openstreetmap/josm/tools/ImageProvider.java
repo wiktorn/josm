@@ -33,6 +33,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -268,6 +269,9 @@ public class ImageProvider {
             Logging.log(Logging.LEVEL_ERROR, "Unable to get application classloader", e);
         }
     }
+
+    /** small cache of critical images used in many parts of the application */
+    private static final Map<OsmPrimitiveType, ImageIcon> osmPrimitiveTypeCache = Collections.synchronizedMap(new HashMap<>());
 
     /** directories in which images are searched */
     protected Collection<String> dirs;
@@ -1473,7 +1477,7 @@ public class ImageProvider {
      */
     public static ImageIcon get(OsmPrimitiveType type) {
         CheckParameterUtil.ensureParameterNotNull(type, "type");
-        return get("data", type.getAPIName());
+        return osmPrimitiveTypeCache.computeIfAbsent(type, t -> get("data", t.getAPIName()));
     }
 
     /**
@@ -1535,7 +1539,7 @@ public class ImageProvider {
         }
 
         // Check if the presets have icons for nodes/relations.
-        if (!OsmPrimitiveType.WAY.equals(primitive.getType())) {
+        if (OsmPrimitiveType.WAY != primitive.getType()) {
             final Collection<TaggingPreset> presets = new TreeSet<>((o1, o2) -> {
                 final int o1TypesSize = o1.types == null || o1.types.isEmpty() ? Integer.MAX_VALUE : o1.types.size();
                 final int o2TypesSize = o2.types == null || o2.types.isEmpty() ? Integer.MAX_VALUE : o2.types.size();

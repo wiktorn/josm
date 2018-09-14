@@ -28,7 +28,6 @@ import org.openstreetmap.josm.data.APIDataSet.APIOperation;
 import org.openstreetmap.josm.data.Bounds;
 import org.openstreetmap.josm.data.DataSource;
 import org.openstreetmap.josm.data.ProjectionBounds;
-import org.openstreetmap.josm.data.SelectionChangedListener;
 import org.openstreetmap.josm.data.conflict.ConflictCollection;
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.data.coor.LatLon;
@@ -41,12 +40,12 @@ import org.openstreetmap.josm.data.osm.event.AbstractDatasetChangedEvent;
 import org.openstreetmap.josm.data.osm.event.ChangesetIdChangedEvent;
 import org.openstreetmap.josm.data.osm.event.DataChangedEvent;
 import org.openstreetmap.josm.data.osm.event.DataSetListener;
+import org.openstreetmap.josm.data.osm.event.FilterChangedEvent;
 import org.openstreetmap.josm.data.osm.event.NodeMovedEvent;
 import org.openstreetmap.josm.data.osm.event.PrimitiveFlagsChangedEvent;
 import org.openstreetmap.josm.data.osm.event.PrimitivesAddedEvent;
 import org.openstreetmap.josm.data.osm.event.PrimitivesRemovedEvent;
 import org.openstreetmap.josm.data.osm.event.RelationMembersChangedEvent;
-import org.openstreetmap.josm.data.osm.event.SelectionEventManager;
 import org.openstreetmap.josm.data.osm.event.TagsChangedEvent;
 import org.openstreetmap.josm.data.osm.event.WayNodesChangedEvent;
 import org.openstreetmap.josm.data.osm.visitor.BoundingXYVisitor;
@@ -167,6 +166,7 @@ public final class DataSet implements OsmData<OsmPrimitive, Node, Way, Relation>
     private final ConflictCollection conflicts = new ConflictCollection();
 
     private short mappaintCacheIdx = 1;
+    private String remark;
 
     /**
      * Constructs a new {@code DataSet}.
@@ -175,7 +175,6 @@ public final class DataSet implements OsmData<OsmPrimitive, Node, Way, Relation>
         // Transparently register as projection change listener. No need to explicitly remove
         // the listener, projection change listeners are managed as WeakReferences.
         ProjectionRegistry.addProjectionChangeListener(this);
-        addSelectionListener((DataSelectionListener) e -> fireSelectionChange(e.getSelection()));
     }
 
     /**
@@ -538,54 +537,6 @@ public final class DataSet implements OsmData<OsmPrimitive, Node, Way, Relation>
     @Override
     public void removeSelectionListener(DataSelectionListener listener) {
         selectionListeners.removeListener(listener);
-    }
-
-    /*---------------------------------------------------
-     *   OLD SELECTION HANDLING
-     *---------------------------------------------------*/
-
-    /**
-     * A list of listeners to selection changed events. The list is static, as listeners register
-     * themselves for any dataset selection changes that occur, regardless of the current active
-     * dataset. (However, the selection does only change in the active layer)
-     * @deprecated to be removed
-     */
-    @Deprecated
-    private static final Collection<SelectionChangedListener> selListeners = new CopyOnWriteArrayList<>();
-
-    /**
-     * Adds a new selection listener.
-     * @param listener The selection listener to add
-     * @see #addSelectionListener(DataSelectionListener)
-     * @see SelectionEventManager#removeSelectionListener(SelectionChangedListener)
-     * @deprecated Use {@link SelectionEventManager#addSelectionListener(DataSelectionListener)} instead
-     */
-    @Deprecated
-    public static void addSelectionListener(SelectionChangedListener listener) {
-        ((CopyOnWriteArrayList<SelectionChangedListener>) selListeners).addIfAbsent(listener);
-    }
-
-    /**
-     * Removes a selection listener.
-     * @param listener The selection listener to remove
-     * @see #removeSelectionListener(DataSelectionListener)
-     * @see SelectionEventManager#removeSelectionListener(SelectionChangedListener)
-     * @deprecated Use {@link SelectionEventManager#removeSelectionListener(DataSelectionListener)} instead
-     */
-    @Deprecated
-    public static void removeSelectionListener(SelectionChangedListener listener) {
-        selListeners.remove(listener);
-    }
-
-    /**
-     * @deprecated to be removed
-     * @param currentSelection current selection
-     */
-    @Deprecated
-    private static void fireSelectionChange(Collection<? extends OsmPrimitive> currentSelection) {
-        for (SelectionChangedListener l : selListeners) {
-            l.selectionChanged(currentSelection);
-        }
     }
 
     /**
@@ -954,8 +905,8 @@ public final class DataSet implements OsmData<OsmPrimitive, Node, Way, Relation>
 
             if (!eventsToFire.isEmpty()) {
                 lock.readLock().lock();
-                lock.writeLock().unlock();
                 try {
+                    lock.writeLock().unlock();
                     if (eventsToFire.size() < MAX_SINGLE_EVENTS) {
                         for (AbstractDatasetChangedEvent event : eventsToFire) {
                             fireEventToListeners(event);
@@ -1029,7 +980,7 @@ public final class DataSet implements OsmData<OsmPrimitive, Node, Way, Relation>
     }
 
     void fireFilterChanged() {
-        fireEvent(new DataChangedEvent(this));
+        fireEvent(new FilterChangedEvent(this));
     }
 
     void fireHighlightingChanged() {
@@ -1228,5 +1179,23 @@ public final class DataSet implements OsmData<OsmPrimitive, Node, Way, Relation>
         if (isLocked()) {
             throw new IllegalStateException("DataSet is read-only");
         }
+    }
+
+    /**
+     * Returns an optional remark about this data set (used by Overpass API).
+     * @return a remark about this data set, or {@code null}
+     * @since 14219
+     */
+    public String getRemark() {
+        return remark;
+    }
+
+    /**
+     * Sets an optional remark about this data set (used by Overpass API).
+     * @param remark a remark about this data set, or {@code null}
+     * @since 14219
+     */
+    public void setRemark(String remark) {
+        this.remark = remark;
     }
 }

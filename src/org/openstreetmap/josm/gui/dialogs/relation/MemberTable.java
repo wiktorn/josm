@@ -21,6 +21,7 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 
 import org.openstreetmap.josm.actions.AutoScaleAction;
+import org.openstreetmap.josm.actions.AutoScaleAction.AutoScaleMode;
 import org.openstreetmap.josm.actions.ZoomToAction;
 import org.openstreetmap.josm.data.osm.OsmPrimitive;
 import org.openstreetmap.josm.data.osm.Relation;
@@ -236,13 +237,13 @@ public class MemberTable extends OsmPrimitivesTable implements IMemberModelListe
             WayConnectionType connectionType = getConnectionType();
             Way way = (Way) getMemberTableModel().getReferredPrimitive(getSelectedRows()[0]);
             if (!connectionType.linkPrev) {
-                getLayer().data.setSelected(WayConnectionType.Direction.FORWARD.equals(connectionType.direction)
+                getLayer().data.setSelected(WayConnectionType.Direction.FORWARD == connectionType.direction
                         ? way.firstNode() : way.lastNode());
-                AutoScaleAction.autoScale("selection");
+                AutoScaleAction.autoScale(AutoScaleMode.SELECTION);
             } else if (!connectionType.linkNext) {
-                getLayer().data.setSelected(WayConnectionType.Direction.FORWARD.equals(connectionType.direction)
+                getLayer().data.setSelected(WayConnectionType.Direction.FORWARD == connectionType.direction
                         ? way.lastNode() : way.firstNode());
-                AutoScaleAction.autoScale("selection");
+                AutoScaleAction.autoScale(AutoScaleMode.SELECTION);
             }
         }
 
