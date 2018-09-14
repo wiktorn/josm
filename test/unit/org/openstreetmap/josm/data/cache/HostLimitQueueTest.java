@@ -33,16 +33,14 @@ public class HostLimitQueueTest {
     public JOSMTestRules test = new JOSMTestRules().preferences().timeout(20 * 1000);
 
     private static ThreadPoolExecutor getNewThreadPoolExecutor(String nameFormat, int workers, int queueLimit) {
-        HostLimitQueue workQueue = new HostLimitQueue(queueLimit);
         ThreadPoolExecutor executor = new ThreadPoolExecutor(
-                0, // 0 so for unused thread pools threads will eventually die, freeing also the threadpool
-                workers, // do not this number of threads
+                0, // keep core pool the same size as max
+                workers, // do not exceed this number of threads
                 300, // keepalive for thread
                 TimeUnit.SECONDS,
-                workQueue,
+                new HostLimitQueue(queueLimit, workers),
                 Utils.newThreadFactory(nameFormat, Thread.NORM_PRIORITY)
                 );
-        workQueue.setExecutor(executor);
         return executor;
     }
 
@@ -63,7 +61,8 @@ public class HostLimitQueueTest {
         public void run() {
             try {
                 Thread.sleep(1000);
-            } catch (InterruptedException e) {
+                System.out.println("downloaded: " + getUrl().toString());
+            } catch (InterruptedException | IOException e) {
                 Logging.trace(e);
             } finally {
                 this.counter.incrementAndGet();
@@ -98,6 +97,7 @@ public class HostLimitQueueTest {
         AtomicInteger counter = new AtomicInteger(0);
         long start = System.currentTimeMillis();
         for (int i = 0; i < 10; i++) {
+            System.out.println("exec: " + i);
             tpe.execute(new Task(cache, new URL("http://localhost/"+i), counter));
         }
         tpe.shutdown();
