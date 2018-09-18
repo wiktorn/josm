@@ -1,6 +1,7 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.data.imagery;
 
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -12,7 +13,7 @@ import org.openstreetmap.gui.jmapviewer.interfaces.TileLoader;
 import org.openstreetmap.gui.jmapviewer.interfaces.TileLoaderListener;
 import org.openstreetmap.gui.jmapviewer.interfaces.TileSource;
 import org.openstreetmap.josm.data.cache.BufferedImageCacheEntry;
-import org.openstreetmap.josm.data.cache.HostLimitQueue;
+import org.openstreetmap.josm.data.cache.HostLimitThreadPool;
 import org.openstreetmap.josm.data.preferences.IntegerProperty;
 import org.openstreetmap.josm.tools.CheckParameterUtil;
 import org.openstreetmap.josm.tools.Utils;
@@ -67,16 +68,15 @@ public class TMSCachedTileLoader implements TileLoader, CachedTileLoader {
      * @return new ThreadPoolExecutor that will use a @see HostLimitQueue based queue
      */
     public static ThreadPoolExecutor getNewThreadPoolExecutor(String nameFormat, int workers) {
-        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+        return new HostLimitThreadPool(
                 0, // keep core pool the same size as max
                 workers, // do not exceed this number of threads
                 300, // keepalive for thread
                 TimeUnit.SECONDS,
-                new HostLimitQueue(HOST_LIMIT.get().intValue(), workers),
-                Utils.newThreadFactory(nameFormat, Thread.NORM_PRIORITY)
+                new LinkedBlockingDeque<Runnable>(),
+                Utils.newThreadFactory(nameFormat, Thread.NORM_PRIORITY),
+                HOST_LIMIT.get().intValue()
                 );
-        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.DiscardOldestPolicy());
-        return executor;
     }
 
     /**
