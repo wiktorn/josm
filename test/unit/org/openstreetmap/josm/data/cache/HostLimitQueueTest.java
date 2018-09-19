@@ -50,8 +50,7 @@ public class HostLimitQueueTest {
         public void run() {
             try {
                 Thread.sleep(1000);
-                System.out.println("downloaded: " + getUrl().toString());
-            } catch (InterruptedException | IOException e) {
+            } catch (InterruptedException e) {
                 Logging.trace(e);
             } finally {
                 this.counter.incrementAndGet();
@@ -86,7 +85,6 @@ public class HostLimitQueueTest {
         AtomicInteger counter = new AtomicInteger(0);
         long start = System.currentTimeMillis();
         for (int i = 0; i < 10; i++) {
-            System.out.println("exec: " + i);
             tpe.execute(new Task(cache, new URL("http://localhost/"+i), counter));
         }
         tpe.shutdown();
