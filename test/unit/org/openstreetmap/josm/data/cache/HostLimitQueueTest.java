@@ -32,17 +32,6 @@ public class HostLimitQueueTest {
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
     public JOSMTestRules test = new JOSMTestRules().preferences().timeout(20 * 1000);
 
-//    private static ThreadPoolExecutor getNewThreadPoolExecutor(String nameFormat, int workers, int queueLimit) {
-//        ThreadPoolExecutor executor = new ThreadPoolExecutor(
-//                0, // keep core pool the same size as max
-//                workers, // do not exceed this number of threads
-//                300, // keepalive for thread
-//                TimeUnit.SECONDS,
-//                new HostLimitQueue(queueLimit, workers),
-//                Utils.newThreadFactory(nameFormat, Thread.NORM_PRIORITY)
-//                );
-//        return executor;
-//    }
 
     /**
      * Mock class for tests
