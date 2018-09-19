@@ -47,7 +47,7 @@ public class HostLimitQueue extends LinkedBlockingDeque<Runnable> {
      * @param queueLimit how deep the queue should be
      */
     public HostLimitQueue(int hostLimit, int queueLimit) {
-        super(queueLimit); // create unbounded queue
+        super(queueLimit); // create bounded queue
         this.hostLimit = hostLimit;
     }
 
