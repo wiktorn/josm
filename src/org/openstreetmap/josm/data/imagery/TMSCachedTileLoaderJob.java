@@ -221,12 +221,13 @@ public class TMSCachedTileLoaderJob extends JCSCachedTileLoaderJob<String, Buffe
             } else {
                 tile.setError(tr("Error downloading tiles: {0}", attributes.getErrorMessage()));
             }
-            if (httpStatusCode >= 500) {
+            if (httpStatusCode >= 500 && httpStatusCode != 599) {
+                // httpStatusCode = 599 is set by JCSCachedTileLoaderJob on IOException
                 tile.setLoaded(false); // treat 500 errors as temporary and try to load it again
             }
         } else {
             tile.setError(tr("Problem loading tile"));
-            tile.setLoaded(false); // treat unknown errors as temporary and try to load it again
+            // treat unknown errors as permanent and do not try to load tile again
         }
     }
 
