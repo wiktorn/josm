@@ -33,6 +33,8 @@ public class TemplatedTMSTileSource extends TMSTileSource implements TemplatedTi
     private Random rand;
     private String[] randomParts;
     private final Map<String, String> headers = new HashMap<>();
+    private boolean inverse_zoom = false;
+    private int zoom_offset = 0;
 
     // CHECKSTYLE.OFF: SingleSpaceSeparator
     private static final String COOKIE_HEADER   = "Cookie";
@@ -43,6 +45,7 @@ public class TemplatedTMSTileSource extends TMSTileSource implements TemplatedTi
     private static final String PATTERN_NEG_Y   = "\\{-y\\}";
     private static final String PATTERN_SWITCH  = "\\{switch:([^}]+)\\}";
     private static final String PATTERN_HEADER  = "\\{header\\(([^,]+),([^}]+)\\)\\}";
+    private static final Pattern PATTERN_PARAM  = Pattern.compile("\\{((?:(?:(?:\\d+)-)?(z)(?:oom)?(?:[+-]\\d+)?)|(x)|(y)|(!y)|(-y))\\}");
     // CHECKSTYLE.ON: SingleSpaceSeparator
 
     private static final String[] ALL_PATTERNS = {
@@ -78,6 +81,20 @@ public class TemplatedTMSTileSource extends TMSTileSource implements TemplatedTi
         }
         matcher.appendTail(output);
         baseUrl = output.toString();
+        m = Pattern.compile(".*"+PATTERN_ZOOM+".*").matcher(this.baseUrl);
+        if (m.matches()) {
+            if (m.group(1) != null) {
+                inverse_zoom = true;
+                zoom_offset = Integer.parseInt(m.group(1));
+            }
+            if (m.group(2) != null) {
+                String ofs = m.group(2);
+                if (ofs.startsWith("+"))
+                    ofs = ofs.substring(1);
+                zoom_offset += Integer.parseInt(ofs);
+            }
+        }
+
     }
 
     @Override
@@ -87,29 +104,33 @@ public class TemplatedTMSTileSource extends TMSTileSource implements TemplatedTi
 
     @Override
     public String getTileUrl(int zoom, int tilex, int tiley) {
-        int finalZoom = zoom;
-        Matcher m = Pattern.compile(".*"+PATTERN_ZOOM+".*").matcher(this.baseUrl);
-        if (m.matches()) {
-            if (m.group(1) != null) {
-                finalZoom = Integer.parseInt(m.group(1))-zoom;
+        StringBuffer url = new StringBuffer(baseUrl.length());
+        Matcher matcher = PATTERN_PARAM.matcher(baseUrl);
+        while (matcher.find()) {
+            String replacement = "replace";
+            switch (matcher.group(1)) {
+            case "z": // PATTERN_ZOOM
+                replacement = Integer.toString((inverse_zoom ? -1 * zoom : zoom) + zoom_offset);
+                break;
+            case "x": // PATTERN_X
+                replacement = Integer.toString(tilex);
+                break;
+            case "y": // PATTERN_Y
+                replacement = Integer.toString(tiley);
+                break;
+            case "!y": // PATTERN_Y_YAHOO
+                replacement = Integer.toString((int) Math.pow(2, zoom-1)-1-tiley);
+                break;
+            case "-y": // PATTERN_NEG_Y
+                replacement = Integer.toString((int) Math.pow(2, zoom)-1-tiley);
+                break;
+            default:
+                replacement = '{' + matcher.group(1) + '}';
             }
-            if (m.group(2) != null) {
-                String ofs = m.group(2);
-                if (ofs.startsWith("+"))
-                    ofs = ofs.substring(1);
-                finalZoom += Integer.parseInt(ofs);
-            }
+            matcher.appendReplacement(url, replacement);
         }
-        String r = this.baseUrl
-            .replaceAll(PATTERN_ZOOM, Integer.toString(finalZoom))
-            .replaceAll(PATTERN_X, Integer.toString(tilex))
-            .replaceAll(PATTERN_Y, Integer.toString(tiley))
-            .replaceAll(PATTERN_Y_YAHOO, Integer.toString((int) Math.pow(2, zoom-1)-1-tiley))
-            .replaceAll(PATTERN_NEG_Y, Integer.toString((int) Math.pow(2, zoom)-1-tiley));
-        if (rand != null) {
-            r = r.replaceAll(PATTERN_SWITCH, randomParts[rand.nextInt(randomParts.length)]);
-        }
-        return r;
+        matcher.appendTail(url);
+        return url.toString().replace(" ", "%20");
     }
 
     /**
