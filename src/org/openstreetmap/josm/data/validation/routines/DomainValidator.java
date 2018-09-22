@@ -733,7 +733,6 @@ public final class DomainValidator extends AbstractValidator {
         "goldpoint", // goldpoint YODOBASHI CAMERA CO.,LTD.
         "golf", // golf Lone Falls, LLC
         "goo", // goo NTT Resonant Inc.
-        "goodhands", // goodhands Allstate Fire and Casualty Insurance Company
         "goodyear", // goodyear The Goodyear Tire &amp; Rubber Company
         "goog", // goog Charleston Road Registry Inc.
         "google", // google Charleston Road Registry Inc.
@@ -837,7 +836,6 @@ public final class DomainValidator extends AbstractValidator {
         "jetzt", // jetzt New TLD Company AB
         "jewelry", // jewelry Wild Bloom, LLC
         "jio", // jio Affinity Names, Inc.
-        "jlc", // jlc Richemont DNS Inc.
         "jll", // jll Jones Lang LaSalle Incorporated
         "jmp", // jmp Matrix IP LLC
         "jnj", // jnj Johnson &amp; Johnson Services, Inc.
@@ -1059,7 +1057,6 @@ public final class DomainValidator extends AbstractValidator {
         "ovh", // ovh OVH SAS
         "page", // page Charleston Road Registry Inc.
         "panasonic", // panasonic Panasonic Corporation
-        "panerai", // panerai Richemont DNS Inc.
         "paris", // paris City of Paris
         "pars", // pars Asia Green IT System Bilgisayar San. ve Tic. Ltd. Sti.
         "partners", // partners Magic Glen, LLC
