@@ -45,7 +45,7 @@ public class TemplatedTMSTileSource extends TMSTileSource implements TemplatedTi
     private static final Pattern PATTERN_NEG_Y   = Pattern.compile("\\{-y\\}");
     private static final Pattern PATTERN_SWITCH  = Pattern.compile("\\{switch:([^}]+)\\}");
     private static final Pattern PATTERN_HEADER  = Pattern.compile("\\{header\\(([^,]+),([^}]+)\\)\\}");
-    private static final Pattern PATTERN_PARAM  = Pattern.compile("\\{((?:\\d+-)?z(?:oom)?(:?[+-]\\d+)?|x|y|!y|-y)\\}");
+    private static final Pattern PATTERN_PARAM  = Pattern.compile("\\{((?:\\d+-)?z(?:oom)?(:?[+-]\\d+)?|x|y|!y|-y|switch:([^}]+))\\}");
     // CHECKSTYLE.ON: SingleSpaceSeparator
 
     private static final Pattern[] ALL_PATTERNS = {
@@ -124,9 +124,14 @@ public class TemplatedTMSTileSource extends TMSTileSource implements TemplatedTi
             case "-y": // PATTERN_NEG_Y
                 replacement = Integer.toString((int) Math.pow(2, zoom)-1-tiley);
                 break;
+            case "switch:":
+                replacement = randomParts[rand.nextInt(randomParts.length)];
+                break;
             default:
                 if (PATTERN_ZOOM.matcher("{" + matcher.group(1) + "}").matches()) {
                     replacement = Integer.toString((inverse_zoom ? -1 * zoom : zoom) + zoom_offset);
+                } else if (PATTERN_SWITCH.matcher("{" + matcher.group(1) + "}").matches()) {
+                    replacement = randomParts[rand.nextInt(randomParts.length)];
                 } else {
                     replacement = '{' + matcher.group(1) + '}';
                 }
