@@ -9,7 +9,7 @@ javac -J-Xmx32m -version
 echo "ant -version"
 ant -version
 
-_JAVA_VER_FOR_ANT=$(java -version 2>&1 | head -n 1 | sed -e 's/openjdk version "\([^"]*\)".*$/\1/')
+_JAVA_VER_FOR_ANT=$(java -version 2>&1 | grep "openjdk version" | sed -e 's/openjdk version "\([^"]*\)".*$/\1/')
 
 echo "Using osm dev user $OSM_USERDEF"
 
