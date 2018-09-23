@@ -14,10 +14,6 @@ env:
   - TARGET="test-single     -Dtest.family=unit"
   - TARGET="test-single     -Dtest.family=functional"
   - TARGET="test-single     -Dtest.family=performance -Dtest.coverage=false"
-  - TARGET="dist-optimized  -Djavac.compiler=javac1.9"
-  - TARGET="test-single     -Djavac.compiler=javac1.9 -Dtest.family=unit"
-  - TARGET="test-single     -Djavac.compiler=javac1.9 -Dtest.family=functional"
-  - TARGET="test-single     -Djavac.compiler=javac1.9 -Dtest.family=performance -Dtest.coverage=false"
 
 script:
   - travis/run.sh
