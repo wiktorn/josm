@@ -11,9 +11,9 @@ jdk:
 
 env:
   - TARGET="dist-optimized"
-  - TARGET="test-single     -Dtest.family=unit"
-  - TARGET="test-single     -Dtest.family=functional"
-  - TARGET="test-single     -Dtest.family=performance -Dtest.coverage=false"
+  - TARGET="test-unit-hardfail
+  - TARGET="test-it-hardfail
+  - TARGET="test-perf-hardfail -Dtest.coverage=false"
 
 script:
   - travis/run.sh
