@@ -1,4 +1,5 @@
 language: java
+install: ant
 
 cache:
   directories:
@@ -6,18 +7,13 @@ cache:
 
 jdk:
   - oraclejdk8
+  - openjdk10
 
 env:
-  - JDK=oraclejdk8 TARGET="dist-optimized"
-  - JDK=oraclejdk8 TARGET="test-single     -Dtest.family=unit"
-  - JDK=oraclejdk8 TARGET="test-single     -Dtest.family=functional"
-  - JDK=oraclejdk8 TARGET="test-single     -Dtest.family=performance -Dtest.coverage=false"
-#  - JDK=oraclejdk8 TARGET="test-it"
-  - JDK=oraclejdk9 TARGET="dist-optimized  -Djavac.compiler=javac1.9"
-  - JDK=oraclejdk9 TARGET="test-single     -Djavac.compiler=javac1.9 -Dtest.family=unit"
-  - JDK=oraclejdk9 TARGET="test-single     -Djavac.compiler=javac1.9 -Dtest.family=functional"
-  - JDK=oraclejdk9 TARGET="test-single     -Djavac.compiler=javac1.9 -Dtest.family=performance -Dtest.coverage=false"
-#  - JDK=oraclejdk9 TARGET="test-it         -Djavac.compiler=javac1.9"
+  - TARGET="dist-optimized"
+  - TARGET="test-single     -Dtest.family=unit"
+  - TARGET="test-single     -Dtest.family=functional"
+  - TARGET="test-single     -Dtest.family=performance -Dtest.coverage=false"
 
 script:
   - travis/run.sh
