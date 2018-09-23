@@ -1374,6 +1374,10 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
                                     newInfo.hasLoadingTiles = true;
                                 }
                             }
+                            if (newInfo.hasOverzoomedTiles && newInfo.hasVisibleTiles && !newInfo.hasAllLoadedTiles && newInfo.hasLoadingTiles) {
+                                // we have all that we could set
+                                break;
+                            }
                         }
                         info = newInfo;
                     }
