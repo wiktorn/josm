@@ -6,8 +6,13 @@ echo "java -version:"
 java -Xmx32m -version
 echo "javac -version:"
 javac -J-Xmx32m -version
-echo
+echo "ant -version"
+ant -version
+
+_JAVA_VER_FOR_ANT=$(java -version 2>&1 | grep "openjdk version" | sed -e 's/openjdk version "\([^"]*\)".*$/\1/')
+
+echo "_JAVA_VER_FOR_ANT: ${_JAVA_VER_FOR_ANT}"
 
 echo "Using osm dev user $OSM_USERDEF"
 
-ANT_OPTS="-Xmx600m" ant $OSM_USERDEF $OSM_PASSWORDDEF $TARGET
+ANT_OPTS="-Xmx600m" ant "-Dant.java.version=${_JAVA_VER_FOR_ANT}" $OSM_USERDEF $OSM_PASSWORDDEF $TARGET
