@@ -5,7 +5,7 @@ die() { echo "$@" 1>&2 ; exit 1; }
 path="$HOME/travis"
 mkdir -p "$path"
 if ! [ -d "$path/apache-ant-1.9.7" ]; then
-	wget -qO- http://apache.openmirror.de/ant/binaries/apache-ant-1.9.7-bin.tar.gz | tar xz -C "$path" || die "Could not install ANT."
+	wget -qO- http://www-eu.apache.org/dist//ant/binaries/apache-ant-1.10.5-bin.tar.gz | tar xz -C "$path" || die "Could not install ANT."
 fi
 ANT=$HOME/travis/apache-ant-1.9.7
 
