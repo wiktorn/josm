@@ -1,27 +1,19 @@
 language: java
-script: (eval "$ANT_INVOCATION $(test $TRAVIS_JDK_VERSION = openjdk8 && echo -DnoJavaFX=true) test-unit-hardfail")
-os: linux
-dist: trusty
-env:
-  - ANT_INVOCATION="xvfb-run ant -Dtest.headless=false"
-  - ANT_INVOCATION="ant -Dtest.headless=true"
+
+cache:
+  directories:
+    - $HOME/travis
+
 jdk:
-  - oraclejdk9
   - oraclejdk8
-  - openjdk8
-matrix:
-  include:
-  - os: osx
-    osx_image: xcode9.2
-    jdk: ~
-    env: ANT_INVOCATION="ant -Dtest.headless=true"
-before_install:
-  - >
-    case "${TRAVIS_OS_NAME:-linux}" in
-    linux)
-      ;;
-    osx)
-      brew update
-      brew install ant
-      ;;
-    esac;
+  - openjdk10
+
+env:
+  - TARGET="dist-optimized"
+  - TARGET="test-unit-hardfail
+  - TARGET="test-it-hardfail
+  - TARGET="test-perf-hardfail -Dtest.coverage=false"
+
+script:
+  - travis/run.sh
+
