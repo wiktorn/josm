@@ -7,8 +7,6 @@ import org.openstreetmap.josm.JOSMFixture;
 import org.openstreetmap.josm.PerformanceTestUtils;
 import org.openstreetmap.josm.PerformanceTestUtils.PerformanceTestTimer;
 import org.openstreetmap.josm.data.imagery.ImageryInfo;
-import org.openstreetmap.josm.data.imagery.TemplatedWMSTileSource;
-import org.openstreetmap.josm.data.projection.Projections;
 
 public class TemplatedTMSTileSourcePerformanceTest {
 
@@ -24,7 +22,7 @@ public class TemplatedTMSTileSourcePerformanceTest {
     }
 
     @Test
-    public void testGetUrl() {
+    public void testGetTileUrl() {
         ImageryInfo testImageryTMS = new ImageryInfo("test imagery",
                 "https://maps{switch:1,2,3,4}.wien.gv.at/basemap/geolandbasemap/normal/google3857/{zoom}/{y}/{x}.png",
                 "tms", null, null);
@@ -37,24 +35,12 @@ public class TemplatedTMSTileSourcePerformanceTest {
             }
             tmsTimer.done();
         }
-
-        ImageryInfo testImageryWMS = new ImageryInfo("test imagery", "http://localhost/{w}/{s}/{e}", "wms", null, null);
-        TemplatedWMSTileSource wmsTs = new TemplatedWMSTileSource(testImageryWMS, Projections.getProjectionByCode("EPSG:3857"));
-
-        for (int testRun = 0; testRun < TEST_RUNS; testRun++) {
-            PerformanceTestTimer wmsTimer = PerformanceTestUtils.startTimer("TemplatedWMSTileSource#getUrl(String)");
-            for (int i = 0; i < TIMES ; i++) {
-                wmsTs.getTileUrl(i % 20, i, i);
-            }
-            wmsTimer.done();
-        }
-
         System.exit(0);
 
     }
 
     public static void main(String args[]) {
         createJOSMFixture();
-        new TemplatedTMSTileSourcePerformanceTest().testGetUrl();
+        new TemplatedTMSTileSourcePerformanceTest().testGetTileUrl();
     }
 }
