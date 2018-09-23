@@ -128,6 +128,7 @@ public class TemplatedTMSTileSource extends TMSTileSource implements TemplatedTi
                 replacement = randomParts[rand.nextInt(randomParts.length)];
                 break;
             default:
+                // handle switch/zoom here, as group will contain parameters and switch will not work
                 if (PATTERN_ZOOM.matcher("{" + matcher.group(1) + "}").matches()) {
                     replacement = Integer.toString((inverse_zoom ? -1 * zoom : zoom) + zoom_offset);
                 } else if (PATTERN_SWITCH.matcher("{" + matcher.group(1) + "}").matches()) {

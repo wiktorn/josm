@@ -15,6 +15,10 @@ import org.junit.Test;
 import org.openstreetmap.josm.data.imagery.ImageryInfo;
 
 
+/**
+ *
+ * Tests for TemplaedTMSTileSource
+ */
 public class TemplatedTMSTileSourceTest {
 
     private final static Collection<String> TMS_IMAGERIES = Arrays.asList(new String[]{
@@ -40,56 +44,71 @@ public class TemplatedTMSTileSourceTest {
              * generate with main method below once TMS_IMAGERIES is filled in
              */
     });
+
+    /**
+     * Check standard template
+     */
     @Test
     public void testGetTileUrl() {
-        ImageryInfo testImageryTMS = new ImageryInfo("test imagery", "http://localhost/{z}/{x}/{y}", "tms", null, null);
-        TemplatedTMSTileSource ts = new TemplatedTMSTileSource(testImageryTMS);
-        assertEquals("http://localhost/1/1/1", ts.getTileUrl(1, 1, 1));
-        assertEquals("http://localhost/2/2/2", ts.getTileUrl(2, 2, 2));
-        assertEquals("http://localhost/3/3/3", ts.getTileUrl(3, 3, 3));
-        assertEquals("http://localhost/4/4/4", ts.getTileUrl(4, 4, 4));
+        checkGetTileUrl(
+                "http://localhost/{z}/{x}/{y}",
+                "http://localhost/1/2/3",
+                "http://localhost/3/1/2"
+                );
     }
 
+
+    /**
+     * Check template with positive zoom index
+     */
     @Test
     public void testGetTileUrl_positive_zoom() {
-        ImageryInfo testImageryTMS = new ImageryInfo("test imagery", "http://localhost/{zoom+5}/{x}/{y}", "tms", null, null);
-        TemplatedTMSTileSource ts = new TemplatedTMSTileSource(testImageryTMS);
-        assertEquals("http://localhost/6/2/3", ts.getTileUrl(1, 2, 3));
-        assertEquals("http://localhost/7/3/4", ts.getTileUrl(2, 3, 4));
-        assertEquals("http://localhost/8/4/5", ts.getTileUrl(3, 4, 5));
-        assertEquals("http://localhost/9/5/6", ts.getTileUrl(4, 5, 6));
+        checkGetTileUrl(
+                "http://localhost/{zoom+5}/{x}/{y}",
+                "http://localhost/6/2/3",
+                "http://localhost/8/1/2"
+                );
     }
 
+    /**
+     * Check template with negative zoom index
+     */
     @Test
     public void testGetTileUrl_negative_zoom() {
-        ImageryInfo testImageryTMS = new ImageryInfo("test imagery", "http://localhost/{zoom-5}/{x}/{y}", "tms", null, null);
-        TemplatedTMSTileSource ts = new TemplatedTMSTileSource(testImageryTMS);
-        assertEquals("http://localhost/-4/2/3", ts.getTileUrl(1, 2, 3));
-        assertEquals("http://localhost/-3/3/4", ts.getTileUrl(2, 3, 4));
-        assertEquals("http://localhost/-2/4/5", ts.getTileUrl(3, 4, 5));
-        assertEquals("http://localhost/-1/5/6", ts.getTileUrl(4, 5, 6));
+        checkGetTileUrl(
+                "http://localhost/{zoom-5}/{x}/{y}",
+                "http://localhost/-4/2/3",
+                "http://localhost/-2/1/2"
+                );
     }
 
+    /**
+     * Check template with inverse zoom index
+     */
     @Test
     public void testGetTileUrl_inverse_negative_zoom() {
-        ImageryInfo testImageryTMS = new ImageryInfo("test imagery", "http://localhost/{5-zoom}/{x}/{y}", "tms", null, null);
-        TemplatedTMSTileSource ts = new TemplatedTMSTileSource(testImageryTMS);
-        assertEquals("http://localhost/4/2/3", ts.getTileUrl(1, 2, 3));
-        assertEquals("http://localhost/3/3/4", ts.getTileUrl(2, 3, 4));
-        assertEquals("http://localhost/2/4/5", ts.getTileUrl(3, 4, 5));
-        assertEquals("http://localhost/1/5/6", ts.getTileUrl(4, 5, 6));
+        checkGetTileUrl(
+                "http://localhost/{5-zoom}/{x}/{y}",
+                "http://localhost/4/2/3",
+                "http://localhost/2/1/2"
+                );
     }
 
+    /**
+     * Check template with inverse zoom index and negative zoom index
+     */
     @Test
     public void testGetTileUrl_both_offsets() {
-        ImageryInfo testImageryTMS = new ImageryInfo("test imagery", "http://localhost/{10-zoom-5}/{x}/{y}", "tms", null, null);
-        TemplatedTMSTileSource ts = new TemplatedTMSTileSource(testImageryTMS);
-        assertEquals("http://localhost/4/2/3", ts.getTileUrl(1, 2, 3));
-        assertEquals("http://localhost/3/3/4", ts.getTileUrl(2, 3, 4));
-        assertEquals("http://localhost/2/4/5", ts.getTileUrl(3, 4, 5));
-        assertEquals("http://localhost/1/5/6", ts.getTileUrl(4, 5, 6));
+        checkGetTileUrl(
+                "http://localhost/{10-zoom-5}/{x}/{y}",
+                "http://localhost/4/2/3",
+                "http://localhost/2/1/2"
+                );
     }
 
+    /**
+     * Test template with switch
+     */
     @Test
     public void testGetTileUrl_switch() {
         ImageryInfo testImageryTMS = new ImageryInfo("test imagery", "http://{switch:a,b,c}.localhost/{10-zoom-5}/{x}/{y}", "tms", null, null);
@@ -129,7 +148,32 @@ public class TemplatedTMSTileSourceTest {
                 );
     }
 
+    @Test
+    public void testGetTileUrl_yahoo() {
+        checkGetTileUrl(
+                "http://localhost/{z}/{x}/{!y}",
+                "http://localhost/1/2/-3",
+                "http://localhost/3/1/1"
+                );
 
+    }
+
+    @Test
+    public void testGetTileUrl_negative_y() {
+        checkGetTileUrl(
+                "http://localhost/{z}/{x}/{-y}",
+                "http://localhost/1/2/-2",
+                "http://localhost/3/1/5"
+                );
+
+    }
+
+    private void checkGetTileUrl(String url, String expected123, String expected312) {
+        ImageryInfo testImageryTMS = new ImageryInfo("test imagery", url, "tms", null, null);
+        TemplatedTMSTileSource ts = new TemplatedTMSTileSource(testImageryTMS);
+        assertEquals(expected123, ts.getTileUrl(1, 2, 3));
+        assertEquals(expected312, ts.getTileUrl(3, 1, 2));
+    }
     /**
      * Tests all entries in TEST_DATA. This test will fail if {switch:...} template is used
      */
