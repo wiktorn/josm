@@ -1187,9 +1187,16 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
 
     private final TileSet nullTileSet = new TileSet();
 
+    /**
+     * This class is multi-thread unsafe. All calls should be from EDT thread
+     * @author w
+     *
+     */
     protected class TileSet extends TileRange {
 
-        private volatile TileSetInfo info;
+        private TileSetInfo info;
+        private List<Tile> allExistingTiles;
+        private List<Tile> allTiles;
 
         protected TileSet(TileXY t1, TileXY t2, int zoom) {
             super(t1, t2, zoom);
@@ -1231,12 +1238,24 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
          * Get all tiles represented by this TileSet that are already in the tileCache.
          * @return all tiles represented by this TileSet that are already in the tileCache
          */
-        private List<Tile> allExistingTiles() {
-            return allTiles(AbstractTileSourceLayer.this::getTile);
+        protected List<Tile> allExistingTiles() {
+            if (allExistingTiles != null) {
+                return allExistingTiles;
+            }
+            allExistingTiles = allTiles(AbstractTileSourceLayer.this::getTile);
+            return allExistingTiles;
         }
 
-        private List<Tile> allTilesCreate() {
-            return allTiles(AbstractTileSourceLayer.this::getOrCreateTile);
+        protected List<Tile> allTilesCreate() {
+            if (allTiles != null) {
+                return allTiles;
+            }
+            allTiles = allTiles(AbstractTileSourceLayer.this::getOrCreateTile);
+            if (allExistingTiles == null) {
+                // good enough estimate
+                allExistingTiles = allTiles;
+            }
+            return allTiles;
         }
 
         private List<Tile> allTiles(Function<TilePosition, Tile> mapper) {
