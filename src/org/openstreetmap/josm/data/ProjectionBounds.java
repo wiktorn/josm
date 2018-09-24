@@ -1,6 +1,8 @@
 // License: GPL. For details, see LICENSE file.
 package org.openstreetmap.josm.data;
 
+import java.util.Objects;
+
 import org.openstreetmap.josm.data.coor.EastNorth;
 import org.openstreetmap.josm.tools.Utils;
 
@@ -190,5 +192,25 @@ public class ProjectionBounds {
      */
     public boolean hasExtend() {
         return !Utils.equalsEpsilon(minEast, maxEast) || !Utils.equalsEpsilon(minNorth, maxNorth);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other == null) {
+            return false;
+        }
+        if (other instanceof ProjectionBounds) {
+            ProjectionBounds otherBounds = (ProjectionBounds) other;
+            return Double.doubleToLongBits(this.maxEast) == Double.doubleToLongBits(otherBounds.maxEast) &&
+                    Double.doubleToLongBits(this.minEast) == Double.doubleToLongBits(otherBounds.minEast) &&
+                    Double.doubleToLongBits(this.maxNorth) == Double.doubleToLongBits(otherBounds.maxNorth) &&
+                    Double.doubleToLongBits(this.minNorth) == Double.doubleToLongBits(otherBounds.minNorth);
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(this.maxEast, this.minEast, this.maxNorth, this.minNorth);
     }
 }

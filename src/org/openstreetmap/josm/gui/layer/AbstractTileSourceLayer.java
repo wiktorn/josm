@@ -59,6 +59,7 @@ import javax.swing.JPopupMenu;
 import javax.swing.JSeparator;
 import javax.swing.Timer;
 
+import org.apache.commons.jcs.utils.struct.LRUMap;
 import org.openstreetmap.gui.jmapviewer.AttributionSupport;
 import org.openstreetmap.gui.jmapviewer.MemoryTileCache;
 import org.openstreetmap.gui.jmapviewer.OsmTileLoader;
@@ -1373,34 +1374,26 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
 
         private TileSetInfo getTileSetInfo() {
             if (info == null) {
-                synchronized (this) {
-                    if (info == null) {
-                        List<Tile> allTiles = this.allExistingTiles();
-                        TileSetInfo newInfo = new TileSetInfo();
-                        newInfo.hasLoadingTiles = allTiles.size() < this.size();
-                        newInfo.hasAllLoadedTiles = true;
-                        for (Tile t : allTiles) {
-                            if ("no-tile".equals(t.getValue("tile-info"))) {
-                                newInfo.hasOverzoomedTiles = true;
-                            }
-                            if (t.isLoaded()) {
-                                if (!t.hasError()) {
-                                    newInfo.hasVisibleTiles = true;
-                                }
-                            } else {
-                                newInfo.hasAllLoadedTiles = false;
-                                if (t.isLoading()) {
-                                    newInfo.hasLoadingTiles = true;
-                                }
-                            }
-                            if (newInfo.hasOverzoomedTiles && newInfo.hasVisibleTiles && !newInfo.hasAllLoadedTiles && newInfo.hasLoadingTiles) {
-                                // we have all that we could set
-                                break;
-                            }
+                List<Tile> allTiles = this.allExistingTiles();
+                TileSetInfo newInfo = new TileSetInfo();
+                newInfo.hasLoadingTiles = allTiles.size() < this.size();
+                newInfo.hasAllLoadedTiles = true;
+                for (Tile t : allTiles) {
+                    if ("no-tile".equals(t.getValue("tile-info"))) {
+                        newInfo.hasOverzoomedTiles = true;
+                    }
+                    if (t.isLoaded()) {
+                        if (!t.hasError()) {
+                            newInfo.hasVisibleTiles = true;
                         }
-                        info = newInfo;
+                    } else {
+                        newInfo.hasAllLoadedTiles = false;
+                        if (t.isLoading()) {
+                            newInfo.hasLoadingTiles = true;
+                        }
                     }
                 }
+                info = newInfo;
             }
             return info;
         }
@@ -1486,14 +1479,32 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         // old and unused.
     }
 
+    // cache recent DeepTileSet for reuse in following paint events
+    private LRUMap<List<Long>, DeepTileSet> deepTileSetCache = new LRUMap<List<Long>, DeepTileSet>(1);
+    private final DeepTileSet getDeepTileSet(ProjectionBounds pb, int maxZoom) {
+        final List<Long> key = Arrays.asList(
+                Double.doubleToLongBits(pb.maxEast),
+                Double.doubleToLongBits(pb.minEast),
+                Double.doubleToLongBits(pb.maxNorth),
+                Double.doubleToLongBits(pb.minNorth),
+                Long.valueOf(maxZoom)
+                );
+        DeepTileSet ret = deepTileSetCache.get(key);
+        if (ret != null) {
+            return ret;
+        }
+        ret = new DeepTileSet(pb, getMinZoomLvl(), maxZoom);
+        deepTileSetCache.put(key, ret);
+        return ret;
+    }
+
     private void drawInViewArea(Graphics2D g, MapView mv, ProjectionBounds pb) {
         int zoom = currentZoomLevel;
         if (getDisplaySettings().isAutoZoom()) {
             zoom = getBestZoom();
         }
 
-        DeepTileSet dts = new DeepTileSet(pb, getMinZoomLvl(), zoom);
-
+        DeepTileSet dts = getDeepTileSet(pb, zoom);
         int displayZoomLevel = zoom;
 
         boolean noTilesAtZoom = false;
@@ -2003,4 +2014,8 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             getDisplaySettings().setOffsetBookmark(bookmark);
         }
     }
+
+//    public void invalidate() {
+//        visibleDeepTileSet = new DeepTileSet(pb, getMinZoomLvl(), getBestZoom());
+//    }
 }
