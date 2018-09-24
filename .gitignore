@@ -13,3 +13,9 @@
 /checkstyle-josm.xml
 /findbugs-josm.xml
 /bintest/
+/plugin-check/
+/taginfo-img/
+/tools/checkstyle/target/
+josm.log
+test_BLOCK_v2.data
+test_BLOCK_v2.key
