@@ -1581,9 +1581,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
                          *  use them to paint overzoomed tiles.
                          *  See: #14562
                          */
-                        if (!ts.hasLoadingTiles()) {
                             ts2.loadAllTiles(false);
-                        }
                     }
                 }
                 if (ts2.tooLarge()) {
