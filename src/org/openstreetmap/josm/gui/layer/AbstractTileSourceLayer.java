@@ -1113,15 +1113,15 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         }
     }
 
-    private void myDrawString(Graphics g, String text, int x, int y) {
+    private int myDrawString(Graphics g, String text, int x, int y) {
         Color oldColor = g.getColor();
         String textToDraw = text;
-        if (g.getFontMetrics().stringWidth(text) > tileSource.getTileSize()) {
+        if (g.getFontMetrics().stringWidth(text) > tileSource.getTileSize()*2) {
             // text longer than tile size, split it
             StringBuilder line = new StringBuilder();
             StringBuilder ret = new StringBuilder();
             for (String s: text.split(" ")) {
-                if (g.getFontMetrics().stringWidth(line.toString() + s) > tileSource.getTileSize()) {
+                if (g.getFontMetrics().stringWidth(line.toString() + s) > tileSource.getTileSize()*2) {
                     ret.append(line).append('\n');
                     line.setLength(0);
                 }
@@ -1138,6 +1138,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             g.drawString(s, x, y + offset);
             offset += g.getFontMetrics().getHeight() + 3;
         }
+        return offset;
     }
 
     private void paintTileText(Tile tile, Graphics2D g) {
@@ -1235,7 +1236,8 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             return allTiles(AbstractTileSourceLayer.this::getTile);
         }
 
-        private List<Tile> allTilesCreate() {
+        private synchronized List<Tile> allTilesCreate() {
+            info = null;
             return allTiles(AbstractTileSourceLayer.this::getOrCreateTile);
         }
 
@@ -1352,6 +1354,10 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             return getTileSetInfo().hasAllLoadedTiles;
         }
 
+        public boolean reprojectedTiles() {
+            return getTileSetInfo().reprojectedTiles;
+        }
+
         private TileSetInfo getTileSetInfo() {
             if (info == null) {
                 synchronized (this) {
@@ -1359,10 +1365,14 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
                         List<Tile> allTiles = this.allExistingTiles();
                         TileSetInfo newInfo = new TileSetInfo();
                         newInfo.hasLoadingTiles = allTiles.size() < this.size();
-                        newInfo.hasAllLoadedTiles = true;
+                        newInfo.hasAllLoadedTiles = true && !newInfo.hasLoadingTiles;
+                        newInfo.reprojectedTiles = false;
                         for (Tile t : allTiles) {
                             if ("no-tile".equals(t.getValue("tile-info"))) {
                                 newInfo.hasOverzoomedTiles = true;
+                            }
+                            if (!newInfo.reprojectedTiles && t instanceof ReprojectionTile) {
+                                newInfo.reprojectedTiles = true;
                             }
                             if (t.isLoaded()) {
                                 if (!t.hasError()) {
@@ -1392,6 +1402,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
      * Data container to hold information about a {@code TileSet} class.
      */
     private static class TileSetInfo {
+        public boolean reprojectedTiles;
         boolean hasVisibleTiles;
         boolean hasOverzoomedTiles;
         boolean hasLoadingTiles;
@@ -1464,14 +1475,14 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
     }
 
     private void drawInViewArea(Graphics2D g, MapView mv, ProjectionBounds pb) {
-        int zoom = currentZoomLevel;
+        int zoom = currentZoomLevel; // tiles zoom level that will be downloaded
         if (getDisplaySettings().isAutoZoom()) {
             zoom = getBestZoom();
         }
 
         DeepTileSet dts = new DeepTileSet(pb, getMinZoomLvl(), zoom);
 
-        int displayZoomLevel = zoom;
+        int displayZoomLevel = zoom; // tiles zoom level that will be shown
 
         boolean noTilesAtZoom = false;
         if (getDisplaySettings().isAutoZoom() && getDisplaySettings().isAutoLoad()) {
@@ -1490,10 +1501,11 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             // Do binary search between currentZoomLevel and displayZoomLevel
             while (zoom > displayZoomLevel && !ts0.hasVisibleTiles() && ts0.hasOverzoomedTiles()) {
                 zoom = (zoom + displayZoomLevel)/2;
+//                zoom--;
                 ts0 = dts.getTileSet(zoom);
             }
 
-            setZoomLevel(zoom, false);
+//            setZoomLevel(zoom, false);
 
             // If all tiles at displayZoomLevel is loaded, load all tiles at next zoom level
             // to make sure there're really no more zoom levels
@@ -1509,6 +1521,8 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
                 zoom--;
                 ts0 = dts.getTileSet(zoom);
             }
+            setZoomLevel(zoom, false);
+
         } else if (getDisplaySettings().isAutoZoom()) {
             setZoomLevel(zoom, false);
         }
@@ -1523,7 +1537,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
 
         if (displayZoomLevel != zoom) {
             ts = dts.getTileSet(displayZoomLevel);
-            if (!dts.getTileSet(displayZoomLevel).hasAllLoadedTiles() && displayZoomLevel < zoom) {
+            if (!ts.hasAllLoadedTiles() && displayZoomLevel < zoom) {
                 // if we are showing tiles from lower zoom level, ensure that all tiles are loaded as they are few,
                 // and should not trash the tile cache
                 // This is especially needed when dts.getTileSet(zoom).tooLarge() is true and we are not loading tiles
@@ -1608,16 +1622,22 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             myDrawString(g, tr("No tiles at this zoom level"), 120, 120);
         }
         if (Logging.isDebugEnabled()) {
-            myDrawString(g, tr("Current zoom: {0}", currentZoomLevel), 50, 140);
-            myDrawString(g, tr("Display zoom: {0}", displayZoomLevel), 50, 155);
-            myDrawString(g, tr("Pixel scale: {0}", getScaleFactor(currentZoomLevel)), 50, 170);
-            myDrawString(g, tr("Best zoom: {0}", getBestZoom()), 50, 185);
-            myDrawString(g, tr("Estimated cache size: {0}", estimateTileCacheSize()), 50, 200);
+            int offset = 140;
+            offset += myDrawString(g, tr("Current zoom: {0}", currentZoomLevel), 50, offset);
+            offset += myDrawString(g, tr("Display zoom: {0}", displayZoomLevel), 50, offset);
+            offset += myDrawString(g, tr("Pixel scale: {0}", getScaleFactor(currentZoomLevel)), 50, offset);
+            offset += myDrawString(g, tr("Best zoom: {0}", getBestZoom()), 50, offset);
+            offset += myDrawString(g, tr("Estimated cache size: {0}", estimateTileCacheSize()), 50, offset);
+            offset += myDrawString(g, tr("TileSet({0}).hasAllLoadedTiles: {1}",displayZoomLevel, ts.getTileSetInfo().hasAllLoadedTiles), 50, offset);
+            offset += myDrawString(g, tr("TileSet({0}).hasLoadingTiles: {1}", displayZoomLevel, ts.getTileSetInfo().hasLoadingTiles), 50, offset);
+            offset += myDrawString(g, tr("TileSet({0}).hasVisibileTiles: {1}", displayZoomLevel, ts.getTileSetInfo().hasVisibleTiles), 50, offset);
+            offset += myDrawString(g, tr("TileSet({0}).hasOverzoomedTiles: {1}", displayZoomLevel, ts.getTileSetInfo().hasOverzoomedTiles), 50, offset);
+            offset += myDrawString(g, tr("TileSet({0}).reprojectedTiles: {1}", displayZoomLevel, ts.getTileSetInfo().reprojectedTiles), 50, offset);
             if (tileLoader instanceof TMSCachedTileLoader) {
-                int offset = 200;
+//                int offset = 260;
                 for (String part: ((TMSCachedTileLoader) tileLoader).getStats().split("\n")) {
-                    offset += 15;
-                    myDrawString(g, tr("Cache stats: {0}", part), 50, offset);
+//                    offset += 15;
+                    offset += myDrawString(g, tr("Cache stats: {0}", part), 50, offset);
                 }
             }
         }
