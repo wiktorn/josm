@@ -1303,6 +1303,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
          * @param missed a consumer to call for each missed tile.
          */
         public void visitTiles(Consumer<Tile> visitor, Consumer<TilePosition> missed) {
+            //TODO: custom thread pool
             tilePositions().parallel().forEach(tp -> visitTilePosition(visitor, tp, missed));
         }
 
@@ -1604,8 +1605,14 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         g.setFont(InfoFont);
 
         // The current zoom tileset should have all of its tiles due to the loadAllTiles(), unless it to tooLarge()
-        for (Tile t : ts.allExistingTiles()) {
-            this.paintTileText(t, g);
+        if (ts.hasAllLoadedTiles()) {
+            for (Tile t : ts.allExistingTiles()) {
+                if (!("no-tile".equals(t.getValue("tile-info")) && ts.hasLoadingTiles())) {
+                    // do not paint "No tile at this zoom level at tiles untill all tiles are loaded
+                    // to avoid error message flickering
+                    this.paintTileText(t, g);
+                }
+            }
         }
 
         EastNorth min = pb.getMin();
