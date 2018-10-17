@@ -1276,7 +1276,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
             return Comparator.comparingInt(t -> Math.abs(t.getXtile() - centerX) + Math.abs(t.getYtile() - centerY));
         }
 
-        private void loadAllTiles(boolean force) {
+        protected void loadAllTiles(boolean force) {
             if (!getDisplaySettings().isAutoLoad() && !force)
                 return;
             List<Tile> allTiles = allTilesCreate();
@@ -1479,7 +1479,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         // old and unused.
     }
 
-    private void drawInViewArea(Graphics2D g, MapView mv, ProjectionBounds pb) {
+    protected void drawInViewArea(Graphics2D g, MapView mv, ProjectionBounds pb) {
         int zoom = currentZoomLevel; // tiles zoom level that will be downloaded
         if (getDisplaySettings().isAutoZoom()) {
             zoom = getBestZoom();
@@ -1492,6 +1492,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         boolean noTilesAtZoom = false;
         if (getDisplaySettings().isAutoZoom() && getDisplaySettings().isAutoLoad()) {
             // Auto-detection of tilesource maxzoom (currently fully works only for Bing)
+            // this conditional set displayZoomLevel and zoom
             TileSet ts0 = dts.getTileSet(zoom);
             if (!ts0.hasVisibleTiles() && (!ts0.hasLoadingTiles() || ts0.hasOverzoomedTiles())) {
                 noTilesAtZoom = true;
@@ -1512,16 +1513,23 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
 
 //            setZoomLevel(zoom, false);
 
-            // If all tiles at displayZoomLevel is loaded, load all tiles at next zoom level
-            // to make sure there're really no more zoom levels
-            // loading is done in the next if section
+            /*
+             *  If zoom level was lowered above (it's lower than dts.maxZoom which equals to getBestZoom())
+             *  and all tiles at displayZoomLevel are loaded, try to load tiles from the next zoom level
+             *  to make sure that there are no tiles at higher zoom levels. If there is no tiles at new level,
+             *  next conditional will lower it again
+             *  NB: loading is done in next section.
+             */
             if (zoom == displayZoomLevel && !ts0.hasLoadingTiles() && zoom < dts.maxZoom) {
                 zoom++;
                 ts0 = dts.getTileSet(zoom);
             }
-            // When we have overzoomed tiles and all tiles at current zoomlevel is loaded,
-            // load tiles at previovus zoomlevels until we have all tiles on screen is loaded.
-            // loading is done in the next if section
+
+            /*
+             * If there are lower zoom levels available and there are no tiles at current zoom level
+             * and all tiles have finished loading, try loading tiles from lower zoom level
+             * NB: loading is done in next section
+             */
             while (zoom > dts.minZoom && ts0.hasOverzoomedTiles() && !ts0.hasLoadingTiles()) {
                 zoom--;
                 ts0 = dts.getTileSet(zoom);

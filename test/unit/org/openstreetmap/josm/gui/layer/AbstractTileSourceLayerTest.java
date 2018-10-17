@@ -6,7 +6,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import java.awt.Point;
+import java.awt.Graphics2D;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -17,23 +19,32 @@ import org.junit.Test;
 import org.openstreetmap.gui.jmapviewer.Coordinate;
 import org.openstreetmap.gui.jmapviewer.Projected;
 import org.openstreetmap.gui.jmapviewer.Tile;
-import org.openstreetmap.gui.jmapviewer.TileRange;
 import org.openstreetmap.gui.jmapviewer.TileXY;
 import org.openstreetmap.gui.jmapviewer.interfaces.ICoordinate;
 import org.openstreetmap.gui.jmapviewer.interfaces.IProjected;
 import org.openstreetmap.gui.jmapviewer.interfaces.TileCache;
+import org.openstreetmap.gui.jmapviewer.interfaces.TileJob;
 import org.openstreetmap.gui.jmapviewer.interfaces.TileLoader;
 import org.openstreetmap.gui.jmapviewer.interfaces.TileLoaderListener;
 import org.openstreetmap.gui.jmapviewer.tilesources.AbstractTMSTileSource;
+import org.openstreetmap.gui.jmapviewer.tilesources.TMSTileSource;
 import org.openstreetmap.gui.jmapviewer.tilesources.TileSourceInfo;
+import org.openstreetmap.josm.data.ProjectionBounds;
 import org.openstreetmap.josm.data.imagery.ImageryInfo;
 import org.openstreetmap.josm.data.imagery.TileLoaderFactory;
 import org.openstreetmap.josm.data.osm.DataSet;
+import org.openstreetmap.josm.data.projection.Projection;
+import org.openstreetmap.josm.data.projection.ProjectionRegistry;
+import org.openstreetmap.josm.data.projection.Projections;
 import org.openstreetmap.josm.gui.MainApplication;
+import org.openstreetmap.josm.gui.MapView;
 import org.openstreetmap.josm.gui.layer.imagery.ImageryFilterSettings;
+import org.openstreetmap.josm.gui.layer.imagery.TilePosition;
 import org.openstreetmap.josm.testutils.JOSMTestRules;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import mockit.Expectations;
+import mockit.Mocked;
 
 /**
  * Test of the base {@link AbstractTileSourceLayer} class
@@ -47,27 +58,9 @@ public class AbstractTileSourceLayerTest {
     @SuppressFBWarnings(value = "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
     public JOSMTestRules test = new JOSMTestRules().projection().main();
 
-    private static final class TMSTileStubSource extends AbstractTMSTileSource {
+    private static final class TMSTileStubSource extends TMSTileSource {
         private TMSTileStubSource() {
             super(new TileSourceInfo());
-        }
-
-        @Override
-        public double getDistance(double la1, double lo1, double la2, double lo2) {
-            // TODO Auto-generated method stub
-            return 0;
-        }
-
-        @Override
-        public Point latLonToXY(double lat, double lon, int zoom) {
-            // TODO Auto-generated method stub
-            return null;
-        }
-
-        @Override
-        public ICoordinate xyToLatLon(int x, int y, int zoom) {
-            // TODO Auto-generated method stub
-            return null;
         }
 
         @Override
@@ -90,22 +83,6 @@ public class AbstractTileSourceLayerTest {
             return new TileXY(p.getEast() / 2, p.getNorth() / 2);
         }
 
-        @Override
-        public boolean isInside(Tile inner, Tile outer) {
-            // TODO Auto-generated method stub
-            return false;
-        }
-
-        @Override
-        public TileRange getCoveringTileRange(Tile tile, int newZoom) {
-            // TODO Auto-generated method stub
-            return null;
-        }
-
-        @Override
-        public String getServerCRS() {
-            return "EPSG:3857";
-        }
     }
 
     private static class TileSourceStubLayer extends AbstractTileSourceLayer<AbstractTMSTileSource> {
@@ -121,7 +98,44 @@ public class AbstractTileSourceLayerTest {
                 @Override
                 public TileLoader makeTileLoader(TileLoaderListener listener, Map<String, String> headers,
                         long minimumExpiryTime) {
-                    return null;
+                    return new TileLoader() {
+                        @Override
+                        public TileJob createTileLoaderJob(Tile tile) {
+                            return new TileJob() {
+                                boolean loaded = false;
+                                @Override
+                                public void run() {
+                                    // TODO Auto-generated method stub
+
+                                }
+
+                                @Override
+                                public void submit() {
+                                    // TODO Auto-generated method stub
+                                    submit(false);
+                                }
+
+                                @Override
+                                public void submit(boolean force) {
+                                    // TODO Auto-generated method stub
+                                    if (loaded && !force) {
+                                        return;
+                                    }
+                                    try {
+                                        tile.getUrl();
+                                        tile.finishLoading();
+                                    } catch (IOException e) {
+                                    }
+                                }
+
+                            };
+                        }
+
+                        @Override
+                        public void cancelOutstandingTasks() {
+                        }
+
+                    };
                 }
             };
         }
@@ -143,6 +157,8 @@ public class AbstractTileSourceLayerTest {
 
     private TileSourceStubLayer testLayer;
     AtomicBoolean invalidated = new AtomicBoolean();
+
+
 
     /**
      * Create test layer
@@ -204,4 +220,93 @@ public class AbstractTileSourceLayerTest {
     public void testTileSourceLayerPopup() {
         assertNotNull(testLayer.new TileSourceLayerPopup(100, 100));
     }
+
+    @Test
+    public void testDrawInViewArea(@Mocked Graphics2D graphics2d, @Mocked MapView mapView, @Mocked TMSTileStubSource tileSource) throws Exception {
+        Projection proj = Projections.getProjectionByCode("EPSG:3857");
+        ProjectionBounds bounds = proj.getWorldBoundsBoxEastNorth();
+        /// 0/0/0 is whole world as we need 4 tiles (1024/256) to cover screen - we will be working on zoom level 2
+        new Expectations(MapView.class) {{
+            mapView.getWidth(); result = 1024;
+            mapView.getHeight(); result = 1024;
+            mapView.getEastNorth(0, 0); result = bounds.getMin();
+            mapView.getEastNorth(1024, 1024); result = bounds.getMax();
+        }};
+        new Expectations(TMSTileStubSource.class){{
+            tileSource.getTileUrl(1, anyInt, anyInt); times=0;
+            tileSource.getTileUrl(2, anyInt, anyInt); times=16;
+            tileSource.getTileUrl(3, anyInt, anyInt); times=0;
+            tileSource.getTileUrl(4, anyInt, anyInt); times=0;
+        }};
+        testLayer.drawInViewArea(graphics2d, mapView, bounds);
+    }
+
+    @Test
+    public void testDrawInViewArea_allTilesLoaded(@Mocked Graphics2D graphics2d, @Mocked MapView mapView, @Mocked TMSTileStubSource tileSource) throws Exception {
+        Projection proj = Projections.getProjectionByCode("EPSG:3857");
+        ProjectionRegistry.setProjection(proj);
+        ProjectionBounds bounds = proj.getWorldBoundsBoxEastNorth();
+        /// 0/0/0 is whole world as we need 4 tiles (1024/256) to cover screen - we will be working on zoom level 2
+        // mark all tiles as already loaded
+        new Expectations(MapView.class) {{
+            mapView.getWidth(); result = 1024;
+            mapView.getHeight(); result = 1024;
+            mapView.getEastNorth(0, 0); result = bounds.getMin();
+            mapView.getEastNorth(1024, 1024); result = bounds.getMax();
+        }};
+        new Expectations(TMSTileStubSource.class){{
+            tileSource.getServerCRS(); result = "EPSG:3857";
+            tileSource.getTileUrl(1, anyInt, anyInt); times=0;
+            tileSource.getTileUrl(2, anyInt, anyInt); times=16;
+            tileSource.getTileUrl(3, anyInt, anyInt); times=0;
+            tileSource.getTileUrl(4, anyInt, anyInt); times=0;
+        }};
+        testLayer.getTileSet(bounds, 2).loadAllTiles(true);
+        new Expectations(TMSTileStubSource.class){{
+            tileSource.getTileUrl(1, anyInt, anyInt); times=0;
+            tileSource.getTileUrl(2, anyInt, anyInt); times=0;
+            tileSource.getTileUrl(3, anyInt, anyInt); times=0;
+            tileSource.getTileUrl(4, anyInt, anyInt); times=0;
+        }};
+        testLayer.drawInViewArea(graphics2d, mapView, bounds);
+    }
+
+    @Test
+    public void testDrawInViewArea_missingAllTiles(@Mocked Graphics2D graphics2d, @Mocked MapView mapView, @Mocked TMSTileStubSource tileSource) throws Exception {
+        Projection proj = Projections.getProjectionByCode("EPSG:3857");
+        ProjectionRegistry.setProjection(proj);
+        ProjectionBounds bounds = proj.getWorldBoundsBoxEastNorth();
+        /// 0/0/0 is whole world as we need 4 tiles (1024/256) to cover screen - we will be working on zoom level 2
+        // mark all tiles as already loaded
+        new Expectations(MapView.class) {{
+            mapView.getWidth(); result = 1024;
+            mapView.getHeight(); result = 1024;
+            mapView.getEastNorth(0, 0); result = bounds.getMin();
+            mapView.getEastNorth(1024, 1024); result = bounds.getMax();
+        }};
+        new Expectations(TMSTileStubSource.class){{
+            tileSource.getServerCRS(); result = "EPSG:3857";
+            tileSource.getTileUrl(1, anyInt, anyInt); times=0;
+            tileSource.getTileUrl(2, anyInt, anyInt); times=16;
+            tileSource.getTileUrl(3, anyInt, anyInt); times=0;
+            tileSource.getTileUrl(4, anyInt, anyInt); times=0;
+        }};
+        AbstractTileSourceLayer<AbstractTMSTileSource>.TileSet ts = testLayer.getTileSet(bounds, 2);
+        ts.loadAllTiles(true);
+        ArrayList<TilePosition> missed = new ArrayList<>();
+        ts.visitTiles(x -> {
+            x.putValue("tile-info", "no-tile");
+            x.setError("Failure to load");
+        }, missed::add);
+
+        new Expectations(TMSTileStubSource.class){{
+            tileSource.getTileUrl(1, anyInt, anyInt); times=0;
+            tileSource.getTileUrl(2, anyInt, anyInt); times=0;
+            tileSource.getTileUrl(3, anyInt, anyInt); times=16<<2;
+            tileSource.getTileUrl(4, anyInt, anyInt); times=0;
+        }};
+        testLayer.drawInViewArea(graphics2d, mapView, bounds);
+    }
+
 }
+
