@@ -88,7 +88,7 @@ public class DefaultNameFormatter implements NameFormatter, HistoryNameFormatter
      * A ? prefix indicates a boolean value, for which the key (instead of the value) is used.
      */
     private static final String[] DEFAULT_NAMING_TAGS_FOR_RELATIONS = {"name", "ref", "restriction", "landuse", "natural",
-        "leisure", "amenity", "public_transport", ":LocationCode", "note", "?building"};
+        "leisure", "amenity", "public_transport", ":LocationCode", "note", "?building", "?building:part"};
 
     /** the current list of tags used as naming tags in relations */
     private static List<String> namingTagsForRelations;
@@ -112,19 +112,25 @@ public class DefaultNameFormatter implements NameFormatter, HistoryNameFormatter
     }
 
     /**
-     * Decorates the name of primitive with its id, if the preference
-     * <code>osm-primitives.showid</code> is set. Shows unique id if osm-primitives.showid.new-primitives is set
+     * Decorates the name of primitive with its id and version, if the preferences
+     * <code>osm-primitives.showid</code> and <code>osm-primitives.showversion</code> are set.
+     * Shows unique id if <code>osm-primitives.showid.new-primitives</code> is set
      *
-     * @param name  the name without the id
+     * @param name the name without the id
      * @param primitive the primitive
      */
     protected void decorateNameWithId(StringBuilder name, IPrimitive primitive) {
+        int version = primitive.getVersion();
         if (Config.getPref().getBoolean("osm-primitives.showid")) {
-            if (Config.getPref().getBoolean("osm-primitives.showid.new-primitives")) {
-                name.append(tr(" [id: {0}]", primitive.getUniqueId()));
+            long id = Config.getPref().getBoolean("osm-primitives.showid.new-primitives") ?
+                    primitive.getUniqueId() : primitive.getId();
+            if (Config.getPref().getBoolean("osm-primitives.showversion") && version > 0) {
+                name.append(tr(" [id: {0}, v{1}]", id, version));
             } else {
-                name.append(tr(" [id: {0}]", primitive.getId()));
+                name.append(tr(" [id: {0}]", id));
             }
+        } else if (Config.getPref().getBoolean("osm-primitives.showversion")) {
+            name.append(tr(" [v{0}]", version));
         }
     }
 

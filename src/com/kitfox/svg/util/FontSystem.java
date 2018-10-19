@@ -41,10 +41,13 @@ import com.kitfox.svg.Glyph;
 import com.kitfox.svg.MissingGlyph;
 import java.awt.Canvas;
 import java.awt.FontMetrics;
+import java.awt.GraphicsEnvironment;
 import java.awt.font.FontRenderContext;
 import java.awt.font.GlyphMetrics;
 import java.awt.font.GlyphVector;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Locale;
 
 /**
  *
@@ -55,9 +58,51 @@ public class FontSystem extends Font
     java.awt.Font sysFont;
     FontMetrics fm;
 
-    HashMap<String, Glyph> glyphCache = new HashMap<String, Glyph>();
+    HashMap<String, Glyph> glyphCache = new HashMap<>();
     
-    public FontSystem(String fontFamily, int fontStyle, int fontWeight, int fontSize)
+    static HashSet<String> sysFontNames = new HashSet<>();
+
+    public static boolean checkIfSystemFontExists(String fontName)
+    {
+        if (sysFontNames.isEmpty())
+        {
+            for (String name: GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames(Locale.ENGLISH))
+            {
+                sysFontNames.add(name);
+            }
+        }
+
+        return sysFontNames.contains(fontName);
+    }
+
+    public static FontSystem createFont(String fontFamily, int fontStyle, int fontWeight, int fontSize)
+    {
+        String[] families = fontFamily.split(",");
+        for (String fontName: families)
+        {
+            String javaFontName = mapJavaFontName(fontName);
+            if (checkIfSystemFontExists(javaFontName))
+            {
+                return new FontSystem(javaFontName, fontStyle, fontWeight, fontSize);
+            }
+        }
+
+        return null;
+    }
+
+    private static String mapJavaFontName(String fontName) {
+        if ("serif".equals(fontName)) {
+            return java.awt.Font.SERIF;
+        } else if ("sans-serif".equals(fontName)) {
+            return java.awt.Font.SANS_SERIF;
+        } else if ("monospace".equals(fontName)) {
+            return java.awt.Font.MONOSPACED;
+        } else {
+            return fontName;
+        }
+    }
+
+    private FontSystem(String fontFamily, int fontStyle, int fontWeight, int fontSize)
     {
         int style;
         switch (fontStyle)
@@ -81,7 +126,8 @@ public class FontSystem extends Font
                 weight = java.awt.Font.PLAIN;
                 break;
         }
-        sysFont = new java.awt.Font(fontFamily, style | weight, (int) fontSize);
+
+        sysFont = new java.awt.Font(fontFamily, style | weight, fontSize);
         
         Canvas c = new Canvas();
         fm = c.getFontMetrics(sysFont);
@@ -99,15 +145,15 @@ public class FontSystem extends Font
         FontRenderContext frc = new FontRenderContext(null, true, true);
         GlyphVector vec = sysFont.createGlyphVector(frc, unicode);
         
-        Glyph glyph = (Glyph)glyphCache.get(unicode);
+        Glyph glyph = glyphCache.get(unicode);
         if (glyph == null)
         {
             glyph = new Glyph();
             glyph.setPath(vec.getGlyphOutline(0));
 
             GlyphMetrics gm = vec.getGlyphMetrics(0);
-            glyph.setHorizAdvX((int)gm.getAdvanceX());
-            glyph.setVertAdvY((int)gm.getAdvanceY());
+            glyph.setHorizAdvX(gm.getAdvanceX());
+            glyph.setVertAdvY(gm.getAdvanceY());
             glyph.setVertOriginX(0);
             glyph.setVertOriginY(0);
             

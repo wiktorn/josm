@@ -33,6 +33,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -40,6 +41,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
@@ -276,7 +278,7 @@ public class ImageProvider {
     /** sub directory the image can be found in */
     protected String subdir;
     /** image file name */
-    protected String name;
+    protected final String name;
     /** archive file to take image from */
     protected File archive;
     /** directory inside the archive */
@@ -313,7 +315,7 @@ public class ImageProvider {
     private static final Map<Image, Map<Long, Image>> ROTATE_CACHE = new HashMap<>();
 
     /** small cache of critical images used in many parts of the application */
-    private static final Map<OsmPrimitiveType, ImageIcon> osmPrimitiveTypeCache = new HashMap<>();
+    private static final Map<OsmPrimitiveType, ImageIcon> osmPrimitiveTypeCache = new EnumMap<>(OsmPrimitiveType.class);
 
     /** larger cache of critical padded image icons used in many parts of the application */
     private static final Map<Dimension, Map<MapImage, ImageIcon>> paddedImageCache = new HashMap<>();
@@ -326,19 +328,21 @@ public class ImageProvider {
      * @param subdir subdirectory the image lies in
      * @param name the name of the image. If it does not end with '.png' or '.svg',
      * both extensions are tried.
+     * @throws NullPointerException if name is null
      */
     public ImageProvider(String subdir, String name) {
         this.subdir = subdir;
-        this.name = name;
+        this.name = Objects.requireNonNull(name, "name");
     }
 
     /**
      * Constructs a new {@code ImageProvider} from a filename.
      * @param name the name of the image. If it does not end with '.png' or '.svg',
      * both extensions are tried.
+     * @throws NullPointerException if name is null
      */
     public ImageProvider(String name) {
-        this.name = name;
+        this.name = Objects.requireNonNull(name, "name");
     }
 
     /**
@@ -862,8 +866,6 @@ public class ImageProvider {
         synchronized (cache) {
             // This method is called from different thread and modifying HashMap concurrently can result
             // for example in loops in map entries (ie freeze when such entry is retrieved)
-            if (name == null)
-                return null;
 
             String prefix = isDisabled ? "dis:" : "";
             if (name.startsWith("data:")) {
@@ -1632,10 +1634,14 @@ public class ImageProvider {
             realHeight = GuiSizesHelper.getSizeDpiAdjusted(sourceHeight);
         }
 
-        if (realWidth == 0 || realHeight == 0) {
+        int roundedWidth = Math.round(realWidth);
+        int roundedHeight = Math.round(realHeight);
+        if (roundedWidth <= 0 || roundedHeight <= 0) {
+            Logging.error("createImageFromSvg: {0} {1} realWidth={2} realHeight={3}",
+                    svg.getXMLBase(), dim, Float.toString(realWidth), Float.toString(realHeight));
             return null;
         }
-        BufferedImage img = new BufferedImage(Math.round(realWidth), Math.round(realHeight), BufferedImage.TYPE_INT_ARGB);
+        BufferedImage img = new BufferedImage(roundedWidth, roundedHeight, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = img.createGraphics();
         g.setClip(0, 0, img.getWidth(), img.getHeight());
         g.scale(realWidth / sourceWidth, realHeight / sourceHeight);
@@ -1654,6 +1660,8 @@ public class ImageProvider {
     private static synchronized SVGUniverse getSvgUniverse() {
         if (svgUniverse == null) {
             svgUniverse = new SVGUniverse();
+            // CVE-2017-5617: Allow only data scheme (see #14319)
+            svgUniverse.setImageDataInlineOnly(true);
         }
         return svgUniverse;
     }
@@ -2088,7 +2096,7 @@ public class ImageProvider {
     public String toString() {
         return ("ImageProvider ["
                 + (dirs != null && !dirs.isEmpty() ? "dirs=" + dirs + ", " : "") + (id != null ? "id=" + id + ", " : "")
-                + (subdir != null && !subdir.isEmpty() ? "subdir=" + subdir + ", " : "") + (name != null ? "name=" + name + ", " : "")
+                + (subdir != null && !subdir.isEmpty() ? "subdir=" + subdir + ", " : "") + "name=" + name + ", "
                 + (archive != null ? "archive=" + archive + ", " : "")
                 + (inArchiveDir != null && !inArchiveDir.isEmpty() ? "inArchiveDir=" + inArchiveDir : "") + ']').replaceAll(", \\]", "]");
     }

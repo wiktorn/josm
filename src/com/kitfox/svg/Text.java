@@ -176,7 +176,7 @@ public class Text extends ShapeElement
         }
         else
         {
-            fontFamily = "Sans Serif";
+            fontFamily = "SansSerif";
         }
 
         if (getStyle(sty.setName("font-size")))
@@ -271,16 +271,22 @@ public class Text extends ShapeElement
         Font font = null;
         for (int i = 0; i < families.length; ++i)
         {
-            font = diagram.getUniverse().getFont(fontFamily);
+            font = diagram.getUniverse().getFont(families[i]);
             if (font != null)
             {
                 break;
             }
         }
-        
+
         if (font == null)
         {
-            font = new FontSystem(fontFamily, fontStyle, fontWeight, (int)fontSize);
+            //Check system fonts
+            font = FontSystem.createFont(fontFamily, fontStyle, fontWeight, (int)fontSize);
+        }
+
+        if (font == null)
+        {
+            font = FontSystem.createFont("Serif", fontStyle, fontWeight, fontStyle);
         }
 
         GeneralPath textPath = new GeneralPath();
