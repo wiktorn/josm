@@ -8,15 +8,25 @@
 **   https://josm.openstreetmap.de/wiki/DevelopersGuide/CreateBuild
 **
 -->
-<project xmlns:as="antlib:org.codehaus.mojo.animal_sniffer" name="josm" default="dist" xmlns:jacoco="antlib:org.jacoco.ant" xmlns:if="ant:if" xmlns:unless="ant:unless">
-    <target name="init-properties">
+<project xmlns:as="antlib:org.codehaus.mojo.animal_sniffer" name="josm" default="dist"
+    xmlns:jacoco="antlib:org.jacoco.ant"
+    xmlns:if="ant:if"
+    xmlns:unless="ant:unless"
+    xmlns:ivy="antlib:org.apache.ivy.ant"
+>
+    <target name="init-ivy">
+        <dirname property="base.dir" file="${ant.file.josm}"/>
+        <property name="lib.dir"   location="${base.dir}/lib"/>
+        <property name="tools.dir" location="${base.dir}/tools"/>
+        <taskdef resource="org/apache/ivy/ant/antlib.xml" uri="antlib:org.apache.ivy.ant" classpath="${tools.dir}/ivy/ivy.jar"/>
+    </target>
+    <target name="init-properties" depends="resolve">
         <property environment="env"/>
         <!-- Load properties in a target and not at top level, so this build file can be
         imported from an IDE ant file (Netbeans) without messing up IDE properties.
         When imported from another file, ${basedir} will point to the parent directory
         of the importing ant file. Use ${base.dir} instead, which is always the parent
         directory of this file. -->
-        <dirname property="base.dir" file="${ant.file.josm}"/>
         <property name="test.dir" location="${base.dir}/test"/>
         <property name="src.dir" location="${base.dir}/src"/>
         <condition property="noJavaFX">
@@ -30,7 +40,6 @@
         <property name="build.dir" location="${base.dir}/build"/>
         <property name="dist.dir" location="${base.dir}/dist"/>
         <property name="modules.dir" location="${dist.dir}/modules"/>
-        <property name="tools.dir" location="${base.dir}/tools"/>
         <property name="pmd.dir" location="${tools.dir}/pmd"/>
         <property name="checkstyle.dir" location="${tools.dir}/checkstyle"/>
         <property name="spotbugs.dir" location="${tools.dir}/spotbugs"/>
@@ -63,12 +72,6 @@
         <condition property="isJava12"><matches string="${ant.java.version}" pattern="1[2-9]" /></condition>
         <condition property="isJava13"><matches string="${ant.java.version}" pattern="1[3-9]" /></condition>
         <!-- Disable jacoco on Java 13+, see https://github.com/jacoco/jacoco/pull/738 -->
-        <echo message="Compatibilies for Java ${ant.java.version}" />
-        <echo if:set="isJava9" message="isJava9" />
-        <echo if:set="isJava10" message="isJava10" />
-        <echo if:set="isJava11" message="isJava11" />
-        <echo if:set="isJava12" message="isJava12" />
-        <echo if:set="isJava13" message="isJava13" />
 
         <condition property="coverageByDefault">
             <not>
@@ -185,6 +188,15 @@ Build-Date: ${build.tstamp}
         <copy file="LICENSE" todir="${build.dir}"/>
         <!-- create josm-custom.jar -->
         <delete file="${dist.jar}"/>
+        <!-- extract libraries to build dir to create uber-jar -->
+        <unzip dest="${build.dir}">
+            <fileset refid="runtime.fileset" />
+            <patternset>
+                <exclude name="META-INF/**" />
+                <exclude name="*" />
+            </patternset>
+        </unzip>
+
         <jar destfile="${dist.jar}" basedir="${build.dir}" level="${clevel}">
             <!-- add attribute excludes="**/*BZip2*,**/*Bzip2*" to create a non-bzip2 supporting jar -->
             <manifest>
@@ -202,7 +214,6 @@ Build-Date: ${build.tstamp}
             <zipfileset dir="images" prefix="images"/>
             <zipfileset dir="data" prefix="data"/>
             <zipfileset dir="styles" prefix="styles"/>
-            <zipfileset dir="${src.dir}/org/openstreetmap/gui/jmapviewer/images" prefix="org/openstreetmap/gui/jmapviewer/images"/>
         </jar>
     </target>
     <!-- Mac OS X target -->
@@ -332,33 +343,7 @@ Build-Date: ${build.tstamp}
             <exclude name="org/apache/commons/logging/impl/ServletContextCleaner.java"/>
         </javac>
     </target>
-    <target name="compile-jmapviewer" depends="init">
-        <!-- JMapViewer -->
-        <javac sourcepath="" srcdir="${src.dir}" fork="yes"
-            excludes="com/**,javax/**,oauth/**,org/apache/commons/**,org/glassfish/**,org/openstreetmap/gui/jmapviewer/Demo.java,org/openstreetmap/gui/jmapviewer/JMapViewerTree.java,org/openstreetmap/gui/jmapviewer/checkBoxTree/**,org/openstreetmap/josm/**,org/tukaani/**,gnu/**"
-            destdir="${build.dir}" target="${java.lang.version}" source="${java.lang.version}" debug="on" includeantruntime="false" createMissingPackageInfoClass="false" encoding="UTF-8">
-            <compilerarg value="-J-Xbootclasspath/p:${error_prone_javac.jar}" unless:set="isJava9"/>
-            <compilerarg line="-XDcompilePolicy=simple"/>
-            <compilerarg value="-processorpath"/>
-            <compilerarg pathref="processor.path"/>
-            <compilerarg value="-Xlint:cast"/>
-            <compilerarg value="-Xlint:deprecation"/>
-            <compilerarg value="-Xlint:dep-ann"/>
-            <compilerarg value="-Xlint:divzero"/>
-            <compilerarg value="-Xlint:empty"/>
-            <compilerarg value="-Xlint:finally"/>
-            <compilerarg value="-Xlint:overrides"/>
-            <!--<compilerarg value="-Xlint:rawtypes"/>-->
-            <compilerarg value="-Xlint:static"/>
-            <compilerarg value="-Xlint:try"/>
-            <compilerarg value="-Xlint:unchecked"/>
-            <!-- Undocumented argument to ignore "Sun internal proprietary API" warning, see http://stackoverflow.com/a/13862308/2257172 -->
-            <compilerarg value="-XDignore.symbol.file"/>
-            <compilerarg value="-Xplugin:ErrorProne -Xep:CatchAndPrintStackTrace:OFF -Xep:ReferenceEquality:OFF -Xep:StringSplitter:OFF"/>
-            <compilerarg line="-Xmaxwarns 1000"/>
-        </javac>
-    </target>
-    <target name="compile" depends="init,javacc,compile-cots,compile-jmapviewer">
+    <target name="compile" depends="init,javacc,compile-cots">
         <!-- JOSM -->
         <javac sourcepath="" srcdir="${src.dir}" fork="yes"
             excludes="com/**,javax/**,gnu/**,oauth/**,org/apache/commons/**,org/glassfish/**,org/openstreetmap/gui/jmapviewer/**,org/tukaani/**"
@@ -383,6 +368,9 @@ Build-Date: ${build.tstamp}
             <compilerarg value="-Xplugin:ErrorProne -Xep:ReferenceEquality:OFF -Xep:ImmutableEnumChecker:OFF -Xep:FutureReturnValueIgnored:OFF -Xep:FloatingPointLiteralPrecision:OFF -Xep:ShortCircuitBoolean:OFF -Xep:StringSplitter:OFF -Xep:JdkObsolete:OFF -Xep:UnnecessaryParentheses:OFF -Xep:EqualsGetClass:OFF -Xep:ThreadPriorityCheck:OFF -Xep:UndefinedEquals:OFF"/>
             <compilerarg line="-Xmaxwarns 1000"/>
             <exclude name="org/openstreetmap/josm/io/audio/fx/*.java" if:set="noJavaFX"/>
+            <classpath>
+                <path refid="runtime.path" />
+            </classpath>
         </javac>
 
         <copy todir="build" failonerror="no" includeemptydirs="no">
@@ -400,7 +388,7 @@ Build-Date: ${build.tstamp}
         <javadoc destdir="javadoc"
                 sourcepath="${src.dir}"
                 encoding="UTF-8"
-                packagenames="org.openstreetmap.josm.*,org.openstreetmap.gui.jmapviewer.*"
+                packagenames="org.openstreetmap.josm.*"
                 excludepackagenames="org.openstreetmap.josm.gui.mappaint.mapcss.parsergen.*"
                 windowtitle="JOSM"
                 use="true"
@@ -837,7 +825,13 @@ Build-Date: ${build.tstamp}
         <attribute name="output"/>
         <sequential>
             <echo message="Generating Taginfo for type @{type} to @{output}"/>
-            <groovy src="${taginfoextract}" classpath="${dist.jar};${toString:groovy.classpath};${spotbugs.dir}/spotbugs-annotations.jar">
+            <groovy src="${taginfoextract}">
+                <classpath>
+                    <pathelement location="${dist.jar}" />
+                    <pathelement location="${spotbugs.dir}/spotbugs-annotations.jar" />
+                    <path refid="groovy.classpath" />
+                    <path refid="compile.path" />
+                </classpath>
                 <arg value="-t"/>
                 <arg value="@{type}"/>
                 <arg value="--noexit"/>
@@ -926,20 +920,22 @@ Build-Date: ${build.tstamp}
 
     <target name="spotbugs" depends="dist">
         <taskdef name="spotbugs" classname="edu.umd.cs.findbugs.anttask.FindBugsTask" classpath="${spotbugs.dir}/spotbugs-ant.jar"/>
-        <path id="spotbugs-classpath">
+        <path id="spotbugs.classpath">
             <fileset dir="${spotbugs.dir}">
                 <include name="*.jar"/>
             </fileset>
         </path>
-        <property name="spotbugs-classpath" refid="spotbugs-classpath"/>
         <spotbugs output="xml"
                 outputFile="spotbugs-josm.xml"
-                classpath="${spotbugs-classpath}"
                 pluginList=""
                 excludeFilter="${spotbugs.dir}/josm-filter.xml"
                 effort="max"
                 reportLevel="low"
                 >
+            <classpath>
+                <path refid="spotbugs.classpath" />
+                <path refid="compile.path" />
+            </classpath>
             <sourcePath path="${base.dir}/src" />
             <class location="${dist.jar}" />
         </spotbugs>
@@ -1051,4 +1047,21 @@ Build-Date: ${build.tstamp}
         </exec>
         <move file="${modules.dir}/dots/summary.dot.png" tofile="${modules.dir}/josm-with-all-dependencies.png"/>
     </target>
+    <target name="resolve" depends="init-ivy">
+        <ivy:resolve keep="true"/>
+        <ivy:report todir="${tools.dir}/ivy-report" graph="false"/>
+        <ivy:cachepath pathid="compile.path"               conf="compile"/>
+        <ivy:cachepath pathid="runtime.path"               conf="runtime"/>
+        <ivy:cachefileset setid="runtime.fileset"          conf="runtime"/>
+        <ivy:cachepath pathid="test.path"                  conf="test"/>
+        <ivy:cachepath pathid="groovy-ant.path"            conf="groovy-ant-task"/>
+        <ivy:cachepath pathid="groovy-scripts.path"        conf="groovy-scripts"/>
+        <ivy:retrieve pattern="${tools.dir}/ivy/[artifact].[ext]" conf="ivy"/>
+    </target>
+    <target name="bootstrap-workspace" description="Copy libraries from ivy cache to workspace folders for IDE" depends="resolve">
+        <delete dir="${lib.dir}"/>
+        <ivy:retrieve pattern="${lib.dir}/compile/[artifact].[ext]" conf="compile"/>
+        <ivy:retrieve pattern="${lib.dir}/runtime/[artifact].[ext]" conf="runtime"/>
+    </target>
+
 </project>
