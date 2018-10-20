@@ -63,13 +63,6 @@
         <condition property="isJava12"><matches string="${ant.java.version}" pattern="1[2-9]" /></condition>
         <condition property="isJava13"><matches string="${ant.java.version}" pattern="1[3-9]" /></condition>
         <!-- Disable jacoco on Java 13+, see https://github.com/jacoco/jacoco/pull/738 -->
-        <echo message="Compatibilies for Java ${ant.java.version}" />
-        <echo if:set="isJava9" message="isJava9" />
-        <echo if:set="isJava10" message="isJava10" />
-        <echo if:set="isJava11" message="isJava11" />
-        <echo if:set="isJava12" message="isJava12" />
-        <echo if:set="isJava13" message="isJava13" />
-
         <condition property="coverageByDefault">
             <not>
                 <isset property="isJava13"/>
