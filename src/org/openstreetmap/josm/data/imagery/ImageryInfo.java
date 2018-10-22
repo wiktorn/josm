@@ -770,6 +770,8 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
         return attributionText;
     }
 
+    public String getAttributionTextOriginal
+
     @Override
     public String getAttributionLinkURL() {
         return attributionLinkURL;
@@ -1600,5 +1602,13 @@ public class ImageryInfo extends TileSourceInfo implements Comparable<ImageryInf
             }
             return getOriginalName();
         }
+    }
+
+    /**
+     * Get language of description
+     * @return language code, e.g. "en"
+     */
+    public String getDescriptionLanguage() {
+        return this.langDescription;
     }
 }
