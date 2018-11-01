@@ -114,10 +114,21 @@ public class ImageSVG extends RenderableElement
             if (getPres(sty.setName("xlink:href")))
             {
                 URI src = sty.getURIValue(getXMLBase());
-                // CVE-2017-5617: Allow only data scheme
                 if ("data".equals(src.getScheme()))
                 {
                     imageSrc = new URL(null, src.toASCIIString(), new Handler());
+                }
+                else if (!diagram.getUniverse().isImageDataInlineOnly())
+                {
+                    try
+                    {
+                        imageSrc = src.toURL();
+                    } catch (Exception e)
+                    {
+                        Logger.getLogger(SVGConst.SVG_LOGGER).log(Level.WARNING,
+                            "Could not parse xlink:href " + src, e);
+                        imageSrc = null;
+                    }
                 }
             }
         } catch (Exception e)
@@ -152,7 +163,6 @@ public class ImageSVG extends RenderableElement
             xform.translate(this.x, this.y);
             xform.scale(this.width / img.getWidth(), this.height / img.getHeight());
         }
-
         bounds = new Rectangle2D.Float(this.x, this.y, this.width, this.height);
     }
 
@@ -326,10 +336,12 @@ public class ImageSVG extends RenderableElement
                 URI src = sty.getURIValue(getXMLBase());
 
                 URL newVal = null;
-                // CVE-2017-5617: Allow only data scheme
                 if ("data".equals(src.getScheme()))
                 {
                     newVal = new URL(null, src.toASCIIString(), new Handler());
+                } else if (!diagram.getUniverse().isImageDataInlineOnly())
+                {
+                    newVal = src.toURL();
                 }
 
                 if (newVal != null && !newVal.equals(imageSrc))

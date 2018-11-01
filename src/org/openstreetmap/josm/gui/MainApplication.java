@@ -129,6 +129,7 @@ import org.openstreetmap.josm.gui.util.WindowGeometry;
 import org.openstreetmap.josm.gui.widgets.UrlLabel;
 import org.openstreetmap.josm.io.CachedFile;
 import org.openstreetmap.josm.io.CertificateAmendment;
+import org.openstreetmap.josm.io.ChangesetUpdater;
 import org.openstreetmap.josm.io.DefaultProxySelector;
 import org.openstreetmap.josm.io.FileWatcher;
 import org.openstreetmap.josm.io.MessageNotifier;
@@ -951,6 +952,8 @@ public class MainApplication {
             MessageNotifier.start();
         }
 
+        ChangesetUpdater.start();
+
         if (Config.getPref().getBoolean("debug.edt-checker.enable", Version.getInstance().isLocalBuild())) {
             // Repaint manager is registered so late for a reason - there is lots of violation during startup process
             // but they don't seem to break anything and are difficult to fix
@@ -977,7 +980,7 @@ public class MainApplication {
         if ("true".equals(Config.getPref().get("prefer.ipv6", "auto"))
                 && !"true".equals(Utils.updateSystemProperty("java.net.preferIPv6Addresses", "true"))) {
             // never set this to false, only true!
-            Logging.info(tr("Try enabling IPv6 network, prefering IPv6 over IPv4 (only works on early startup)."));
+            Logging.info(tr("Try enabling IPv6 network, preferring IPv6 over IPv4 (only works on early startup)."));
         }
         Utils.updateSystemProperty("http.agent", Version.getInstance().getAgentString());
         Utils.updateSystemProperty("user.language", Config.getPref().get("language"));
@@ -1192,9 +1195,9 @@ public class MainApplication {
                                 SSLSocketFactory.getDefault().createSocket(a, 443).close();
                                 Utils.updateSystemProperty("java.net.preferIPv6Addresses", "true");
                                 if (!wasv6) {
-                                    Logging.info(tr("Detected useable IPv6 network, prefering IPv6 over IPv4 after next restart."));
+                                    Logging.info(tr("Detected useable IPv6 network, preferring IPv6 over IPv4 after next restart."));
                                 } else {
-                                    Logging.info(tr("Detected useable IPv6 network, prefering IPv6 over IPv4."));
+                                    Logging.info(tr("Detected useable IPv6 network, preferring IPv6 over IPv4."));
                                 }
                                 hasv6 = true;
                             }
@@ -1206,7 +1209,7 @@ public class MainApplication {
                     Logging.trace(e);
                 }
                 if (wasv6 && !hasv6) {
-                    Logging.info(tr("Detected no useable IPv6 network, prefering IPv4 over IPv6 after next restart."));
+                    Logging.info(tr("Detected no useable IPv6 network, preferring IPv4 over IPv6 after next restart."));
                     Config.getPref().putBoolean("validated.ipv6", hasv6); // be sure it is stored before the restart!
                     try {
                         RestartAction.restartJOSM();

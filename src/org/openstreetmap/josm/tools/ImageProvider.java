@@ -33,7 +33,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -41,6 +41,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
@@ -270,9 +271,6 @@ public class ImageProvider {
         }
     }
 
-    /** small cache of critical images used in many parts of the application */
-    private static final Map<OsmPrimitiveType, ImageIcon> osmPrimitiveTypeCache = Collections.synchronizedMap(new HashMap<>());
-
     /** directories in which images are searched */
     protected Collection<String> dirs;
     /** caching identifier */
@@ -280,7 +278,7 @@ public class ImageProvider {
     /** sub directory the image can be found in */
     protected String subdir;
     /** image file name */
-    protected String name;
+    protected final String name;
     /** archive file to take image from */
     protected File archive;
     /** directory inside the archive */
@@ -316,6 +314,12 @@ public class ImageProvider {
      */
     private static final Map<Image, Map<Long, Image>> ROTATE_CACHE = new HashMap<>();
 
+    /** small cache of critical images used in many parts of the application */
+    private static final Map<OsmPrimitiveType, ImageIcon> osmPrimitiveTypeCache = new EnumMap<>(OsmPrimitiveType.class);
+
+    /** larger cache of critical padded image icons used in many parts of the application */
+    private static final Map<Dimension, Map<MapImage, ImageIcon>> paddedImageCache = new HashMap<>();
+
     private static final ExecutorService IMAGE_FETCHER =
             Executors.newSingleThreadExecutor(Utils.newThreadFactory("image-fetcher-%d", Thread.NORM_PRIORITY));
 
@@ -324,19 +328,21 @@ public class ImageProvider {
      * @param subdir subdirectory the image lies in
      * @param name the name of the image. If it does not end with '.png' or '.svg',
      * both extensions are tried.
+     * @throws NullPointerException if name is null
      */
     public ImageProvider(String subdir, String name) {
         this.subdir = subdir;
-        this.name = name;
+        this.name = Objects.requireNonNull(name, "name");
     }
 
     /**
      * Constructs a new {@code ImageProvider} from a filename.
      * @param name the name of the image. If it does not end with '.png' or '.svg',
      * both extensions are tried.
+     * @throws NullPointerException if name is null
      */
     public ImageProvider(String name) {
-        this.name = name;
+        this.name = Objects.requireNonNull(name, "name");
     }
 
     /**
@@ -833,12 +839,21 @@ public class ImageProvider {
             "^data:([a-zA-Z]+/[a-zA-Z+]+)?(;base64)?,(.+)$");
 
     /**
-     * Clears the internal image cache.
+     * Clears the internal image caches.
      * @since 11021
      */
     public static void clearCache() {
         synchronized (cache) {
             cache.clear();
+        }
+        synchronized (ROTATE_CACHE) {
+            ROTATE_CACHE.clear();
+        }
+        synchronized (paddedImageCache) {
+            paddedImageCache.clear();
+        }
+        synchronized (osmPrimitiveTypeCache) {
+            osmPrimitiveTypeCache.clear();
         }
     }
 
@@ -851,8 +866,6 @@ public class ImageProvider {
         synchronized (cache) {
             // This method is called from different thread and modifying HashMap concurrently can result
             // for example in loops in map entries (ie freeze when such entry is retrieved)
-            if (name == null)
-                return null;
 
             String prefix = isDisabled ? "dis:" : "";
             if (name.startsWith("data:")) {
@@ -1477,7 +1490,9 @@ public class ImageProvider {
      */
     public static ImageIcon get(OsmPrimitiveType type) {
         CheckParameterUtil.ensureParameterNotNull(type, "type");
-        return osmPrimitiveTypeCache.computeIfAbsent(type, t -> get("data", t.getAPIName()));
+        synchronized (osmPrimitiveTypeCache) {
+            return osmPrimitiveTypeCache.computeIfAbsent(type, t -> get("data", t.getAPIName()));
+        }
     }
 
     /**
@@ -1489,52 +1504,9 @@ public class ImageProvider {
     public static ImageIcon getPadded(OsmPrimitive primitive, Dimension iconSize) {
         // Check if the current styles have special icon for tagged objects.
         if (primitive.isTagged()) {
-            Pair<StyleElementList, Range> nodeStyles;
-            DataSet ds = primitive.getDataSet();
-            if (ds != null) {
-                ds.getReadLock().lock();
-            }
-            try {
-                nodeStyles = MapPaintStyles.getStyles().generateStyles(primitive, 100, false);
-            } finally {
-                if (ds != null) {
-                    ds.getReadLock().unlock();
-                }
-            }
-            for (StyleElement style : nodeStyles.a) {
-                if (style instanceof NodeElement) {
-                    NodeElement nodeStyle = (NodeElement) style;
-                    MapImage icon = nodeStyle.mapImage;
-                    if (icon != null) {
-                        int backgroundRealWidth = GuiSizesHelper.getSizeDpiAdjusted(iconSize.width);
-                        int backgroundRealHeight = GuiSizesHelper.getSizeDpiAdjusted(iconSize.height);
-                        int iconRealWidth = icon.getWidth();
-                        int iconRealHeight = icon.getHeight();
-                        BufferedImage image = new BufferedImage(backgroundRealWidth, backgroundRealHeight,
-                                BufferedImage.TYPE_INT_ARGB);
-                        double scaleFactor = Math.min(backgroundRealWidth / (double) iconRealWidth, backgroundRealHeight
-                                / (double) iconRealHeight);
-                        Image iconImage = icon.getImage(false);
-                        Image scaledIcon;
-                        final int scaledWidth;
-                        final int scaledHeight;
-                        if (scaleFactor < 1) {
-                            // Scale icon such that it fits on background.
-                            scaledWidth = (int) (iconRealWidth * scaleFactor);
-                            scaledHeight = (int) (iconRealHeight * scaleFactor);
-                            scaledIcon = iconImage.getScaledInstance(scaledWidth, scaledHeight, Image.SCALE_SMOOTH);
-                        } else {
-                            // Use original size, don't upscale.
-                            scaledWidth = iconRealWidth;
-                            scaledHeight = iconRealHeight;
-                            scaledIcon = iconImage;
-                        }
-                        image.getGraphics().drawImage(scaledIcon, (backgroundRealWidth - scaledWidth) / 2,
-                                (backgroundRealHeight - scaledHeight) / 2, null);
-
-                        return new ImageIcon(image);
-                    }
-                }
+            ImageIcon icon = getTaggedPadded(primitive, iconSize);
+            if (icon != null) {
+                return icon;
             }
         }
 
@@ -1555,6 +1527,82 @@ public class ImageProvider {
 
         // Use generic default icon.
         return ImageProvider.get(primitive.getDisplayType());
+    }
+
+    /**
+     * Computes a new padded icon for the given tagged primitive, using map paint styles.
+     * This is a slow operation.
+     * @param primitive tagged OSM primitive
+     * @param iconSize icon size in pixels
+     * @return a new padded icon for the given tagged primitive, or null
+     */
+    private static ImageIcon getTaggedPadded(OsmPrimitive primitive, Dimension iconSize) {
+        Pair<StyleElementList, Range> nodeStyles;
+        DataSet ds = primitive.getDataSet();
+        if (ds != null) {
+            ds.getReadLock().lock();
+        }
+        try {
+            nodeStyles = MapPaintStyles.getStyles().generateStyles(primitive, 100, false);
+        } finally {
+            if (ds != null) {
+                ds.getReadLock().unlock();
+            }
+        }
+        for (StyleElement style : nodeStyles.a) {
+            if (style instanceof NodeElement) {
+                NodeElement nodeStyle = (NodeElement) style;
+                MapImage icon = nodeStyle.mapImage;
+                if (icon != null) {
+                    return getPaddedIcon(icon, iconSize);
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Returns an {@link ImageIcon} for the given map image, at the specified size.
+     * Uses a cache to improve performance.
+     * @param mapImage map image
+     * @param iconSize size in pixels
+     * @return an {@code ImageIcon} for the given map image, at the specified size
+     * @see #clearCache
+     * @since 14284
+     */
+    public static ImageIcon getPaddedIcon(MapImage mapImage, Dimension iconSize) {
+        synchronized (paddedImageCache) {
+            return paddedImageCache.computeIfAbsent(iconSize, x -> new HashMap<>()).computeIfAbsent(mapImage, icon -> {
+                int backgroundRealWidth = GuiSizesHelper.getSizeDpiAdjusted(iconSize.width);
+                int backgroundRealHeight = GuiSizesHelper.getSizeDpiAdjusted(iconSize.height);
+                int iconRealWidth = icon.getWidth();
+                int iconRealHeight = icon.getHeight();
+                BufferedImage image = new BufferedImage(backgroundRealWidth, backgroundRealHeight, BufferedImage.TYPE_INT_ARGB);
+                double scaleFactor = Math.min(
+                        backgroundRealWidth / (double) iconRealWidth,
+                        backgroundRealHeight / (double) iconRealHeight);
+                Image iconImage = icon.getImage(false);
+                Image scaledIcon;
+                final int scaledWidth;
+                final int scaledHeight;
+                if (scaleFactor < 1) {
+                    // Scale icon such that it fits on background.
+                    scaledWidth = (int) (iconRealWidth * scaleFactor);
+                    scaledHeight = (int) (iconRealHeight * scaleFactor);
+                    scaledIcon = iconImage.getScaledInstance(scaledWidth, scaledHeight, Image.SCALE_SMOOTH);
+                } else {
+                    // Use original size, don't upscale.
+                    scaledWidth = iconRealWidth;
+                    scaledHeight = iconRealHeight;
+                    scaledIcon = iconImage;
+                }
+                image.getGraphics().drawImage(scaledIcon,
+                        (backgroundRealWidth - scaledWidth) / 2,
+                        (backgroundRealHeight - scaledHeight) / 2, null);
+
+                return new ImageIcon(image);
+            });
+        }
     }
 
     /**
@@ -1586,10 +1634,14 @@ public class ImageProvider {
             realHeight = GuiSizesHelper.getSizeDpiAdjusted(sourceHeight);
         }
 
-        if (realWidth == 0 || realHeight == 0) {
+        int roundedWidth = Math.round(realWidth);
+        int roundedHeight = Math.round(realHeight);
+        if (roundedWidth <= 0 || roundedHeight <= 0) {
+            Logging.error("createImageFromSvg: {0} {1} realWidth={2} realHeight={3}",
+                    svg.getXMLBase(), dim, Float.toString(realWidth), Float.toString(realHeight));
             return null;
         }
-        BufferedImage img = new BufferedImage(Math.round(realWidth), Math.round(realHeight), BufferedImage.TYPE_INT_ARGB);
+        BufferedImage img = new BufferedImage(roundedWidth, roundedHeight, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = img.createGraphics();
         g.setClip(0, 0, img.getWidth(), img.getHeight());
         g.scale(realWidth / sourceWidth, realHeight / sourceHeight);
@@ -1608,6 +1660,8 @@ public class ImageProvider {
     private static synchronized SVGUniverse getSvgUniverse() {
         if (svgUniverse == null) {
             svgUniverse = new SVGUniverse();
+            // CVE-2017-5617: Allow only data scheme (see #14319)
+            svgUniverse.setImageDataInlineOnly(true);
         }
         return svgUniverse;
     }
@@ -2042,7 +2096,7 @@ public class ImageProvider {
     public String toString() {
         return ("ImageProvider ["
                 + (dirs != null && !dirs.isEmpty() ? "dirs=" + dirs + ", " : "") + (id != null ? "id=" + id + ", " : "")
-                + (subdir != null && !subdir.isEmpty() ? "subdir=" + subdir + ", " : "") + (name != null ? "name=" + name + ", " : "")
+                + (subdir != null && !subdir.isEmpty() ? "subdir=" + subdir + ", " : "") + "name=" + name + ", "
                 + (archive != null ? "archive=" + archive + ", " : "")
                 + (inArchiveDir != null && !inArchiveDir.isEmpty() ? "inArchiveDir=" + inArchiveDir : "") + ']').replaceAll(", \\]", "]");
     }

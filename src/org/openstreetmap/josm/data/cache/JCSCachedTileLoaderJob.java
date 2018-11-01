@@ -359,9 +359,9 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
                     try {
                         String data = urlConn.fetchContent();
                         if (!data.isEmpty()) {
-                            Matcher m = HttpClient.getTomcatErrorMatcher(data);
-                            if (m.matches()) {
-                                attributes.setErrorMessage(m.group(1).replace("'", "''"));
+                            String detectErrorMessage = detectErrorMessage(data);
+                            if (detectErrorMessage != null) {
+                                attributes.setErrorMessage(detectErrorMessage);
                             }
                         }
                     } catch (IOException e) {
@@ -383,7 +383,7 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
                     Logging.debug("JCS - Caching empty object {0}", getUrl());
                     return true;
                 } else {
-                    Logging.debug("JCS - failure during load - reponse is not loadable nor cached as empty");
+                    Logging.debug("JCS - failure during load - response is not loadable nor cached as empty");
                     return false;
                 }
             }
@@ -417,6 +417,11 @@ public abstract class JCSCachedTileLoaderJob<K, V extends CacheEntry> implements
         }
         Logging.warn("JCS - Silent failure during download: {0}", getUrlNoException());
         return false;
+    }
+
+    protected String detectErrorMessage(String data) {
+        Matcher m = HttpClient.getTomcatErrorMatcher(data);
+        return m.matches() ? m.group(1).replace("'", "''") : null;
     }
 
     /**

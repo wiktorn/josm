@@ -5,6 +5,7 @@ import static org.openstreetmap.josm.tools.I18n.tr;
 import static org.openstreetmap.josm.tools.Utils.getSystemProperty;
 
 import java.awt.Desktop;
+import java.awt.GraphicsEnvironment;
 import java.awt.Image;
 import java.awt.Window;
 import java.awt.event.KeyEvent;
@@ -60,9 +61,9 @@ public class PlatformHookOsx implements PlatformHook, InvocationHandler {
     @Override
     public void startupHook(JavaExpirationCallback callback) {
         // Here we register callbacks for the menu entries in the system menu and file opening through double-click
-        // http://openjdk.java.net/jeps/272
+        // https://openjdk.java.net/jeps/272
         // https://bugs.openjdk.java.net/browse/JDK-8048731
-        // http://cr.openjdk.java.net/~azvegint/jdk/9/8143227/10/jdk/
+        // https://cr.openjdk.java.net/~azvegint/jdk/9/8143227/10/jdk/
         // This method must be cleaned up after we switch to Java 9
         try {
             Class<?> eawtApplication = Class.forName("com.apple.eawt.Application");
@@ -73,12 +74,12 @@ public class PlatformHookOsx implements PlatformHook, InvocationHandler {
             Object proxy = Proxy.newProxyInstance(PlatformHookOsx.class.getClassLoader(), new Class<?>[] {
                 quitHandler, aboutHandler, openFilesHandler, preferencesHandler}, this);
             Object appli = eawtApplication.getConstructor((Class[]) null).newInstance((Object[]) null);
-            if (Utils.getJavaVersion() >= 9) {
-                setHandlers(Desktop.class, quitHandler, aboutHandler, openFilesHandler, preferencesHandler, proxy, Desktop.getDesktop());
-            } else {
+            if (Utils.getJavaVersion() < 9) {
                 setHandlers(eawtApplication, quitHandler, aboutHandler, openFilesHandler, preferencesHandler, proxy, appli);
                 // this method has been deprecated, but without replacement. To remove with Java 9 migration
                 eawtApplication.getDeclaredMethod("setEnabledPreferencesMenu", boolean.class).invoke(appli, Boolean.TRUE);
+            } else if (!GraphicsEnvironment.isHeadless()) {
+                setHandlers(Desktop.class, quitHandler, aboutHandler, openFilesHandler, preferencesHandler, proxy, Desktop.getDesktop());
             }
             // setup the dock icon. It is automatically set with application bundle and Web start but we need
             // to do it manually if run with `java -jar``

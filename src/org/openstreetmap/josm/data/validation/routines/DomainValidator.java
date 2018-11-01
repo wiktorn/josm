@@ -1255,7 +1255,6 @@ public final class DomainValidator extends AbstractValidator {
         "starhub", // starhub StarHub Limited
         "statebank", // statebank STATE BANK OF INDIA
         "statefarm", // statefarm State Farm Mutual Automobile Insurance Company
-        "statoil", // statoil Statoil ASA
         "stc", // stc Saudi Telecom Company
         "stcgroup", // stcgroup Saudi Telecom Company
         "stockholm", // stockholm Stockholms kommun
@@ -1880,11 +1879,11 @@ public final class DomainValidator extends AbstractValidator {
      * @since 1.5.1 made public and added read-only array references
      */
     public enum ArrayType {
-        /** Update (or get a copy of) the GENERIC_TLDS_PLUS table containing additonal generic TLDs */
+        /** Update (or get a copy of) the GENERIC_TLDS_PLUS table containing additional generic TLDs */
         GENERIC_PLUS,
         /** Update (or get a copy of) the GENERIC_TLDS_MINUS table containing deleted generic TLDs */
         GENERIC_MINUS,
-        /** Update (or get a copy of) the COUNTRY_CODE_TLDS_PLUS table containing additonal country code TLDs */
+        /** Update (or get a copy of) the COUNTRY_CODE_TLDS_PLUS table containing additional country code TLDs */
         COUNTRY_CODE_PLUS,
         /** Update (or get a copy of) the COUNTRY_CODE_TLDS_MINUS table containing deleted country code TLDs */
         COUNTRY_CODE_MINUS,

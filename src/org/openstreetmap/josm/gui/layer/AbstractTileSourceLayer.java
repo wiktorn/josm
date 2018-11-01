@@ -839,7 +839,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
     /**
      * Zoom out from map.
      *
-     * @return    true, if zoom increasing was successfull, false othervise
+     * @return    true, if zoom increasing was successful, false othervise
      */
     public boolean decreaseZoomLevel() {
         if (zoomDecreaseAllowed()) {
@@ -1166,7 +1166,11 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         }*/
 
         if (tile.hasError() && getDisplaySettings().isShowErrors()) {
-            myDrawString(g, tr("Error") + ": " + tr(tile.getErrorMessage()), x + 2, texty);
+            String errorMessage = tr(tile.getErrorMessage());
+            if (!errorMessage.startsWith("Error") && !errorMessage.startsWith(tr("Error"))) {
+                errorMessage = tr("Error") + ": " + errorMessage;
+            }
+            myDrawString(g, errorMessage, x + 2, texty);
             //texty += 1 + fontHeight;
         }
 
@@ -1567,9 +1571,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
                          *  use them to paint overzoomed tiles.
                          *  See: #14562
                          */
-                        if (!ts.hasLoadingTiles()) {
-                            ts2.loadAllTiles(false);
-                        }
+                        ts2.loadAllTiles(false);
                     }
                 }
                 if (ts2.tooLarge()) {

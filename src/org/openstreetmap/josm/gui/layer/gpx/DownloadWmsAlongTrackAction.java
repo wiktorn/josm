@@ -3,7 +3,6 @@ package org.openstreetmap.josm.gui.layer.gpx;
 
 import static org.openstreetmap.josm.tools.I18n.tr;
 
-import java.awt.GraphicsEnvironment;
 import java.awt.event.ActionEvent;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -117,9 +116,7 @@ public class DownloadWmsAlongTrackAction extends AbstractAction {
     protected AbstractTileSourceLayer<? extends AbstractTMSTileSource> askedLayer() {
         List<AbstractTileSourceLayer> targetLayers = MainApplication.getLayerManager().getLayersOfType(AbstractTileSourceLayer.class);
         if (targetLayers.isEmpty()) {
-            if (!GraphicsEnvironment.isHeadless()) {
-                warnNoImageryLayers();
-            }
+            warnNoImageryLayers();
             return null;
         }
         return AbstractMergeAction.askTargetLayer(targetLayers.toArray(new AbstractTileSourceLayer[0]),

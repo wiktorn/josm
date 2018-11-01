@@ -7,7 +7,6 @@ import static org.openstreetmap.josm.tools.I18n.trn;
 
 import java.awt.Component;
 import java.awt.Font;
-import java.awt.GraphicsEnvironment;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
@@ -182,10 +181,8 @@ public final class PluginHandler {
             a.setEditable(false);
             a.setText(text);
             a.setCaretPosition(0);
-            if (!GraphicsEnvironment.isHeadless()) {
-                JOptionPane.showMessageDialog(MainApplication.getMainFrame(), new JScrollPane(a), tr("Plugin information"),
-                        JOptionPane.INFORMATION_MESSAGE);
-            }
+            JOptionPane.showMessageDialog(MainApplication.getMainFrame(), new JScrollPane(a), tr("Plugin information"),
+                    JOptionPane.INFORMATION_MESSAGE);
         }
     }
 
@@ -270,7 +267,7 @@ public final class PluginHandler {
     static final Collection<PluginProxy> pluginList = new LinkedList<>();
 
     /**
-     * All exceptions that occured during plugin loading
+     * All exceptions that occurred during plugin loading
      */
     static final Map<String, Throwable> pluginLoadingExceptions = new HashMap<>();
 
@@ -351,14 +348,12 @@ public final class PluginHandler {
             sb.append("</li>");
         }
         sb.append("</ul></html>");
-        if (!GraphicsEnvironment.isHeadless()) {
-            JOptionPane.showMessageDialog(
-                    parent,
-                    sb.toString(),
-                    tr("Warning"),
-                    JOptionPane.WARNING_MESSAGE
-            );
-        }
+        JOptionPane.showMessageDialog(
+                parent,
+                sb.toString(),
+                tr("Warning"),
+                JOptionPane.WARNING_MESSAGE
+        );
     }
 
     /**
@@ -1211,12 +1206,21 @@ public final class PluginHandler {
         return null;
     }
 
+    /**
+     * Called in the download dialog to give the plugins a chance to modify the list
+     * of bounding box selectors.
+     * @param downloadSelections list of bounding box selectors
+     */
     public static void addDownloadSelection(List<DownloadSelection> downloadSelections) {
         for (PluginProxy p : pluginList) {
             p.addDownloadSelection(downloadSelections);
         }
     }
 
+    /**
+     * Returns the list of plugin preference settings.
+     * @return the list of plugin preference settings
+     */
     public static Collection<PreferenceSettingFactory> getPreferenceSetting() {
         Collection<PreferenceSettingFactory> settings = new ArrayList<>();
         for (PluginProxy plugin : pluginList) {
@@ -1418,7 +1422,7 @@ public final class PluginHandler {
             stack.addAll(Arrays.asList(current.getStackTrace()));
             Throwable cause = current.getCause();
             if (cause != null && seen.contains(cause)) {
-                break; // circular refernce
+                break; // circular reference
             }
             current = cause;
         }

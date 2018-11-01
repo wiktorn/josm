@@ -22,6 +22,7 @@ import org.openstreetmap.josm.gui.PleaseWaitRunnable;
 import org.openstreetmap.josm.gui.io.CloseChangesetDialog;
 import org.openstreetmap.josm.gui.io.CloseChangesetTask;
 import org.openstreetmap.josm.io.ChangesetQuery;
+import org.openstreetmap.josm.io.ChangesetUpdater;
 import org.openstreetmap.josm.io.NetworkManager;
 import org.openstreetmap.josm.io.OnlineResource;
 import org.openstreetmap.josm.io.OsmServerChangesetReader;
@@ -61,6 +62,7 @@ public class CloseChangesetAction extends JosmAction {
     }
 
     protected void onPostDownloadOpenChangesets() {
+        ChangesetUpdater.check();
         List<Changeset> openChangesets = ChangesetCache.getInstance().getOpenChangesetsForCurrentUser();
         if (openChangesets.isEmpty()) {
             JOptionPane.showMessageDialog(
@@ -151,8 +153,8 @@ public class CloseChangesetAction extends JosmAction {
         }
 
         /**
-         * Returns the last exception that occured.
-         * @return the last exception that occured, or {@code null}
+         * Returns the last exception that occurred.
+         * @return the last exception that occurred, or {@code null}
          */
         public Exception getLastException() {
             return lastException;

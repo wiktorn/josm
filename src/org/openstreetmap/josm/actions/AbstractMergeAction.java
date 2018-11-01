@@ -4,11 +4,11 @@ package org.openstreetmap.josm.actions;
 import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.awt.Component;
-import java.awt.GraphicsEnvironment;
 import java.awt.GridBagLayout;
 import java.util.List;
 
 import javax.swing.DefaultListCellRenderer;
+import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JOptionPane;
@@ -40,6 +40,47 @@ public abstract class AbstractMergeAction extends JosmAction {
             label.setIcon(layer.getIcon());
             label.setToolTipText(layer.getToolTipText());
             return label;
+        }
+    }
+
+    /**
+     * <code>TargetLayerDialogResult</code> returned by {@link #askTargetLayer(List, String, boolean)}
+     * containing the selectedTargetLayer and whether the checkbox is ticked
+     * @param <T> type of layer
+     * @since 14338
+     */
+    public static class TargetLayerDialogResult<T extends Layer> {
+        /**
+         * The selected target layer of type T
+         */
+        public T selectedTargetLayer;
+        /**
+         * Whether the checkbox is ticked
+         */
+        public boolean checkboxTicked;
+
+        /**
+         * Constructs a new {@link TargetLayerDialogResult}
+         */
+        public TargetLayerDialogResult() {
+        }
+
+        /**
+         * Constructs a new {@link TargetLayerDialogResult}
+         * @param sel the selected target layer of type T
+         */
+        public TargetLayerDialogResult(T sel) {
+            selectedTargetLayer = sel;
+        }
+
+        /**
+         * Constructs a new {@link TargetLayerDialogResult}
+         * @param sel the selected target layer of type T
+         * @param ch whether the checkbox was ticked
+         */
+        public TargetLayerDialogResult(T sel, boolean ch) {
+            selectedTargetLayer = sel;
+            checkboxTicked = ch;
         }
     }
 
@@ -84,24 +125,67 @@ public abstract class AbstractMergeAction extends JosmAction {
      * @return the chosen layer
      */
     protected static Layer askTargetLayer(List<Layer> targetLayers) {
-        return askTargetLayer(targetLayers.toArray(new Layer[0]),
-                tr("Please select the target layer."),
-                tr("Select target layer"),
-                tr("Merge"), "dialogs/mergedown");
+        return askTargetLayer(targetLayers, false, null, false).selectedTargetLayer;
     }
 
     /**
-     * Asks a target layer.
+     * Ask user to choose the target layer and shows a checkbox.
+     * @param targetLayers list of candidate target layers.
+     * @param checkbox The text of the checkbox shown to the user.
+     * @param checkboxDefault whether the checkbox is ticked by default
+     * @return The {@link TargetLayerDialogResult} containing the chosen target layer and the state of the checkbox
+     */
+    protected static TargetLayerDialogResult<Layer> askTargetLayer(List<Layer> targetLayers, String checkbox, boolean checkboxDefault) {
+        return askTargetLayer(targetLayers, true, checkbox, checkboxDefault);
+    }
+
+    /**
+     * Ask user to choose the target layer and shows a checkbox.
+     * @param targetLayers list of candidate target layers.
+     * @param showCheckbox whether the checkbox is shown
+     * @param checkbox The text of the checkbox shown to the user.
+     * @param checkboxDefault whether the checkbox is ticked by default
+     * @return The {@link TargetLayerDialogResult} containing the chosen target layer and the state of the checkbox
+     */
+    protected static TargetLayerDialogResult<Layer> askTargetLayer(List<Layer> targetLayers, boolean showCheckbox,
+            String checkbox, boolean checkboxDefault) {
+        return askTargetLayer(targetLayers.toArray(new Layer[0]),
+                tr("Please select the target layer."), checkbox,
+                tr("Select target layer"),
+                tr("Merge"), "dialogs/mergedown", showCheckbox, checkboxDefault);
+    }
+
+    /**
+     * Ask user to choose the target layer.
      * @param <T> type of layer
      * @param targetLayers array of proposed target layers
      * @param label label displayed in dialog
      * @param title title of dialog
      * @param buttonText text of button used to select target layer
      * @param buttonIcon icon name of button used to select target layer
-     * @return choosen target layer
+     * @return chosen target layer
+     */
+    public static <T extends Layer> T askTargetLayer(T[] targetLayers, String label, String title, String buttonText, String buttonIcon) {
+        return askTargetLayer(targetLayers, label, null, title, buttonText, buttonIcon, false, false).selectedTargetLayer;
+    }
+
+    /**
+     * Ask user to choose the target layer. Can show a checkbox.
+     * @param <T> type of layer
+     * @param targetLayers array of proposed target layers
+     * @param label label displayed in dialog
+     * @param checkbox text of the checkbox displayed
+     * @param title title of dialog
+     * @param buttonText text of button used to select target layer
+     * @param buttonIcon icon name of button used to select target layer
+     * @param showCheckbox whether the checkbox is shown
+     * @param checkboxDefault whether the checkbox is ticked by default
+     * @return The {@link TargetLayerDialogResult} containing the chosen target layer and the state of the checkbox
+     * @since 14338
      */
     @SuppressWarnings("unchecked")
-    public static <T extends Layer> T askTargetLayer(T[] targetLayers, String label, String title, String buttonText, String buttonIcon) {
+    public static <T extends Layer> TargetLayerDialogResult<T> askTargetLayer(T[] targetLayers, String label, String checkbox, String title,
+            String buttonText, String buttonIcon, boolean showCheckbox, boolean checkboxDefault) {
         JosmComboBox<T> layerList = new JosmComboBox<>(targetLayers);
         layerList.setRenderer(new LayerListCellRenderer());
         layerList.setSelectedIndex(0);
@@ -109,18 +193,22 @@ public abstract class AbstractMergeAction extends JosmAction {
         JPanel pnl = new JPanel(new GridBagLayout());
         pnl.add(new JLabel(label), GBC.eol());
         pnl.add(layerList, GBC.eol().fill(GBC.HORIZONTAL));
-        if (GraphicsEnvironment.isHeadless()) {
-            // return first layer in headless mode, for unit tests
-            return targetLayers[0];
+
+        JCheckBox cb = null;
+        if (showCheckbox) {
+            cb = new JCheckBox(checkbox);
+            cb.setSelected(checkboxDefault);
+            pnl.add(cb, GBC.eol());
         }
+
         ExtendedDialog ed = new ExtendedDialog(MainApplication.getMainFrame(), title, buttonText, tr("Cancel"));
         ed.setButtonIcons(buttonIcon, "cancel");
         ed.setContent(pnl);
         ed.showDialog();
         if (ed.getValue() != 1) {
-            return null;
+            return new TargetLayerDialogResult<>();
         }
-        return (T) layerList.getSelectedItem();
+        return new TargetLayerDialogResult<>((T) layerList.getSelectedItem(), cb != null && cb.isSelected());
     }
 
     /**
@@ -130,8 +218,6 @@ public abstract class AbstractMergeAction extends JosmAction {
     protected void warnNoTargetLayersForSourceLayer(Layer sourceLayer) {
         String message = tr("<html>There are no layers the source layer<br>''{0}''<br>could be merged to.</html>",
                 Utils.escapeReservedCharactersHTML(sourceLayer.getName()));
-        if (!GraphicsEnvironment.isHeadless()) {
-            JOptionPane.showMessageDialog(MainApplication.getMainFrame(), message, tr("No target layers"), JOptionPane.WARNING_MESSAGE);
-        }
+        JOptionPane.showMessageDialog(MainApplication.getMainFrame(), message, tr("No target layers"), JOptionPane.WARNING_MESSAGE);
     }
 }

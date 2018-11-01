@@ -22,7 +22,7 @@ public final class KeyboardUtils {
 
     private static final Map<Integer, Integer> regularKeyCodesMap = new LinkedHashMap<>();
     static {
-        // http://hg.openjdk.java.net/jdk/jdk/file/fa2f93f99dbc/src/java.desktop/share/classes/sun/awt/ExtendedKeyCodes.java#l67
+        // https://hg.openjdk.java.net/jdk/jdk/file/fa2f93f99dbc/src/java.desktop/share/classes/sun/awt/ExtendedKeyCodes.java#l67
         regularKeyCodesMap.put(0x08, KeyEvent.VK_BACK_SPACE);
         regularKeyCodesMap.put(0x09, KeyEvent.VK_TAB);
         regularKeyCodesMap.put(0x0a, KeyEvent.VK_ENTER);
@@ -182,6 +182,10 @@ public final class KeyboardUtils {
                 }
                 // BÉPO, https://en.wikipedia.org/wiki/Keyboard_layout#B%C3%89PO
                 result.add('$');
+                if (PlatformManager.isPlatformUnixoid()) {
+                    // X11 fr-latin9
+                    result.add('œ');
+                }
                 break;
             case "sq": // Albanian
             case "it": // Italian
@@ -200,6 +204,7 @@ public final class KeyboardUtils {
             case "de": // German
                 // https://en.wikipedia.org/wiki/German_keyboard_layout
                 result.add((char) KeyEvent.VK_DEAD_CIRCUMFLEX);
+                result.add('ˆ'); // U+02C6 : dead/modifier circumflex
                 break;
             case "cs": // Czech
             case "he": // Hebrew
@@ -235,6 +240,7 @@ public final class KeyboardUtils {
             case "et": // Estonian
                 // https://en.wikipedia.org/wiki/QWERTY#Estonian
                 result.add((char) KeyEvent.VK_DEAD_CARON); // https://en.wikipedia.org/wiki/Caron
+                result.add('ˇ'); // U+02C7 : dead key/modifier
                 break;
             case "is": // Icelandic
                 // https://en.wikipedia.org/wiki/Icelandic_keyboard_layout
@@ -296,8 +302,9 @@ public final class KeyboardUtils {
 
             // Add default US QWERTY keys, https://en.wikipedia.org/wiki/QWERTY
             // Works also for Dvorak, https://en.wikipedia.org/wiki/Dvorak_Simplified_Keyboard
-            result.add('`'); // On US QWERTY, this is not a dead key
-            result.add((char) KeyEvent.VK_DEAD_GRAVE); // On International QWERTY, this is a dead key
+            result.add('`'); // U+0060: On US QWERTY, this is not a dead key
+            result.add((char) KeyEvent.VK_DEAD_GRAVE);
+            result.add('ˋ'); // U+02CB: On International QWERTY, this is a dead key
             return result;
         }
         throw new UnsupportedOperationException();
@@ -310,7 +317,7 @@ public final class KeyboardUtils {
      */
     public static Map<Integer, Character> getExtendedKeyCodes(Locale locale) {
         // Last update: 2017-09-12
-        // http://hg.openjdk.java.net/jdk/jdk/file/fa2f93f99dbc/src/java.desktop/share/classes/sun/awt/ExtendedKeyCodes.java#l166
+        // https://hg.openjdk.java.net/jdk/jdk/file/fa2f93f99dbc/src/java.desktop/share/classes/sun/awt/ExtendedKeyCodes.java#l166
         // Characters found at least on one keyboard layout
         Map<Integer, Character> map = new LinkedHashMap<>();
         // Add latin characters and symbols for everyone
