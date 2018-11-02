@@ -44,14 +44,14 @@ public class UploadSelectionAction extends JosmAction {
      */
     public UploadSelectionAction() {
         super(
-                tr("Upload selection"),
+                tr("Upload selection..."),
                 "uploadselection",
                 tr("Upload all changes in the current selection to the OSM server."),
                 // CHECKSTYLE.OFF: LineLength
                 Shortcut.registerShortcut("file:uploadSelection", tr("File: {0}", tr("Upload selection")), KeyEvent.VK_U, Shortcut.ALT_CTRL_SHIFT),
                 // CHECKSTYLE.ON: LineLength
                 true);
-        putValue("help", ht("/Action/UploadSelection"));
+        setHelpId(ht("/Action/UploadSelection"));
     }
 
     @Override

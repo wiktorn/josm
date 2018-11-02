@@ -4,6 +4,7 @@ package org.openstreetmap.josm.actions.downloadtasks;
 import static org.openstreetmap.josm.tools.I18n.tr;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,6 +42,7 @@ import org.openstreetmap.josm.io.OsmServerLocationReader.OsmUrlPattern;
 import org.openstreetmap.josm.io.OsmServerReader;
 import org.openstreetmap.josm.io.OsmTransferCanceledException;
 import org.openstreetmap.josm.io.OsmTransferException;
+import org.openstreetmap.josm.io.OverpassDownloadReader;
 import org.openstreetmap.josm.tools.Logging;
 import org.openstreetmap.josm.tools.Utils;
 import org.xml.sax.SAXException;
@@ -58,6 +60,8 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
 
     /** This allows subclasses to ignore this warning */
     protected boolean warnAboutEmptyArea = true;
+
+    protected static final String OVERPASS_INTERPRETER_DATA = "interpreter?data=";
 
     @Override
     public String[] getPatterns() {
@@ -148,13 +152,29 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
     @Override
     public Future<?> loadUrl(DownloadParams settings, String url, ProgressMonitor progressMonitor) {
         String newUrl = modifyUrlBeforeLoad(url);
-        downloadTask = new DownloadTask(settings,
-                new OsmServerLocationReader(newUrl),
-                progressMonitor);
+        downloadTask = new DownloadTask(settings, getOsmServerReader(newUrl), progressMonitor);
         currentBounds = null;
         // Extract .osm filename from URL to set the new layer name
         extractOsmFilename(settings, "https?://.*/(.*\\.osm)", newUrl);
         return MainApplication.worker.submit(downloadTask);
+    }
+
+    protected OsmServerReader getOsmServerReader(String url) {
+        try {
+            String host = new URL(url).getHost();
+            for (String knownOverpassServer : OverpassDownloadReader.OVERPASS_SERVER_HISTORY.get()) {
+                if (host.equals(new URL(knownOverpassServer).getHost())) {
+                    int index = url.indexOf(OVERPASS_INTERPRETER_DATA);
+                    if (index > 0) {
+                        return new OverpassDownloadReader(new Bounds(LatLon.ZERO), knownOverpassServer,
+                                Utils.decodeUrl(url.substring(index + OVERPASS_INTERPRETER_DATA.length())));
+                    }
+                }
+            }
+        } catch (MalformedURLException e) {
+            Logging.error(e);
+        }
+        return new OsmServerLocationReader(url);
     }
 
     protected final void extractOsmFilename(DownloadParams settings, String pattern, String url) {
@@ -179,7 +199,7 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
 
     @Override
     public ProjectionBounds getDownloadProjectionBounds() {
-        return downloadTask != null ? downloadTask.computeBbox(currentBounds) : null;
+        return downloadTask != null ? downloadTask.computeBbox(currentBounds).orElse(null) : null;
     }
 
     /**
@@ -325,14 +345,14 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
             return createNewLayer(Optional.empty());
         }
 
-        protected ProjectionBounds computeBbox(Bounds bounds) {
+        protected Optional<ProjectionBounds> computeBbox(Bounds bounds) {
             BoundingXYVisitor v = new BoundingXYVisitor();
             if (bounds != null) {
                 v.visit(bounds);
             } else {
                 v.computeBoundingBox(dataSet.getNodes());
             }
-            return v.getBounds();
+            return Optional.ofNullable(v.getBounds());
         }
 
         protected OsmDataLayer addNewLayerIfRequired(String newLayerName) {
@@ -357,8 +377,8 @@ public class DownloadOsmTask extends AbstractDownloadTask<DataSet> {
                 Collection<OsmPrimitive> primitivesToUpdate = searchPrimitivesToUpdate(bounds, layer.getDataSet());
                 layer.mergeFrom(dataSet);
                 MapFrame map = MainApplication.getMap();
-                if (map != null && zoomAfterDownload && bounds != null) {
-                    map.mapView.zoomTo(new ViewportData(computeBbox(bounds)));
+                if (map != null && zoomAfterDownload) {
+                    computeBbox(bounds).map(ViewportData::new).ifPresent(map.mapView::zoomTo);
                 }
                 if (!primitivesToUpdate.isEmpty()) {
                     MainApplication.worker.submit(new UpdatePrimitivesTask(layer, primitivesToUpdate));

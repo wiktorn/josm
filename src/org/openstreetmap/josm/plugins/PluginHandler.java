@@ -267,6 +267,11 @@ public final class PluginHandler {
     static final Collection<PluginProxy> pluginList = new LinkedList<>();
 
     /**
+     * All installed but not loaded plugins
+     */
+    static final Collection<PluginInformation> pluginListNotLoaded = new LinkedList<>();
+
+    /**
      * All exceptions that occurred during plugin loading
      */
     static final Map<String, Throwable> pluginLoadingExceptions = new HashMap<>();
@@ -606,6 +611,13 @@ public final class PluginHandler {
         });
     }
 
+    private static void logWrongPlatform(String plugin, String pluginPlatform) {
+        Logging.warn(
+                tr("Plugin {0} must be run on a {1} platform.",
+                        plugin, pluginPlatform
+                ));
+    }
+
     private static void logJavaUpdateRequired(String plugin, int requiredVersion) {
         Logging.warn(
                 tr("Plugin {0} requires Java version {1}. The current Java version is {2}. "
@@ -639,9 +651,16 @@ public final class PluginHandler {
      */
     public static boolean checkLoadPreconditions(Component parent, Collection<PluginInformation> plugins, PluginInformation plugin) {
 
+        // make sure the plugin is not meant for another platform
+        if (!plugin.isForCurrentPlatform()) {
+            // Just log a warning, this is unlikely to happen as we display only relevant plugins in HMI
+            logWrongPlatform(plugin.name, plugin.platform);
+            return false;
+        }
+
         // make sure the plugin is compatible with the current Java version
         if (plugin.localminjavaversion > Utils.getJavaVersion()) {
-            // Just log a warning until we switch to Java 11 so that openjfx plugin does not trigger a popup
+            // Just log a warning until we switch to Java 11 so that javafx plugin does not trigger a popup
             logJavaUpdateRequired(plugin.name, plugin.localminjavaversion);
             return false;
         }
@@ -659,6 +678,9 @@ public final class PluginHandler {
             allPlugins.add(proxy.getPluginInformation());
         }
 
+        // Include plugins that have been processed but not been loaded (for javafx plugin)
+        allPlugins.addAll(pluginListNotLoaded);
+
         return checkRequiredPluginsPreconditions(parent, allPlugins, plugin, true);
     }
 
@@ -668,7 +690,7 @@ public final class PluginHandler {
      *
      * @param parent The parent Component used to display error popup. If parent is
      * null, the error popup is suppressed
-     * @param plugins the collection of all loaded plugins
+     * @param plugins the collection of all processed plugins
      * @param plugin the plugin for which preconditions are checked
      * @param local Determines if the local or up-to-date plugin dependencies are to be checked.
      * @return true, if the preconditions are met; false otherwise
@@ -685,6 +707,9 @@ public final class PluginHandler {
             Set<String> pluginNames = new HashSet<>();
             for (PluginInformation pi: plugins) {
                 pluginNames.add(pi.name);
+                if (pi.provides != null) {
+                    pluginNames.add(pi.provides);
+                }
             }
             Set<String> missingPlugins = new HashSet<>();
             List<String> requiredPlugins = local ? plugin.getLocalRequiredPlugins() : plugin.getRequiredPlugins();
@@ -797,6 +822,8 @@ public final class PluginHandler {
             for (PluginInformation pi: plugins) {
                 if (checkLoadPreconditions(parent, plugins, pi)) {
                     toLoad.add(pi);
+                } else {
+                    pluginListNotLoaded.add(pi);
                 }
             }
             // sort the plugins according to their "staging" equivalence class. The
@@ -822,13 +849,13 @@ public final class PluginHandler {
                 DEPENDENCIES:
                 for (String depName : info.getLocalRequiredPlugins()) {
                     for (PluginInformation depInfo : toLoad) {
-                        if (depInfo.getName().equals(depName)) {
+                        if (isDependency(depInfo, depName)) {
                             cl.addDependency(classLoaders.get(depInfo));
                             continue DEPENDENCIES;
                         }
                     }
                     for (PluginProxy proxy : pluginList) {
-                        if (proxy.getPluginInformation().getName().equals(depName)) {
+                        if (isDependency(proxy.getPluginInformation(), depName)) {
                             cl.addDependency(proxy.getClassLoader());
                             continue DEPENDENCIES;
                         }
@@ -848,6 +875,10 @@ public final class PluginHandler {
         } finally {
             monitor.finishTask();
         }
+    }
+
+    private static boolean isDependency(PluginInformation pi, String depName) {
+        return depName.equals(pi.getName()) || depName.equals(pi.provides);
     }
 
     /**

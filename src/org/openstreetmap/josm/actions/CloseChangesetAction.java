@@ -43,7 +43,7 @@ public class CloseChangesetAction extends JosmAction {
      * Constructs a new {@code CloseChangesetAction}.
      */
     public CloseChangesetAction() {
-        super(tr("Close open changesets"),
+        super(tr("Close open changesets..."),
             "closechangeset",
             tr("Close open changesets"),
             Shortcut.registerShortcut("system:closechangeset",
@@ -51,7 +51,7 @@ public class CloseChangesetAction extends JosmAction {
                 KeyEvent.VK_Q, Shortcut.ALT_CTRL),
             true
         );
-        putValue("help", ht("/Action/CloseChangeset"));
+        setHelpId(ht("/Action/CloseChangeset"));
         setEnabled(!NetworkManager.isOffline(OnlineResource.OSM_API));
 
     }
