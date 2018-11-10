@@ -638,7 +638,7 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
         // add 10% for tiles from different zoom levels
         int ret = (int) Math.ceil(
                 Math.pow(2d, ZOOM_OFFSET.get()) * visibileTiles // use offset to decide, how many tiles are visible
-                * 4);
+                * 5);
         Logging.info("AbstractTileSourceLayer: estimated visible tiles: {0}, estimated cache size: {1}", visibileTiles, ret);
         return ret;
     }
@@ -1505,6 +1505,12 @@ implements ImageObserver, TileLoaderListener, ZoomChangeListener, FilterChangeLi
                 }
             }
             // Do binary search between currentZoomLevel and displayZoomLevel
+            // currentZoomLevel is desired zoom level of tiles. Display Zoom Level is highest with visibile tiles
+            // try to download something between them so we will end up with:
+            // * no tiles at guessed zoom level
+            // * tiles at the guessed zoom level
+            // If it's the first one, this means, that we need to try to load tiles at lower zoom level
+            // If it's the second case, this will be displayZoomlevel at next call and we will look further for next zoom level
             while (zoom > displayZoomLevel && !ts0.hasVisibleTiles() && ts0.hasOverzoomedTiles()) {
                 zoom = (zoom + displayZoomLevel)/2;
 //                zoom--;
